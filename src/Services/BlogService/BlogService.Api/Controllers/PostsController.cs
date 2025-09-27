@@ -1,25 +1,31 @@
-﻿using BlogService.Application.DTOs;
-using BlogService.Application.DTOs.PostDtos;
+﻿using BlogService.Application.DTOs.PostDtos;
 using BlogService.Application.Interfaces;
+using BlogService.Api.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace BlogService.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize] 
-public class PostsController(IPostService _postService) : ControllerBase
+[Authorize]
+public class PostsController : ControllerBase
 {
+    private readonly IPostService _postService;
+
+    public PostsController(IPostService postService)
+    {
+        _postService = postService;
+    }
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreatePostDto dto)
     {
-        var authorId = Guid.Parse(User.FindFirstValue("sub")!);
-        var postId = await _postService.CreatePostAsync(dto, authorId);
+        var authorId = User.GetUserId();
+        if (authorId == null) return Unauthorized("UserId claim bulunamadı");
 
-        return CreatedAtAction(nameof(GetById), new { id = postId }, new { PostId = postId });
+        var postId = await _postService.CreatePostAsync(dto, authorId.Value);
+        return Ok(new { PostId = postId });
     }
 
     [HttpGet("{id}")]
@@ -40,18 +46,22 @@ public class PostsController(IPostService _postService) : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] CreatePostDto dto)
     {
-        var authorId = Guid.Parse(User.FindFirstValue("sub")!);
-        var success = await _postService.UpdatePostAsync(id, dto, authorId);
-        if (!success) return Unauthorized();
+        var authorId = User.GetUserId();
+        if (authorId == null) return Unauthorized("UserId claim bulunamadı");
+
+        var success = await _postService.UpdatePostAsync(id, dto, authorId.Value);
+        if (!success) return Forbid();
         return NoContent();
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var authorId = Guid.Parse(User.FindFirstValue("sub")!);
-        var success = await _postService.DeletePostAsync(id, authorId);
-        if (!success) return Unauthorized();
+        var authorId = User.GetUserId();
+        if (authorId == null) return Unauthorized("UserId claim bulunamadı");
+
+        var success = await _postService.DeletePostAsync(id, authorId.Value);
+        if (!success) return Forbid();
         return NoContent();
     }
 }
