@@ -29,15 +29,24 @@ public static class IdsConfig
     // Başlangıç: Resource Owner Password + Swagger/Postman için client
     public static IEnumerable<Client> Clients => new[]
     {
-        new Client
+       new Client
         {
             ClientId = "blinkr.ro.client",
             AllowedGrantTypes = GrantTypes.ResourceOwnerPassword,
             ClientSecrets = { new Secret("super_secret".Sha256()) },
-            AllowedScopes = { "openid", "profile", "roles", "blinkr.api.read", "blinkr.api.write" },
+            AllowedScopes =
+            {
+                "openid",
+                "profile",
+                "roles",
+                "blinkr.api.read",
+                "blinkr.api.write",
+                "offline_access"   
+            },
             AccessTokenLifetime = 3600,
-            AllowOfflineAccess = true // refresh token
+            AllowOfflineAccess = true
         },
+
 
         // İleride mobil/web için (PKCE)
         new Client
