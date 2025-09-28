@@ -1,27 +1,63 @@
 using BlogService.Application.Interfaces;
 using BlogService.Infrastructure.Extensions;
 using BlogService.Infrastructure.Services;
+using BlogService.Api.Middlewares;
+using BlogService.Api.Extensions;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.IdentityModel.Tokens.Jwt;
-
+using Serilog;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
+// ---------- Serilog ----------
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)   // appsettings*.json okur
+    .WriteTo.Console()
+    .CreateLogger();
 
-// Swagger + JWT
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo
+builder.Host.UseSerilog();
+
+// ---------- Controllers + FluentValidation ----------
+builder.Services.AddControllers()
+    .AddJsonOptions(o =>
     {
-        Title = "BlogService.Api",
-        Version = "v1"
+        o.JsonSerializerOptions.PropertyNamingPolicy = null;
     });
 
-    // JWT için Security Definition
+// FluentValidation: Application assembly içindeki validator’larý tara
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<BlogService.Application.Validators.Post.CreatePostDtoValidator>();
+
+// ModelState (400) çýktýsýný tek tip yapmak istersen:
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = ctx =>
+    {
+        var errors = ctx.ModelState
+            .Where(x => x.Value?.Errors.Count > 0)
+            .ToDictionary(
+                k => k.Key,
+                v => v.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
+            );
+
+        return new BadRequestObjectResult(new
+        {
+            message = "Validation failed",
+            errors
+        });
+    };
+});
+
+// ---------- Swagger + JWT ----------
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "BlogService.Api", Version = "v1" });
+
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         In = ParameterLocation.Header,
@@ -31,29 +67,27 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "Bearer"
     });
 
-    // Tüm endpointler için JWT zorunluluðu
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
+            new OpenApiSecurityScheme{
+                Reference = new OpenApiReference{
                     Type = ReferenceType.SecurityScheme,
                     Id = "Bearer"
                 }
             },
-            new string[] {}
+            Array.Empty<string>()
         }
     });
 });
 
-// Infrastructure (DbContext, Repositories)
+// ---------- Infrastructure (DbContext, Repos) ----------
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// DI: Application <-> Infrastructure
+// ---------- DI ----------
 builder.Services.AddScoped<IPostService, PostService>();
 
+// ---------- AuthN / AuthZ ----------
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 builder.Services.AddAuthentication("Bearer")
@@ -69,23 +103,32 @@ builder.Services.AddAuthentication("Bearer")
         };
     });
 
-
 builder.Services.AddAuthorization();
 
+builder.Host.UseSerilog((ctx, lc) => lc
+    .ReadFrom.Configuration(ctx.Configuration)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.Seq("http://localhost:5341"));
+
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
+
+// ---------- Middleware Pipeline ----------
+app.UseSerilogRequestLogging();     // request loglarý
 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "BlogService.Api v1");
-    });
+    app.UseSwaggerUI();
 }
+
+app.UseGlobalException();           
 
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.MapHealthChecks("/health");
 app.MapControllers();
 
 app.Run();

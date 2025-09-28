@@ -2,6 +2,7 @@ using IdentityService.Application.Interfaces;
 using IdentityService.Infrastructure.Data;
 using IdentityService.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +40,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 builder.Services.AddHttpClient();
+
 // PostgreSQL DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -57,6 +59,16 @@ builder.Services.AddAuthentication("Bearer")
 
 builder.Services.AddAuthorization();
 
+builder.Logging.ClearProviders();
+// HealthChecks (burada ekle)
+builder.Services.AddHealthChecks();
+
+builder.Host.UseSerilog((ctx, lc) => lc
+    .ReadFrom.Configuration(ctx.Configuration)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.Seq("http://localhost:5341"));
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -70,4 +82,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Health endpoint burada maplenmeli
+app.MapHealthChecks("/health");
+
 app.Run();
