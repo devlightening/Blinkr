@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace IdentityService.Domain.Entities
+﻿namespace IdentityService.Domain.Entities
 {
     public class User   
     {
@@ -13,5 +7,6 @@ namespace IdentityService.Domain.Entities
         public string Email { get; set; } = null!;
         public string PasswordHash { get; set; } = null!;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public string Role { get; set; } = "User";
     }
 }

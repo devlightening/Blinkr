@@ -1,5 +1,6 @@
 using Duende.IdentityServer;
 using IdentityServerService.Auth;
+using IdentityService.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 

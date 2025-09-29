@@ -5,6 +5,7 @@ using BlogService.Api.Middlewares;
 using BlogService.Api.Extensions;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using System.Security.Claims;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.IdentityModel.Tokens.Jwt;
@@ -99,7 +100,7 @@ builder.Services.AddAuthentication("Bearer")
         options.TokenValidationParameters = new TokenValidationParameters
         {
             NameClaimType = "name",
-            RoleClaimType = "role"
+            RoleClaimType = ClaimTypes.Role
         };
     });
 

@@ -1,9 +1,4 @@
 ﻿using BlogService.Application.DTOs.PostDtos;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BlogService.Application.Interfaces
 {
@@ -14,5 +9,7 @@ namespace BlogService.Application.Interfaces
         Task<IEnumerable<PostResponseDto>> GetAllPostsAsync();
         Task<bool> UpdatePostAsync(Guid id, CreatePostDto dto, Guid authorId);
         Task<bool> DeletePostAsync(Guid id, Guid authorId);
+
+        Task<bool> DeletePostAsAdminAsync(Guid id); 
     }
 }

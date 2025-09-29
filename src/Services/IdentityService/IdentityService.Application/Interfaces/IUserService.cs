@@ -1,9 +1,10 @@
 ﻿using IdentityService.Application.DTOs;
 
-namespace IdentityService.Application.Interfaces;
-
-public interface IUserService
+namespace IdentityService.Application.Interfaces
 {
-    Task<Guid> RegisterAsync(RegisterUserDto dto);
-    Task<string> LoginAsync(string email, string password);
+    public interface IUserService
+    {
+        Task<AuthResponse?> RegisterAsync(RegisterRequest request);
+        Task<AuthResponse?> LoginAsync(LoginRequest request);
+    }
 }

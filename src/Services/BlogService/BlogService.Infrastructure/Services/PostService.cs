@@ -1,5 +1,4 @@
-﻿using BlogService.Application.DTOs;
-using BlogService.Application.DTOs.PostDtos;
+﻿using BlogService.Application.DTOs.PostDtos;
 using BlogService.Application.Interfaces;
 using BlogService.Domain.Entities;
 using BlogService.Infrastructure.Data;
@@ -76,6 +75,16 @@ public class PostService : IPostService
     {
         var post = await _db.Posts.FirstOrDefaultAsync(p => p.Id == id && p.AuthorId == authorId);
         if (post == null) return false;
+
+        _db.Posts.Remove(post);
+        await _db.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> DeletePostAsAdminAsync(Guid id)
+    {
+        var post = await _db.Posts.FindAsync(id);
+        if (post is null) return false;
 
         _db.Posts.Remove(post);
         await _db.SaveChangesAsync();

@@ -1,33 +1,36 @@
-﻿using BlogService.Application.DTOs.PostDtos;
+﻿using BlogService.Api.Extensions;
+using BlogService.Application.DTOs.PostDtos;
 using BlogService.Application.Interfaces;
-using BlogService.Api.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-
-namespace BlogService.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class PostsController(IPostService _postService) : ControllerBase
+public class PostsController : ControllerBase
 {
-   
+    private readonly IPostService _postService;
+    private readonly ILogger<PostsController> _logger;
+
+    public PostsController(IPostService postService, ILogger<PostsController> logger)
+    {
+        _postService = postService;
+        _logger = logger;
+    }
+
     [HttpPost]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Create([FromBody] CreatePostDto dto)
     {
         var authorId = User.GetUserId();
         if (authorId is null) return Unauthorized(new { message = "UserId claim bulunamadı" });
 
         var postId = await _postService.CreatePostAsync(dto, authorId.Value);
+        _logger.LogInformation("Post {PostId} created by User {UserId}", postId, authorId);
         return Ok(new { PostId = postId });
     }
 
     [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof(PostResponseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [AllowAnonymous] // herkes görebilir
     public async Task<IActionResult> GetById(Guid id)
     {
         var post = await _postService.GetPostByIdAsync(id);
@@ -36,7 +39,7 @@ public class PostsController(IPostService _postService) : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<PostResponseDto>), StatusCodes.Status200OK)]
+    [AllowAnonymous] // herkes görebilir
     public async Task<IActionResult> GetAll()
     {
         var posts = await _postService.GetAllPostsAsync();
@@ -44,13 +47,14 @@ public class PostsController(IPostService _postService) : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Update(Guid id, [FromBody] CreatePostDto dto)
     {
         var authorId = User.GetUserId();
         if (authorId is null) return Unauthorized(new { message = "UserId claim bulunamadı" });
+
+        // Admin update edemez
+        if (User.IsInRole("Admin"))
+            return Forbid();
 
         var ok = await _postService.UpdatePostAsync(id, dto, authorId.Value);
         if (!ok) return Forbid();
@@ -58,16 +62,22 @@ public class PostsController(IPostService _postService) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Delete(Guid id)
     {
         var authorId = User.GetUserId();
         if (authorId is null) return Unauthorized(new { message = "UserId claim bulunamadı" });
 
-        var ok = await _postService.DeletePostAsync(id, authorId.Value);
-        if (!ok) return Forbid();
+        // Admin tüm postları silebilir
+        if (User.IsInRole("Admin"))
+        {
+            var ok = await _postService.DeletePostAsAdminAsync(id);
+            if (!ok) return NotFound();
+            return NoContent();
+        }
+
+        // User sadece kendi postunu silebilir
+        var userOk = await _postService.DeletePostAsync(id, authorId.Value);
+        if (!userOk) return Forbid();
         return NoContent();
     }
 }

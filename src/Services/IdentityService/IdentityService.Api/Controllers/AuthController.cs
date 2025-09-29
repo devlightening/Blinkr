@@ -1,53 +1,34 @@
-﻿using IdentityModel.Client;
-using IdentityService.Application.DTOs;
+﻿using IdentityService.Application.DTOs;
 using IdentityService.Application.Interfaces;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IdentityService.Api.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
-    public class AuthController(IUserService _userService, IHttpClientFactory _httpClientFactory) : ControllerBase
+    [Route("api/[controller]")]
+    public class AuthController : ControllerBase
     {
+        private readonly IUserService _userService;
 
-        [HttpPost]
-        public async Task<IActionResult> Register([FromBody] RegisterUserDto dto)
+        public AuthController(IUserService userService)
         {
-            var userId = await _userService.RegisterAsync(dto);
-            return Ok(new { UserId = userId });
+            _userService = userService;
         }
 
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+        {
+            var response = await _userService.RegisterAsync(request);
+            if (response == null) return BadRequest("User already exists.");
+            return Ok(response);
+        }
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest dto)
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var client = _httpClientFactory.CreateClient();
-
-            var disco = await client.GetDiscoveryDocumentAsync("https://localhost:7122");
-            if (disco.IsError)
-                return BadRequest(disco.Error);
-
-            var tokenResponse = await client.RequestPasswordTokenAsync(new PasswordTokenRequest
-            {
-                Address = disco.TokenEndpoint,
-                ClientId = "blinkr.ro.client",
-                ClientSecret = "super_secret",
-                UserName = dto.UserName,
-                Password = dto.Password,
-                Scope = "openid profile roles blinkr.api.read blinkr.api.write offline_access"
-            });
-
-            if (tokenResponse.IsError)
-                return BadRequest(tokenResponse.Error);
-
-            return Ok(new
-            {
-                access_token = tokenResponse.AccessToken,
-                refresh_token = tokenResponse.RefreshToken,
-                expires_in = tokenResponse.ExpiresIn
-            });
+            var response = await _userService.LoginAsync(request);
+            if (response == null) return Unauthorized("Invalid credentials.");
+            return Ok(response);
         }
     }
-
 }

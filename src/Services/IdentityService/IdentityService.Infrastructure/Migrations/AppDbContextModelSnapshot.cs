@@ -39,6 +39,10 @@ namespace IdentityService.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("UserName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -46,6 +50,17 @@ namespace IdentityService.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
+                            CreatedAt = new DateTime(2025, 9, 29, 9, 53, 16, 685, DateTimeKind.Utc).AddTicks(5696),
+                            Email = "admin@blinkr.com",
+                            PasswordHash = "$2a$11$nPfgoWSL9NJ3nsWKUAt/yulutF4C3RjJL0Hu2DvATc2oWveTSuISS",
+                            Role = "Admin",
+                            UserName = "admin"
+                        });
                 });
 #pragma warning restore 612, 618
         }
