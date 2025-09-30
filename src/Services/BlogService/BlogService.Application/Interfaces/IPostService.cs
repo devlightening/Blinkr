@@ -11,5 +11,6 @@ namespace BlogService.Application.Interfaces
         Task<bool> DeletePostAsync(Guid id, Guid authorId);
 
         Task<bool> DeletePostAsAdminAsync(Guid id); 
+
     }
 }

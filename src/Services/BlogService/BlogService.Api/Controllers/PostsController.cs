@@ -4,6 +4,8 @@ using BlogService.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+namespace BlogService.Api.Controllers;
+
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
@@ -22,7 +24,7 @@ public class PostsController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreatePostDto dto)
     {
         var authorId = User.GetUserId();
-        if (authorId is null) return Unauthorized(new { message = "UserId claim bulunamadı" });
+        if (authorId is null) return Unauthorized(new { message = "UserId claim not found" });
 
         var postId = await _postService.CreatePostAsync(dto, authorId.Value);
         _logger.LogInformation("Post {PostId} created by User {UserId}", postId, authorId);
@@ -30,6 +32,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetById(Guid id)
     {
         var post = await _postService.GetPostByIdAsync(id);
@@ -38,6 +41,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IActionResult> GetAll()
     {
         var posts = await _postService.GetAllPostsAsync();
@@ -48,13 +52,15 @@ public class PostsController : ControllerBase
     public async Task<IActionResult> Update(Guid id, [FromBody] CreatePostDto dto)
     {
         var authorId = User.GetUserId();
-        if (authorId is null) return Unauthorized(new { message = "UserId claim Not Found" });
+        if (authorId is null) return Unauthorized(new { message = "UserId claim not found" });
 
         if (User.IsInRole("Admin"))
-            return Forbid();
+        {
+            return Forbid("Admin users cannot update posts.");
+        }
 
-        var ok = await _postService.UpdatePostAsync(id, dto, authorId.Value);
-        if (!ok) return Forbid();
+        var userOk = await _postService.UpdatePostAsync(id, dto, authorId.Value);
+        if (!userOk) return Forbid();
         return NoContent();
     }
 
@@ -62,9 +68,8 @@ public class PostsController : ControllerBase
     public async Task<IActionResult> Delete(Guid id)
     {
         var authorId = User.GetUserId();
-        if (authorId is null) return Unauthorized(new { message = "UserId claim Not Found" });
+        if (authorId is null) return Unauthorized(new { message = "UserId claim not found" });
 
-        // Admin tüm postları silebilir
         if (User.IsInRole("Admin"))
         {
             var ok = await _postService.DeletePostAsAdminAsync(id);
@@ -72,7 +77,6 @@ public class PostsController : ControllerBase
             return NoContent();
         }
 
-        // User sadece kendi postunu silebilir
         var userOk = await _postService.DeletePostAsync(id, authorId.Value);
         if (!userOk) return Forbid();
         return NoContent();

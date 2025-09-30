@@ -3,6 +3,7 @@ using System;
 using IdentityService.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace IdentityService.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250930110813_mig_add_revisionPost_PostMedia_Enum_MediaType")]
+    partial class mig_add_revisionPost_PostMedia_Enum_MediaType
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -55,9 +58,9 @@ namespace IdentityService.Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            CreatedAt = new DateTime(2025, 9, 30, 11, 13, 43, 571, DateTimeKind.Utc).AddTicks(2552),
+                            CreatedAt = new DateTime(2025, 9, 30, 11, 8, 13, 361, DateTimeKind.Utc).AddTicks(7997),
                             Email = "admin@blinkr.com",
-                            PasswordHash = "$2a$11$fLRxFZPIQZw1FBvIdlihCuuQhnmo8IDRaGP6pS6tFSOzId/CvzYlu",
+                            PasswordHash = "$2a$11$bXsxwPq6QHPuNKwg5NaZl.A5pH5dvJBEp1WqBh.ypggNV3.crNZUC",
                             Role = "Admin",
                             UserName = "admin"
                         });

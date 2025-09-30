@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BlogService.Domain.Entities;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,6 +11,7 @@ namespace BlogService.Application.DTOs.PostDtos
     {
         public string Title { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
+        public ICollection<CreatePostMediaDto> Media { get; set; }
     }
 
 }
