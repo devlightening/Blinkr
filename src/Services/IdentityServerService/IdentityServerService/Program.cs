@@ -1,6 +1,8 @@
 using Duende.IdentityServer;
+using HealthChecks.UI.Client;
 using IdentityServerService.Auth;
 using IdentityService.Infrastructure.Data;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -13,7 +15,10 @@ builder.Host.UseSerilog((ctx, lc) => lc
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("IdentityDb")));
 
-// IdentityServer config
+// ---------- HealthChecks ----------
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>("IdentityServerService-Postgres");
+
 builder.Services.AddIdentityServer(options =>
 {
     options.EmitStaticAudienceClaim = true;
@@ -26,7 +31,6 @@ builder.Services.AddIdentityServer(options =>
     .AddInMemoryClients(IdsConfig.Clients)
     .AddProfileService<ProfileService>()
     .AddDeveloperSigningCredential();
-
 
 builder.Services.AddAuthorization();
 
@@ -42,9 +46,13 @@ app.UseRouting();
 
 app.UseIdentityServer();
 
-
 app.UseAuthorization();
 
-app.MapGet("/", () => "Blinkr IdentityServer running ");
+app.MapGet("/", () => "Blinkr IdentityServer running");
+
+app.UseHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
 
 app.Run();

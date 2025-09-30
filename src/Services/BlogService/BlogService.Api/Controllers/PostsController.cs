@@ -30,7 +30,6 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    [AllowAnonymous] // herkes görebilir
     public async Task<IActionResult> GetById(Guid id)
     {
         var post = await _postService.GetPostByIdAsync(id);
@@ -39,7 +38,6 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet]
-    [AllowAnonymous] // herkes görebilir
     public async Task<IActionResult> GetAll()
     {
         var posts = await _postService.GetAllPostsAsync();
@@ -50,9 +48,8 @@ public class PostsController : ControllerBase
     public async Task<IActionResult> Update(Guid id, [FromBody] CreatePostDto dto)
     {
         var authorId = User.GetUserId();
-        if (authorId is null) return Unauthorized(new { message = "UserId claim bulunamadı" });
+        if (authorId is null) return Unauthorized(new { message = "UserId claim Not Found" });
 
-        // Admin update edemez
         if (User.IsInRole("Admin"))
             return Forbid();
 
@@ -65,7 +62,7 @@ public class PostsController : ControllerBase
     public async Task<IActionResult> Delete(Guid id)
     {
         var authorId = User.GetUserId();
-        if (authorId is null) return Unauthorized(new { message = "UserId claim bulunamadı" });
+        if (authorId is null) return Unauthorized(new { message = "UserId claim Not Found" });
 
         // Admin tüm postları silebilir
         if (User.IsInRole("Admin"))

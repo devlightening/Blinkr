@@ -1,7 +1,10 @@
+using HealthChecks.UI.Client;
 using IdentityService.Application.Interfaces;
 using IdentityService.Infrastructure.Data;
 using IdentityService.Infrastructure.Services;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -59,10 +62,14 @@ builder.Services.AddAuthentication("Bearer")
 
 builder.Services.AddAuthorization();
 
-builder.Logging.ClearProviders();
-// HealthChecks (burada ekle)
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>(
+        "IdentityService-Postgres",
+        failureStatus: HealthStatus.Unhealthy,
+        tags: new[] { "db", "postgres" })
+    .AddRedis("localhost:6379", name: "Redis", tags: new[] { "cache" });
 
+// ---------- Logging ----------
 builder.Host.UseSerilog((ctx, lc) => lc
     .ReadFrom.Configuration(ctx.Configuration)
     .Enrich.FromLogContext()
@@ -83,7 +90,9 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Health endpoint burada maplenmeli
-app.MapHealthChecks("/health");
+app.UseHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
 
 app.Run();
