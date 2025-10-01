@@ -1,9 +1,6 @@
-using BlogService.Application.Interfaces;
 using BlogService.Infrastructure.Data;
 using BlogService.Infrastructure.Extensions;
 using BlogService.Infrastructure.Services;
-using BlogService.Api.Middlewares;
-using BlogService.Api.Extensions;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.IdentityModel.Tokens;
@@ -15,6 +12,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using System.Text.Json.Serialization;
+using BlogService.Application.Common.Interfaces;
+using BlogService.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,6 +34,7 @@ builder.Services.AddDbContext<BlogDbContext>(options =>
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
     {
+        o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
         o.JsonSerializerOptions.PropertyNamingPolicy = null;
     });
 
@@ -91,7 +92,8 @@ builder.Services.AddSwaggerGen(c =>
 
 // ---------- Infrastructure + Services ----------
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddScoped<IPostService, PostService>();
+builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+builder.Services.AddScoped<IPostRepository, PostRepository>();
 
 // ---------- AuthN / AuthZ ----------
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();

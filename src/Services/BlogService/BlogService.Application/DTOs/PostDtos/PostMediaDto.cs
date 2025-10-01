@@ -7,10 +7,10 @@ using System.Threading.Tasks;
 
 namespace BlogService.Application.DTOs.PostDtos
 {
-    public class PostMediaResponseDto
+    public class PostMediaDto
     {
         public Guid Id { get; set; }
-        public string Url { get; set; }
-        public MediaType MediaType { get; set; }
+        public string Url { get; set; } = string.Empty;
+        public MediaType Type { get; set; }
     }
 }

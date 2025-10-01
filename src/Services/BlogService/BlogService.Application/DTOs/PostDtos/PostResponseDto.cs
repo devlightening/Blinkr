@@ -9,11 +9,11 @@ namespace BlogService.Application.DTOs.PostDtos
     public class PostResponseDto
     {
         public Guid Id { get; set; }
-        public string Title { get; set; } = string.Empty;
-        public string Content { get; set; } = string.Empty;
+        public string? Title { get; set; }
+        public string? Content { get; set; }
         public Guid AuthorId { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
-        public ICollection<PostMediaResponseDto> Media { get; set; }
+        public List<PostMediaDto> Media { get; set; } = new();
     }
 }
