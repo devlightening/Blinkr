@@ -10,37 +10,23 @@ public class ExceptionMiddleware
 
     public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger)
     {
-        _next = next;
-        _logger = logger;
+        _next = next; _logger = logger;
     }
 
     public async Task InvokeAsync(HttpContext context)
     {
-        try
-        {
-            await _next(context);
-        }
+        try { await _next(context); }
         catch (Exception ex)
         {
-            // Logla
             _logger.LogError(ex, "Unhandled exception. TraceId: {TraceId}", context.TraceIdentifier);
-
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             context.Response.ContentType = "application/json";
-
-            var payload = new
+            await context.Response.WriteAsync(JsonSerializer.Serialize(new
             {
                 message = "An unexpected error occurred.",
-                detail = ex.Message,           // Development’ta kalsın, prod’da kapatılabilir
+                detail = ex.Message,
                 traceId = context.TraceIdentifier
-            };
-            await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+            }));
         }
     }
-}
-
-public static class ExceptionMiddlewareExtensions
-{
-    public static IApplicationBuilder UseGlobalException(this IApplicationBuilder app)
-        => app.UseMiddleware<ExceptionMiddleware>();
 }

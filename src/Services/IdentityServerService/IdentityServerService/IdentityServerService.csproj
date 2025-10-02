@@ -26,4 +26,8 @@
     <ProjectReference Include="..\..\IdentityService\IdentityService.Infrastructure\IdentityService.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="keys\" />
+  </ItemGroup>
+
 </Project>

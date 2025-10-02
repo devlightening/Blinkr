@@ -2,7 +2,6 @@
 using BlogService.Application.DTOs.PostDtos;
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommands;
 using BlogService.Application.Features.Mediatr.Queries.PostQueries;
-
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -29,9 +28,10 @@ public class PostsController : ControllerBase
         var authorId = User.GetUserId();
         if (authorId is null) return Unauthorized(new { message = "UserId claim not found" });
 
-        var postId = await _mediator.Send(new CreatePostCommand(dto.Title, dto.Content, authorId.Value, dto.Media));
-        _logger.LogInformation("Post {PostId} created by User {UserId}", postId, authorId);
+        var media = dto.Media?.Select(m => new MediaItem(m.Url, m.MediaType)).ToList() ?? new List<MediaItem>();
+        var postId = await _mediator.Send(new CreatePostCommand(dto.Title, dto.Content, authorId.Value, media));
 
+        _logger.LogInformation("Post {PostId} created by User {UserId}", postId, authorId);
         return Ok(new { PostId = postId });
     }
 
@@ -40,8 +40,7 @@ public class PostsController : ControllerBase
     public async Task<IActionResult> GetById(Guid id)
     {
         var post = await _mediator.Send(new GetPostByIdQuery(id));
-        if (post is null) return NotFound();
-        return Ok(post);
+        return post is null ? NotFound() : Ok(post);
     }
 
     [HttpGet]
@@ -59,26 +58,28 @@ public class PostsController : ControllerBase
         if (authorId is null) return Unauthorized(new { message = "UserId claim not found" });
 
         if (User.IsInRole("Admin"))
-        {
             return Forbid("Admin users cannot update posts.");
-        }
 
         var success = await _mediator.Send(new UpdatePostCommand(id, dto.Title, dto.Content, authorId.Value));
-        if (!success) return Forbid();
-
-        return NoContent();
+        return success ? NoContent() : Forbid();
     }
 
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Remove(Guid id)
     {
         var authorId = User.GetUserId();
         if (authorId is null) return Unauthorized(new { message = "UserId claim not found" });
 
-        var isAdmin = User.IsInRole("Admin");
-        var success = await _mediator.Send(new RemovePostCommand(id, authorId.Value, isAdmin));
+        var success = await _mediator.Send(new RemovePostCommand(id, authorId.Value, User.IsInRole("Admin")));
+        return success ? NoContent() : Forbid();
+    }
 
-        if (!success) return Forbid();
-        return NoContent();
+    [HttpGet("WhoAmI")]
+    public IActionResult WhoAmI()
+    {
+        var userId = User.GetUserId();
+        var userName = User.Claims.FirstOrDefault(c => c.Type == "name")?.Value ?? "(none)";
+        var role = User.Claims.FirstOrDefault(c => c.Type == "role")?.Value ?? "(none)";
+        return Ok(new { Authenticated = User.Identity?.IsAuthenticated ?? false, UserId = userId, UserName = userName, Role = role });
     }
 }

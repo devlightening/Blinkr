@@ -10,7 +10,7 @@ public class PostRepository : Repository<Post>, IPostRepository
 {
     private readonly BlogDbContext _db;
 
-    public PostRepository(BlogDbContext db) : base(db)
+    public PostRepository(BlogDbContext db) : base(db, db.Posts)
     {
         _db = db;
     }

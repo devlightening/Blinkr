@@ -8,6 +8,7 @@ public static class IdsConfig
     {
         new IdentityResources.OpenId(),
         new IdentityResources.Profile(),
+        // role claim'i açıkça expose ediyoruz
         new IdentityResource("roles", new[] { "role" })
     };
 
@@ -22,33 +23,30 @@ public static class IdsConfig
         new ApiResource("blinkr.api", "Blinkr Microservices")
         {
             Scopes = { "blinkr.api.read", "blinkr.api.write" },
+            // token’a taşınabilecek user claim’leri
             UserClaims = { "role", "name", "email" }
         }
     };
 
-    // Başlangıç: Resource Owner Password + Swagger/Postman için client
     public static IEnumerable<Client> Clients => new[]
     {
-       new Client
+        // Postman/Swagger için ROPC
+        new Client
         {
             ClientId = "blinkr.ro.client",
             AllowedGrantTypes = GrantTypes.ResourceOwnerPassword,
             ClientSecrets = { new Secret("super_secret".Sha256()) },
             AllowedScopes =
             {
-                "openid",
-                "profile",
-                "roles",
-                "blinkr.api.read",
-                "blinkr.api.write",
-                "offline_access"   
+                "openid", "profile", "roles",
+                "blinkr.api.read", "blinkr.api.write",
+                "offline_access"
             },
             AccessTokenLifetime = 3600,
             AllowOfflineAccess = true
         },
 
-
-        // İleride mobil/web için (PKCE)
+        // ileride web/mobile için PKCE
         new Client
         {
             ClientId = "blinkr.ui",

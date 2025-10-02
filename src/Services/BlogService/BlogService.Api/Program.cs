@@ -1,36 +1,26 @@
 using BlogService.Infrastructure.Data;
 using BlogService.Infrastructure.Extensions;
-using BlogService.Infrastructure.Services;
 using FluentValidation;
 using FluentValidation.AspNetCore;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
-using System.IdentityModel.Tokens.Jwt;
-using Serilog;
+using HealthChecks.UI.Client;
+using MediatR;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using HealthChecks.UI.Client;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.IdentityModel.Tokens;
+using Serilog;
+using System.IdentityModel.Tokens.Jwt;
+using System.Reflection;
 using System.Text.Json.Serialization;
-using BlogService.Application.Common.Interfaces;
-using BlogService.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ---------- Serilog ----------
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)
-    .WriteTo.Console()
-    .CreateLogger();
+// Serilog
+builder.Host.UseSerilog((ctx, lc) => lc.ReadFrom.Configuration(ctx.Configuration).WriteTo.Console());
 
-builder.Host.UseSerilog();
-
-// ---------- DbContext ----------
-builder.Services.AddDbContext<BlogDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("BlogDb")));
-
-// ---------- Controllers + FluentValidation ----------
+// Controllers + JSON
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
     {
@@ -38,50 +28,43 @@ builder.Services.AddControllers()
         o.JsonSerializerOptions.PropertyNamingPolicy = null;
     });
 
+// FluentValidation
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<BlogService.Application.Validators.Post.CreatePostDtoValidator>();
 
-// Custom ModelState (400) response
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
     options.InvalidModelStateResponseFactory = ctx =>
     {
         var errors = ctx.ModelState
             .Where(x => x.Value?.Errors.Count > 0)
-            .ToDictionary(
-                k => k.Key,
-                v => v.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
-            );
+            .ToDictionary(k => k.Key, v => v.Value!.Errors.Select(e => e.ErrorMessage).ToArray());
 
-        return new BadRequestObjectResult(new
-        {
-            message = "Validation failed",
-            errors
-        });
+        return new BadRequestObjectResult(new { message = "Validation failed", errors });
     };
 });
 
-// ---------- Swagger + JWT ----------
+// Swagger + Bearer
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "BlogService.Api", Version = "v1" });
-
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    c.SwaggerDoc("v1", new() { Title = "BlogService.Api", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new()
     {
-        In = ParameterLocation.Header,
-        Description = "JWT Authorization header. Example: Bearer {token}",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "JWT: Bearer {token}",
         Name = "Authorization",
-        Type = SecuritySchemeType.ApiKey,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
         Scheme = "Bearer"
     });
-
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    c.AddSecurityRequirement(new()
     {
         {
-            new OpenApiSecurityScheme{
-                Reference = new OpenApiReference{
-                    Type = ReferenceType.SecurityScheme,
+            new()
+            {
+                Reference = new()
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
                     Id = "Bearer"
                 }
             },
@@ -90,41 +73,60 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// ---------- Infrastructure + Services ----------
+// Infrastructure (DbContext + Repos)
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
-builder.Services.AddScoped<IPostRepository, PostRepository>();
 
-// ---------- AuthN / AuthZ ----------
+// MediatR
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.Load("BlogService.Application")));
+
+// AUTHN / AUTHZ
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
-builder.Services.AddAuthentication("Bearer")
-    .AddJwtBearer("Bearer", options =>
+var authority = builder.Configuration["Jwt:Authority"] ?? "https://localhost:7122";
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        options.Authority = "https://localhost:7122"; // IdentityServer URL
-        options.RequireHttpsMetadata = true;
-        options.Audience = "blinkr.api";
+        options.Authority = authority;                 // Duende URL
+        options.RequireHttpsMetadata = false;           // dev sertifikan güvenilir olmalý (dotnet dev-certs https --trust)
+
+        // Key deðiþtiyse metadata'yý otomatik yeniler
+        options.RefreshOnIssuerKeyNotFound = true;
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
+            ValidateIssuer = true,
+            ValidIssuer = authority,
+
+            ValidateAudience = true,
+            // Duende access token'larýnda aud hem api adý hem de .../resources olabilir
+            ValidAudiences = new[] { "blinkr.api", $"{authority}/resources" },
+
             NameClaimType = "name",
-            RoleClaimType = "role"
+            RoleClaimType = "role",
+            ClockSkew = TimeSpan.FromMinutes(2)
+        };
+
+        // Hata görünürlüðü (debug)
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = ctx =>
+            {
+                ctx.Response.Headers["auth-error"] = ctx.Exception.GetType().Name + ": " + ctx.Exception.Message;
+                return Task.CompletedTask;
+            }
         };
     });
 
 builder.Services.AddAuthorization();
 
-// ---------- HealthChecks ----------
+// HealthChecks
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<BlogDbContext>(
-        "BlogService-Postgres",
-        failureStatus: HealthStatus.Unhealthy,
-        tags: new[] { "db", "postgres" })
+    .AddDbContextCheck<BlogDbContext>("BlogService-Postgres", failureStatus: HealthStatus.Unhealthy, tags: new[] { "db", "postgres" })
     .AddRedis("localhost:6379", name: "Redis", tags: new[] { "cache" });
 
-// ---------- Build ----------
 var app = builder.Build();
 
-// ---------- Middleware Pipeline ----------
 app.UseSerilogRequestLogging();
 
 if (app.Environment.IsDevelopment())
