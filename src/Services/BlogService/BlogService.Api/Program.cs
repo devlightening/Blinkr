@@ -1,13 +1,13 @@
+using BlogService.Application.Common.Behaviors;
+using BlogService.Application.Mappings;
 using BlogService.Infrastructure.Data;
 using BlogService.Infrastructure.Extensions;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using HealthChecks.UI.Client;
 using MediatR;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
@@ -17,10 +17,11 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Serilog
-builder.Host.UseSerilog((ctx, lc) => lc.ReadFrom.Configuration(ctx.Configuration).WriteTo.Console());
+// ---- Serilog
+builder.Host.UseSerilog((ctx, lc) =>
+    lc.ReadFrom.Configuration(ctx.Configuration).WriteTo.Console());
 
-// Controllers + JSON
+// ---- Controllers + JSON
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
     {
@@ -28,7 +29,7 @@ builder.Services.AddControllers()
         o.JsonSerializerOptions.PropertyNamingPolicy = null;
     });
 
-// FluentValidation
+// ---- FluentValidation
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<BlogService.Application.Validators.Post.CreatePostDtoValidator>();
 
@@ -44,19 +45,20 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
     };
 });
 
-// Swagger + Bearer
+// ---- Swagger + Bearer
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "BlogService.Api", Version = "v1" });
+
     c.AddSecurityDefinition("Bearer", new()
     {
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Description = "JWT: Bearer {token}",
-        Name = "Authorization",
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Enter: Bearer {token}"
     });
+
     c.AddSecurityRequirement(new()
     {
         {
@@ -73,60 +75,59 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Infrastructure (DbContext + Repos)
+// ---- Infrastructure (DbContext + Repos)
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// MediatR
-builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.Load("BlogService.Application")));
+// ---- AutoMapper
+builder.Services.AddAutoMapper(cfg =>
+{
+    cfg.AddProfile<PostMappingProfile>();
+});
 
-// AUTHN / AUTHZ
+// ---- MediatR + Validation pipeline
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssembly(Assembly.Load("BlogService.Application")));
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+// ---- AuthN / AuthZ
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var authority = builder.Configuration["Jwt:Authority"] ?? "https://localhost:7122";
+var audience = builder.Configuration["Jwt:Audience"] ?? "blinkr.api";
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", o =>
     {
-        options.Authority = authority;                 // Duende URL
-        options.RequireHttpsMetadata = false;           // dev sertifikan güvenilir olmalý (dotnet dev-certs https --trust)
-
-        // Key deðiþtiyse metadata'yý otomatik yeniler
-        options.RefreshOnIssuerKeyNotFound = true;
-
-        options.TokenValidationParameters = new TokenValidationParameters
+        o.Authority = authority;
+        o.RequireHttpsMetadata = false; // dev için https validation kapalý
+        o.Audience = audience;
+        o.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidIssuer = authority,
-
             ValidateAudience = true,
-            // Duende access token'larýnda aud hem api adý hem de .../resources olabilir
-            ValidAudiences = new[] { "blinkr.api", $"{authority}/resources" },
-
+            ValidAudiences = new[] { audience, $"{authority}/resources" },
             NameClaimType = "name",
-            RoleClaimType = "role",
-            ClockSkew = TimeSpan.FromMinutes(2)
+            RoleClaimType = "role"
         };
 
-        // Hata görünürlüðü (debug)
-        options.Events = new JwtBearerEvents
-        {
-            OnAuthenticationFailed = ctx =>
-            {
-                ctx.Response.Headers["auth-error"] = ctx.Exception.GetType().Name + ": " + ctx.Exception.Message;
-                return Task.CompletedTask;
-            }
-        };
+        // önemli: eðer key rollover olursa tekrar denesin
+        o.RefreshOnIssuerKeyNotFound = true;
     });
 
 builder.Services.AddAuthorization();
 
-// HealthChecks
+// ---- HealthChecks
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<BlogDbContext>("BlogService-Postgres", failureStatus: HealthStatus.Unhealthy, tags: new[] { "db", "postgres" })
+    .AddDbContextCheck<BlogDbContext>(
+        name: "BlogService-Postgres",
+        failureStatus: HealthStatus.Unhealthy,
+        tags: new[] { "db", "postgres" })
     .AddRedis("localhost:6379", name: "Redis", tags: new[] { "cache" });
 
 var app = builder.Build();
 
+// ---- Pipeline
 app.UseSerilogRequestLogging();
 
 if (app.Environment.IsDevelopment())
