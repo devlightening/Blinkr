@@ -45,7 +45,14 @@ public static class IdsConfig
             AccessTokenLifetime = 3600,
             AllowOfflineAccess = true,
 
-            AllowedCorsOrigins = { "https://localhost:7259" }
+            AllowedCorsOrigins = { "https://localhost:7259" },
+
+
+
+             RefreshTokenUsage = TokenUsage.ReUse,          // veya OneTime
+             RefreshTokenExpiration = TokenExpiration.Sliding,
+             AbsoluteRefreshTokenLifetime = 60 * 60 * 24 * 30,   // 30 gün
+             SlidingRefreshTokenLifetime  = 60 * 60 * 24 * 7,    // 7 gün
         },
 
         // ileride web/mobile için PKCE

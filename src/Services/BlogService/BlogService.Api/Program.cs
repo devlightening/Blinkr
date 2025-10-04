@@ -10,9 +10,9 @@ using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -22,6 +22,21 @@ using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ---- CORS
+const string CorsPolicy = "BlinkrCors";
+builder.Services.AddCors(o =>
+{
+    o.AddPolicy(CorsPolicy, p =>
+    {
+        p.WithOrigins(
+            "https://localhost:7259", // Swagger (bu API)
+            "https://localhost:5173"  // UI dev server
+        )
+        .AllowAnyHeader()
+        .AllowAnyMethod();
+    });
+});
 
 // ---- Serilog
 builder.Host.UseSerilog((ctx, lc) =>
@@ -51,13 +66,11 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
     };
 });
 
-// ---- Swagger + Bearer
+// ---- Swagger + OAuth2 (password)
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "BlogService.Api", Version = "v1" });
-    c.SwaggerDoc("v2", new() { Title = "BlogService.Api", Version = "v2" });
-
 
     c.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
     {
@@ -68,97 +81,70 @@ builder.Services.AddSwaggerGen(c =>
             {
                 TokenUrl = new Uri("https://localhost:7122/connect/token"),
                 Scopes = new Dictionary<string, string>{
-                {"blinkr.api.read","Read"},
-                {"blinkr.api.write","Write"},
-                {"openid","OpenID"},
-                {"profile","Profile"},
-                {"roles","Roles"}
-            }
+                    {"blinkr.api.read","Read"},
+                    {"blinkr.api.write","Write"},
+                    {"openid","OpenID"},
+                    {"profile","Profile"},
+                    {"roles","Roles"},
+                    {"offline_access","Refresh token"}
+                }
             }
         }
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement{
-    { new OpenApiSecurityScheme{ Reference = new OpenApiReference{
-        Type = ReferenceType.SecurityScheme, Id = "oauth2"}}, new []{"blinkr.api.read","blinkr.api.write"}}
-        });
-
-
-    c.AddSecurityDefinition("Bearer", new()
-    {
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
-        Description = "Enter: Bearer {token}"
-    });
-
-    c.AddSecurityRequirement(new()
-    {
-        {
-            new()
-            {
-                Reference = new()
-                {
-                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
+        { new OpenApiSecurityScheme{
+            Reference = new OpenApiReference{ Type = ReferenceType.SecurityScheme, Id = "oauth2"} },
+          new []{ "blinkr.api.read","blinkr.api.write" } }
     });
 });
 
-
-
+// ---- Authorization handler (owner or admin)
 builder.Services.AddSingleton<IAuthorizationHandler, OwnerOrAdminHandler>();
-// ---- Infrastructure (DbContext + Repos)
+
+// ---- Infrastructure (Db + repos)
 builder.Services.AddInfrastructure(builder.Configuration);
 
 // ---- AutoMapper
-builder.Services.AddAutoMapper(cfg =>
-{
-    cfg.AddProfile<PostMappingProfile>();
-});
+builder.Services.AddAutoMapper(cfg => cfg.AddProfile<PostMappingProfile>());
 
-// ---- MediatR + Validation pipeline
-builder.Services.AddMediatR(cfg =>
-    cfg.RegisterServicesFromAssembly(Assembly.Load("BlogService.Application")));
+// ---- MediatR + validation pipeline
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.Load("BlogService.Application")));
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
+// ---- JWT doğrulama (manuel public key)
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+JwtSecurityTokenHandler.DefaultOutboundClaimTypeMap.Clear();
 
 var issuer = "https://localhost:7122";
 var audience = "blinkr.api";
 
 var publicPemPath = Path.Combine(
     builder.Environment.ContentRootPath,
-    "..", "..",                      
-    "IdentityServerService",         
+    "..", "..",
+    "IdentityServerService",
     "IdentityServerService",
     "keys",
     "rsa-public.pem");
 
 var publicPemFullPath = Path.GetFullPath(publicPemPath);
 if (!File.Exists(publicPemFullPath))
-{
     throw new FileNotFoundException($"Public key not found: {publicPemFullPath}");
-}
 
 var publicPem = File.ReadAllText(publicPemFullPath);
 var rsa = RSA.Create();
 rsa.ImportFromPem(publicPem);
-
 var rsaKey = new RsaSecurityKey(rsa) { KeyId = "blinkr-dev-key" };
-
-JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
-JwtSecurityTokenHandler.DefaultOutboundClaimTypeMap.Clear();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, o =>
     {
-        // Discovery/JWKS KULLANMIYORUZ -> Authority/MetadataAddress vermiyoruz.
-        o.RequireHttpsMetadata = false; // dev kolaylığı
+        // JWKS keşfi kullanmıyoruz; doğrudan anahtar doğrulaması yapıyoruz.
+        o.RequireHttpsMetadata = false; // dev ortamı
+
+        // map dönüşümünü kapat
+        o.MapInboundClaims = false;
 
         o.TokenValidationParameters = new TokenValidationParameters
         {
@@ -175,18 +161,11 @@ builder.Services
             RoleClaimType = "role"
         };
 
-        // KRİTİK EKLEMELER: Claim dönüşümünü tamamen kapat.
-        // Bu, SUB ve ROLE gibi claim'lerin, .NET'in System.Security.Claims.ClaimTypes.NameIdentifier
-        // gibi varsayılan tiplere dönüşmeden, token'daki orijinal isimleriyle kalmasını sağlar.
-        o.MapInboundClaims = false; // EKLE
-
-        // Hata ayıklama için (isteğe bağlı)
         o.Events = new JwtBearerEvents
         {
-            OnTokenValidated = context =>
+            OnTokenValidated = ctx =>
             {
-                // Kontrol için konsola sub claim'ini yazdırın
-                var sub = context.Principal.FindFirst("sub")?.Value;
+                var sub = ctx.Principal!.FindFirst("sub")?.Value;
                 Console.WriteLine($"[AUTHZ DEBUG] Token Validated. SUB Claim: {sub}");
                 return Task.CompletedTask;
             }
@@ -197,29 +176,25 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("api.read", policy =>
         policy.RequireAssertion(ctx =>
-            ctx.User.HasClaim(c =>
-                c.Type == "scope" &&
+            ctx.User.HasClaim(c => c.Type == "scope" &&
                 c.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries)
                        .Contains("blinkr.api.read"))));
 
     options.AddPolicy("api.write", policy =>
         policy.RequireAssertion(ctx =>
-            ctx.User.HasClaim(c =>
-                c.Type == "scope" &&
+            ctx.User.HasClaim(c => c.Type == "scope" &&
                 c.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries)
                        .Contains("blinkr.api.write"))));
 
     options.AddPolicy("AdminOnly", p => p.RequireRole("Admin"));
 });
 
-
-
+// ---- HealthChecks
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<BlogDbContext>(
         name: "BlogService-Postgres",
         failureStatus: HealthStatus.Unhealthy,
-        tags: new[] { "db", "postgres" })
-    .AddRedis("localhost:6379", name: "Redis", tags: new[] { "cache" });
+        tags: new[] { "db", "postgres" });
 
 var app = builder.Build();
 
@@ -232,7 +207,16 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseGlobalException();
+if (!app.Environment.IsDevelopment())
+    app.UseHsts();
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor
+});
+
+app.UseHttpsRedirection();
+app.UseCors(CorsPolicy);
 
 app.UseAuthentication();
 app.UseAuthorization();

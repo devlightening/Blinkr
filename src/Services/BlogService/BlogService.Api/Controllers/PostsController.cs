@@ -1,12 +1,12 @@
-﻿using BlogService.Api.Extensions;
+﻿using AutoMapper;
+using BlogService.Api.Auth;
+using BlogService.Api.Extensions;
 using BlogService.Application.DTOs.PostDtos;
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommands;
 using BlogService.Application.Features.Mediatr.Queries.PostQueries;
 using MediatR;
-using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using BlogService.Api.Auth;
 using System.Security.Claims;
 
 namespace BlogService.Api.Controllers;
@@ -27,6 +27,7 @@ public class PostsController : ControllerBase
         _mapper = mapper;
     }
 
+    // CREATE
     [HttpPost]
     [Authorize(Policy = "api.write")]
     public async Task<IActionResult> Create([FromBody] CreatePostDto dto)
@@ -34,14 +35,14 @@ public class PostsController : ControllerBase
         var authorId = User.GetUserId();
         if (authorId is null) return Unauthorized(new { message = "UserId claim not found" });
 
-        var cmd = _mapper.Map<CreatePostCommand>(dto);
-        cmd = cmd with { AuthorId = authorId.Value }; 
-
+        var cmd = _mapper.Map<CreatePostCommand>(dto) with { AuthorId = authorId.Value };
         var postId = await _mediator.Send(cmd);
 
         _logger.LogInformation("Post {PostId} created by User {UserId}", postId, authorId);
         return Ok(new { PostId = postId });
     }
+
+    // READ BY ID
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
     public async Task<IActionResult> GetById(Guid id)
@@ -50,14 +51,24 @@ public class PostsController : ControllerBase
         return post is null ? NotFound() : Ok(post);
     }
 
+    // PAGED LIST (tek list endpoint)
+    // GET /api/posts?page=1&pageSize=10&search=abc&orderBy=CreatedAt&sort=desc
     [HttpGet]
     [Authorize(Policy = "api.read")]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetPaged(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        [FromQuery] string? orderBy = "CreatedAt",
+        [FromQuery] string? sort = "desc")
     {
-        var posts = await _mediator.Send(new GetAllPostsQuery());
-        return Ok(posts);
+        var result = await _mediator.Send(
+            new GetPostsPagedQuery(page, pageSize, search, orderBy, sort)
+        );
+        return Ok(result);
     }
 
+    // UPDATE
     [HttpPut("{id:guid}")]
     [Authorize(Policy = "api.write")]
     public async Task<IActionResult> Update(Guid id, [FromBody] CreatePostDto dto)
@@ -65,10 +76,9 @@ public class PostsController : ControllerBase
         var authorId = User.GetUserId();
         if (authorId is null) return Unauthorized(new { message = "UserId claim not found" });
 
-
-       
         var post = await _mediator.Send(new GetPostByIdQuery(id));
         if (post is null) return NotFound();
+
         var authz = HttpContext.RequestServices.GetRequiredService<IAuthorizationService>();
         var result = await authz.AuthorizeAsync(User, null, new OwnerOrAdminRequirement(post.AuthorId));
         if (!result.Succeeded) return Forbid();
@@ -80,6 +90,7 @@ public class PostsController : ControllerBase
         return success ? NoContent() : Forbid();
     }
 
+    // DELETE
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = "api.write")]
     public async Task<IActionResult> Remove(Guid id, [FromServices] IAuthorizationService authz)
@@ -87,21 +98,19 @@ public class PostsController : ControllerBase
         var post = await _mediator.Send(new GetPostByIdQuery(id));
         if (post is null) return NotFound();
 
-        // post.AuthorId'i yüklenen entity’den al
-        var result = await authz.AuthorizeAsync(User, null,
-            new OwnerOrAdminRequirement(post.AuthorId));
+        var result = await authz.AuthorizeAsync(User, null, new OwnerOrAdminRequirement(post.AuthorId));
         if (!result.Succeeded) return Forbid();
 
         var ok = await _mediator.Send(new RemovePostCommand(id, post.AuthorId, User.IsInRole("Admin")));
         return ok ? NoContent() : Forbid();
     }
 
+    // WHO AM I (debug)
     [HttpGet("WhoAmI")]
     public IActionResult WhoAmI()
     {
         var userId = User.GetUserId();
         var userName = User.Claims.FirstOrDefault(c => c.Type == "name")?.Value ?? "(none)";
-
         var role = User.Claims.FirstOrDefault(c =>
             c.Type == "role" ||
             c.Type == ClaimTypes.Role ||
@@ -117,4 +126,3 @@ public class PostsController : ControllerBase
         });
     }
 }
-    

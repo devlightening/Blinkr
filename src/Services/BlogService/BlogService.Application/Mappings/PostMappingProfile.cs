@@ -10,6 +10,8 @@ public class PostMappingProfile : Profile
     {
         CreateMap<CreatePostDto, CreatePostCommand>();
         CreateMap<CreatePostMediaDto, MediaItem>();
+        CreateMap<BlogService.Domain.Entities.Post, PostListItemDto>();
+
 
     }
 }
