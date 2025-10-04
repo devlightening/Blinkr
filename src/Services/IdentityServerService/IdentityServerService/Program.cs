@@ -21,28 +21,35 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>("IdentityServerService-Postgres");
 
-// --- Sabit RSA Key Yükleme ---
-var rsa = RSA.Create();
-rsa.ImportFromPem(File.ReadAllText("keys/rsa-private.pem")); // kendi private key'in
-var rsaKey = new RsaSecurityKey(rsa)
+// 1) PEM'den RSA key'i oku
+static RsaSecurityKey LoadRsaKey(string privateKeyPath)
 {
-    KeyId = "blinkr-dev-key" // sabit KID
-};
+    var pem = File.ReadAllText(privateKeyPath);
+    var rsa = RSA.Create();
+    rsa.ImportFromPem(pem);                      
+    return new RsaSecurityKey(rsa) { KeyId = "blinkr-dev-key" };
+}
+var signingKey = LoadRsaKey(Path.Combine(builder.Environment.ContentRootPath, "keys", "rsa-private.pem"));
 
-// IdentityServer
-builder.Services.AddIdentityServer(options =>
-{
-    options.EmitStaticAudienceClaim = true;
-    options.Events.RaiseSuccessEvents = true;
-    options.Events.RaiseFailureEvents = true;
-    options.IssuerUri = "https://localhost:7122"; // sabit issuer
-})
-.AddSigningCredential(rsaKey, IdentityServerConstants.RsaSigningAlgorithm.RS256)
-.AddInMemoryIdentityResources(IdsConfig.IdentityResources)
-.AddInMemoryApiScopes(IdsConfig.ApiScopes)
-.AddInMemoryApiResources(IdsConfig.ApiResources)
-.AddInMemoryClients(IdsConfig.Clients)
-.AddProfileService<ProfileService>();
+// 2) IdentityServer (KeyManagement kapalý!)
+builder.Services
+    .AddIdentityServer(options =>
+    {
+        options.EmitStaticAudienceClaim = true;
+        options.Events.RaiseSuccessEvents = true;
+        options.Events.RaiseFailureEvents = true;
+        options.IssuerUri = "https://localhost:7122";
+
+        // *** kritik: otomatik key üretimini kapat ***
+        options.KeyManagement.Enabled = false;
+    })
+    .AddInMemoryIdentityResources(IdsConfig.IdentityResources)
+    .AddInMemoryApiScopes(IdsConfig.ApiScopes)
+    .AddInMemoryApiResources(IdsConfig.ApiResources)
+    .AddInMemoryClients(IdsConfig.Clients)
+    .AddProfileService<ProfileService>()
+    // 3) Sadece bizim RSA key ile imzala
+    .AddSigningCredential(signingKey, IdentityServerConstants.RsaSigningAlgorithm.RS256);
 
 builder.Services.AddAuthorization();
 builder.Services.AddTransient<Duende.IdentityServer.Validation.IResourceOwnerPasswordValidator, ResourceOwnerPasswordValidator>();
@@ -57,7 +64,7 @@ app.UseAuthorization();
 
 app.MapGet("/", () => "Blinkr IdentityServer running");
 
-// Health endpoint
+// health
 app.UseHealthChecks("/health", new HealthCheckOptions
 {
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse

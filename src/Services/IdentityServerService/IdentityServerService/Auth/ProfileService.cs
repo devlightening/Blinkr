@@ -8,8 +8,18 @@ public class ProfileService : IProfileService
 {
     public Task GetProfileDataAsync(ProfileDataRequestContext context)
     {
-        // resource owner validator’dan gelen claim’leri taşı
+        var subClaim = context.Subject.FindFirst("sub") ??
+                       context.Subject.FindFirst(ClaimTypes.NameIdentifier);
+
         var claims = context.Subject.Claims.ToList();
+
+        // Eğer sub yoksa, oluştur
+        if (subClaim == null)
+        {
+            var userId = context.Subject.Identity?.Name ?? Guid.NewGuid().ToString();
+            claims.Add(new Claim("sub", userId));
+        }
+
         context.IssuedClaims.AddRange(claims);
         return Task.CompletedTask;
     }
@@ -19,6 +29,5 @@ public class ProfileService : IProfileService
         context.IsActive = true;
         return Task.CompletedTask;
     }
-
 
 }

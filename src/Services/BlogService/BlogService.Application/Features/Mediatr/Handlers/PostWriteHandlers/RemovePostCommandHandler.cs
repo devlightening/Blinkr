@@ -9,11 +9,11 @@ using System.Threading.Tasks;
 
 namespace BlogService.Application.Features.Mediatr.Handlers.PostWriteHandlers
 {
-    public class RemovePostHandler : IRequestHandler<RemovePostCommand, bool>
+    public class RemovePostCommandHandler : IRequestHandler<RemovePostCommand, bool>
     {
         private readonly IPostRepository _repo;
 
-        public RemovePostHandler(IPostRepository repo) => _repo = repo;
+        public RemovePostCommandHandler(IPostRepository repo) => _repo = repo;
 
         public async Task<bool> Handle(RemovePostCommand request, CancellationToken ct)
         {

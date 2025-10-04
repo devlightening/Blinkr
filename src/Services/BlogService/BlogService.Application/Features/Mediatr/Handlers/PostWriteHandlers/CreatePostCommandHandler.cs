@@ -30,7 +30,7 @@ public class CreatePostHandler : IRequestHandler<CreatePostCommand, Guid>
                 post.Media.Add(new PostMedia
                 {
                     Url = m.Url,
-                    Type = m.Type
+                    Type = m.MediaType
                 });
             }
         }

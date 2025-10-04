@@ -43,7 +43,9 @@ public static class IdsConfig
                 "offline_access"
             },
             AccessTokenLifetime = 3600,
-            AllowOfflineAccess = true
+            AllowOfflineAccess = true,
+
+            AllowedCorsOrigins = { "https://localhost:7259" }
         },
 
         // ileride web/mobile için PKCE

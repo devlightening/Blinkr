@@ -4,9 +4,10 @@ using BlogService.Application.Features.Mediatr.Comamnds.PostCommands;
 using BlogService.Application.Features.Mediatr.Queries.PostQueries;
 using MediatR;
 using AutoMapper;
-
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using BlogService.Api.Auth;
+using System.Security.Claims;
 
 namespace BlogService.Api.Controllers;
 
@@ -27,6 +28,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "api.write")]
     public async Task<IActionResult> Create([FromBody] CreatePostDto dto)
     {
         var authorId = User.GetUserId();
@@ -49,7 +51,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet]
-    [AllowAnonymous]
+    [Authorize(Policy = "api.read")]
     public async Task<IActionResult> GetAll()
     {
         var posts = await _mediator.Send(new GetAllPostsQuery());
@@ -57,10 +59,19 @@ public class PostsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = "api.write")]
     public async Task<IActionResult> Update(Guid id, [FromBody] CreatePostDto dto)
     {
         var authorId = User.GetUserId();
         if (authorId is null) return Unauthorized(new { message = "UserId claim not found" });
+
+
+       
+        var post = await _mediator.Send(new GetPostByIdQuery(id));
+        if (post is null) return NotFound();
+        var authz = HttpContext.RequestServices.GetRequiredService<IAuthorizationService>();
+        var result = await authz.AuthorizeAsync(User, null, new OwnerOrAdminRequirement(post.AuthorId));
+        if (!result.Succeeded) return Forbid();
 
         if (User.IsInRole("Admin"))
             return Forbid("Admin users cannot update posts.");
@@ -70,13 +81,19 @@ public class PostsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Remove(Guid id)
+    [Authorize(Policy = "api.write")]
+    public async Task<IActionResult> Remove(Guid id, [FromServices] IAuthorizationService authz)
     {
-        var authorId = User.GetUserId();
-        if (authorId is null) return Unauthorized(new { message = "UserId claim not found" });
+        var post = await _mediator.Send(new GetPostByIdQuery(id));
+        if (post is null) return NotFound();
 
-        var success = await _mediator.Send(new RemovePostCommand(id, authorId.Value, User.IsInRole("Admin")));
-        return success ? NoContent() : Forbid();
+        // post.AuthorId'i yüklenen entity’den al
+        var result = await authz.AuthorizeAsync(User, null,
+            new OwnerOrAdminRequirement(post.AuthorId));
+        if (!result.Succeeded) return Forbid();
+
+        var ok = await _mediator.Send(new RemovePostCommand(id, post.AuthorId, User.IsInRole("Admin")));
+        return ok ? NoContent() : Forbid();
     }
 
     [HttpGet("WhoAmI")]
@@ -84,7 +101,20 @@ public class PostsController : ControllerBase
     {
         var userId = User.GetUserId();
         var userName = User.Claims.FirstOrDefault(c => c.Type == "name")?.Value ?? "(none)";
-        var role = User.Claims.FirstOrDefault(c => c.Type == "role")?.Value ?? "(none)";
-        return Ok(new { Authenticated = User.Identity?.IsAuthenticated ?? false, UserId = userId, UserName = userName, Role = role });
+
+        var role = User.Claims.FirstOrDefault(c =>
+            c.Type == "role" ||
+            c.Type == ClaimTypes.Role ||
+            c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+        )?.Value ?? "(none)";
+
+        return Ok(new
+        {
+            Authenticated = User.Identity?.IsAuthenticated ?? false,
+            UserId = userId,
+            UserName = userName,
+            Role = role
+        });
     }
 }
+    

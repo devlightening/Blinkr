@@ -8,9 +8,8 @@ public class PostMappingProfile : Profile
 {
     public PostMappingProfile()
     {
-        CreateMap<CreatePostDto, CreatePostCommand>()
-            .ForMember(d => d.AuthorId, opt => opt.Ignore());
-         
+        CreateMap<CreatePostDto, CreatePostCommand>();
         CreateMap<CreatePostMediaDto, MediaItem>();
+
     }
 }
