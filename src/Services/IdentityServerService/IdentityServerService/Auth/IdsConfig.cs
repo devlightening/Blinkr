@@ -8,7 +8,6 @@ public static class IdsConfig
     {
         new IdentityResources.OpenId(),
         new IdentityResources.Profile(),
-        // role claim'i açıkça expose ediyoruz
         new IdentityResource("roles", new[] { "role" })
     };
 
@@ -23,39 +22,47 @@ public static class IdsConfig
         new ApiResource("blinkr.api", "Blinkr Microservices")
         {
             Scopes = { "blinkr.api.read", "blinkr.api.write" },
-            // token’a taşınabilecek user claim’leri
             UserClaims = { "role", "name", "email" }
         }
     };
 
     public static IEnumerable<Client> Clients => new[]
     {
-        // Postman/Swagger için ROPC
+        // Swagger/Postman için ROPC (Refresh destekli)
         new Client
         {
             ClientId = "blinkr.ro.client",
             AllowedGrantTypes = GrantTypes.ResourceOwnerPassword,
             ClientSecrets = { new Secret("super_secret".Sha256()) },
+
             AllowedScopes =
             {
-                "openid", "profile", "roles",
-                "blinkr.api.read", "blinkr.api.write",
-                "offline_access"
+                "openid","profile","roles",
+                "blinkr.api.read","blinkr.api.write",
+                "offline_access" // refresh token için şart
             },
-            AccessTokenLifetime = 3600,
+
+            // ---- Access/Identity token ömürleri (örnek)
+            AccessTokenLifetime = 60 * 30,            // 30 dk
+            IdentityTokenLifetime = 60 * 10,          // 10 dk
+
+            // ---- Refresh token davranışı
             AllowOfflineAccess = true,
+            RefreshTokenUsage = TokenUsage.ReUse,     // veya OneTime
+            RefreshTokenExpiration = TokenExpiration.Sliding,
+            AbsoluteRefreshTokenLifetime = 60 * 60 * 24 * 30, // 30 gün
+            SlidingRefreshTokenLifetime  = 60 * 60 * 24 * 7,  // 7 gün
 
+            // Swagger (BlogService.Api) için CORS
             AllowedCorsOrigins = { "https://localhost:7259" },
+            // Dev’de gerekebilir:
+            // AllowedCorsOrigins = { "http://localhost:7259", "https://localhost:7259" },
 
-
-
-             RefreshTokenUsage = TokenUsage.ReUse,          // veya OneTime
-             RefreshTokenExpiration = TokenExpiration.Sliding,
-             AbsoluteRefreshTokenLifetime = 60 * 60 * 24 * 30,   // 30 gün
-             SlidingRefreshTokenLifetime  = 60 * 60 * 24 * 7,    // 7 gün
+            // Refresh sonrası access token claim’lerini güncellemek istersen:
+            UpdateAccessTokenClaimsOnRefresh = true
         },
 
-        // ileride web/mobile için PKCE
+        // ileride web/mobile için PKCE örneği
         new Client
         {
             ClientId = "blinkr.ui",
