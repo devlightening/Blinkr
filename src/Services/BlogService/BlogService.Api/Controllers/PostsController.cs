@@ -27,18 +27,15 @@ public class PostsController : ControllerBase
         _mapper = mapper;
     }
 
-    // CREATE
+
     [HttpPost]
     [Authorize(Policy = "api.write")]
     public async Task<IActionResult> Create([FromBody] CreatePostDto dto)
     {
-        var authorId = User.GetUserId();
-        if (authorId is null) return Unauthorized(new { message = "UserId claim not found" });
-
-        var cmd = _mapper.Map<CreatePostCommand>(dto) with { AuthorId = authorId.Value };
+        var cmd = _mapper.Map<CreatePostCommand>(dto);
         var postId = await _mediator.Send(cmd);
 
-        _logger.LogInformation("Post {PostId} created by User {UserId}", postId, authorId);
+        _logger.LogInformation("Post {PostId} created by User {Sub}", postId, User.GetUserId());
         return Ok(new { PostId = postId });
     }
 
@@ -101,7 +98,7 @@ public class PostsController : ControllerBase
         var result = await authz.AuthorizeAsync(User, null, new OwnerOrAdminRequirement(post.AuthorId));
         if (!result.Succeeded) return Forbid();
 
-        var ok = await _mediator.Send(new RemovePostCommand(id, post.AuthorId, User.IsInRole("Admin")));
+        var ok = await _mediator.Send(new RemovePostCommand(id));
         return ok ? NoContent() : Forbid();
     }
 

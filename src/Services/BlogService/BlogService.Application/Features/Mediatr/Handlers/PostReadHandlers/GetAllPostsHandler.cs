@@ -22,7 +22,6 @@ public class GetAllPostsHandler : IRequestHandler<GetAllPostsQuery, IEnumerable<
             Content = p.Content,
             AuthorId = p.AuthorId,
             CreatedAt = p.CreatedAt,
-            UpdatedAt = p.UpdatedAt,
             Media = p.Media.Select(m => new PostMediaDto
             {
                 Id = m.Id,

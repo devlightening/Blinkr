@@ -6,14 +6,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BlogService.Application.Validators.Post
+namespace BlogService.Application.Validators.PostValidators
 {
     public class RemovePostCommandValidator : AbstractValidator<RemovePostCommand>
     {
         public RemovePostCommandValidator()
         {
-            RuleFor(x => x.PostId).NotEmpty();
-            RuleFor(x => x.AuthorId).NotEmpty();
+            RuleFor(x => x.Id).NotEmpty();
         }
     }
 }

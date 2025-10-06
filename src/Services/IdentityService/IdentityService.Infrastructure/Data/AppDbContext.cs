@@ -15,24 +15,30 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Password hashing
-        string HashPassword(string password)
-        {
-            using var sha = SHA256.Create();
-            var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(password));
-            return Convert.ToBase64String(bytes);
-        }
+  
 
-        // Seed admin
+        // Seed users
         modelBuilder.Entity<User>().HasData(
+           
             new User
             {
                 Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
                 UserName = "admin",
-                Email="admin@blinkr.com",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"), 
+                Email = "admin@blinkr.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
                 Role = "Admin"
+            },
+            
+            new User
+            {
+                Id = Guid.Parse("9be75963-a399-4c4d-8c44-cd6817acb801"), 
+                UserName = "ahmet",
+                Email = "ahmet@blinkr.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("User123!"), 
+                Role = "User"
             }
         );
+
+    
     }
 }

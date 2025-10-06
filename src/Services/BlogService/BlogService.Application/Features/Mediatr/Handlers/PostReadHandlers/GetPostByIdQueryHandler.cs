@@ -23,7 +23,6 @@ public class GetPostByIdHandler : IRequestHandler<GetPostByIdQuery, PostResponse
             Content = post.Content,
             AuthorId = post.AuthorId,
             CreatedAt = post.CreatedAt,
-            UpdatedAt = post.UpdatedAt,
             Media = post.Media.Select(m => new PostMediaDto
             {
                 Id = m.Id,

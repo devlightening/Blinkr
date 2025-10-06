@@ -1,6 +1,7 @@
 ﻿using BlogService.Api.Auth;
 using BlogService.Application.Common.Behaviors;
 using BlogService.Application.Mappings;
+using BlogService.Application.Validators.PostValidators;
 using BlogService.Infrastructure.Data;
 using BlogService.Infrastructure.Extensions;
 using FluentValidation;
@@ -42,6 +43,9 @@ builder.Services.AddCors(o =>
 builder.Host.UseSerilog((ctx, lc) =>
     lc.ReadFrom.Configuration(ctx.Configuration).WriteTo.Console());
 
+// ---- HTTP Context Accessor (CurrentUserService için zorunlu)
+builder.Services.AddHttpContextAccessor(); 
+
 // ---- Controllers + JSON
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
@@ -52,7 +56,7 @@ builder.Services.AddControllers()
 
 // ---- FluentValidation
 builder.Services.AddFluentValidationAutoValidation();
-builder.Services.AddValidatorsFromAssemblyContaining<BlogService.Application.Validators.Post.CreatePostDtoValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<CreatePostDtoValidator>();
 
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
@@ -178,13 +182,13 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAssertion(ctx =>
             ctx.User.HasClaim(c => c.Type == "scope" &&
                 c.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                       .Contains("blinkr.api.read"))));
+                        .Contains("blinkr.api.read"))));
 
     options.AddPolicy("api.write", policy =>
         policy.RequireAssertion(ctx =>
             ctx.User.HasClaim(c => c.Type == "scope" &&
                 c.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                       .Contains("blinkr.api.write"))));
+                        .Contains("blinkr.api.write"))));
 
     options.AddPolicy("AdminOnly", p => p.RequireRole("Admin"));
 });

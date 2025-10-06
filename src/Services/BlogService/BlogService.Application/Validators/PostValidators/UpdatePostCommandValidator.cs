@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BlogService.Application.Validators.Post
+namespace BlogService.Application.Validators.PostValidators
 {
     public class UpdatePostCommandValidator : AbstractValidator<UpdatePostCommand>
     {
