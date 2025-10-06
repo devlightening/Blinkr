@@ -1,16 +1,15 @@
-﻿using System.Text.Json;
-using BlogService.Application.Common.Interfaces;
-using BlogService.Application.DTOs.PostDtos;
+﻿using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommands;
 using BlogService.Domain.Entities;
+using BlogService.Domain.Events;
 using MediatR;
 
-public class CreatePostHandler : IRequestHandler<CreatePostCommand, Guid>
+public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
 {
     private readonly IPostRepository _repo;
     private readonly ICurrentUserService _currentUser;
 
-    public CreatePostHandler(IPostRepository repo, ICurrentUserService currentUser)
+    public CreatePostCommandHandler(IPostRepository repo, ICurrentUserService currentUser)
     {
         _repo = repo;
         _currentUser = currentUser;
@@ -40,8 +39,13 @@ public class CreatePostHandler : IRequestHandler<CreatePostCommand, Guid>
             }
         }
 
+       
+        // Kayıt işleminden hemen önce PostCreatedEvent'i Entity'ye ekle.
+        post.AddDomainEvent(new PostCreatedEvent(post));
+
         await _repo.AddAsync(post);
-        await _repo.SaveChangesAsync(ct); // <- otomatik audit tetiklenir (DbContext override/interceptor)
+        // SaveChangesAsync çağrıldığında, DbContext bu olayı yakalayıp MediatR aracılığıyla yayımlayacaktır.
+        await _repo.SaveChangesAsync(ct);
 
         return post.Id;
     }
