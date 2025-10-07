@@ -39,9 +39,8 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
             }
         }
 
-       
         // Kayıt işleminden hemen önce PostCreatedEvent'i Entity'ye ekle.
-        post.AddDomainEvent(new PostCreatedEvent(post));
+        post.AddDomainEvent(new PostCreatedEvent(post.Id, authorId, post.Title!, post.Content!, DateTime.UtcNow));
 
         await _repo.AddAsync(post);
         // SaveChangesAsync çağrıldığında, DbContext bu olayı yakalayıp MediatR aracılığıyla yayımlayacaktır.

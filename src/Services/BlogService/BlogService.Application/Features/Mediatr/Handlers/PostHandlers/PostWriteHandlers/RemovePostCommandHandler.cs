@@ -4,9 +4,9 @@ using MediatR;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore; // GetByIdAsync'in kullandığı Repository'de olması gerekebilir.
+using Microsoft.EntityFrameworkCore;
 
-namespace BlogService.Application.Features.Mediatr.Handlers.PostWriteHandlers
+namespace BlogService.Application.Features.Mediatr.Handlers.PostHandlers.PostWriteHandlers
 {
     public class RemovePostCommandHandler : IRequestHandler<RemovePostCommand, bool>
     {

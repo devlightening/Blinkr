@@ -15,6 +15,10 @@
     <Folder Include="Features\Mediatr\Results\PostResults\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="DTOs\PostCommentDtos\PostCommentDto.cs" />
+  </ItemGroup>
+
   <PropertyGroup>
 	  <TargetFramework>net8.0</TargetFramework>
 	  <ImplicitUsings>enable</ImplicitUsings>

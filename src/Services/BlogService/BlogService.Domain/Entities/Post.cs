@@ -6,4 +6,6 @@ public class Post : BaseEntity
     public string? Content { get; set; } 
     public Guid AuthorId { get; set; }
     public ICollection<PostMedia> Media { get; set; } = new List<PostMedia>();
+    public ICollection<PostComment> Comments { get; set; } = new List<PostComment>();
+    public ICollection<PostLike> Likes { get; set; } = new List<PostLike>();
 }

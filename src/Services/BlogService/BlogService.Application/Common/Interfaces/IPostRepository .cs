@@ -9,4 +9,8 @@ public interface IPostRepository : IRepository<Post>
     //void Remove(Post post);
     //Task<int> SaveChangesAsync(CancellationToken ct = default);
 
+    Task AddCommentAsync(Guid postId, PostComment comment, CancellationToken ct);
+    Task AddLikeAsync(Guid postId, PostLike like, CancellationToken ct);
 }
+
+

@@ -2,21 +2,18 @@
 
 namespace BlogService.Domain.Events
 {
-    public class PostCreatedEvent : IDomainEvent
+    public class PostCommentAddedEvent : IDomainEvent
     {
         public Guid PostId { get; }
         public Guid AuthorId { get; }
-        public string Title { get; }
-        public string Content { get; }
+        public string CommentText { get; }
         public DateTime CreatedAtUtc { get; }
         public DateTime OccurredOn { get; }
-
-        public PostCreatedEvent(Guid postId, Guid authorId, string title, string content, DateTime createdAtUtc)
+        public PostCommentAddedEvent(Guid postId, Guid authorId, string commentText, DateTime createdAtUtc)
         {
             PostId = postId;
             AuthorId = authorId;
-            Title = title;
-            Content = content;
+            CommentText = commentText;
             CreatedAtUtc = createdAtUtc;
             OccurredOn = DateTime.UtcNow;
         }

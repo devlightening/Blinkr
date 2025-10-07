@@ -2,7 +2,7 @@
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommands;
 using MediatR;
 
-namespace BlogService.Application.Features.Mediatr.Handlers.PostWriteHandlers
+namespace BlogService.Application.Features.Mediatr.Handlers.PostHandlers.PostWriteHandlers
 {
     public class UpdatePostCommandHandler : IRequestHandler<UpdatePostCommand, bool>
     {

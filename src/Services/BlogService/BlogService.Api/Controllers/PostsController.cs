@@ -1,8 +1,11 @@
 ﻿using AutoMapper;
 using BlogService.Api.Auth;
 using BlogService.Api.Extensions;
+using BlogService.Application.DTOs.PostCommentDtos;
 using BlogService.Application.DTOs.PostDtos;
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommands;
+using BlogService.Application.Features.Mediatr.Comamnds.PostCommentCommands;
+using BlogService.Application.Features.Mediatr.Comamnds.PostLikeCommands;
 using BlogService.Application.Features.Mediatr.Queries.PostQueries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -121,5 +124,32 @@ public class PostsController : ControllerBase
             UserName = userName,
             Role = role
         });
+    }
+
+    [HttpPost("{postId}/comments")]
+    public async Task<IActionResult> AddComment(Guid postId, [FromBody] PostCommentDto commentDto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(commentDto.CommentText))
+            return BadRequest("Comment text cannot be empty.");
+
+        var currentUserId = User.GetUserId(); // Kullanıcıdan alınan ID
+        if (currentUserId is null) return Unauthorized();
+        var command = new CreatePostCommentCommand(postId, commentDto.CommentText!, currentUserId.Value, commentDto.ParentCommentId);
+
+        var commentId = await _mediator.Send(command, ct);
+
+        return Ok(new { CommentId = commentId });
+    }
+
+    [HttpPost("{postId}/likes")]
+    public async Task<IActionResult> AddLike(Guid postId, CancellationToken ct)
+    {
+        var currentUserId = User.GetUserId(); // Kullanıcıdan alınan ID
+        if (currentUserId is null) return Unauthorized();
+        var command = new CreatePostLikeCommand(postId, currentUserId.Value);
+
+        var likeId = await _mediator.Send(command, ct);
+
+        return Ok(new { LikeId = likeId });
     }
 }

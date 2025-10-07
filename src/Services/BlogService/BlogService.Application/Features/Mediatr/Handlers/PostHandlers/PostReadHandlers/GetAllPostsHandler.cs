@@ -3,7 +3,7 @@ using BlogService.Application.Features.Mediatr.Queries.PostQueries;
 using BlogService.Application.Common.Interfaces;
 using MediatR;
 
-namespace BlogService.Application.Features.Posts.Handlers;
+namespace BlogService.Application.Features.Mediatr.Handlers.PostHandlers.PostReadHandlers;
 
 public class GetAllPostsHandler : IRequestHandler<GetAllPostsQuery, IEnumerable<PostResponseDto>>
 {

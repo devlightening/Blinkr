@@ -13,11 +13,13 @@
 	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 	  </PackageReference>
 	  <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
+	  <PackageReference Include="EventStore.Client.Grpc.Streams" Version="23.0.0" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\BlogService.Application\BlogService.Application.csproj" />
 		<ProjectReference Include="..\BlogService.Domain\BlogService.Domain.csproj" />
+		<ProjectReference Include="..\..\..\BuildingBlocks\Shared.Events\Shared.Events.csproj" />
 	</ItemGroup>
 
 </Project>

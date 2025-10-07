@@ -10,7 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BlogService.Application.Features.Mediatr.Handlers.PostReadHandlers
+namespace BlogService.Application.Features.Mediatr.Handlers.PostHandlers.PostReadHandlers
 {
     public class GetPostsPagedHandler
      : IRequestHandler<GetPostsPagedQuery, PagedResult<PostListItemDto>>
