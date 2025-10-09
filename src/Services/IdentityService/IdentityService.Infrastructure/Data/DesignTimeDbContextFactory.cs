@@ -9,9 +9,9 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
     {
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
 
-        // Buraya connection string'i doğrudan yazabilirsin
-        // Migration için gerekli. Runtime'da Program.cs'deki kullanılacak.
-        optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=blinkr_identity;Username=postgres;Password=postgres123");
+        // Migration sırasında kullanılacak connection string.
+        // Runtime'da `Program.cs` içindeki yapılandırma kullanılacaktır.
+        optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=blinkr_identity;Username=silvanus;Password=Aq.199388200");
 
         return new AppDbContext(optionsBuilder.Options);
     }

@@ -1,48 +1,41 @@
 ﻿using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommands;
+using BlogService.Domain.Entities;
 using MediatR;
-using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 
-namespace BlogService.Application.Features.Mediatr.Handlers.PostHandlers.PostWriteHandlers
+public class RemovePostCommandHandler : IRequestHandler<RemovePostCommand, bool>
 {
-    public class RemovePostCommandHandler : IRequestHandler<RemovePostCommand, bool>
+    private readonly IEventStoreRepository _eventStoreRepo;
+    private readonly ICurrentUserService _currentUser;
+
+    public RemovePostCommandHandler(IEventStoreRepository eventStoreRepo, ICurrentUserService currentUser)
     {
-        private readonly IPostRepository _repo;
-        private readonly ICurrentUserService _currentUser;
+        _eventStoreRepo = eventStoreRepo;
+        _currentUser = currentUser;
+    }
 
-        public RemovePostCommandHandler(IPostRepository repo, ICurrentUserService currentUser)
+    public async Task<bool> Handle(RemovePostCommand request, CancellationToken ct)
+    {
+        var userId = _currentUser.UserId ?? throw new UnauthorizedAccessException("Authentication required.");
+
+        var post = await _eventStoreRepo.LoadAsync<PostAggregate>(request.Id, ct);
+        if (post.Id == Guid.Empty)
         {
-            _repo = repo;
-            _currentUser = currentUser;
+            return false; // Post bulunamadı
         }
 
-        public async Task<bool> Handle(RemovePostCommand request, CancellationToken ct)
+        var isOwner = post.AuthorId == userId;
+        var isAdmin = _currentUser.IsInRole("Admin");
+        if (!isOwner && !isAdmin)
         {
-            // 1) Kimlik kontrolü
-            var userId = _currentUser.UserId
-                ?? throw new UnauthorizedAccessException("Silme işlemi için kimlik doğrulaması gerekli.");
-
-            // 2) Hedef post'u bul
-            // Repository'nizde GetByIdAsync metodunun Guid parametresi aldığını varsayıyoruz.
-            var post = await _repo.GetByIdAsync(request.Id, ct);
-            if (post is null) return false;
-
-            // 3) Sahiplik veya Yönetici yetkisi kontrolü
-            var isOwner = post.AuthorId == userId;
-            // ICurrentUserService'de IsInRole metodunun mevcut olduğu varsayılır.
-            var isAdmin = _currentUser.IsInRole("Admin");
-
-            if (!isOwner && !isAdmin)
-                throw new UnauthorizedAccessException("Bu gönderiyi sadece yazarı veya Yönetici silebilir.");
-
-            // 4) Sil ve kaydet (Audit log DbContext seviyesinde otomatik düşecek)
-            _repo.Remove(post);
-            await _repo.SaveChangesAsync(ct);
-
-            return true;
+            throw new UnauthorizedAccessException("Only the author or an Admin can delete this post.");
         }
+
+        post.Delete();
+        await _eventStoreRepo.SaveAsync(post, ct);
+
+        return true;
     }
 }

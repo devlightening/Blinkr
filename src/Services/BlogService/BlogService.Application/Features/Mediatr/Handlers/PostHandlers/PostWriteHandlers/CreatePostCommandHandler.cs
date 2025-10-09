@@ -1,17 +1,16 @@
 ﻿using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommands;
-using BlogService.Domain.Entities;
-using BlogService.Domain.Events;
+using BlogService.Domain.Entities; 
 using MediatR;
 
 public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
 {
-    private readonly IPostRepository _repo;
+    private readonly IEventStoreRepository _eventStoreRepo;
     private readonly ICurrentUserService _currentUser;
 
-    public CreatePostCommandHandler(IPostRepository repo, ICurrentUserService currentUser)
+    public CreatePostCommandHandler(IEventStoreRepository eventStoreRepo, ICurrentUserService currentUser)
     {
-        _repo = repo;
+        _eventStoreRepo = eventStoreRepo;
         _currentUser = currentUser;
     }
 
@@ -20,32 +19,26 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
         var authorId = _currentUser.UserId
             ?? throw new UnauthorizedAccessException("Authenticated user required.");
 
-        var post = new Post
-        {
-            Title = request.Title,
-            Content = request.Content,
-            AuthorId = authorId
-        };
+        var postAggregate = PostAggregate.Create(
+            Guid.NewGuid(),
+            authorId,
+            request.Title,
+            request.Content
+        );
 
         if (request.Media is not null)
         {
             foreach (var m in request.Media)
             {
-                post.Media.Add(new PostMedia
+                if (m.Url is not null)
                 {
-                    Url = m.Url,
-                    Type = m.MediaType
-                });
+                    postAggregate.AddMedia(m.Url, m.MediaType.ToString());
+                }
             }
         }
 
-        // Kayıt işleminden hemen önce PostCreatedEvent'i Entity'ye ekle.
-        post.AddDomainEvent(new PostCreatedEvent(post.Id, authorId, post.Title!, post.Content!, DateTime.UtcNow));
+        await _eventStoreRepo.SaveAsync(postAggregate, ct);
 
-        await _repo.AddAsync(post);
-        // SaveChangesAsync çağrıldığında, DbContext bu olayı yakalayıp MediatR aracılığıyla yayımlayacaktır.
-        await _repo.SaveChangesAsync(ct);
-
-        return post.Id;
+        return postAggregate.Id;
     }
 }

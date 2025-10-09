@@ -1,6 +1,5 @@
 ﻿using Duende.IdentityServer;
 using Duende.IdentityServer.Services;
-using Duende.IdentityServer.EntityFramework;
 using Duende.IdentityServer.EntityFramework.DbContexts;
 using HealthChecks.UI.Client;
 using IdentityServerService.Auth;
@@ -10,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using System.Security.Cryptography;
+using Npgsql; // Hata yakalamak için eklendi
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,11 +20,11 @@ builder.Services.AddCors(o =>
     o.AddPolicy(CorsPolicy, p =>
     {
         p.WithOrigins(
-            "https://localhost:7259", // BlogService Swagger
-            "https://localhost:5173"  // UI (dev)
-        )
-        .AllowAnyHeader()
-        .AllowAnyMethod();
+                "https://localhost:7259", // BlogService Swagger
+                "https://localhost:5173"  // UI (dev)
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod();
     });
 });
 
@@ -34,7 +34,7 @@ builder.Host.UseSerilog((ctx, lc) =>
 
 // Users DB (senin AppDbContext’in)
 builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseNpgsql(builder.Configuration.GetConnectionString("IdentityDb"),
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
         b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)));
 
 builder.Services.AddHealthChecks()
@@ -51,7 +51,7 @@ static RsaSecurityKey LoadRsaKey(string privateKeyPath)
 var signingKey = LoadRsaKey(Path.Combine(builder.Environment.ContentRootPath, "keys", "rsa-private.pem"));
 
 var issuerUri = "https://localhost:7122";
-var connectionString = builder.Configuration.GetConnectionString("IdentityDb");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 var migrationsAssembly = typeof(AppDbContext).Assembly.FullName;
 
 // IdentityServer
@@ -105,17 +105,8 @@ app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors(CorsPolicy);
 
-// DB migrate + seed
-using (var scope = app.Services.CreateScope())
-{
-    var usersDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await usersDb.Database.MigrateAsync();
-    // Not: IdentitySeeder'ın HasData ile çakışmaması için koşullu kontrol içerdiğinden emin olunmalıdır.
-    await IdentitySeeder.SeedAsync(usersDb);
-
-    var persistedDb = scope.ServiceProvider.GetRequiredService<PersistedGrantDbContext>();
-    await persistedDb.Database.MigrateAsync();
-}
+// GÜNCELLENDİ: DB migrate + seed işlemi retry mekanizması ile çağrılıyor.
+await ApplyMigrationsWithRetry(app);
 
 app.UseIdentityServer();
 app.UseAuthorization();
@@ -128,3 +119,47 @@ app.UseHealthChecks("/health", new HealthCheckOptions
 });
 
 app.Run();
+
+
+// YENİ EKLENEN METOT: Bu metot veritabanı hazır değilse bir süre bekleyip tekrar dener.
+async Task ApplyMigrationsWithRetry(IApplicationBuilder app)
+{
+    var maxRetries = 10;
+    var delay = TimeSpan.FromSeconds(5);
+    var logger = app.ApplicationServices.GetRequiredService<ILogger<Program>>();
+
+    for (int i = 0; i < maxRetries; i++)
+    {
+        try
+        {
+            logger.LogInformation("Veritabanı migration'ları uygulanıyor (Deneme {AttemptNumber})...", i + 1);
+
+            using (var scope = app.ApplicationServices.CreateScope())
+            {
+                var usersDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await usersDb.Database.MigrateAsync();
+
+                // Not: IdentitySeeder'ın HasData ile çakışmaması için koşullu kontrol içerdiğinden emin olunmalıdır.
+                await IdentitySeeder.SeedAsync(usersDb);
+
+                var persistedDb = scope.ServiceProvider.GetRequiredService<PersistedGrantDbContext>();
+                await persistedDb.Database.MigrateAsync();
+
+                logger.LogInformation("Migration'lar başarıyla uygulandı.");
+                return; // Başarılı olursa fonksiyondan çık
+            }
+        }
+        catch (PostgresException ex) when (ex.SqlState == "57P03") // Sadece 'database starting up' hatasını yakala
+        {
+            logger.LogWarning("Veritabanı henüz hazır değil. Sonraki deneme için {Delay} saniye bekleniyor.", delay.TotalSeconds);
+            await Task.Delay(delay);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Migration sırasında beklenmedik bir hata oluştu.");
+            throw;
+        }
+    }
+
+    throw new Exception("Veritabanına birden fazla denemeden sonra bağlanılamadı.");
+}

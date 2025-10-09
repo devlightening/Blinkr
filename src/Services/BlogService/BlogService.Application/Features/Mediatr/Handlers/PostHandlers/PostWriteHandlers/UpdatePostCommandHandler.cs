@@ -1,47 +1,41 @@
 ﻿using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommands;
+using BlogService.Domain.Entities;
 using MediatR;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace BlogService.Application.Features.Mediatr.Handlers.PostHandlers.PostWriteHandlers
+public class UpdatePostCommandHandler : IRequestHandler<UpdatePostCommand, bool>
 {
-    public class UpdatePostCommandHandler : IRequestHandler<UpdatePostCommand, bool>
+    private readonly IEventStoreRepository _eventStoreRepo;
+    private readonly ICurrentUserService _currentUser;
+
+    public UpdatePostCommandHandler(IEventStoreRepository eventStoreRepo, ICurrentUserService currentUser)
     {
-        private readonly IPostRepository _repo;
-        private readonly ICurrentUserService _currentUser; 
+        _eventStoreRepo = eventStoreRepo;
+        _currentUser = currentUser;
+    }
 
-        public UpdatePostCommandHandler(IPostRepository repo, ICurrentUserService currentUser) 
+    public async Task<bool> Handle(UpdatePostCommand request, CancellationToken ct)
+    {
+        var userId = _currentUser.UserId ?? throw new UnauthorizedAccessException("Authentication required.");
+
+        var post = await _eventStoreRepo.LoadAsync<PostAggregate>(request.PostId, ct);
+        if (post.Id == Guid.Empty)
         {
-            _repo = repo;
-            _currentUser = currentUser;
+            return false; // Post bulunamadı
         }
 
-        public async Task<bool> Handle(UpdatePostCommand request, CancellationToken ct)
+        var isOwner = post.AuthorId == userId;
+        var isAdmin = _currentUser.IsInRole("Admin");
+        if (!isOwner && !isAdmin)
         {
-            // 1) Kimlik kontrolü
-            var userId = _currentUser.UserId
-                 ?? throw new UnauthorizedAccessException("Authentication required for update operation."); 
-
-            // 2) Hedef post'u bul (CancellationToken eklendi)
-            var post = await _repo.GetByIdAsync(request.PostId, ct);
-            if (post is null) return false;
-
-            // 3) Sahiplik veya Yönetici yetkisi kontrolü
-            // Yalnızca yazar veya Admin güncelleyebilir.
-            var isOwner = post.AuthorId == userId;
-            var isAdmin = _currentUser.IsInRole("Admin");
-
-            if (!isOwner && !isAdmin)
-                throw new UnauthorizedAccessException("Only the author or an Administrator can update this post."); 
-
-            // 4) Güncelleme
-            post.Title = request.Title;
-            post.Content = request.Content;
-
-            // 5) Kaydet (Audit log otomatik düşecek)
-            _repo.Update(post);
-            await _repo.SaveChangesAsync(ct);
-
-            return true;
+            throw new UnauthorizedAccessException("Only the author or an Admin can update this post.");
         }
+
+        post.UpdateContent(request.Title, request.Content);
+        await _eventStoreRepo.SaveAsync(post, ct);
+
+        return true;
     }
 }

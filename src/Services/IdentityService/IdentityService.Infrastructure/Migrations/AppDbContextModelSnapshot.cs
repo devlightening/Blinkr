@@ -55,11 +55,20 @@ namespace IdentityService.Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            CreatedAt = new DateTime(2025, 9, 30, 11, 13, 43, 571, DateTimeKind.Utc).AddTicks(2552),
+                            CreatedAt = new DateTime(2025, 10, 9, 10, 55, 12, 941, DateTimeKind.Utc).AddTicks(9578),
                             Email = "admin@blinkr.com",
-                            PasswordHash = "$2a$11$fLRxFZPIQZw1FBvIdlihCuuQhnmo8IDRaGP6pS6tFSOzId/CvzYlu",
+                            PasswordHash = "$2a$11$hXLp/W1bdJoOpeMemeEDPOABORGf6dxnC6mOg6MtGYsuogWI3Esfu",
                             Role = "Admin",
                             UserName = "admin"
+                        },
+                        new
+                        {
+                            Id = new Guid("9be75963-a399-4c4d-8c44-cd6817acb801"),
+                            CreatedAt = new DateTime(2025, 10, 9, 10, 55, 13, 90, DateTimeKind.Utc).AddTicks(4912),
+                            Email = "ahmet@blinkr.com",
+                            PasswordHash = "$2a$11$FN/SP5I8YtI75Mv0c.yr4OczFeKSi5ooBy56u1lopjH5P1CjbkaNS",
+                            Role = "User",
+                            UserName = "ahmet"
                         });
                 });
 #pragma warning restore 612, 618

@@ -17,6 +17,12 @@ public class PostMappingProfile : Profile
                 src.Content,
                 src.Media == null ? null : src.Media.ToList()
             ));
+        CreateMap<CreatePostDto, CreatePostCommand>()
+            .ConstructUsing(src => new CreatePostCommand(
+                src.Title,
+                src.Content,
+                src.Media == null ? null : src.Media.ToList()
+            ));
         CreateMap<CreatePostMediaDto, MediaItem>();
         CreateMap<Post, PostListItemDto>();
 

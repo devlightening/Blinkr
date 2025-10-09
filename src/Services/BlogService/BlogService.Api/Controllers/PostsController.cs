@@ -1,16 +1,15 @@
 ﻿using AutoMapper;
-using BlogService.Api.Auth;
-using BlogService.Api.Extensions;
-using BlogService.Application.DTOs.PostCommentDtos;
-using BlogService.Application.DTOs.PostDtos;
+using BlogService.Application.DTOs.PostDtos; // Oluşturduğumuz DTO'lar için
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommands;
-using BlogService.Application.Features.Mediatr.Comamnds.PostCommentCommands;
-using BlogService.Application.Features.Mediatr.Comamnds.PostLikeCommands;
 using BlogService.Application.Features.Mediatr.Queries.PostQueries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+using BlogService.Api.Auth; // User.GetUserId() extension metodu için
+using BlogService.Application.Features.Mediatr.Comamnds.PostCommentCommands;
+using BlogService.Application.Features.Mediatr.Comamnds.PostLikeCommands;
+using BlogService.Api.Extensions;
+using BlogService.Application.DTOs.PostCommentDtos;
 
 namespace BlogService.Api.Controllers;
 
@@ -20,29 +19,70 @@ namespace BlogService.Api.Controllers;
 public class PostsController : ControllerBase
 {
     private readonly IMediator _mediator;
-    private readonly ILogger<PostsController> _logger;
     private readonly IMapper _mapper;
 
-    public PostsController(IMediator mediator, ILogger<PostsController> logger, IMapper mapper)
+    public PostsController(IMediator mediator, IMapper mapper)
     {
         _mediator = mediator;
-        _logger = logger;
         _mapper = mapper;
     }
-
 
     [HttpPost]
     [Authorize(Policy = "api.write")]
     public async Task<IActionResult> Create([FromBody] CreatePostDto dto)
     {
-        var cmd = _mapper.Map<CreatePostCommand>(dto);
-        var postId = await _mediator.Send(cmd);
-
-        _logger.LogInformation("Post {PostId} created by User {Sub}", postId, User.GetUserId());
-        return Ok(new { PostId = postId });
+        var command = _mapper.Map<CreatePostCommand>(dto);
+        var postId = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetById), new { id = postId }, new { PostId = postId });
     }
 
-    // READ BY ID
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = "api.write")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePostDto dto)
+    {
+        // DÜZELTME: UpdatePostCommand'in beklediği AuthorId'yi ekliyoruz.
+        var authorId = User.GetUserId() ?? throw new UnauthorizedAccessException();
+        var command = new UpdatePostCommand(id, dto.Title, dto.Content, authorId);
+
+        var success = await _mediator.Send(command);
+        return success ? NoContent() : NotFound();
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "api.write")]
+    public async Task<IActionResult> Remove(Guid id)
+    {
+        var command = new RemovePostCommand(id);
+        var success = await _mediator.Send(command);
+        return success ? NoContent() : NotFound();
+    }
+
+    [HttpPost("{postId:guid}/comments")]
+    [Authorize(Policy = "api.write")]
+    public async Task<IActionResult> AddComment(Guid postId, [FromBody] AddCommentDto dto)
+    {
+        // DÜZELTME: CreatePostCommentCommand'in beklediği AuthorId'yi ekliyoruz.
+        var authorId = User.GetUserId() ?? throw new UnauthorizedAccessException();
+        var command = new CreatePostCommentCommand(postId, dto.CommentText, authorId, dto.ParentCommentId);
+
+        var commentId = await _mediator.Send(command);
+        return Ok(new { CommentId = commentId });
+    }
+
+    [HttpPost("{postId:guid}/likes")]
+    [Authorize(Policy = "api.write")]
+    public async Task<IActionResult> AddLike(Guid postId)
+    {
+        // DÜZELTME: CreatePostLikeCommand'in beklediği UserId'yi ekliyoruz.
+        var userId = User.GetUserId() ?? throw new UnauthorizedAccessException();
+        var command = new CreatePostLikeCommand(postId, userId);
+
+        await _mediator.Send(command);
+        return Ok();
+    }
+
+    // --- READ ENDPOINTS ---
+
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
     public async Task<IActionResult> GetById(Guid id)
@@ -51,105 +91,11 @@ public class PostsController : ControllerBase
         return post is null ? NotFound() : Ok(post);
     }
 
-    // PAGED LIST (tek list endpoint)
-    // GET /api/posts?page=1&pageSize=10&search=abc&orderBy=CreatedAt&sort=desc
     [HttpGet]
-    [Authorize(Policy = "api.read")]
-    public async Task<IActionResult> GetPaged(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10,
-        [FromQuery] string? search = null,
-        [FromQuery] string? orderBy = "CreatedAt",
-        [FromQuery] string? sort = "desc")
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPaged([FromQuery] GetPostsPagedQuery query)
     {
-        var result = await _mediator.Send(
-            new GetPostsPagedQuery(page, pageSize, search, orderBy, sort)
-        );
+        var result = await _mediator.Send(query);
         return Ok(result);
-    }
-
-    // UPDATE
-    [HttpPut("{id:guid}")]
-    [Authorize(Policy = "api.write")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] CreatePostDto dto)
-    {
-        var authorId = User.GetUserId();
-        if (authorId is null) return Unauthorized(new { message = "UserId claim not found" });
-
-        var post = await _mediator.Send(new GetPostByIdQuery(id));
-        if (post is null) return NotFound();
-
-        var authz = HttpContext.RequestServices.GetRequiredService<IAuthorizationService>();
-        var result = await authz.AuthorizeAsync(User, null, new OwnerOrAdminRequirement(post.AuthorId));
-        if (!result.Succeeded) return Forbid();
-
-        if (User.IsInRole("Admin"))
-            return Forbid("Admin users cannot update posts.");
-
-        var success = await _mediator.Send(new UpdatePostCommand(id, dto.Title, dto.Content, authorId.Value));
-        return success ? NoContent() : Forbid();
-    }
-
-    // DELETE
-    [HttpDelete("{id:guid}")]
-    [Authorize(Policy = "api.write")]
-    public async Task<IActionResult> Remove(Guid id, [FromServices] IAuthorizationService authz)
-    {
-        var post = await _mediator.Send(new GetPostByIdQuery(id));
-        if (post is null) return NotFound();
-
-        var result = await authz.AuthorizeAsync(User, null, new OwnerOrAdminRequirement(post.AuthorId));
-        if (!result.Succeeded) return Forbid();
-
-        var ok = await _mediator.Send(new RemovePostCommand(id));
-        return ok ? NoContent() : Forbid();
-    }
-
-    // WHO AM I (debug)
-    [HttpGet("WhoAmI")]
-    public IActionResult WhoAmI()
-    {
-        var userId = User.GetUserId();
-        var userName = User.Claims.FirstOrDefault(c => c.Type == "name")?.Value ?? "(none)";
-        var role = User.Claims.FirstOrDefault(c =>
-            c.Type == "role" ||
-            c.Type == ClaimTypes.Role ||
-            c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
-        )?.Value ?? "(none)";
-
-        return Ok(new
-        {
-            Authenticated = User.Identity?.IsAuthenticated ?? false,
-            UserId = userId,
-            UserName = userName,
-            Role = role
-        });
-    }
-
-    [HttpPost("{postId}/comments")]
-    public async Task<IActionResult> AddComment(Guid postId, [FromBody] PostCommentDto commentDto, CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(commentDto.CommentText))
-            return BadRequest("Comment text cannot be empty.");
-
-        var currentUserId = User.GetUserId(); // Kullanıcıdan alınan ID
-        if (currentUserId is null) return Unauthorized();
-        var command = new CreatePostCommentCommand(postId, commentDto.CommentText!, currentUserId.Value, commentDto.ParentCommentId);
-
-        var commentId = await _mediator.Send(command, ct);
-
-        return Ok(new { CommentId = commentId });
-    }
-
-    [HttpPost("{postId}/likes")]
-    public async Task<IActionResult> AddLike(Guid postId, CancellationToken ct)
-    {
-        var currentUserId = User.GetUserId(); // Kullanıcıdan alınan ID
-        if (currentUserId is null) return Unauthorized();
-        var command = new CreatePostLikeCommand(postId, currentUserId.Value);
-
-        var likeId = await _mediator.Send(command, ct);
-
-        return Ok(new { LikeId = likeId });
     }
 }

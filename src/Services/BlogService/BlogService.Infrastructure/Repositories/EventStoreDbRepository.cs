@@ -2,6 +2,9 @@ using BlogService.Domain.Common.Interfaces;
 using EventStore.Client;
 using Shared.Events.Bus;
 using System.Text.Json;
+using Shared.Events;
+using Shared.Events.Events.Blog;
+using BlogService.Domain.Events;
 
 namespace BlogService.Infrastructure.Repositories;
 
@@ -44,8 +47,10 @@ public class EventStoreDbRepository : IEventStoreRepository
     public async Task SaveAsync(IAggregateRoot aggregate, CancellationToken cancellationToken)
     {
         var stream = GetStreamName(aggregate.GetType(), aggregate.Id);
+        var uncommitted = aggregate.GetUncommittedEvents().ToList();
+        if (uncommitted.Count == 0) return;
 
-        var events = aggregate.GetUncommittedEvents().Select(e =>
+        var eventDataBatch = uncommitted.Select(e =>
         {
             var type = e.GetType().AssemblyQualifiedName!;
             var data = JsonSerializer.SerializeToUtf8Bytes(e);
@@ -53,13 +58,64 @@ public class EventStoreDbRepository : IEventStoreRepository
             return new EventData(Uuid.NewUuid(), type, data, meta);
         });
 
-        await _client.AppendToStreamAsync(stream, StreamState.Any, events, cancellationToken: cancellationToken);
+        // Expected revision = version before new events were applied
+        var expectedBeforeApply = aggregate.Version - (uncommitted.Count);
 
-        // Optionally publish integration events here (mapping left to handlers or mapper layer)
+        if (expectedBeforeApply < 0)
+        {
+            // New stream
+            await _client.AppendToStreamAsync(stream, StreamState.NoStream, eventDataBatch, cancellationToken: cancellationToken);
+        }
+        else
+        {
+            var expected = StreamRevision.FromInt64(expectedBeforeApply);
+            await _client.AppendToStreamAsync(stream, expected, eventDataBatch, cancellationToken: cancellationToken);
+        }
+
+        // Publish integration events (temporary direct publish; replace with Outbox for reliability)
+        foreach (var ie in MapToIntegrationEvents(uncommitted))
+        {
+            await _bus.PublishAsync(ie, routingKey: ie.GetType().Name, ct: cancellationToken);
+        }
+
         aggregate.MarkEventsAsCommitted();
     }
 
     private static string GetStreamName<T>(Guid id) => $"{typeof(T).Name.ToLowerInvariant()}-{id}";
     private static string GetStreamName(Type t, Guid id) => $"{t.Name.ToLowerInvariant()}-{id}";
+
+    private static IEnumerable<IIntegrationEvent> MapToIntegrationEvents(IEnumerable<IDomainEvent> events)
+    {
+        foreach (var e in events)
+        {
+            switch (e)
+            {
+                case PostCreatedEvent pc:
+                    yield return new PostCreatedIntegrationEvent
+                    {
+                        PostId = pc.PostId,
+                        AuthorId = pc.AuthorId,
+                        Title = pc.Title
+                    };
+                    break;
+                case PostCommentAddedEvent ca:
+                    yield return new PostCommentAddedIntegrationEvent
+                    {
+                        PostId = ca.PostId,
+                        CommentId = Guid.NewGuid(), // domain doesn't expose comment id; generate placeholder
+                        AuthorId = ca.AuthorId,
+                        CommentText = ca.CommentText
+                    };
+                    break;
+                case PostLikedEvent pl:
+                    yield return new PostLikedIntegrationEvent
+                    {
+                        PostId = pl.PostId,
+                        UserId = pl.UserId
+                    };
+                    break;
+            }
+        }
+    }
 }
 
