@@ -1,43 +1,50 @@
 ﻿using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommentCommands;
-using BlogService.Domain.Common.Interfaces;
 using BlogService.Domain.Entities;
+using BlogService.Domain.Events;
+using MassTransit;
 using MediatR;
-using System.Threading;
-using System.Threading.Tasks;
-
-// CreatePostCommentCommand tanımınızın burada olduğunu varsayıyorum:
-// public record CreatePostCommentCommand(Guid PostId, string Content, Guid AuthorId, Guid? ParentCommentId) : IRequest<Guid>;
+using Shared.Events.Events.Blog;
 
 public class CreatePostCommentCommandHandler : IRequestHandler<CreatePostCommentCommand, Guid>
 {
-    // Event Store üzerinden Aggregate yükleme/kaydetme
-    private readonly IEventStoreRepository _eventStoreRepository;
+    private readonly IEventStoreRepository _eventStoreRepo;
+    private readonly ICurrentUserService _currentUser;
+    private readonly IPublishEndpoint _publishEndpoint;
 
-    public CreatePostCommentCommandHandler(IEventStoreRepository eventStoreRepository)
+    public CreatePostCommentCommandHandler(
+        IEventStoreRepository eventStoreRepo,
+        ICurrentUserService currentUser,
+        IPublishEndpoint publishEndpoint)
     {
-        _eventStoreRepository = eventStoreRepository;
+        _eventStoreRepo = eventStoreRepo;
+        _currentUser = currentUser;
+        _publishEndpoint = publishEndpoint;
     }
 
-    public async Task<Guid> Handle(CreatePostCommentCommand request, CancellationToken cancellationToken)
+    public async Task<Guid> Handle(CreatePostCommentCommand request, CancellationToken ct)
     {
-        // 1. Post Aggregate Root'u yükle
-        var post = await _eventStoreRepository.LoadAsync<PostAggregate>(request.PostId, cancellationToken);
+        var authorId = _currentUser.UserId ?? throw new UnauthorizedAccessException("Authentication required.");
 
-        // Event Sourcing'de Aggregate yoksa LoadAsync boş Aggregate döndürür, Id kontrolü yapılır.
-        if (post.Id == Guid.Empty)
+        var postAggregate = await _eventStoreRepo.LoadAsync<PostAggregate>(request.PostId, ct);
+        if (postAggregate.Id == Guid.Empty)
         {
-            throw new KeyNotFoundException($"Post ID '{request.PostId}' bulunamadı.");
+            throw new KeyNotFoundException($"Post with ID '{request.PostId}' not found.");
         }
 
-        // 2. Aggregate üzerinde iş mantığını çağır (Bu, PostCommentAddedEvent'i fırlatır)
-        post.AddComment(request.AuthorId, request.CommentText);
+        postAggregate.AddComment(authorId, request.CommentText);
 
-        // 3. Aggregate üzerindeki yeni olayları Event Store'a kaydet
-        await _eventStoreRepository.SaveAsync(post, cancellationToken);
+        await _eventStoreRepo.SaveAsync(postAggregate, ct);
 
-        // Not: Gerçekte CommentId'yi Aggregate'in DomainEvents'inden almamız gerekir. 
-        // Şimdilik sadece PostId'yi döndürelim (veya Post'un Version'ını).
-        return post.Id;
+        var commentAddedEvent = postAggregate.GetUncommittedEvents().OfType<PostCommentAddedEvent>().Last();
+        await _publishEndpoint.Publish(new PostCommentAddedIntegrationEvent
+        {
+            PostId = commentAddedEvent.PostId,
+            CommentId = commentAddedEvent.CommentId,
+            AuthorId = commentAddedEvent.AuthorId,
+            CommentText = commentAddedEvent.CommentText
+        }, ct);
+
+        return commentAddedEvent.CommentId;
     }
 }

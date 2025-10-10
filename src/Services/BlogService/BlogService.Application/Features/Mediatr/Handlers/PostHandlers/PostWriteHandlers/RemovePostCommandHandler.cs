@@ -1,19 +1,24 @@
 ﻿using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommands;
 using BlogService.Domain.Entities;
+using MassTransit; // YENİ EKLENDİ
 using MediatR;
-using System.Threading;
-using System.Threading.Tasks;
+using Shared.Events.Events.Blog; // YENİ EKLENDİ
 
 public class RemovePostCommandHandler : IRequestHandler<RemovePostCommand, bool>
 {
     private readonly IEventStoreRepository _eventStoreRepo;
     private readonly ICurrentUserService _currentUser;
+    private readonly IPublishEndpoint _publishEndpoint; // YENİ EKLENDİ
 
-    public RemovePostCommandHandler(IEventStoreRepository eventStoreRepo, ICurrentUserService currentUser)
+    public RemovePostCommandHandler(
+        IEventStoreRepository eventStoreRepo,
+        ICurrentUserService currentUser,
+        IPublishEndpoint publishEndpoint) // YENİ EKLENDİ
     {
         _eventStoreRepo = eventStoreRepo;
         _currentUser = currentUser;
+        _publishEndpoint = publishEndpoint; // YENİ EKLENDİ
     }
 
     public async Task<bool> Handle(RemovePostCommand request, CancellationToken ct)
@@ -23,7 +28,7 @@ public class RemovePostCommandHandler : IRequestHandler<RemovePostCommand, bool>
         var post = await _eventStoreRepo.LoadAsync<PostAggregate>(request.Id, ct);
         if (post.Id == Guid.Empty)
         {
-            return false; // Post bulunamadı
+            return false;
         }
 
         var isOwner = post.AuthorId == userId;
@@ -35,6 +40,8 @@ public class RemovePostCommandHandler : IRequestHandler<RemovePostCommand, bool>
 
         post.Delete();
         await _eventStoreRepo.SaveAsync(post, ct);
+
+        await _publishEndpoint.Publish(new PostDeletedIntegrationEvent { PostId = post.Id }, ct);
 
         return true;
     }

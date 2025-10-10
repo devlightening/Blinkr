@@ -1,10 +1,6 @@
-namespace Shared.Events;
+using Shared.Events.Abstractions;
 
-public interface IIntegrationEvent
-{
-    Guid Id { get; }
-    DateTime OccurredOn { get; }
-}
+namespace Shared.Events.Concretes;
 
 public abstract class IntegrationEvent : IIntegrationEvent
 {

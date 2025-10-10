@@ -75,8 +75,7 @@ public class PostsController : ControllerBase
     {
         // DÜZELTME: CreatePostLikeCommand'in beklediği UserId'yi ekliyoruz.
         var userId = User.GetUserId() ?? throw new UnauthorizedAccessException();
-        var command = new CreatePostLikeCommand(postId, userId);
-
+        var command = new CreatePostLikeCommand(postId);
         await _mediator.Send(command);
         return Ok();
     }

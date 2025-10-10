@@ -7,13 +7,17 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.20" />
-	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.20">
-	    <PrivateAssets>all</PrivateAssets>
-	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-	  </PackageReference>
-	  <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
-	  <PackageReference Include="EventStore.Client.Grpc.Streams" Version="23.0.0" />
+		<!-- Versiyonlar Directory.Packages.props dosyasından yönetiliyor -->
+		<PackageReference Include="Microsoft.EntityFrameworkCore" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+		<PackageReference Include="MassTransit.RabbitMQ" />
+		<PackageReference Include="MassTransit.EntityFrameworkCore" />
+		<PackageReference Include="EventStore.Client.Grpc.Streams" />
 	</ItemGroup>
 
 	<ItemGroup>

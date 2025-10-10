@@ -3,13 +3,13 @@ using Duende.IdentityServer.Services;
 using Duende.IdentityServer.EntityFramework.DbContexts;
 using HealthChecks.UI.Client;
 using IdentityServerService.Auth;
-using IdentityService.Infrastructure.Data;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using System.Security.Cryptography;
-using Npgsql; // Hata yakalamak için eklendi
+using Npgsql;
+using IdentityService.Infrastructure.Data; 
 
 var builder = WebApplication.CreateBuilder(args);
 

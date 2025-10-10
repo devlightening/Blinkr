@@ -5,11 +5,6 @@ using BlogService.Application.Common.Models;
 using BlogService.Application.DTOs.PostDtos;
 using BlogService.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BlogService.Infrastructure.Repositories
 {

@@ -7,27 +7,22 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="Auth\IdsConfig.cs" />
+    <PackageReference Include="AspNetCore.HealthChecks.UI.Client" />
+    <PackageReference Include="BCrypt.Net-Next" />
+    <PackageReference Include="Duende.IdentityServer" />
+    <PackageReference Include="Duende.IdentityServer.EntityFramework" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
   </ItemGroup>
-
-  <ItemGroup>
-  <PackageReference Include="Duende.IdentityServer" Version="7.3.2" />
-  <PackageReference Include="Duende.IdentityServer.EntityFramework" Version="7.3.2" />
-  <!-- Storage opsiyonel; istersen kaldırabilirsin -->
-  <!-- <PackageReference Include="Duende.IdentityServer.EntityFramework.Storage" Version="7.3.2" /> -->
-  <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
-  <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.20" />
-  <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="8.0.20" />
-  <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.20" />
-  <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
-  <PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
-  <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
-</ItemGroup>
-
 
   <ItemGroup>
     <ProjectReference Include="..\..\IdentityService\IdentityService.Domain\IdentityService.Domain.csproj" />
+    <ProjectReference Include="..\..\IdentityService\IdentityService.Application\IdentityService.Application.csproj" />
     <ProjectReference Include="..\..\IdentityService\IdentityService.Infrastructure\IdentityService.Infrastructure.csproj" />
   </ItemGroup>
-
 </Project>
+

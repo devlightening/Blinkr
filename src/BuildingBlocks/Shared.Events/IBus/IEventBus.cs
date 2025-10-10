@@ -1,3 +1,5 @@
+using Shared.Events.Abstractions;
+
 namespace Shared.Events.Bus;
 
 public interface IEventBus

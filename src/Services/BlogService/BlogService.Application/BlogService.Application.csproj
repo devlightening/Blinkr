@@ -1,14 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\Shared.Events\Shared.Events.csproj" />
+    <ProjectReference Include="..\..\WorkerService\Blinkr.Projections.Worker\Blinkr.Projections.Worker.csproj" />
     <ProjectReference Include="..\BlogService.Domain\BlogService.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AutoMapper" Version="15.0.1" />
-    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
-    <PackageReference Include="MediatR" Version="13.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.20" />
+    <PackageReference Include="AutoMapper" />
+    <PackageReference Include="FluentValidation.AspNetCore" />
+    <PackageReference Include="MassTransit" />
+    <PackageReference Include="MediatR" />
   </ItemGroup>
 
   <ItemGroup>

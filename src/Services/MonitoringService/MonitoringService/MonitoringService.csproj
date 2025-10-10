@@ -7,9 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AspNetCore.HealthChecks.UI" Version="9.0.0" />
-    <PackageReference Include="AspNetCore.HealthChecks.UI.SqlServer.Storage" Version="9.0.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <PackageReference Include="AspNetCore.HealthChecks.UI"/>
+    <PackageReference Include="AspNetCore.HealthChecks.UI.SqlServer.Storage"/>
+    <PackageReference Include="Microsoft.EntityFrameworkCore"/>
+    <PackageReference Include="Swashbuckle.AspNetCore"/>
   </ItemGroup>
 
 </Project>

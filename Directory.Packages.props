@@ -1,0 +1,50 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- .NET 8 Stabil Versiyonları -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.6" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.6" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.6" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.6" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.6" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="8.0.6" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.IdentityModel.Tokens" Version="7.5.1" />
+    <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="7.5.1" />
+    
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
+    
+    <PackageVersion Include="MassTransit" Version="8.2.3" />
+    <PackageVersion Include="MassTransit.RabbitMQ" Version="8.2.3" />
+    <PackageVersion Include="MassTransit.EntityFrameworkCore" Version="8.2.3" />
+
+    <PackageVersion Include="Serilog.AspNetCore" Version="8.0.1" />
+    <PackageVersion Include="Serilog.Extensions.Hosting" Version="8.0.0" />
+    <PackageVersion Include="Serilog.Settings.Configuration" Version="8.0.1" />
+    <PackageVersion Include="Serilog.Sinks.Console" Version="5.0.1" />
+    <PackageVersion Include="Serilog.Sinks.Seq" Version="7.0.1" />
+
+    <PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="8.0.1" />
+    <PackageVersion Include="AspNetCore.HealthChecks.Redis" Version="8.0.1" />
+    <PackageVersion Include="AspNetCore.HealthChecks.UI" Version="8.0.1" />
+    <PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="8.0.1" />
+    <PackageVersion Include="AspNetCore.HealthChecks.UI.SqlServer.Storage" Version="8.0.1" />
+
+    <PackageVersion Include="AutoMapper" Version="13.0.1" />
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+    <PackageVersion Include="RabbitMQ.Client" Version="6.8.1" />
+    <PackageVersion Include="EventStore.Client.Grpc.Streams" Version="23.0.0" />
+    <PackageVersion Include="FluentValidation.AspNetCore" Version="11.3.0" />
+    <PackageVersion Include="MediatR" Version="12.3.0" />
+    <PackageVersion Include="Duende.IdentityServer" Version="7.0.5" />
+    <PackageVersion Include="Duende.IdentityServer.EntityFramework" Version="7.0.5" />
+    <PackageVersion Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageVersion Include="IdentityModel" Version="7.0.0" />
+    
+    <PackageVersion Include="MongoDB.Driver" Version="2.25.0" />
+  </ItemGroup>
+</Project>
+
