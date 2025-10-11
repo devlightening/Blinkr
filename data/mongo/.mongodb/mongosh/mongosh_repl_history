@@ -1,0 +1,10 @@
+});
+  ]
+    { role: 'readWrite', db: 'BlinkrReadModel' }
+  roles: [
+  pwd: 'blinkr123',
+  user: 'blinkr_re',
+db.createUser({
+db.dropUser('blinkr_re');
+db = db.getSiblingDB('admin');
+docker exec -it blinkr_mongodb mongosh --username mongoadmin --password secret --authenticationDatabase admin --eval "

@@ -5,7 +5,7 @@
         public Guid AggregateId { get; set; }
         public int Version { get; set; }
         public string EventType { get; set; }
-        public string EventData { get; set; } // JSON olarak saklanacak veriler
+        public string EventData { get; set; } 
         public DateTime CreatedAtUtc { get; set; }
     }
 }
