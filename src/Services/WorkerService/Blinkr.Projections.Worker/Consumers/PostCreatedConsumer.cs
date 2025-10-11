@@ -1,11 +1,12 @@
 ﻿using Blinkr.Projections.Worker.Documents;
 using MassTransit;
 using MongoDB.Driver;
+using Shared.Events.Abstractions;
 using Shared.Events.Events.Blog;
 
 namespace Blinkr.Projections.Worker.Consumers;
 
-public class PostCreatedConsumer : IConsumer<PostCreatedIntegrationEvent>
+public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
 {
     private readonly IMongoCollection<PostDocument> _postsCollection;
     private readonly ILogger<PostCreatedConsumer> _logger;
@@ -16,30 +17,34 @@ public class PostCreatedConsumer : IConsumer<PostCreatedIntegrationEvent>
         _logger = logger;
     }
 
-    public async Task Consume(ConsumeContext<PostCreatedIntegrationEvent> context)
+    public async Task Consume(ConsumeContext<IPostCreatedIntegrationEvent> context)
     {
         var message = context.Message;
-        _logger.LogInformation("Received PostCreatedIntegrationEvent for PostId: {PostId}", message.PostId);
+        _logger.LogInformation("Received IPostCreatedIntegrationEvent for PostId: {PostId}", message.PostId);
 
-        var existingPost = await (await _postsCollection.FindAsync(p => p.Id == message.PostId)).FirstOrDefaultAsync();
-        if (existingPost != null)
+        try
         {
-            _logger.LogWarning("Post with Id {PostId} already exists. Skipping creation.", message.PostId);
-            return;
+            var newPost = new PostDocument
+            {
+                Id = message.PostId,
+                AuthorId = message.AuthorId,
+                Title = message.Title ?? string.Empty,
+                Content = message.Content ?? string.Empty,
+                CreatedAtUtc = message.OccurredOn,
+                LikeCount = 0
+            };
+
+            var filter = Builders<PostDocument>.Filter.Eq(p => p.Id, newPost.Id);
+            await _postsCollection.ReplaceOneAsync(filter, newPost, new ReplaceOptions { IsUpsert = true });
+
+            _logger.LogInformation(">>>> ZAFER! <<<< Successfully projected PostDocument in MongoDB for PostId: {PostId}", message.PostId);
         }
-
-        var newPost = new PostDocument
+        catch (Exception ex)
         {
-            Id = message.PostId,
-            AuthorId = message.AuthorId,
-            Title = message.Title ?? string.Empty,
-            Content = message.Content ?? string.Empty,
-            CreatedAtUtc = message.OccurredOn,
-            LikeCount = 0
-        };
-
-        await _postsCollection.InsertOneAsync(newPost);
-
-        _logger.LogInformation("Successfully created PostDocument in MongoDB for PostId: {PostId}", newPost.Id);
+            _logger.LogError(ex, "!!!!!! HATA !!!!!! Error processing message for PostId: {PostId}", message.PostId);
+            // Hata oluştuğunda MassTransit'in mesajı tekrar denemesini ve
+            // sonunda _error kuyruğuna taşımasını sağlamak için exception fırlatıyoruz.
+            throw;
+        }
     }
 }

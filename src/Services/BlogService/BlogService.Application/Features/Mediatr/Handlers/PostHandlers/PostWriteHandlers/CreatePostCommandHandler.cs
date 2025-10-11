@@ -1,40 +1,25 @@
 ﻿using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommands;
 using BlogService.Domain.Entities;
-using MassTransit;
 using MediatR;
-using Shared.Events.Events.Blog;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 
 public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
 {
     private readonly IEventStoreRepository _eventStoreRepo;
     private readonly ICurrentUserService _currentUser;
-    private readonly IPublishEndpoint _publishEndpoint;
 
     public CreatePostCommandHandler(
         IEventStoreRepository eventStoreRepo,
-        ICurrentUserService currentUser,
-        IPublishEndpoint publishEndpoint)
+        ICurrentUserService currentUser)
     {
         _eventStoreRepo = eventStoreRepo;
         _currentUser = currentUser;
-        _publishEndpoint = publishEndpoint;
     }
 
     public async Task<Guid> Handle(CreatePostCommand request, CancellationToken ct)
     {
-        var authorId = _currentUser.UserId
-            ?? throw new UnauthorizedAccessException("Authenticated user required.");
-
-        var postAggregate = PostAggregate.Create(
-            Guid.NewGuid(),
-            authorId,
-            request.Title,
-            request.Content
-        );
+        var authorId = _currentUser.UserId ?? throw new UnauthorizedAccessException("Authenticated user required.");
+        var postAggregate = PostAggregate.Create(Guid.NewGuid(), authorId, request.Title, request.Content);
 
         if (request.Media is not null)
         {
@@ -47,17 +32,8 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
             }
         }
 
+      
         await _eventStoreRepo.SaveAsync(postAggregate, ct);
-
-
-        await _publishEndpoint.Publish(new PostCreatedIntegrationEvent
-        {
-            PostId = postAggregate.Id,
-            AuthorId = postAggregate.AuthorId,
-            Title = postAggregate.Title,
-            Content = postAggregate.Content
-        }, ct);
-
 
         return postAggregate.Id;
     }

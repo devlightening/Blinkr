@@ -1,4 +1,5 @@
-﻿using BlogService.Api.Auth;
+﻿using BlogService.Api;
+using BlogService.Api.Auth;
 using BlogService.Application.Common.Behaviors;
 using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Mappings;
@@ -67,18 +68,14 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// ---- SERVİS KAYITLARI (TAM VE DÜZELTİLMİŞ) ----
+// --- SERVİS KAYITLARI (TAM VE DÜZELTİLMİŞ) ---
 
-// Temel Servisler
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
-// PostgreSQL DbContext'leri (Outbox ve eski Read Model için)
+// PostgreSQL DbContext (Sadece eski Read Model ve gerekirse diğer tablolar için)
 builder.Services.AddDbContext<BlogDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("BlogDb")));
-
-builder.Services.AddDbContext<OutboxDbContext>(opt =>
-    opt.UseNpgsql(builder.Configuration.GetConnectionString("BlogDb"), pgOpt =>
-        pgOpt.MigrationsAssembly(typeof(OutboxDbContext).Assembly.FullName)));
 
 // EventStoreDB İstemcisi
 builder.Services.AddSingleton<EventStoreClient>(sp =>
@@ -96,6 +93,7 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
 {
     var client = sp.GetRequiredService<IMongoClient>();
     var dbName = builder.Configuration["MongoDbSettings:DatabaseName"];
+    if (string.IsNullOrEmpty(dbName)) throw new InvalidOperationException("MongoDB DatabaseName is not configured.");
     return client.GetDatabase(dbName);
 });
 
@@ -103,28 +101,23 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
 builder.Services.AddScoped<IEventStoreRepository, EventStoreDbRepository>();
 builder.Services.AddScoped<IPostReadRepository, PostReadRepository>();
 
-// MassTransit, RabbitMQ ve EF Core Outbox Yapılandırması
+// EventStoreDB'yi dinleyecek olan arka plan servisi.
+builder.Services.AddHostedService<EventStoreToRabbitMqPublisher>();
+
+// MassTransit (Sadece Yayıncı olarak ayarlandı)
 builder.Services.AddMassTransit(busConfig =>
 {
-    busConfig.AddEntityFrameworkOutbox<OutboxDbContext>(o =>
-    {
-        o.QueryDelay = TimeSpan.FromSeconds(10);
-        o.UsePostgres();
-        o.UseBusOutbox();
-    });
     busConfig.UsingRabbitMq((context, cfg) =>
     {
         var rabbitMqConfig = builder.Configuration.GetSection("RabbitMq");
-        cfg.Host(rabbitMqConfig["Host"], "/", h =>
-        {
+        cfg.Host(rabbitMqConfig["Host"], "/", h => {
             h.Username("user");
             h.Password("password");
         });
-        cfg.ConfigureEndpoints(context, new KebabCaseEndpointNameFormatter("Blinkr", false));
     });
 });
 
-// Diğer Servisler (AutoMapper, MediatR, JWT, Authorization...)
+// Diğer Servisler
 builder.Services.AddSingleton<IAuthorizationHandler, OwnerOrAdminHandler>();
 builder.Services.AddAutoMapper(cfg => cfg.AddProfile<PostMappingProfile>());
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.Load("BlogService.Application")));

@@ -2,27 +2,26 @@ using Blinkr.Projections.Worker.Consumers;
 using MassTransit;
 using MongoDB.Driver;
 using Serilog;
-using GenericHost = Microsoft.Extensions.Hosting.Host;
+using Serilog.Events;
 
-// DÜZELTME: Serilog yapýlandýrmasýný en baþa alarak
-// uygulama çökerse bile loglarý görebilmemizi saðlýyoruz.
+// Serilog'u, appsettings'e güvenmeden, doðrudan ve en temiz formatta çalýþacak þekilde ayarlýyoruz.
 Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
-    .CreateBootstrapLogger();
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .WriteTo.Console(
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
 
 Log.Information("Starting Blinkr.Projections.Worker service...");
 
+
 try
 {
-    var host = GenericHost.CreateDefaultBuilder(args)
-        .UseSerilog((context, config) =>
-        {
-            // appsettings.json'daki Serilog ayarlarýný oku
-            config.ReadFrom.Configuration(context.Configuration);
-        })
+    var host = Host.CreateDefaultBuilder(args)
+        .UseSerilog()
         .ConfigureServices((context, services) =>
         {
-            // MongoDB Ýstemcisini ve Veritabanýný Ayarla
             services.AddSingleton<IMongoClient>(sp =>
                 new MongoClient(context.Configuration.GetConnectionString("MongoDb")));
 
@@ -33,11 +32,9 @@ try
                 return client.GetDatabase(dbName);
             });
 
-            // MassTransit ve RabbitMQ'yu Ayarla
             services.AddMassTransit(busConfig =>
             {
                 busConfig.AddConsumersFromNamespaceContaining<PostCreatedConsumer>();
-
                 busConfig.UsingRabbitMq((busContext, cfg) =>
                 {
                     var rabbitMqConfig = context.Configuration.GetSection("RabbitMq");
@@ -45,24 +42,21 @@ try
                         h.Username("user");
                         h.Password("password");
                     });
-
-                    cfg.ConfigureEndpoints(busContext);
+                    cfg.ConfigureEndpoints(busContext, new KebabCaseEndpointNameFormatter("Blinkr", false));
                 });
             });
         })
         .Build();
 
     await host.RunAsync();
-
-    return 0; // Baþarýlý çýkýþ
+    return 0;
 }
 catch (Exception ex)
 {
     Log.Fatal(ex, "An unexpected error occurred while starting the Blinkr.Projections.Worker service.");
-    return 1; // Hatalý çýkýþ
+    return 1;
 }
 finally
 {
     Log.CloseAndFlush();
 }
-

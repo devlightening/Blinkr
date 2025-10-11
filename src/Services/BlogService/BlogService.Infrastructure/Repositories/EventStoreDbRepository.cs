@@ -8,31 +8,22 @@ namespace BlogService.Infrastructure.Repositories;
 public class EventStoreDbRepository : IEventStoreRepository
 {
     private readonly EventStoreClient _client;
-
-    public EventStoreDbRepository(EventStoreClient client)
-    {
-        _client = client;
-    }
+    public EventStoreDbRepository(EventStoreClient client) => _client = client;
 
     public async Task<T> LoadAsync<T>(Guid aggregateId, CancellationToken cancellationToken) where T : IAggregateRoot, new()
     {
         var streamName = GetStreamName(typeof(T), aggregateId);
         var result = _client.ReadStreamAsync(Direction.Forwards, streamName, StreamPosition.Start, cancellationToken: cancellationToken);
-
         var aggregate = new T();
+        if (await result.ReadState == ReadState.StreamNotFound) return aggregate;
+
         var events = new List<IDomainEvent>();
-
-        if (await result.ReadState == ReadState.StreamNotFound)
-            return aggregate;
-
         await foreach (var resolved in result.WithCancellation(cancellationToken))
         {
-            var typeHeader = resolved.Event.EventType;
-            var data = resolved.Event.Data.ToArray();
-            var type = Type.GetType(typeHeader) ?? throw new InvalidOperationException($"Unknown event type: {typeHeader}");
-            var domainEvent = (IDomainEvent?)JsonSerializer.Deserialize(data, type);
-            if (domainEvent is null) throw new InvalidOperationException($"Failed to deserialize {typeHeader}");
-            events.Add(domainEvent);
+            var type = Type.GetType(resolved.Event.EventType);
+            if (type == null) continue;
+            var domainEvent = (IDomainEvent?)JsonSerializer.Deserialize(resolved.Event.Data.ToArray(), type);
+            if (domainEvent != null) events.Add(domainEvent);
         }
 
         aggregate.LoadFromHistory(events);
@@ -52,13 +43,26 @@ public class EventStoreDbRepository : IEventStoreRepository
             return new EventData(Uuid.NewUuid(), type, data);
         });
 
-        var expectedRevision = StreamRevision.FromInt64(aggregate.Version - uncommitted.Count);
+        // DÜZELTME (Analiz #3): Yeni stream için doðru versiyon kontrolü
+        var originalVersion = aggregate.Version - uncommitted.Count;
 
-        await _client.AppendToStreamAsync(streamName, expectedRevision, eventDataBatch, cancellationToken: cancellationToken);
+        try
+        {
+            if (originalVersion < 0)
+            {
+                await _client.AppendToStreamAsync(streamName, StreamState.NoStream, eventDataBatch, cancellationToken: cancellationToken);
+            }
+            else
+            {
+                await _client.AppendToStreamAsync(streamName, StreamRevision.FromInt64(originalVersion), eventDataBatch, cancellationToken: cancellationToken);
+            }
+        }
+        catch (WrongExpectedVersionException ex)
+        {
+            throw new Exception($"Concurrency error saving aggregate {aggregate.Id}", ex);
+        }
 
         aggregate.MarkEventsAsCommitted();
     }
-
     private static string GetStreamName(Type t, Guid id) => $"{t.Name}-{id}";
 }
-
