@@ -10,7 +10,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - blinkr_postgres_data:/var/lib/postgresql/data    
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -31,19 +31,6 @@ services:
       postgres:
         condition: service_healthy
 
-  seq:
-    image: datalust/seq:2024.3
-    container_name: blinkr_seq
-    platform: linux/amd64
-    restart: always
-    environment:
-      ACCEPT_EULA: "Y"
-    ports:
-      - "5341:80"
-      - "5342:5341"
-    volumes:
-      - seq_data:/data
-
   redis:
     image: redis:7
     container_name: blinkr_redis
@@ -52,21 +39,32 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
+      - blinkr_redis_data:/data
 
-  eventstore:
-    image: eventstore/eventstore:latest
+  eventstore.db:
+    image: eventstore/eventstore:24.2.0-bookworm-slim
     container_name: blinkr_eventstore
-    restart: always
     environment:
-      - EVENTSTORE_INSECURE=true
-      - EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP=true
-      - EVENTSTORE_CLUSTER_SIZE=1
+      - EVENTSTORE_INSECURE=True
       - EVENTSTORE_RUN_PROJECTIONS=All
+      - EVENTSTORE_START_STANDARD_PROJECTIONS=True
+      - EVENTSTORE_HTTP_PORT=2113
+      - EVENTSTORE_LOG_LEVEL=Information
+      - EVENTSTORE_CLUSTER_SIZE=1
+      - EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP=True
+      - EVENTSTORE_GOSSIP_ON_SINGLE_NODE=True
+      - EVENTSTORE_MEM_DB=True
     ports:
       - "2113:2113"
     volumes:
-      - eventstore_data:/var/lib/eventstore
+      - blinkr_eventstore_data:/var/lib/eventstore
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:2113/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -83,23 +81,17 @@ services:
     image: mongo:6.0.2
     container_name: blinkr_mongodb
     restart: always
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: mongoadmin
-      MONGO_INITDB_ROOT_PASSWORD: secret
-      MONGO_INITDB_DATABASE: admin
-      MONGO_EXTRA_ARGS: "--auth"
     ports:
       - "27017:27017"
     volumes:
-      - ./data/mongo:/data/db
-
+      - blinkr_mongo_data:/data/db
 
   mongo-express:
     image: mongo-express:1.0.2-20
     container_name: blinkr_mongo_express
     restart: always
     environment:
-      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/?authSource=admin
+      ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017/
       ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_LOGIN}
       ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_PASSWORD}
     depends_on:
@@ -108,8 +100,7 @@ services:
       - "8081:8081"
 
 volumes:
-  postgres_data:
-  seq_data:
-  redis_data:
-  eventstore_data:
-  mongo_data:
+  blinkr_postgres_data:
+  blinkr_eventstore_data:
+  blinkr_mongo_data:
+  blinkr_redis_data:

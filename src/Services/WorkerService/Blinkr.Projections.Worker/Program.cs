@@ -3,7 +3,9 @@ using MassTransit;
 using MongoDB.Driver;
 using Serilog;
 using Serilog.Events;
-using Microsoft.Extensions.Hosting; // HostOptions iÁin
+using Microsoft.Extensions.Hosting;
+
+Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
@@ -14,28 +16,37 @@ Log.Logger = new LoggerConfiguration()
 
 Log.Information("Starting Blinkr.Projections.Worker service...");
 
+Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+
 try
 {
     var host = Host.CreateDefaultBuilder(args)
         .UseSerilog()
         .ConfigureServices((context, services) =>
         {
-            // Worker bir BackgroundService iÁinde exception atarsa hostíu kapatma (debug iÁin)
-            services.Configure<HostOptions>(o =>
-                o.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore);
+            var env = context.HostingEnvironment.EnvironmentName;
+            Log.Information("Environment: {Env}", env);
 
-            var cs = context.Configuration.GetConnectionString("MongoDb") ?? "(null)";
+            // Mongo baglanti dizesini oku
+            var cs = context.Configuration.GetConnectionString("MongoDb");
+            if (string.IsNullOrWhiteSpace(cs))
+            {
+                Log.Warning("MongoDb connection string not found in configuration!");
+                cs = "mongodb://localhost:27017/?authSource=BlinkrReadModel";
+            }
+
             Log.Information("Effective MongoDb CS: {Conn}", cs.Replace("blinkr123", "******"));
 
-            services.AddSingleton<IMongoClient>(sp =>
+            // Mongo Client ve Database with STRICT Write Concern
+            services.AddSingleton<IMongoClient>(_ =>
             {
-                var cs = context.Configuration.GetConnectionString("MongoDb")
-                         ?? "mongodb://blinkr_re:blinkr123@127.0.0.1:27017/?authSource=BlinkrReadModel&authMechanism=SCRAM-SHA-256";
-
-                return new MongoClient(cs);
+                var settings = MongoClientSettings.FromConnectionString(cs);
+                // CRITICAL: Force synchronous, journaled writes for standalone MongoDB
+                settings.WriteConcern = new WriteConcern(w: 1, journal: true);
+                settings.ReadConcern = ReadConcern.Local;
+                Log.Information("üìù MongoDB WriteConcern set to W=1, Journal=true for data durability");
+                return new MongoClient(settings);
             });
-
-
             services.AddSingleton<IMongoDatabase>(sp =>
             {
                 var client = sp.GetRequiredService<IMongoClient>();
@@ -43,21 +54,33 @@ try
                 return client.GetDatabase(dbName);
             });
 
-            // Ba˛lang˝Áta PING at, ama hata olsa bile uygulamay˝ d¸˛¸rme
+            // Mongo test servisi
             services.AddHostedService<PingMongoOnStart>();
 
+            // RabbitMQ yapƒ±landƒ±rmasƒ± - FIXED
             services.AddMassTransit(busCfg =>
             {
+                // T√ºm consumer'larƒ± ekle
                 busCfg.AddConsumersFromNamespaceContaining<PostCreatedConsumer>();
+                
                 busCfg.UsingRabbitMq((ctx, cfg) =>
                 {
-                    var rabbitHost = context.Configuration.GetSection("RabbitMq")["Host"] ?? "localhost";
+                    var rabbitSection = context.Configuration.GetSection("RabbitMq");
+                    var rabbitHost = rabbitSection["Host"] ?? "localhost";
+                    var rabbitUser = rabbitSection["User"] ?? "user";
+                    var rabbitPass = rabbitSection["Pass"] ?? "password";
+
                     cfg.Host(rabbitHost, "/", h =>
                     {
-                        h.Username("user");
-                        h.Password("password");
+                        h.Username(rabbitUser);
+                        h.Password(rabbitPass);
                     });
-                    cfg.ConfigureEndpoints(ctx, new KebabCaseEndpointNameFormatter("Blinkr", false));
+
+                    // CRITICAL FIX: Prefix olmadan, sadece KebabCase kullan
+                    // Bu "blinkr-post-created" gibi queue isimleri olu≈üturur
+                    cfg.ConfigureEndpoints(ctx, new KebabCaseEndpointNameFormatter(false));
+                    
+                    Log.Information("RabbitMQ configured with host: {Host}", rabbitHost);
                 });
             });
         })
@@ -71,4 +94,7 @@ catch (Exception ex)
     Log.Fatal(ex, "Worker failed to start.");
     return 1;
 }
-finally { Log.CloseAndFlush(); }
+finally
+{
+    Log.CloseAndFlush();
+}

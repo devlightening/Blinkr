@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using EventStore.Client;
 using MassTransit;
 using BlogService.Domain.Events;
@@ -35,13 +35,16 @@ public class EventStoreToRabbitMqPublisher : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("EventStoreDB Publisher is starting...");
+        _logger.LogWarning("🚀 EventStoreDB Publisher is starting...");
 
-        // Yalnızca YENİ event'leri dinle (geçmişi replay etme)
-        var start = FromAll.End;
+        // TEMPORARY: Başlangıçtan itibaren tüm event'leri replay et (test için)
+        // Production'da checkpoint-based subscription kullanılmalı
+        var start = FromAll.Start;
 
         // Sadece PostAggregate-* stream'leri
         var filter = new SubscriptionFilterOptions(StreamFilter.Prefix(AggregateStreamPrefix));
+
+        _logger.LogWarning("📡 Subscribing to EventStore with prefix: {Prefix}", AggregateStreamPrefix);
 
         // Aboneliği başlat
         await _eventStoreClient.SubscribeToAllAsync(
@@ -59,29 +62,29 @@ public class EventStoreToRabbitMqPublisher : BackgroundService
 
                     if (eventType is null)
                     {
-                        _logger.LogWarning("Unknown event type '{EventType}' (assembly load?). Stream={StreamId}, Position={Position}",
+                        _logger.LogWarning("⚠️ Unknown event type '{EventType}' (assembly load?). Stream={StreamId}, Position={Position}",
                             typeName, resolved.OriginalStreamId, resolved.OriginalPosition);
                         return;
                     }
 
-                    // Domain event’i deserialize et
+                    // Domain event'i deserialize et
                     var domainEvent = JsonSerializer.Deserialize(resolved.Event.Data.Span, eventType, JsonOpts);
                     if (domainEvent is null)
                     {
-                        _logger.LogWarning("Failed to deserialize event '{EventType}'. Stream={StreamId}, Position={Position}",
+                        _logger.LogWarning("⚠️ Failed to deserialize event '{EventType}'. Stream={StreamId}, Position={Position}",
                             typeName, resolved.OriginalStreamId, resolved.OriginalPosition);
                         return;
                     }
 
-                    // Bilgi amaçlı log
-                    _logger.LogDebug("Event received: {EventType} from {StreamId} @ {Position}",
+                    // HER EVENT İÇİN LOG
+                    _logger.LogWarning("📨 Event received: {EventType} from {StreamId} @ {Position}",
                         eventType.Name, resolved.OriginalStreamId, resolved.OriginalPosition);
 
                     // Sadece gerekli event'leri integration event'e çevirip yayınla
                     switch (domainEvent)
                     {
                         case PostCreatedEvent e:
-                            _logger.LogInformation("Publishing IPostCreatedIntegrationEvent for PostId: {PostId}", e.PostId);
+                            _logger.LogWarning("🎯 Publishing IPostCreatedIntegrationEvent for PostId: {PostId}", e.PostId);
 
                             await _bus.Publish<IPostCreatedIntegrationEvent>(new
                             {
@@ -92,35 +95,35 @@ public class EventStoreToRabbitMqPublisher : BackgroundService
                                 e.OccurredOn
                             }, ct).ConfigureAwait(false);
 
+                            _logger.LogWarning("✅ Published to RabbitMQ!");
                             break;
 
                         // İleride: PostContentUpdatedEvent, PostDeletedEvent, PostLikedEvent vb.
                         default:
-                            // İstemiyorsan bu log’u Debug’a çekebilirsin
-                            _logger.LogDebug("Domain event '{EventType}' ignored (no publisher mapping).", eventType.Name);
+                            _logger.LogWarning("⏭️ Domain event '{EventType}' ignored (no publisher mapping).", eventType.Name);
                             break;
                     }
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex,
-                        "Error processing event. Stream={StreamId}, Position={Position}, EventType={EventType}",
+                        "❌ Error processing event. Stream={StreamId}, Position={Position}, EventType={EventType}",
                         resolved.OriginalStreamId, resolved.OriginalPosition, resolved.Event.EventType);
                 }
             },
-            // Sistem ($) event’ler prefix’e takılmadığı için ek filtre zorunlu değil; istersen buraya EventTypeFilter da koyabilirsin.
+            // Sistem ($) event'ler prefix'e takılmadığı için ek filtre zorunlu değil; istersen buraya EventTypeFilter da koyabilirsin.
             filterOptions: filter,
             // Abonelik düştüğünde logla
             subscriptionDropped: (sub, reason, ex) =>
             {
                 if (ex is not null)
-                    _logger.LogError(ex, "EventStoreDB subscription dropped. Reason={Reason}", reason);
+                    _logger.LogError(ex, "💔 EventStoreDB subscription dropped. Reason={Reason}", reason);
                 else
-                    _logger.LogWarning("EventStoreDB subscription dropped. Reason={Reason}", reason);
+                    _logger.LogWarning("💔 EventStoreDB subscription dropped. Reason={Reason}", reason);
             },
             cancellationToken: stoppingToken
         ).ConfigureAwait(false);
 
-        _logger.LogInformation("EventStoreDB Publisher subscription started.");
+        _logger.LogWarning("✅ EventStoreDB Publisher subscription started.");
     }
 }

@@ -1,0 +1,88 @@
+using Blinkr.Projections.Worker.Consumers;
+using MassTransit;
+using MongoDB.Driver;
+using Serilog;
+using Serilog.Events;
+using Microsoft.Extensions.Hosting;
+
+Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
+
+Log.Information("Starting Blinkr.Projections.Worker service...");
+
+Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+
+try
+{
+    var host = Host.CreateDefaultBuilder(args)
+        .UseSerilog()
+        .ConfigureServices((context, services) =>
+        {
+            var env = context.HostingEnvironment.EnvironmentName;
+            Log.Information("Environment: {Env}", env);
+
+            // Mongo baðlantý dizesini oku
+            var cs = context.Configuration.GetConnectionString("MongoDb");
+            if (string.IsNullOrWhiteSpace(cs))
+            {
+                Log.Warning("MongoDb connection string not found in configuration!");
+                cs = "mongodb://blinkr_re:blinkr123@host.docker.internal:27017/?authSource=BlinkrReadModel&authMechanism=SCRAM-SHA-256";
+            }
+
+
+
+            Log.Information("Effective MongoDb CS: {Conn}", cs.Replace("blinkr123", "******"));
+
+            // Mongo Client ve Database
+            services.AddSingleton<IMongoClient>(_ => new MongoClient(cs));
+            services.AddSingleton<IMongoDatabase>(sp =>
+            {
+                var client = sp.GetRequiredService<IMongoClient>();
+                var dbName = context.Configuration["MongoDbSettings:DatabaseName"] ?? "BlinkrReadModel";
+                return client.GetDatabase(dbName);
+            });
+
+            // Mongo test servisi
+            services.AddHostedService<PingMongoOnStart>();
+
+            // RabbitMQ yapýlandýrmasý
+            services.AddMassTransit(busCfg =>
+            {
+                busCfg.AddConsumersFromNamespaceContaining<PostCreatedConsumer>();
+                busCfg.UsingRabbitMq((ctx, cfg) =>
+                {
+                    var rabbitSection = context.Configuration.GetSection("RabbitMq");
+                    var rabbitHost = rabbitSection["Host"] ?? "localhost";
+                    var rabbitUser = rabbitSection["User"] ?? "user";
+                    var rabbitPass = rabbitSection["Pass"] ?? "password";
+
+                    cfg.Host(rabbitHost, "/", h =>
+                    {
+                        h.Username(rabbitUser);
+                        h.Password(rabbitPass);
+                    });
+
+                    cfg.ConfigureEndpoints(ctx, new KebabCaseEndpointNameFormatter("Blinkr", false));
+                });
+            });
+        })
+        .Build();
+
+    await host.RunAsync();
+    return 0;
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Worker failed to start.");
+    return 1;
+}
+finally
+{
+    Log.CloseAndFlush();
+}

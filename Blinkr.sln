@@ -21,6 +21,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docker", "docker", "{02EA68
 	ProjectSection(SolutionItems) = preProject
 		.env = .env
 		docker-compose.yml = docker-compose.yml
+		docker-compose.override.prod.yml = docker-compose.override.prod.yml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "IdentityServerService", "IdentityServerService", "{C427850D-E7CA-7EAF-5544-74B254A44602}"

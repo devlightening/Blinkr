@@ -13,12 +13,9 @@ public class PingMongoOnStart : IHostedService
     {
         try
         {
-            // Ping
             var command = new BsonDocument("ping", 1);
             await _db.RunCommandAsync<BsonDocument>(command, cancellationToken: ct);
-            _log.LogInformation("Mongo ping OK");
 
-            // Yazma testi
             var col = _db.GetCollection<BsonDocument>("__health");
             await col.ReplaceOneAsync(
                 Builders<BsonDocument>.Filter.Eq("_id", "startup"),
@@ -26,13 +23,14 @@ public class PingMongoOnStart : IHostedService
                 new ReplaceOptions { IsUpsert = true },
                 ct);
 
-            _log.LogInformation("Mongo write OK");
+            _log.LogInformation("✅ Mongo connectivity check passed (ping + write)");
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Mongo connectivity/write test FAILED");
+            _log.LogError(ex, "❌ Mongo connectivity/write test FAILED");
         }
     }
+
 
     public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
 }

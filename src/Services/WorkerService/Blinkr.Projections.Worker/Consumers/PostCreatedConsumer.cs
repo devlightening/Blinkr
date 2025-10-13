@@ -1,4 +1,4 @@
-﻿using Blinkr.Projections.Worker.Documents;
+using Blinkr.Projections.Worker.Documents;
 using MassTransit;
 using MongoDB.Driver;
 using Shared.Events.Abstractions;
@@ -20,7 +20,7 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
     public async Task Consume(ConsumeContext<IPostCreatedIntegrationEvent> context)
     {
         var message = context.Message;
-        _logger.LogInformation("Received IPostCreatedIntegrationEvent for PostId: {PostId}", message.PostId);
+        _logger.LogInformation("📥 Received PostCreatedIntegrationEvent for PostId: {PostId}", message.PostId);
 
         try
         {
@@ -35,16 +35,15 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
             };
 
             var filter = Builders<PostDocument>.Filter.Eq(p => p.Id, newPost.Id);
-            await _postsCollection.ReplaceOneAsync(filter, newPost, new ReplaceOptions { IsUpsert = true });
-
-            _logger.LogInformation(">>>> ZAFER! <<<< Successfully projected PostDocument in MongoDB for PostId: {PostId}", message.PostId);
+            var result = await _postsCollection.ReplaceOneAsync(filter, newPost, new ReplaceOptions { IsUpsert = true });
+            
+            _logger.LogInformation("✅ Successfully projected PostDocument to MongoDB. PostId: {PostId}, Matched: {Matched}, Modified: {Modified}", 
+                message.PostId, result.MatchedCount, result.ModifiedCount);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "!!!!!! HATA !!!!!! Error processing message for PostId: {PostId}", message.PostId);
-            // Hata oluştuğunda MassTransit'in mesajı tekrar denemesini ve
-            // sonunda _error kuyruğuna taşımasını sağlamak için exception fırlatıyoruz.
-            throw;
+            _logger.LogError(ex, "❌ Error projecting PostDocument to MongoDB. PostId: {PostId}", message.PostId);
+            throw; // Re-throw to trigger MassTransit retry and eventually move to error queue
         }
     }
 }
