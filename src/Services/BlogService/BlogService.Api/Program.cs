@@ -1,4 +1,4 @@
-﻿using BlogService.Api;
+using BlogService.Api;
 using BlogService.Api.Auth;
 using BlogService.Application.Common.Behaviors;
 using BlogService.Application.Common.Interfaces;
@@ -100,6 +100,9 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
 // Repository Kayıtları
 builder.Services.AddScoped<IEventStoreRepository, EventStoreDbRepository>();
 builder.Services.AddScoped<IPostReadRepository, PostReadRepository>();
+
+// Query Service (MongoDB Read Model)
+builder.Services.AddScoped<BlogService.Api.Services.IPostQueryService, BlogService.Api.Services.PostQueryService>();
 
 // EventStoreDB'yi dinleyecek olan arka plan servisi.
 builder.Services.AddHostedService<EventStoreToRabbitMqPublisher>();
