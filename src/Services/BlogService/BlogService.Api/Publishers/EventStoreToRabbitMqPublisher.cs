@@ -84,8 +84,7 @@ public class EventStoreToRabbitMqPublisher : BackgroundService
                     switch (domainEvent)
                     {
                         case PostCreatedEvent e:
-                            _logger.LogWarning("🎯 Publishing IPostCreatedIntegrationEvent for PostId: {PostId}", e.PostId);
-
+                            _logger.LogInformation("🎯 Publishing PostCreatedIntegrationEvent for PostId: {PostId}", e.PostId);
                             await _bus.Publish<IPostCreatedIntegrationEvent>(new
                             {
                                 e.PostId,
@@ -94,13 +93,52 @@ public class EventStoreToRabbitMqPublisher : BackgroundService
                                 e.Content,
                                 e.OccurredOn
                             }, ct).ConfigureAwait(false);
-
-                            _logger.LogWarning("✅ Published to RabbitMQ!");
                             break;
 
-                        // İleride: PostContentUpdatedEvent, PostDeletedEvent, PostLikedEvent vb.
+                        case PostContentUpdatedEvent e:
+                            _logger.LogInformation("🎯 Publishing PostContentUpdatedIntegrationEvent for PostId: {PostId}", e.PostId);
+                            await _bus.Publish(new PostContentUpdatedIntegrationEvent
+                            {
+                                PostId = e.PostId,
+                                NewTitle = e.NewTitle,
+                                NewContent = e.NewContent,
+                                OccurredOn = e.OccurredOn
+                            }, ct).ConfigureAwait(false);
+                            break;
+
+                        case PostDeletedEvent e:
+                            _logger.LogInformation("🎯 Publishing PostDeletedIntegrationEvent for PostId: {PostId}", e.PostId);
+                            await _bus.Publish(new PostDeletedIntegrationEvent
+                            {
+                                PostId = e.PostId,
+                                OccurredOn = e.OccurredOn
+                            }, ct).ConfigureAwait(false);
+                            break;
+
+                        case PostLikedEvent e:
+                            _logger.LogInformation("🎯 Publishing PostLikedIntegrationEvent for PostId: {PostId}, UserId: {UserId}", e.PostId, e.UserId);
+                            await _bus.Publish(new PostLikedIntegrationEvent
+                            {
+                                PostId = e.PostId,
+                                UserId = e.UserId,
+                                OccurredOn = e.OccurredOn
+                            }, ct).ConfigureAwait(false);
+                            break;
+
+                        case PostCommentAddedEvent e:
+                            _logger.LogInformation("🎯 Publishing PostCommentAddedIntegrationEvent for PostId: {PostId}, CommentId: {CommentId}", e.PostId, e.CommentId);
+                            await _bus.Publish(new PostCommentAddedIntegrationEvent
+                            {
+                                PostId = e.PostId,
+                                CommentId = e.CommentId,
+                                AuthorId = e.AuthorId,
+                                CommentText = e.CommentText,
+                                OccurredOn = e.OccurredOn
+                            }, ct).ConfigureAwait(false);
+                            break;
+
                         default:
-                            _logger.LogWarning("⏭️ Domain event '{EventType}' ignored (no publisher mapping).", eventType.Name);
+                            _logger.LogDebug("⏭️ Domain event '{EventType}' ignored (no publisher mapping).", eventType.Name);
                             break;
                     }
                 }

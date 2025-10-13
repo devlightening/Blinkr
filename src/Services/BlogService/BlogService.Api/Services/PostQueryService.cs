@@ -138,15 +138,15 @@ public class PostQueryService : IPostQueryService
             LikeCount = document.LikeCount,
             Comments = document.Comments.Select(c => new CommentDto
             {
-                CommentId = c.CommentId,
-                UserId = c.UserId,
+                CommentId = c.Id,
+                UserId = c.AuthorId,
                 Text = c.Text,
                 CreatedAtUtc = c.CreatedAtUtc
             }).ToList(),
             Media = document.Media.Select(m => new MediaDto
             {
                 Url = m.Url,
-                MediaType = m.MediaType
+                MediaType = m.Type
             }).ToList()
         };
     }

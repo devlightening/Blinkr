@@ -24,14 +24,21 @@ public class PostDocument
 
 public class CommentEntity
 {
-    public Guid CommentId { get; set; }
-    public Guid UserId { get; set; }
+    [BsonId]
+    [BsonRepresentation(MongoDB.Bson.BsonType.String)]
+    public Guid Id { get; set; }
+    
+    public Guid AuthorId { get; set; }
     public string Text { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
 }
 
 public class MediaEntity
 {
+    [BsonId]
+    [BsonRepresentation(MongoDB.Bson.BsonType.String)]
+    public Guid Id { get; set; }
+    
     public string Url { get; set; } = string.Empty;
-    public string MediaType { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
 }

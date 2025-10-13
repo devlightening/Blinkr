@@ -1,25 +1,20 @@
-﻿using BlogService.Application.Common.Interfaces;
+using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommentCommands;
 using BlogService.Domain.Entities;
 using BlogService.Domain.Events;
-using MassTransit;
 using MediatR;
-using Shared.Events.Events.Blog;
 
 public class CreatePostCommentCommandHandler : IRequestHandler<CreatePostCommentCommand, Guid>
 {
     private readonly IEventStoreRepository _eventStoreRepo;
     private readonly ICurrentUserService _currentUser;
-    private readonly IPublishEndpoint _publishEndpoint;
 
     public CreatePostCommentCommandHandler(
         IEventStoreRepository eventStoreRepo,
-        ICurrentUserService currentUser,
-        IPublishEndpoint publishEndpoint)
+        ICurrentUserService currentUser)
     {
         _eventStoreRepo = eventStoreRepo;
         _currentUser = currentUser;
-        _publishEndpoint = publishEndpoint;
     }
 
     public async Task<Guid> Handle(CreatePostCommentCommand request, CancellationToken ct)
@@ -34,16 +29,17 @@ public class CreatePostCommentCommandHandler : IRequestHandler<CreatePostComment
 
         postAggregate.AddComment(authorId, request.CommentText);
 
+        // Get the event BEFORE saving (SaveAsync clears uncommitted events)
+        var commentAddedEvent = postAggregate.GetUncommittedEvents().OfType<PostCommentAddedEvent>().LastOrDefault();
+        if (commentAddedEvent == null)
+        {
+            throw new InvalidOperationException("PostCommentAddedEvent was not generated.");
+        }
+
         await _eventStoreRepo.SaveAsync(postAggregate, ct);
 
-        var commentAddedEvent = postAggregate.GetUncommittedEvents().OfType<PostCommentAddedEvent>().Last();
-        await _publishEndpoint.Publish(new PostCommentAddedIntegrationEvent
-        {
-            PostId = commentAddedEvent.PostId,
-            CommentId = commentAddedEvent.CommentId,
-            AuthorId = commentAddedEvent.AuthorId,
-            CommentText = commentAddedEvent.CommentText
-        }, ct);
+        // NOTE: Integration event publishing moved to EventStoreToRabbitMqPublisher
+        // No need to publish here - publisher will handle it automatically
 
         return commentAddedEvent.CommentId;
     }
