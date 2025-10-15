@@ -12,7 +12,7 @@ public class MongoIndexManager
         _database = database;
     }
 
-    public async Task CreateIndexesAsync()
+    public async Task CreateIndexesAsync()  
     {
         var postsCollection = _database.GetCollection<PostDocument>("posts");
         
