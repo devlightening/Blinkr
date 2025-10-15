@@ -1,6 +1,8 @@
 using Blinkr.Projections.Worker.Documents;
+using Blinkr.Projections.Worker.Infra;
 using MassTransit;
 using MongoDB.Driver;
+using Microsoft.Extensions.Caching.Distributed;
 using Shared.Events.Abstractions;
 using Shared.Events.Events.Blog;
 
@@ -10,11 +12,13 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
 {
     private readonly IMongoCollection<PostDocument> _postsCollection;
     private readonly ILogger<PostCreatedConsumer> _logger;
+    private readonly IDistributedCache _cache;
 
-    public PostCreatedConsumer(IMongoDatabase database, ILogger<PostCreatedConsumer> logger)
+    public PostCreatedConsumer(IMongoDatabase database, ILogger<PostCreatedConsumer> logger, IDistributedCache cache)
     {
         _postsCollection = database.GetCollection<PostDocument>("posts");
         _logger = logger;
+        _cache = cache;
     }
 
     public async Task Consume(ConsumeContext<IPostCreatedIntegrationEvent> context)
@@ -39,6 +43,7 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
             
             _logger.LogInformation("✅ Successfully projected PostDocument to MongoDB. PostId: {PostId}, Matched: {Matched}, Modified: {Modified}", 
                 message.PostId, result.MatchedCount, result.ModifiedCount);
+            await CacheInvalidationHelper.InvalidatePostCache(_cache, message.PostId);
         }
         catch (Exception ex)
         {

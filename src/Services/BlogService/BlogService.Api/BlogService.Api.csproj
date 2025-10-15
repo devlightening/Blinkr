@@ -13,6 +13,7 @@
 
 	<ItemGroup>
 		<!-- Versiyonlar Directory.Packages.props dosyasından yönetiliyor -->
+		<PackageReference Include="AspNetCore.HealthChecks.MongoDb" />
 		<PackageReference Include="AspNetCore.HealthChecks.NpgSql" />
 		<PackageReference Include="AspNetCore.HealthChecks.Redis" />
 		<PackageReference Include="AspNetCore.HealthChecks.UI.Client" />
@@ -29,6 +30,7 @@
 		<PackageReference Include="Serilog.AspNetCore" />
 		<PackageReference Include="Serilog.Sinks.Console" />
 		<PackageReference Include="Serilog.Sinks.Seq" />
+		<PackageReference Include="StackExchange.Redis" />
 		<PackageReference Include="Swashbuckle.AspNetCore" />
 	</ItemGroup>
 
