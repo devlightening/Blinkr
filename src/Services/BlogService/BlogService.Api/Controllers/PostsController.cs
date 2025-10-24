@@ -28,11 +28,14 @@ public class PostsController : ControllerBase
     }
 
     [HttpPost]
-    [AllowAnonymous] // TEMPORARY: For testing without authentication
-    // [Authorize(Policy = "api.write")]
+    [Authorize(Policy = "api.write")]
     public async Task<IActionResult> Create([FromBody] CreatePostDto dto)
     {
-        var command = _mapper.Map<CreatePostCommand>(dto);
+        // Get authenticated user ID - will be used by handler via ICurrentUserService
+        var authorId = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated");
+        
+        // Create command (AuthorId handled by ICurrentUserService in handler)
+        var command = new CreatePostCommand(dto.Title, dto.Content, dto.Media?.ToList());
         var postId = await _mediator.Send(command);
         return CreatedAtAction(nameof(GetById), new { id = postId }, new { PostId = postId });
     }
@@ -53,6 +56,8 @@ public class PostsController : ControllerBase
     [Authorize(Policy = "api.write")]
     public async Task<IActionResult> Remove(Guid id)
     {
+            // Get authenticated user ID for authorization
+        var userId = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated");
         var command = new RemovePostCommand(id);
         var success = await _mediator.Send(command);
         return success ? NoContent() : NotFound();
@@ -74,9 +79,9 @@ public class PostsController : ControllerBase
     [Authorize(Policy = "api.write")]
     public async Task<IActionResult> AddLike(Guid postId)
     {
-        // DÜZELTME: CreatePostLikeCommand'in beklediği UserId'yi ekliyoruz.
-        var userId = User.GetUserId() ?? throw new UnauthorizedAccessException();
-        var command = new CreatePostLikeCommand(postId);
+        // Get authenticated user ID - will be used by handler via ICurrentUserService
+        var userId = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated");
+        var command = new CreatePostLikeCommand(postId); // UserId handled by ICurrentUserService in handler
         await _mediator.Send(command);
         return Ok();
     }

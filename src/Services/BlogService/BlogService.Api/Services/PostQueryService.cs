@@ -200,7 +200,7 @@ public class PostQueryService : IPostQueryService
                 .Include(p => p.CreatedAtUtc)
                 .Include(p => p.UpdatedAtUtc)
                 .Include(p => p.LikeCount)
-                .Include(p => p.CommentCount)
+                .Include(p => p.Comments) // Include Comments array instead of CommentCount
                 .Include(p => p.Media);
 
             var documents = await _postsCollection

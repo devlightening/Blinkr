@@ -99,6 +99,12 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
     return client.GetDatabase(dbName);
 });
 
+// Redis Cache (IDistributedCache için)
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+});
+
 builder.Services.AddSingleton<ICheckpointStore, MongoCheckpointStore>();
 
 
@@ -171,9 +177,28 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
 });
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("api.read", policy => policy.RequireClaim("scope", "blinkr.api.read"));
-    options.AddPolicy("api.write", policy => policy.RequireClaim("scope", "blinkr.api.write"));
-    options.AddPolicy("AdminOnly", p => p.RequireRole("Admin"));
+    // API Policies with scope requirements
+    options.AddPolicy("api.read", policy => 
+        policy.RequireAuthenticatedUser()
+              .RequireClaim("scope", "blinkr.api.read"));
+              
+    options.AddPolicy("api.write", policy => 
+        policy.RequireAuthenticatedUser()
+              .RequireClaim("scope", "blinkr.api.write"));
+              
+    options.AddPolicy("AdminOnly", policy => 
+        policy.RequireAuthenticatedUser()
+              .RequireRole("Admin"));
+    
+    // Default policy - require authentication for all endpoints
+    options.DefaultPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+        
+    // Fallback policy - apply to endpoints without explicit [Authorize] or [AllowAnonymous]
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
 });
 builder.Services.AddHealthChecks();
 
@@ -191,7 +216,8 @@ app.UseCors(corsPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.MapHealthChecks("/health", new HealthCheckOptions { ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse });
+app.MapHealthChecks("/health", new HealthCheckOptions { ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse })
+   .AllowAnonymous(); // Health check should be public
 
 app.Run();
 

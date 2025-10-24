@@ -1,5 +1,6 @@
 using BlogService.Api.Services;
 using BlogService.Application.DTOs.PostDtos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 
@@ -9,8 +10,9 @@ namespace BlogService.Api.Controllers;
 /// Read-only endpoints for posts (queries)
 /// </summary>
 [ApiController]
-[Route("api/posts")]
+[Route("api/posts-read")]
 [Produces("application/json")]
+[AllowAnonymous] // Read operations are public
 public class PostsReadController : ControllerBase
 {
     private readonly IPostQueryService _queryService;
