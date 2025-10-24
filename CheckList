@@ -35,11 +35,12 @@
 
 ### ✅ **E) Read Katmanı (MongoDB + Redis)**
 * ✅ Read model (PostDocument)
-* ✅ Mongo **indeksler** (createdAt desc, authorId+createdAt)
+* ✅ Mongo **indeksler** (createdAt desc, authorId+createdAt, text search, likeCount desc)
 * ✅ Worker/Consumers (Created, ContentUpdated, Deleted, Liked, CommentAdded)
 * ✅ **Consumer idempotency** (ProcessedMessage koleksiyonu + index)
 * ✅ **Redis Cache** (feed & detay; versioned keys, stampede lock, eviction policy)
-* ✅ Read API (feed, byId, byAuthor, head)
+* ✅ **Advanced Read API** (pagination, search, filtering, sorting)
+* ✅ **PostsReadController** (/api/posts-read) - production ready
 
 ### ✅ **F) Mesajlaşma (RabbitMQ)**
 * ✅ Exchange/queue adlandırma & sözleşmeler (Integration Events)
@@ -52,10 +53,12 @@
 * ✅ Health endpoints'in **hepsinde** standardize edilmesi (liveness/readiness ayrımı)
 
 ### ✅ **H) Güvenlik**
-* ✅ JWT doğrulama
-* ✅ Role/Policy kontrolleri
+* ✅ **OAuth2 + JWT Authentication** (production-ready)
+* ✅ **Scope-based Authorization** (api.read, api.write policies)
+* ✅ **Default/Fallback Authorization Policies** (auth bypass prevention)
+* ✅ **User ID extraction from JWT** (all write operations)
+* ✅ **Public Read API** (anonymous access for blog posts)
 * ❌ **Rate limiting** (Redis tabanlı) - **Sprint 4C'ye ertelendi**
-* ✅ Read tarafında görünürlük kuralları (temel seviyede)
 
 ### ✅ **I) Dayanıklılık**
 * ✅ Idempotent consumers
@@ -74,9 +77,11 @@
 * ✅ **Sprint 2** – Read Servisi & Projeksiyon
 * ✅ **Sprint 3** – Mongo İndeksler + Redis Cache
 * ✅ **Sprint 4A** – **Reliability I**: Checkpoint, Retry/DLQ, Consumer Idempotency
-* ⚠️ **Sprint 4B** – **Reliability II**: **Write-side Outbox** - **ERTELENDİ**
-* ⚠️ **Sprint 4C** – **Observability & Limits**: Prometheus/Grafana, queue-lag, rate-limiting - **ERTELENDİ**
-* ⚠️ **Sprint 5** – Event **schema versioning** + migration stratejisi - **ERTELENDİ**
+* ✅ **Sprint 4B** – **Advanced Read API**: Pagination, Search, Filtering, Sorting
+* ✅ **Sprint 4C** – **Production Security**: OAuth2 Authentication, Authorization Policies
+* ⚠️ **Sprint 5A** – **Reliability II**: **Write-side Outbox** - **ERTELENDİ**
+* ⚠️ **Sprint 5B** – **Observability & Limits**: Prometheus/Grafana, queue-lag, rate-limiting - **ERTELENDİ**
+* ⚠️ **Sprint 6** – Event **schema versioning** + migration stratejisi - **ERTELENDİ**
 
 ### ✅ **L) Kabul Kriterleri (revize)**
 * ✅ Post oluşturulunca EventStoreDB'de görülür **VE** RabbitMQ'ya publish edilir
@@ -85,6 +90,10 @@
 * ✅ Mongo'da projection oluşur (idempotent, duplicate yok)
 * ✅ **Mongo Express'te posts görünür** - End-to-end flow çalışıyor!
 * ✅ Read API **cache hit** < **100ms**, cache miss hedefi ölçümlenmiş (indekslerle tutarlı)
+* ✅ **Advanced Read API** - pagination, search, filtering, sorting çalışıyor
+* ✅ **Authentication** - OAuth2 login olmadan POST yapılamıyor (401 Unauthorized)
+* ✅ **Authorization** - api.write scope olmadan write operations yapılamıyor
+* ✅ **Public Read Access** - authentication olmadan read operations yapılabiliyor
 * ✅ Tüm servisler `/health` yeşil (liveness/readiness), DLQ **boş** ve takip ediliyor
 
 ---

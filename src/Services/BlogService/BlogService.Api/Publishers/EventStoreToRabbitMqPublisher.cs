@@ -85,8 +85,8 @@ namespace BlogService.Api
                         }
                     }
 
-                    // ALWAYS start from End for live subscription (wait for new events)
-                    var start = FromAll.End;
+                    // Start from checkpoint if available, otherwise from End for live subscription
+                    var start = last.HasValue ? FromAll.After(last.Value) : FromAll.End;
 
                     var filter = new SubscriptionFilterOptions(
                         StreamFilter.Prefix(AggregateStreamPrefix),
@@ -156,10 +156,19 @@ namespace BlogService.Api
                     // Only restart if cancellation NOT requested
                     if (!stoppingToken.IsCancellationRequested)
                     {
-                        backoff = TimeSpan.FromSeconds(1);
-                        consecutiveRestarts = 0;
-                        _log.LogWarning("⚠️ Subscription ended unexpectedly. Will restart immediately.");
-                        // NO DELAY - restart immediately to maintain live subscription
+                        consecutiveRestarts++;
+                        _log.LogWarning("⚠️ Subscription ended unexpectedly. Backing off {Backoff}s (restart #{Count})", 
+                            backoff.TotalSeconds, consecutiveRestarts);
+                        
+                        if (consecutiveRestarts >= MaxConsecutiveRestartsForAlert)
+                        {
+                            _log.LogError("🚨 ALERT: Too many consecutive subscription restarts ({Count}) - possible EventStore issue!", consecutiveRestarts);
+                        }
+                        
+                        // SAFETY: Minimum delay to prevent hot loops
+                        var safeDelay = TimeSpan.FromSeconds(Math.Max(5, backoff.TotalSeconds));
+                        await Task.Delay(safeDelay, stoppingToken).ConfigureAwait(false);
+                        backoff = IncreaseBackoff(backoff, maxBackoff);
                     }
                 }
                 catch (Grpc.Core.RpcException ex) when (

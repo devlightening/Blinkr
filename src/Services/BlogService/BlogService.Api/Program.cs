@@ -107,7 +107,6 @@ builder.Services.AddStackExchangeRedisCache(options =>
 
 builder.Services.AddSingleton<ICheckpointStore, MongoCheckpointStore>();
 
-
 // Repository Kayıtları
 builder.Services.AddScoped<EventStoreDbRepository>(); // Inner repository
 builder.Services.AddScoped<IEventStoreRepository>(sp =>
@@ -129,9 +128,17 @@ builder.Services.AddScoped<BlogService.Api.Services.IPostQueryService>(sp =>
     return new BlogService.Api.Services.CachedPostQueryService(inner, cache, logger);
 });
 
-// EventStoreDB'yi dinleyecek olan arka plan servisi.
-// DISABLED: Hot loop issue - using direct publish from domain events instead
-// builder.Services.AddHostedService<EventStoreToRabbitMqPublisher>();
+// EventStoreDB subscription - conditional registration based on configuration
+var enableSubscription = builder.Configuration.GetValue<bool>("EventStore:EnableSubscription");
+if (enableSubscription)
+{
+    builder.Services.AddHostedService<EventStoreToRabbitMqPublisher>();
+    Log.Information("🔔 EventStore subscription ENABLED");
+}
+else
+{
+    Log.Information("🔕 EventStore subscription DISABLED - using decorator pattern");
+}
 
 // MassTransit (Sadece Yayıncı olarak ayarlandı)
 builder.Services.AddMassTransit(busConfig =>
