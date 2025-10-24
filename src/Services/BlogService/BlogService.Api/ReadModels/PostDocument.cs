@@ -16,10 +16,16 @@ public class PostDocument
     public string Title { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
+    public DateTime? UpdatedAtUtc { get; set; }
 
     public int LikeCount { get; set; }
     public List<CommentEntity> Comments { get; set; } = new();
     public List<MediaEntity> Media { get; set; } = new();
+
+    /// <summary>
+    /// Computed property for comment count
+    /// </summary>
+    public int CommentCount => Comments?.Count ?? 0;
 }
 
 public class CommentEntity

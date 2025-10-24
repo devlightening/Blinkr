@@ -16,6 +16,7 @@ using MassTransit;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -112,8 +113,15 @@ builder.Services.AddScoped<IEventStoreRepository>(sp =>
 });
 builder.Services.AddScoped<IPostReadRepository, PostReadRepository>();
 
-// Query Service (MongoDB Read Model)
-builder.Services.AddScoped<BlogService.Api.Services.IPostQueryService, BlogService.Api.Services.PostQueryService>();
+// Query Service (MongoDB Read Model) with Redis caching
+builder.Services.AddScoped<BlogService.Api.Services.PostQueryService>(); // Inner service
+builder.Services.AddScoped<BlogService.Api.Services.IPostQueryService>(sp =>
+{
+    var inner = sp.GetRequiredService<BlogService.Api.Services.PostQueryService>();
+    var cache = sp.GetRequiredService<IDistributedCache>();
+    var logger = sp.GetRequiredService<ILogger<BlogService.Api.Services.CachedPostQueryService>>();
+    return new BlogService.Api.Services.CachedPostQueryService(inner, cache, logger);
+});
 
 // EventStoreDB'yi dinleyecek olan arka plan servisi.
 // DISABLED: Hot loop issue - using direct publish from domain events instead

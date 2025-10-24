@@ -1,4 +1,3 @@
-﻿using BlogService.Application.Common.Models;
 using BlogService.Application.DTOs.PostDtos;
 using MediatR;
 using System;
@@ -11,5 +10,5 @@ namespace BlogService.Application.Features.Mediatr.Queries.PostQueries
 {
     public record GetPostsPagedQuery(int Page = 1, int PageSize = 10, string? Search = null,
                                  string? OrderBy = "CreatedAt", string? Sort = "desc")
-    : IRequest<PagedResult<PostListItemDto>>;
+    : IRequest<BlogService.Application.DTOs.PostDtos.PagedResult<PostListItemDto>>;
 }

@@ -1,7 +1,7 @@
-﻿using AutoMapper;
+using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using BlogService.Application.Common.Interfaces;
-using BlogService.Application.Common.Models;
+// using BlogService.Application.Common.Models; // Removed - not needed
 using BlogService.Application.DTOs.PostDtos;
 using BlogService.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -57,13 +57,8 @@ namespace BlogService.Infrastructure.Repositories
                 .ProjectTo<PostListItemDto>(_mapperCfg)
                 .ToListAsync(ct);
 
-            return new PagedResult<PostListItemDto>
-            {
-                Items = items,
-                Page = page,
-                PageSize = pageSize,
-                TotalCount = total
-            };
+            return new BlogService.Application.DTOs.PostDtos.PagedResult<PostListItemDto>(
+                items, total, page, pageSize);
         }
     }
 }

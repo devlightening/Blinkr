@@ -1,6 +1,8 @@
 using BlogService.Api.DTOs;
 using BlogService.Api.ReadModels;
+using BlogService.Application.DTOs.PostDtos;
 using MongoDB.Driver;
+using MongoDB.Bson;
 
 namespace BlogService.Api.Services;
 
@@ -148,6 +150,98 @@ public class PostQueryService : IPostQueryService
                 Url = m.Url,
                 MediaType = m.Type
             }).ToList()
+        };
+    }
+
+    // NEW METHODS FOR ADVANCED QUERYING
+
+    public async Task<PagedResult<PostListDto>> QueryPostsAsync(PostQuery query, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Build filter
+            var filterBuilder = Builders<PostDocument>.Filter;
+            var filter = filterBuilder.Empty;
+
+            // Author filter
+            if (!string.IsNullOrEmpty(query.AuthorId) && Guid.TryParse(query.AuthorId, out var authorId))
+            {
+                filter = filterBuilder.And(filter, filterBuilder.Eq(p => p.AuthorId, authorId));
+            }
+
+            // Search filter (title and content)
+            if (!string.IsNullOrEmpty(query.Search))
+            {
+                var searchFilter = filterBuilder.Or(
+                    filterBuilder.Regex(p => p.Title, new BsonRegularExpression(query.Search, "i")),
+                    filterBuilder.Regex(p => p.Content, new BsonRegularExpression(query.Search, "i"))
+                );
+                filter = filterBuilder.And(filter, searchFilter);
+            }
+
+            // Build sort
+            var sortBuilder = Builders<PostDocument>.Sort;
+            SortDefinition<PostDocument> sort = query.Sort.ToLowerInvariant() switch
+            {
+                "createdat:asc" => sortBuilder.Ascending(p => p.CreatedAtUtc),
+                "likecount:desc" => sortBuilder.Descending(p => p.LikeCount).Descending(p => p.CreatedAtUtc),
+                _ => sortBuilder.Descending(p => p.CreatedAtUtc) // default: createdAt:desc
+            };
+
+            // Get total count
+            var totalCount = await _postsCollection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
+
+            // Get items with projection (lightweight for list)
+            var projection = Builders<PostDocument>.Projection
+                .Include(p => p.Id)
+                .Include(p => p.Title)
+                .Include(p => p.Content)
+                .Include(p => p.AuthorId)
+                .Include(p => p.CreatedAtUtc)
+                .Include(p => p.UpdatedAtUtc)
+                .Include(p => p.LikeCount)
+                .Include(p => p.CommentCount)
+                .Include(p => p.Media);
+
+            var documents = await _postsCollection
+                .Find(filter)
+                .Project<PostDocument>(projection)
+                .Sort(sort)
+                .Skip(query.Skip)
+                .Limit(query.PageSize)
+                .ToListAsync(cancellationToken);
+
+            // Map to DTOs
+            var items = documents.Select(MapToListDto);
+
+            return new PagedResult<PostListDto>(items, totalCount, query.Page, query.PageSize);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error querying posts with filter: {@Query}", query);
+            throw;
+        }
+    }
+
+    public async Task<PostReadDto?> GetByIdAsync(Guid postId, CancellationToken cancellationToken = default)
+    {
+        // Alias for GetPostByIdAsync (for consistency with new API)
+        return await GetPostByIdAsync(postId, cancellationToken);
+    }
+
+    private PostListDto MapToListDto(PostDocument document)
+    {
+        return new PostListDto
+        {
+            Id = document.Id,
+            Title = document.Title,
+            Content = document.Content,
+            AuthorId = document.AuthorId,
+            CreatedAtUtc = document.CreatedAtUtc,
+            UpdatedAtUtc = document.UpdatedAtUtc,
+            LikeCount = document.LikeCount,
+            CommentCount = document.CommentCount,
+            MediaUrls = document.Media.Select(m => m.Url).ToList()
         };
     }
 }

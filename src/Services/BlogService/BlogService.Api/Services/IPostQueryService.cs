@@ -1,4 +1,5 @@
 using BlogService.Api.DTOs;
+using BlogService.Application.DTOs.PostDtos;
 
 namespace BlogService.Api.Services;
 
@@ -26,4 +27,16 @@ public interface IPostQueryService
     /// Check if a post exists
     /// </summary>
     Task<bool> PostExistsAsync(Guid postId, CancellationToken cancellationToken = default);
+
+    // NEW METHODS FOR ADVANCED QUERYING
+
+    /// <summary>
+    /// Query posts with advanced filtering, pagination, and search
+    /// </summary>
+    Task<PagedResult<PostListDto>> QueryPostsAsync(PostQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get post detail by ID (for detail endpoint)
+    /// </summary>
+    Task<PostReadDto?> GetByIdAsync(Guid postId, CancellationToken cancellationToken = default);
 }
