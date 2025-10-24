@@ -1,10 +1,10 @@
 using Blinkr.Projections.Worker.Documents;
-using Blinkr.Projections.Worker.Infra;
 using MassTransit;
 using MongoDB.Driver;
 using Microsoft.Extensions.Caching.Distributed;
 using Shared.Events.Abstractions;
 using Shared.Events.Events.Blog;
+using Blinkr.Projections.Worker.Helpers;
 
 namespace Blinkr.Projections.Worker.Consumers;
 
@@ -28,6 +28,11 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
 
         try
         {
+            // LOG DATABASE & COLLECTION INFO
+            var dbName = _postsCollection.Database.DatabaseNamespace.DatabaseName;
+            var collName = _postsCollection.CollectionNamespace.CollectionName;
+            _logger.LogInformation("🎯 Writing to MongoDB: Database={DbName}, Collection={CollName}", dbName, collName);
+
             var newPost = new PostDocument
             {
                 Id = message.PostId,
@@ -38,17 +43,44 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
                 LikeCount = 0
             };
 
+            _logger.LogInformation("📝 Post data: Title={Title}, Content={Content}, AuthorId={AuthorId}", 
+                newPost.Title, newPost.Content, newPost.AuthorId);
+
             var filter = Builders<PostDocument>.Filter.Eq(p => p.Id, newPost.Id);
-            var result = await _postsCollection.ReplaceOneAsync(filter, newPost, new ReplaceOptions { IsUpsert = true });
-            
-            _logger.LogInformation("✅ Successfully projected PostDocument to MongoDB. PostId: {PostId}, Matched: {Matched}, Modified: {Modified}", 
-                message.PostId, result.MatchedCount, result.ModifiedCount);
+
+            // Use the consume context cancellation token
+            var result = await _postsCollection.ReplaceOneAsync(
+                filter,
+                newPost,
+                new ReplaceOptions { IsUpsert = true },
+                context.CancellationToken);
+
+            _logger.LogInformation("✅ Successfully projected PostDocument to MongoDB. Database={DbName}, Collection={CollName}, PostId: {PostId}, IsAcknowledged: {Ack}, Matched: {Matched}, Modified: {Modified}, UpsertedId: {UpsertedId}",
+                dbName, collName, message.PostId, result.IsAcknowledged, result.MatchedCount, result.ModifiedCount, result.UpsertedId);
+
+            // Invalidate cache after successful DB write
             await CacheInvalidationHelper.InvalidatePostCache(_cache, message.PostId);
+        }
+        catch (MongoDB.Bson.BsonSerializationException bsx)
+        {
+            // GUID serileştirme veya benzeri BSON hataları burada yakalanır.
+            // Log'la; tercihe göre swallow veya rethrow (retry/error-queue).
+            _logger.LogError(bsx, "BsonSerializationException projecting PostDocument. PostId: {PostId} - MsgType: {MsgType}", message.PostId, message.GetType().Name);
+
+            // -> Rethrow to allow MassTransit to apply retry policies and eventually move the message to the error queue.
+            // Eğer bu hataları anında swallow etmek istersen, burada 'return;' yap.
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("Consume canceled by token for PostId: {PostId}", message.PostId);
+            throw;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "❌ Error projecting PostDocument to MongoDB. PostId: {PostId}", message.PostId);
-            throw; // Re-throw to trigger MassTransit retry and eventually move to error queue
+            // Re-throw so MassTransit retry/error behavior can handle it
+            throw;
         }
     }
 }

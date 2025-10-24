@@ -1,0 +1,9 @@
+### Create a new post
+POST http://localhost:5215/api/Posts
+Content-Type: application/json
+
+{
+  "title": "Test Post - Event Flow Test",
+  "content": "Bu post EventStore -> RabbitMQ -> Worker -> MongoDB akışını test ediyor. Timestamp: {{$timestamp}}",
+  "authorId": "00000000-0000-0000-0000-000000000001"
+}

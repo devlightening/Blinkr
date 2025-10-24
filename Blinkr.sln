@@ -20,8 +20,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docker", "docker", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 	ProjectSection(SolutionItems) = preProject
 		.env = .env
-		docker-compose.yml = docker-compose.yml
 		docker-compose.override.prod.yml = docker-compose.override.prod.yml
+		docker-compose.yml = docker-compose.yml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "IdentityServerService", "IdentityServerService", "{C427850D-E7CA-7EAF-5544-74B254A44602}"
@@ -53,7 +53,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DirectoryPackagesProps", "D
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "WorkerService", "WorkerService", "{7374D84C-6FF8-41BA-9D0B-6DCC94E90099}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blinkr.Projections.Worker", "src\Services\WorkerService\Blinkr.Projections.Worker\Blinkr.Projections.Worker.csproj", "{984BEFEB-19BB-41F9-9CDE-092155CEDE4E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blinkr.Projections.Worker", "src\Services\WorkerService\Blinkr.Projections.Worker\Blinkr.Projections.Worker.csproj", "{7D33D89D-9A25-48D8-0992-DA3615AEE513}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -197,18 +197,18 @@ Global
 		{C92151FE-AADB-0C04-33DD-2ABDC26660F2}.Release|x64.Build.0 = Release|Any CPU
 		{C92151FE-AADB-0C04-33DD-2ABDC26660F2}.Release|x86.ActiveCfg = Release|Any CPU
 		{C92151FE-AADB-0C04-33DD-2ABDC26660F2}.Release|x86.Build.0 = Release|Any CPU
-		{984BEFEB-19BB-41F9-9CDE-092155CEDE4E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{984BEFEB-19BB-41F9-9CDE-092155CEDE4E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{984BEFEB-19BB-41F9-9CDE-092155CEDE4E}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{984BEFEB-19BB-41F9-9CDE-092155CEDE4E}.Debug|x64.Build.0 = Debug|Any CPU
-		{984BEFEB-19BB-41F9-9CDE-092155CEDE4E}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{984BEFEB-19BB-41F9-9CDE-092155CEDE4E}.Debug|x86.Build.0 = Debug|Any CPU
-		{984BEFEB-19BB-41F9-9CDE-092155CEDE4E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{984BEFEB-19BB-41F9-9CDE-092155CEDE4E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{984BEFEB-19BB-41F9-9CDE-092155CEDE4E}.Release|x64.ActiveCfg = Release|Any CPU
-		{984BEFEB-19BB-41F9-9CDE-092155CEDE4E}.Release|x64.Build.0 = Release|Any CPU
-		{984BEFEB-19BB-41F9-9CDE-092155CEDE4E}.Release|x86.ActiveCfg = Release|Any CPU
-		{984BEFEB-19BB-41F9-9CDE-092155CEDE4E}.Release|x86.Build.0 = Release|Any CPU
+		{7D33D89D-9A25-48D8-0992-DA3615AEE513}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7D33D89D-9A25-48D8-0992-DA3615AEE513}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7D33D89D-9A25-48D8-0992-DA3615AEE513}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7D33D89D-9A25-48D8-0992-DA3615AEE513}.Debug|x64.Build.0 = Debug|Any CPU
+		{7D33D89D-9A25-48D8-0992-DA3615AEE513}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7D33D89D-9A25-48D8-0992-DA3615AEE513}.Debug|x86.Build.0 = Debug|Any CPU
+		{7D33D89D-9A25-48D8-0992-DA3615AEE513}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7D33D89D-9A25-48D8-0992-DA3615AEE513}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7D33D89D-9A25-48D8-0992-DA3615AEE513}.Release|x64.ActiveCfg = Release|Any CPU
+		{7D33D89D-9A25-48D8-0992-DA3615AEE513}.Release|x64.Build.0 = Release|Any CPU
+		{7D33D89D-9A25-48D8-0992-DA3615AEE513}.Release|x86.ActiveCfg = Release|Any CPU
+		{7D33D89D-9A25-48D8-0992-DA3615AEE513}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -232,7 +232,7 @@ Global
 		{32B04B95-0F19-489F-A227-4F621FDD7B8F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{C92151FE-AADB-0C04-33DD-2ABDC26660F2} = {32B04B95-0F19-489F-A227-4F621FDD7B8F}
 		{7374D84C-6FF8-41BA-9D0B-6DCC94E90099} = {984BB9B3-3FA3-BE33-9484-CAC21695A33C}
-		{984BEFEB-19BB-41F9-9CDE-092155CEDE4E} = {7374D84C-6FF8-41BA-9D0B-6DCC94E90099}
+		{7D33D89D-9A25-48D8-0992-DA3615AEE513} = {7374D84C-6FF8-41BA-9D0B-6DCC94E90099}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D7213852-79CA-438C-9B32-C32500ACB027}

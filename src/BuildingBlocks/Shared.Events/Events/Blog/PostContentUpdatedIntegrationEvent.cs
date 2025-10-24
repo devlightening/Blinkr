@@ -8,6 +8,6 @@ namespace Shared.Events.Events.Blog
         public string? NewTitle { get; set; }
         public string? NewContent { get; set; }
 
-
+       
     }
 }

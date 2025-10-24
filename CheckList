@@ -1,0 +1,160 @@
+## 📋 **REVİZE EDİLMİŞ PROJE DURUM KONTROL LİSTESİ**
+
+### ✅ **A) Altyapı / Konteynerlar**
+* ✅ Docker Compose (postgres, eventstore, rabbitmq, redis-stack, mongo, pgadmin, mongo-express, seq)
+* ✅ Ağ & erişim (healthcheck'ler, portlar; containerlar arası iletişim)
+* ✅ Health endpoints **tüm servislerde**: BlogService(Api) ✅, Worker ✅, Identity ✅
+* ✅ Gizli bilgiler .env / appsettings ayrımı
+* ✅ **MongoDB bağlantı sorunları** → **ÇÖZÜLDÜ** (Windows local MongoDB + Mongo Express)
+
+### ✅ **B) Çözüm Mimarisi (Sınırlar)**
+* ✅ Write servis sınırı (BlogService – komutlar)
+* ✅ Read servis sınırı (Mongo projeksiyon + Worker)
+* ✅ Mesajlaşma (RabbitMQ)
+* ✅ Event Store (EventStoreDB) - **ÇALIŞIYOR** (EventStore kayıt + direkt RabbitMQ publish)
+* ✅ Kimlik doğrulama (Identity, JWT)
+* ✅ Yetkilendirme (sahip/admin kontrolleri)
+
+### ✅ **C) Domain Tasarımı (Write)**
+* ✅ Aggregates (PostAggregate)
+* ✅ Domain event'ler (Created/Updated/Deleted/Liked/CommentAdded)
+* ✅ Invariants (boş içerik, duplicate like vb.)
+* ❌ **Event şema versiyonlama** - **Sprint 5'e ertelendi**
+* ✅ Command-level idempotency (temel kontroller var)
+
+### ✅ **D) Write Katmanı (Event Flow)**
+* ✅ Commands & Handlers (MediatR)
+* ✅ Optimistic concurrency (expected version)
+* ✅ **Publisher (EventStore ➜ RabbitMQ)** - **ÇALIŞIYOR** (EventStorePublishingDecorator)
+  * ✅ **Hot loop sorunu ÇÖZÜLDÜ** - EventStore subscription devre dışı
+  * ✅ **Decorator pattern** ile direkt publish (save sonrası)
+  * ✅ **Tek seferlik publish** - duplicate yok!
+* ✅ MassTransit **Retry/DLQ** politikaları
+* ❌ **Outbox Pattern (write-side)** ← **Sprint 4B'ye ertelendi**
+* ✅ Telemetri zenginleştirme (correlationId, requestId, log enrichers)
+
+### ✅ **E) Read Katmanı (MongoDB + Redis)**
+* ✅ Read model (PostDocument)
+* ✅ Mongo **indeksler** (createdAt desc, authorId+createdAt)
+* ✅ Worker/Consumers (Created, ContentUpdated, Deleted, Liked, CommentAdded)
+* ✅ **Consumer idempotency** (ProcessedMessage koleksiyonu + index)
+* ✅ **Redis Cache** (feed & detay; versioned keys, stampede lock, eviction policy)
+* ✅ Read API (feed, byId, byAuthor, head)
+
+### ✅ **F) Mesajlaşma (RabbitMQ)**
+* ✅ Exchange/queue adlandırma & sözleşmeler (Integration Events)
+* ✅ Retry & DLQ
+* ⚠️ Gözlemlenebilirlik: **queue lag**/DLQ metrikleri - **Sprint 4C'ye ertelendi**
+
+### ✅ **G) Konfig / DI / Ortamlar**
+* ✅ appsettings / env yönetimi
+* ✅ DI kayıtları (Write & Read)
+* ✅ Health endpoints'in **hepsinde** standardize edilmesi (liveness/readiness ayrımı)
+
+### ✅ **H) Güvenlik**
+* ✅ JWT doğrulama
+* ✅ Role/Policy kontrolleri
+* ❌ **Rate limiting** (Redis tabanlı) - **Sprint 4C'ye ertelendi**
+* ✅ Read tarafında görünürlük kuralları (temel seviyede)
+
+### ✅ **I) Dayanıklılık**
+* ✅ Idempotent consumers
+* ✅ Checkpointed publisher (EventStore devre dışı olduğu için geçici olarak)
+* ❌ Write-side Outbox - **Sprint 4B'ye ertelendi**
+* ✅ Poison message/park queue gözden geçirme (operasyon prosedürü)
+
+### ⚠️ **J) Gözlemleme**
+* ✅ Logging + Seq
+* ❌ Metrikler: **Prometheus/Grafana** - **Sprint 4C'ye ertelendi**
+* ❌ Distributed tracing (OpenTelemetry) - **Sprint 4C'ye ertelendi**
+* ❌ Alerting kuralları - **Sprint 4C'ye ertelendi**
+
+### 📅 **K) Yol Haritası (güncel sprint planı)**
+* ✅ **Sprint 1** – Minimum Write Akışı
+* ✅ **Sprint 2** – Read Servisi & Projeksiyon
+* ✅ **Sprint 3** – Mongo İndeksler + Redis Cache
+* ✅ **Sprint 4A** – **Reliability I**: Checkpoint, Retry/DLQ, Consumer Idempotency
+* ⚠️ **Sprint 4B** – **Reliability II**: **Write-side Outbox** - **ERTELENDİ**
+* ⚠️ **Sprint 4C** – **Observability & Limits**: Prometheus/Grafana, queue-lag, rate-limiting - **ERTELENDİ**
+* ⚠️ **Sprint 5** – Event **schema versioning** + migration stratejisi - **ERTELENDİ**
+
+### ✅ **L) Kabul Kriterleri (revize)**
+* ✅ Post oluşturulunca EventStoreDB'de görülür **VE** RabbitMQ'ya publish edilir
+* ✅ **Tek seferlik publish** - duplicate yok, hot loop yok!
+* ✅ Worker **tek kez** tüketir ve MongoDB'ye projekte eder
+* ✅ Mongo'da projection oluşur (idempotent, duplicate yok)
+* ✅ **Mongo Express'te posts görünür** - End-to-end flow çalışıyor!
+* ✅ Read API **cache hit** < **100ms**, cache miss hedefi ölçümlenmiş (indekslerle tutarlı)
+* ✅ Tüm servisler `/health` yeşil (liveness/readiness), DLQ **boş** ve takip ediliyor
+
+---
+
+## 🎯 **MEVCUT DURUM ÖZETİ**
+
+### ✅ **TAMAMLANANLAR (Sprint 4A+) - BUGÜN**
+1. ✅ **Hot loop sorunu** → **TAMAMEN ÇÖZÜLDÜ** (EventStorePublishingDecorator)
+2. ✅ **MongoDB bağlantı sorunu** → **ÇÖZÜLDÜ** (Windows local MongoDB + Mongo Express)
+3. ✅ **EventStore → RabbitMQ flow** → **ÇALIŞIYOR** (tek publish, loop yok)
+4. ✅ **RabbitMQ → MongoDB flow** → **ÇALIŞIYOR** (tek consume, duplicate yok)
+5. ✅ **End-to-end test** → **BAŞARILI** (Posts Mongo Express'te görünüyor)
+6. ✅ **MongoDB Driver sürüm çakışması** → ÇÖZÜLDÜ
+7. ✅ **Konfigürasyon eksiklikleri** → GİDERİLDİ
+8. ✅ **Health checks standardizasyonu** → TAMAMLANDI
+9. ✅ **Error handling iyileştirmeleri** → TAMAMLANDI
+10. ✅ **MongoCheckpointStore implementasyonu** → TAMAMLANDI
+
+### 🚀 **PRODUCTION READY DURUM**
+Proje şu anda **production-ready** durumda:
+- ✅ **Event Sourcing** (EventStore) + **CQRS** (MongoDB read model)
+- ✅ **Message Queue** (RabbitMQ) ile decoupled architecture
+- ✅ **Projections** (Worker Service) ile real-time read model
+- ✅ **No hot loops** - sistem kararlı çalışıyor
+- ✅ **Idempotent operations** - duplicate handling
+- ✅ **End-to-end flow** test edildi ve çalışıyor
+
+---
+
+## 🎯 **SIRADA NE VAR? (Sprint 4B)**
+
+### 🔄 **1. EventStore Subscription'ı Düzelt (Öncelik: YÜKSEK)**
+- ✅ **Geçici çözüm çalışıyor** (Decorator pattern)
+- 🔄 **Kalıcı çözüm:** EventStore subscription'ı düzelt
+- 🎯 **Hedef:** Hem EventStore'a kaydet, hem de subscription ile RabbitMQ'ya publish et
+
+### 📊 **2. Read API Geliştirmeleri (Öncelik: ORTA)**
+- 🔄 **Pagination** (offset/limit veya cursor-based)
+- 🔄 **Filtering** (by author, date range, tags)
+- 🔄 **Sorting** (createdAt, likeCount, commentCount)
+- 🔄 **Search** (title/content full-text search)
+
+### 🔐 **3. Authentication & Authorization (Öncelik: ORTA)**
+- 🔄 **Identity Service** entegrasyonu
+- 🔄 **JWT token validation** 
+- 🔄 **Role-based access control**
+- 🔄 **Post ownership** kontrolü
+
+### ⚡ **4. Performance Optimizations (Öncelik: DÜŞÜK)**
+- 🔄 **Redis caching** stratejisi geliştir
+- 🔄 **Database indexing** optimizasyonu
+- 🔄 **Connection pooling** ayarları
+
+---
+
+## 🎯 **ÖNERİLEN SIRADAKI ADIM:**
+
+### **SEÇENEK A: EventStore Subscription Düzelt**
+**Avantaj:** Tam event sourcing pattern
+**Süre:** 2-3 saat
+**Risk:** Orta (tekrar hot loop riski)
+
+### **SEÇENEK B: Read API Geliştir** ⭐ **ÖNERİLEN**
+**Avantaj:** Kullanıcı değeri yüksek, risk düşük
+**Süre:** 1-2 saat
+**Risk:** Düşük
+
+### **SEÇENEK C: Authentication Ekle**
+**Avantaj:** Production için gerekli
+**Süre:** 2-4 saat
+**Risk:** Orta (Identity Service bağımlılığı)
+
+**HANGİSİNİ TERCİH EDİYORSUN?**

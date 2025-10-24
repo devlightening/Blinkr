@@ -1,3 +1,4 @@
+using Blinkr.Projections.Worker.Entities;
 using MassTransit;
 using MongoDB.Driver;
 
@@ -31,9 +32,4 @@ public abstract class ConsumerBase<T> : IConsumer<T> where T : class
     }
 
     protected abstract Task Process(ConsumeContext<T> context);
-}
-
-public class ProcessedMessage
-{
-    public Guid Id { get; set; }
 }

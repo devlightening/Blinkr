@@ -4,6 +4,7 @@ using BlogService.Application.Common.Behaviors;
 using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Mappings;
 using BlogService.Application.Validators.PostValidators;
+using BlogService.Infrastructure;
 using BlogService.Infrastructure.Data;
 using BlogService.Infrastructure.Repositories;
 using BlogService.Infrastructure.Services;
@@ -97,15 +98,26 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
     return client.GetDatabase(dbName);
 });
 
+builder.Services.AddSingleton<ICheckpointStore, MongoCheckpointStore>();
+
+
 // Repository Kayıtları
-builder.Services.AddScoped<IEventStoreRepository, EventStoreDbRepository>();
+builder.Services.AddScoped<EventStoreDbRepository>(); // Inner repository
+builder.Services.AddScoped<IEventStoreRepository>(sp =>
+{
+    var inner = sp.GetRequiredService<EventStoreDbRepository>();
+    var bus = sp.GetRequiredService<IBus>();
+    var logger = sp.GetRequiredService<ILogger<EventStorePublishingDecorator>>();
+    return new EventStorePublishingDecorator(inner, bus, logger);
+});
 builder.Services.AddScoped<IPostReadRepository, PostReadRepository>();
 
 // Query Service (MongoDB Read Model)
 builder.Services.AddScoped<BlogService.Api.Services.IPostQueryService, BlogService.Api.Services.PostQueryService>();
 
 // EventStoreDB'yi dinleyecek olan arka plan servisi.
-builder.Services.AddHostedService<EventStoreToRabbitMqPublisher>();
+// DISABLED: Hot loop issue - using direct publish from domain events instead
+// builder.Services.AddHostedService<EventStoreToRabbitMqPublisher>();
 
 // MassTransit (Sadece Yayıncı olarak ayarlandı)
 builder.Services.AddMassTransit(busConfig =>

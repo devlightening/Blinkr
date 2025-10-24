@@ -91,13 +91,43 @@ services:
     container_name: blinkr_mongo_express
     restart: always
     environment:
-      ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017/
+      ME_CONFIG_MONGODB_URL: mongodb://host.docker.internal:27017/
       ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_LOGIN}
       ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_PASSWORD}
     depends_on:
       - mongodb
     ports:
       - "8081:8081"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  projections-worker:
+    build:
+      context: .
+      dockerfile: src/Services/WorkerService/Blinkr.Projections.Worker/Dockerfile
+    container_name: blinkr_projections_worker
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__MongoDb: mongodb://mongodb:27017/?authSource=BlinkrReadModel
+      MongoDbSettings__DatabaseName: BlinkrReadModel
+      RabbitMq__Host: rabbitmq
+      RabbitMq__User: ${RABBITMQ_DEFAULT_USER}
+      RabbitMq__Pass: ${RABBITMQ_DEFAULT_PASS}
+    depends_on:
+      mongodb:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+    ports:
+      - "8082:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
   blinkr_postgres_data:
