@@ -27,6 +27,9 @@ using Serilog;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json.Serialization;
+using System.IO.Compression;
+using Microsoft.AspNetCore.ResponseCompression;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -88,9 +91,22 @@ builder.Services.AddSingleton<EventStoreClient>(sp =>
     return new EventStoreClient(settings);
 });
 
-// MongoDB İstemcisi (Read Handler'lar için)
+// MongoDB İstemcisi (Read Handler'lar için) - Optimized connection pooling
 builder.Services.AddSingleton<IMongoClient>(sp =>
-    new MongoClient(builder.Configuration.GetConnectionString("MongoDb")));
+{
+    var connectionString = builder.Configuration.GetConnectionString("MongoDb");
+    var settings = MongoClientSettings.FromConnectionString(connectionString);
+    
+    // Connection pooling optimization
+    settings.MaxConnectionPoolSize = 200;
+    settings.MinConnectionPoolSize = 10;
+    settings.ConnectTimeout = TimeSpan.FromSeconds(10);
+    settings.WaitQueueTimeout = TimeSpan.FromSeconds(5);
+    settings.ServerSelectionTimeout = TimeSpan.FromSeconds(5);
+    settings.WriteConcern = WriteConcern.WMajority;
+    
+    return new MongoClient(settings);
+});
 builder.Services.AddSingleton<IMongoDatabase>(sp =>
 {
     var client = sp.GetRequiredService<IMongoClient>();
@@ -99,10 +115,26 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
     return client.GetDatabase(dbName);
 });
 
-// Redis Cache (IDistributedCache için)
+// Redis Cache (IDistributedCache için) - Optimized connection multiplexer
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("Redis");
+    var options = ConfigurationOptions.Parse(connectionString);
+    
+    // Connection resiliency optimization
+    options.AbortOnConnectFail = false;
+    options.ConnectRetry = 3;
+    options.SyncTimeout = 2000;
+    options.AsyncTimeout = 5000;
+    options.ReconnectRetryPolicy = new ExponentialRetry(1000);
+    
+    return ConnectionMultiplexer.Connect(options);
+});
+
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+    var multiplexer = builder.Services.BuildServiceProvider().GetRequiredService<IConnectionMultiplexer>();
+    options.ConnectionMultiplexerFactory = () => Task.FromResult(multiplexer);
 });
 
 builder.Services.AddSingleton<ICheckpointStore, MongoCheckpointStore>();
@@ -209,6 +241,22 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services.AddHealthChecks();
 
+// Response Compression (gzip/brotli) for better performance
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<GzipCompressionProvider>();
+    options.Providers.Add<BrotliCompressionProvider>();
+});
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+{
+    options.Level = System.IO.Compression.CompressionLevel.Optimal;
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+{
+    options.Level = System.IO.Compression.CompressionLevel.Optimal;
+});
+
 var app = builder.Build();
 
 // ---- Pipeline ----
@@ -219,6 +267,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 app.UseHttpsRedirection();
+app.UseResponseCompression(); // Enable compression middleware
 app.UseCors(corsPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();

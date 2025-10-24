@@ -48,9 +48,18 @@ try
     builder.Services.AddSingleton<IMongoClient>(_ =>
     {
         var settings = MongoClientSettings.FromConnectionString(cs);
+        
+        // Connection pooling optimization for Worker
+        settings.MaxConnectionPoolSize = 100; // Lower than API since fewer concurrent operations
+        settings.MinConnectionPoolSize = 5;
+        settings.ConnectTimeout = TimeSpan.FromSeconds(10);
+        settings.WaitQueueTimeout = TimeSpan.FromSeconds(5);
+        settings.ServerSelectionTimeout = TimeSpan.FromSeconds(5);
+        
         settings.WriteConcern = new WriteConcern(w: 1, journal: true);
         settings.ReadConcern = ReadConcern.Local;
         Log.Information("📝 MongoDB WriteConcern set to W=1, Journal=true for data durability");
+        Log.Information("📝 MongoDB connection pool: Max={Max}, Min={Min}", settings.MaxConnectionPoolSize, settings.MinConnectionPoolSize);
         return new MongoClient(settings);
     });
     builder.Services.AddSingleton<IMongoDatabase>(sp =>
@@ -94,33 +103,41 @@ try
 
             cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
             
-            // EXPLICIT RECEIVE ENDPOINT - guaranteed queue consumption
+            // Global concurrency limit for better throughput
+            cfg.UseConcurrencyLimit(64);
+            
+            // EXPLICIT RECEIVE ENDPOINT - guaranteed queue consumption with performance tuning
             cfg.ReceiveEndpoint("post-created", e =>
             {
+                e.PrefetchCount = 32; // Optimize consumer throughput
                 e.ConfigureConsumer<PostCreatedConsumer>(ctx);
                 Log.Information("Configured endpoint post-created, Consumer: {Consumer}", nameof(PostCreatedConsumer));
             });
             
             cfg.ReceiveEndpoint("post-content-updated", e =>
             {
+                e.PrefetchCount = 32;
                 e.ConfigureConsumer<PostContentUpdatedConsumer>(ctx);
                 Log.Information("Configured endpoint post-content-updated, Consumer: {Consumer}", nameof(PostContentUpdatedConsumer));
             });
             
             cfg.ReceiveEndpoint("post-deleted", e =>
             {
+                e.PrefetchCount = 32;
                 e.ConfigureConsumer<PostDeletedConsumer>(ctx);
                 Log.Information("Configured endpoint post-deleted, Consumer: {Consumer}", nameof(PostDeletedConsumer));
             });
             
             cfg.ReceiveEndpoint("post-liked", e =>
             {
+                e.PrefetchCount = 32;
                 e.ConfigureConsumer<PostLikedConsumer>(ctx);
                 Log.Information("Configured endpoint post-liked, Consumer: {Consumer}", nameof(PostLikedConsumer));
             });
             
             cfg.ReceiveEndpoint("post-comment-added", e =>
             {
+                e.PrefetchCount = 32;
                 e.ConfigureConsumer<PostCommentAddedConsumer>(ctx);
                 Log.Information("Configured endpoint post-comment-added, Consumer: {Consumer}", nameof(PostCommentAddedConsumer));
             });

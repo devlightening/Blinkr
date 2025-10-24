@@ -37,6 +37,7 @@ public class PostsReadController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<PostListDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "page", "pageSize", "q", "authorId", "sort" })]
     public async Task<IActionResult> GetPosts(
         [FromQuery, Range(1, 1000)] int page = 1,
         [FromQuery, Range(1, 100)] int pageSize = 20,
@@ -90,9 +91,10 @@ public class PostsReadController : ControllerBase
     /// <param name="ct">Cancellation token</param>
     /// <returns>Post details</returns>
     [HttpGet("{id:guid}")]
+    [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "id" })]
     [ProducesResponseType(typeof(PostListDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetById(Guid id, CancellationToken ct = default)
+    public async Task<ActionResult<PostListDto>> GetById(Guid id, CancellationToken ct = default)
     {
         try
         {
