@@ -3,6 +3,7 @@ using BlogService.Api.Auth;
 using BlogService.Application.Services.Queries;
 using BlogService.Infrastructure.Services;
 using BlogService.Infrastructure.Services.Indexes;
+using BlogService.Api.RateLimiting;
 using BlogService.Application.Common.Behaviors;
 using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Mappings;
@@ -32,6 +33,7 @@ using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 using System.IO.Compression;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.AspNetCore.HttpOverrides;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -41,7 +43,10 @@ builder.Services.AddCors(o =>
 {
     o.AddPolicy(corsPolicyName, p =>
     {
-        p.WithOrigins("https://localhost:7259", "https://localhost:5173").AllowAnyHeader().AllowAnyMethod();
+        p.WithOrigins("https://localhost:7259", "https://localhost:5173")
+         .AllowAnyHeader()
+         .AllowAnyMethod()
+         .WithExposedHeaders("RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset", "Retry-After");
     });
 });
 builder.Host.UseSerilog((ctx, lc) => lc.ReadFrom.Configuration(ctx.Configuration).WriteTo.Console());
@@ -142,6 +147,19 @@ builder.Services.AddStackExchangeRedisCache(options =>
 {
     var multiplexer = builder.Services.BuildServiceProvider().GetRequiredService<IConnectionMultiplexer>();
     options.ConnectionMultiplexerFactory = () => Task.FromResult(multiplexer);
+});
+
+// Rate Limiting Services
+builder.Services.Configure<RateLimitingOptions>(builder.Configuration.GetSection("RateLimiting"));
+builder.Services.AddSingleton<ITokenBucketLimiter, RedisTokenBucketLimiter>();
+builder.Services.AddTransient<RateLimitingMiddleware>();
+
+// Forwarded Headers for proxy scenarios (Kubernetes/Nginx/etc.)
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
 });
 
 builder.Services.AddSingleton<ICheckpointStore, MongoCheckpointStore>();
@@ -346,9 +364,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+app.UseForwardedHeaders(); // Handle proxy headers FIRST
 app.UseHttpsRedirection();
 app.UseResponseCompression(); // Enable compression middleware
 app.UseResponseCaching(); // Enable response caching middleware
+
+// Rate limiting BEFORE authentication (IP-based protection)
+app.UseMiddleware<RateLimitingMiddleware>();
+
 app.UseCors(corsPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();

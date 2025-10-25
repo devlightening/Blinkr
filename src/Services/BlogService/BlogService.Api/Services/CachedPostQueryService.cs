@@ -8,7 +8,7 @@ namespace BlogService.Api.Services;
 /// Cached wrapper for PostQueryService using Redis
 /// </summary>
 public class CachedPostQueryService : IPostQueryService
-{
+{   
     private readonly IPostQueryService _inner;
     private readonly IDistributedCache _cache;
     private readonly ILogger<CachedPostQueryService> _logger;
