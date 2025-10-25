@@ -170,4 +170,76 @@ public class CachedPostQueryService : IPostQueryService
             _logger.LogWarning(ex, "Error invalidating cache for post: {PostId}", postId);
         }
     }
+
+    public async Task<PagedResult<PostListDto>> GetNearbyAsync(NearbyQuery query, CancellationToken cancellationToken = default)
+    {
+        // Round lat/lon to prevent cache key explosion (~1m precision)
+        static double Round(double v) => Math.Round(v, 5, MidpointRounding.AwayFromZero);
+
+        var q = query.Clamp();
+        var latR = Round(q.Lat);
+        var lonR = Round(q.Lon);
+
+        var key = $"nearby:{latR}:{lonR}:{q.RadiusMeters}:{q.Page}:{q.PageSize}";
+        
+        try
+        {
+            // Try cache first
+            var cached = await GetFromCacheAsync<PagedResult<PostListDto>>(key, cancellationToken);
+            if (cached is not null) 
+            {
+                _logger.LogDebug("📍 Cache HIT for nearby query: {Key}", key);
+                return cached;
+            }
+
+            // Cache miss - fetch from inner service
+            _logger.LogDebug("📍 Cache MISS for nearby query: {Key}", key);
+            var result = await _inner.GetNearbyAsync(q, cancellationToken);
+            
+            // Cache for 60 seconds (short TTL for location data)
+            await SetCacheAsync(key, result, TimeSpan.FromSeconds(60), cancellationToken);
+            
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Cache error for nearby query, falling back to direct call");
+            return await _inner.GetNearbyAsync(q, cancellationToken);
+        }
+    }
+
+    // Helper methods for cache operations
+    private async Task<T?> GetFromCacheAsync<T>(string key, CancellationToken cancellationToken) where T : class
+    {
+        try
+        {
+            var cached = await _cache.GetStringAsync(key, cancellationToken);
+            if (!string.IsNullOrEmpty(cached))
+            {
+                return JsonSerializer.Deserialize<T>(cached, JsonOptions);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error reading from cache for key: {Key}", key);
+        }
+        return null;
+    }
+
+    private async Task SetCacheAsync<T>(string key, T value, TimeSpan expiration, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var serialized = JsonSerializer.Serialize(value, JsonOptions);
+            var options = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = expiration
+            };
+            await _cache.SetStringAsync(key, serialized, options, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error writing to cache for key: {Key}", key);
+        }
+    }
 }

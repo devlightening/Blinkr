@@ -1,4 +1,4 @@
-﻿using BlogService.Domain.Common.Root;
+using BlogService.Domain.Common.Root;
 using BlogService.Domain.Enums;
 using BlogService.Domain.Events;
 using System;
@@ -70,11 +70,28 @@ namespace BlogService.Domain.Entities
             ApplyNewEvent(new PostLikedEvent(this.Id, userId, DateTime.UtcNow));
         }
 
-        public void Unlike(Guid userId)
+        public void UnlikePost(Guid userId)
         {
-            if (IsDeleted || !Likes.Any(like => like.UserId == userId)) return;
+            var existingLike = Likes.FirstOrDefault(like => like.UserId == userId);
+            if (existingLike != null)
+            {
+                ApplyNewEvent(new PostUnlikedEvent(Id, userId, DateTime.UtcNow));
+            }
+        }
 
-            ApplyNewEvent(new PostUnlikedEvent(this.Id, userId, DateTime.UtcNow));
+        public void AddLocation(double latitude, double longitude, string? locationName)
+        {
+            ApplyNewEvent(new PostLocationAddedEvent(Id, latitude, longitude, locationName, DateTime.UtcNow));
+        }
+
+        public void UpdateLocation(double latitude, double longitude, string? locationName)
+        {
+            ApplyNewEvent(new PostLocationUpdatedEvent(Id, latitude, longitude, locationName, DateTime.UtcNow));
+        }
+
+        public void RemoveLocation()
+        {
+            ApplyNewEvent(new PostLocationRemovedEvent(Id, DateTime.UtcNow));
         }
 
         // --- OLAY UYGULAMA METOTLARI (APPLY METHODS) ---

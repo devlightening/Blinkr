@@ -3,6 +3,8 @@ using BlogService.Api.ReadModels;
 using BlogService.Application.DTOs.PostDtos;
 using MongoDB.Driver;
 using MongoDB.Bson;
+using System.Collections;
+using System.Linq;
 
 namespace BlogService.Api.Services;
 
@@ -243,5 +245,81 @@ public class PostQueryService : IPostQueryService
             CommentCount = document.CommentCount,
             MediaUrls = document.Media.Select(m => m.Url).ToList()
         };
+    }
+
+    public async Task<PagedResult<PostListDto>> GetNearbyAsync(NearbyQuery query, CancellationToken cancellationToken = default)
+    {
+        // 1) Validation
+        if (query.Lat is < -90 or > 90 || query.Lon is < -180 or > 180)
+            throw new ArgumentOutOfRangeException(nameof(query), "Invalid latitude/longitude.");
+
+        var q = query.Clamp();
+        var skip = (q.Page - 1) * q.PageSize;
+
+        try
+        {
+            // 2) $geoNear pipeline - MUST be first stage
+            var pipeline = new[]
+            {
+                new BsonDocument("$geoNear", new BsonDocument
+                {
+                    { "near", new BsonDocument {
+                        { "type", "Point" },
+                        { "coordinates", new BsonArray { q.Lon, q.Lat } } // CRITICAL: [lon, lat] order
+                    }},
+                    { "distanceField", "distance" },
+                    { "maxDistance", q.RadiusMeters },
+                    { "minDistance", 1 }, // Filter out same-point jitter (1 meter minimum)
+                    { "spherical", true }
+                }),
+                new BsonDocument("$sort", new BsonDocument("distance", 1)),
+                new BsonDocument("$skip", skip),
+                new BsonDocument("$limit", q.PageSize)
+            };
+
+            // 3) Execute aggregation
+            var docs = await _postsCollection.Aggregate<BsonDocument>(pipeline).ToListAsync(cancellationToken);
+
+            // 4) Map to DTOs
+            var items = docs.Select(d =>
+            {
+                var id = d.GetValue("_id", BsonNull.Value)?.ToString() ?? throw new InvalidOperationException("_id missing");
+                return new PostListDto
+                {
+                    Id = Guid.Parse(id),
+                    AuthorId = Guid.TryParse(d.GetValue("AuthorId", BsonNull.Value)?.ToString(), out var aid) ? aid : Guid.Empty,
+                    Title = d.GetValue("Title", "").AsString,
+                    Content = d.GetValue("Content", "").AsString,
+                    CreatedAtUtc = d.Contains("CreatedAtUtc") ? d["CreatedAtUtc"].ToUniversalTime() : DateTime.MinValue,
+                    LikeCount = d.GetValue("LikeCount", 0).AsInt32,
+                    CommentCount = d.GetValue("CommentCount", 0).AsInt32,
+                    MediaUrls = d.Contains("Media") ? 
+                        d["Media"].AsBsonArray.Select(m => m.AsBsonDocument.GetValue("Url", "").AsString).ToList() : 
+                        new List<string>(),
+                    DistanceMeters = d.GetValue("distance", 0.0).ToDouble()
+                };
+            }).ToList();
+
+            // 5) hasNextPage logic (lightweight - no total count)
+            var hasNextPage = items.Count() == q.PageSize;
+
+            _logger.LogInformation(
+                "📍 Nearby query executed. Lat={Lat}, Lon={Lon}, Radius={Radius}m, Found={Count}, Page={Page}",
+                q.Lat, q.Lon, q.RadiusMeters, items.Count(), q.Page);
+
+            return new PagedResult<PostListDto>(
+                items,
+                total: 0, // Performance: no total count for geo queries
+                page: q.Page,
+                pageSize: q.PageSize
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, 
+                "❌ Failed to execute nearby query. Lat={Lat}, Lon={Lon}, Radius={Radius}m", 
+                q.Lat, q.Lon, q.RadiusMeters);
+            throw;
+        }
     }
 }

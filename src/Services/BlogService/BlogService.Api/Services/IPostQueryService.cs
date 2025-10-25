@@ -39,4 +39,9 @@ public interface IPostQueryService
     /// Get post detail by ID (for detail endpoint)
     /// </summary>
     Task<PostReadDto?> GetByIdAsync(Guid postId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get nearby posts within specified radius (geospatial query)
+    /// </summary>
+    Task<PagedResult<PostListDto>> GetNearbyAsync(NearbyQuery query, CancellationToken cancellationToken = default);
 }

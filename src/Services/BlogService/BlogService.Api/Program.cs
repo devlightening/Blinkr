@@ -1,5 +1,6 @@
 using BlogService.Api;
 using BlogService.Api.Auth;
+using BlogService.Api.Services;
 using BlogService.Application.Common.Behaviors;
 using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Mappings;
@@ -151,13 +152,54 @@ builder.Services.AddScoped<IEventStoreRepository>(sp =>
 builder.Services.AddScoped<IPostReadRepository, PostReadRepository>();
 
 // Query Service (MongoDB Read Model) with Redis caching
-builder.Services.AddScoped<BlogService.Api.Services.PostQueryService>(); // Inner service
-builder.Services.AddScoped<BlogService.Api.Services.IPostQueryService>(sp =>
+builder.Services.AddScoped<PostQueryService>();
+builder.Services.AddScoped<IPostQueryService>(sp =>
 {
-    var inner = sp.GetRequiredService<BlogService.Api.Services.PostQueryService>();
+    var inner = sp.GetRequiredService<PostQueryService>();
     var cache = sp.GetRequiredService<IDistributedCache>();
-    var logger = sp.GetRequiredService<ILogger<BlogService.Api.Services.CachedPostQueryService>>();
-    return new BlogService.Api.Services.CachedPostQueryService(inner, cache, logger);
+    var logger = sp.GetRequiredService<ILogger<CachedPostQueryService>>();
+    return new CachedPostQueryService(inner, cache, logger);
+});
+
+// ---- Geocoding Configuration ----
+builder.Services.Configure<BlogService.Infrastructure.Geocoding.NominatimOptions>(
+    builder.Configuration.GetSection("Geocoding"));
+
+// ---- Nominatim HttpClient (without Polly for now) ----
+builder.Services.AddHttpClient<BlogService.Infrastructure.Geocoding.NominatimGeocodingService>((sp, c) =>
+{
+    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BlogService.Infrastructure.Geocoding.NominatimOptions>>().Value;
+    c.BaseAddress = new Uri(options.BaseUrl);
+    c.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd(options.UserAgent);
+    c.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+});
+
+// ---- Concurrency Gate ----
+builder.Services.AddSingleton(sp =>
+{
+    var maxConcurrency = builder.Configuration.GetValue<int>("Geocoding:MaxConcurrency", 2);
+    return new SemaphoreSlim(maxConcurrency, maxConcurrency);
+});
+
+// ---- Geocoding Service Chain (Nominatim → Constrained → Cached) ----
+builder.Services.AddScoped<BlogService.Application.Services.IGeocodingService>(sp =>
+{
+    // Inner service: Nominatim
+    var nominatim = sp.GetRequiredService<BlogService.Infrastructure.Geocoding.NominatimGeocodingService>();
+    
+    // Concurrency constraint
+    var gate = sp.GetRequiredService<SemaphoreSlim>();
+    var constrainedLogger = sp.GetRequiredService<ILogger<BlogService.Infrastructure.Geocoding.ConstrainedGeocodingService>>();
+    var constrained = new BlogService.Infrastructure.Geocoding.ConstrainedGeocodingService(nominatim, gate, constrainedLogger);
+    
+    // Caching decorator
+    var cache = sp.GetRequiredService<IDistributedCache>();
+    var cachingLogger = sp.GetRequiredService<ILogger<BlogService.Infrastructure.Geocoding.CachingGeocodingService>>();
+    var ttlHours = builder.Configuration.GetValue<int>("Geocoding:CacheTtlHours", 24);
+    
+    return new BlogService.Infrastructure.Geocoding.CachingGeocodingService(
+        cache, constrained, cachingLogger, TimeSpan.FromHours(ttlHours));
 });
 
 // EventStoreDB subscription - conditional registration based on configuration
@@ -239,7 +281,8 @@ builder.Services.AddAuthorization(options =>
         .RequireAuthenticatedUser()
         .Build();
 });
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddCheck<BlogService.Infrastructure.Geocoding.GeocodingHealthCheck>("geocoding");
 
 // Response Compression (gzip/brotli) for better performance
 builder.Services.AddResponseCompression(options =>

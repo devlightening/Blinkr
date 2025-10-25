@@ -1,6 +1,7 @@
-﻿using Blinkr.Projections.Worker.Entities;
+using Blinkr.Projections.Worker.Entities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Driver.GeoJsonObjectModel;
 
 namespace Blinkr.Projections.Worker.Documents
 {
@@ -22,5 +23,9 @@ namespace Blinkr.Projections.Worker.Documents
         public int LikeCount { get; set; }
         public List<Comment> Comments { get; set; } = new List<Comment>();
         public List<Media> Media { get; set; } = new List<Media>();
+        
+        // Location support - GeoJSON Point for 2dsphere indexing
+        public GeoJsonPoint<GeoJson2DGeographicCoordinates>? Location { get; set; }
+        public string? LocationName { get; set; }
     }
 }

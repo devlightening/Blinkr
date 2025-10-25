@@ -1,8 +1,10 @@
 using BlogService.Api.Services;
+using BlogService.Api.DTOs;
 using BlogService.Application.DTOs.PostDtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 
 namespace BlogService.Api.Controllers;
 
@@ -113,6 +115,61 @@ public class PostsReadController : ControllerBase
         {
             _logger.LogError(ex, "Error retrieving post: {PostId}", id);
             return StatusCode(500, "An error occurred while retrieving the post");
+        }
+    }
+
+    /// <summary>
+    /// Get nearby posts within specified radius (geospatial query)
+    /// </summary>
+    /// <param name="lat">Latitude coordinate (-90 to 90)</param>
+    /// <param name="lon">Longitude coordinate (-180 to 180)</param>
+    /// <param name="radius">Search radius in meters (50 to 50,000, default: 5000)</param>
+    /// <param name="page">Page number (1-based, default: 1)</param>
+    /// <param name="pageSize">Items per page (1 to 50, default: 20)</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>Nearby posts ordered by distance</returns>
+    [HttpGet("nearby")]
+    [AllowAnonymous]
+    [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "lat", "lon", "radius", "page", "pageSize" })]
+    [ProducesResponseType(typeof(PagedResult<PostListDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PagedResult<PostListDto>>> GetNearby(
+        [FromQuery] double lat,
+        [FromQuery] double lon,
+        [FromQuery] int radius = 5000,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            // Validate coordinates
+            if (lat is < -90 or > 90 || lon is < -180 or > 180)
+            {
+                _logger.LogWarning("Invalid coordinates provided: lat={Lat}, lon={Lon}", lat, lon);
+                return BadRequest("Invalid latitude/longitude. Latitude must be between -90 and 90, longitude between -180 and 180.");
+            }
+
+            var query = new NearbyQuery(lat, lon, radius, page, pageSize);
+            var result = await _queryService.GetNearbyAsync(query, ct);
+
+            // Avoid double enumeration - use ICollection if available
+            var hits = result.Items is ICollection<PostListDto> c ? c.Count : result.Items.Count();
+            _logger.LogInformation(
+                "📍 Nearby posts retrieved: lat={Lat}, lon={Lon}, radius={Radius}m, page={Page}/{PageSize}, hits={Hits}",
+                lat, lon, radius, page, pageSize, hits);
+
+            return Ok(result);
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            _logger.LogWarning(ex, "Invalid query parameters for nearby search");
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving nearby posts: lat={Lat}, lon={Lon}, radius={Radius}m", lat, lon, radius);
+            return StatusCode(500, "An error occurred while retrieving nearby posts");
         }
     }
 

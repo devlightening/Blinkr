@@ -14,6 +14,11 @@ public record PostListDto
     public int LikeCount { get; init; }
     public int CommentCount { get; init; }
     public List<string> MediaUrls { get; init; } = new();
+    
+    /// <summary>
+    /// Distance in meters (populated by $geoNear queries)
+    /// </summary>
+    public double? DistanceMeters { get; init; }
 
     /// <summary>
     /// Content preview (first 200 chars)
