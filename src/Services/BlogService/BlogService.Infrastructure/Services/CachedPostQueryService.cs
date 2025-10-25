@@ -1,8 +1,10 @@
 using BlogService.Application.DTOs.PostDtos;
+using BlogService.Application.Services.Queries;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
-namespace BlogService.Api.Services;
+namespace BlogService.Infrastructure.Services;
 
 /// <summary>
 /// Cached wrapper for PostQueryService using Redis

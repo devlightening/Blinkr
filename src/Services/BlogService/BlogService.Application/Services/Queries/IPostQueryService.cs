@@ -1,6 +1,6 @@
 using BlogService.Application.DTOs.PostDtos;
 
-namespace BlogService.Api.Services;
+namespace BlogService.Application.Services.Queries;
 
 /// <summary>
 /// Query service for reading posts from MongoDB read model

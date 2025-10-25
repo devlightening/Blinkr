@@ -1,5 +1,4 @@
-using BlogService.Api.DTOs;
-using BlogService.Api.ReadModels;
+using BlogService.Infrastructure.ReadModels;
 using BlogService.Application.DTOs.PostDtos;
 using MongoDB.Driver;
 using MongoDB.Bson;

@@ -1,6 +1,8 @@
 using BlogService.Api;
 using BlogService.Api.Auth;
-using BlogService.Api.Services;
+using BlogService.Application.Services.Queries;
+using BlogService.Infrastructure.Services;
+using BlogService.Infrastructure.Services.Indexes;
 using BlogService.Application.Common.Behaviors;
 using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Mappings;
@@ -8,7 +10,6 @@ using BlogService.Application.Validators.PostValidators;
 using BlogService.Infrastructure;
 using BlogService.Infrastructure.Data;
 using BlogService.Infrastructure.Repositories;
-using BlogService.Infrastructure.Services;
 using EventStore.Client;
 using FluentValidation;
 using FluentValidation.AspNetCore;
@@ -157,13 +158,13 @@ builder.Services.AddScoped<IEventStoreRepository>(sp =>
 builder.Services.AddScoped<IPostReadRepository, PostReadRepository>();
 
 // Query Service (MongoDB Read Model) with Redis caching
-builder.Services.AddScoped<PostQueryService>();
+builder.Services.AddScoped<BlogService.Infrastructure.Services.PostQueryService>();
 builder.Services.AddScoped<IPostQueryService>(sp =>
 {
-    var inner = sp.GetRequiredService<PostQueryService>();
+    var inner = sp.GetRequiredService<BlogService.Infrastructure.Services.PostQueryService>();
     var cache = sp.GetRequiredService<IDistributedCache>();
-    var logger = sp.GetRequiredService<ILogger<CachedPostQueryService>>();
-    return new CachedPostQueryService(inner, cache, logger);
+    var logger = sp.GetRequiredService<ILogger<BlogService.Infrastructure.Services.CachedPostQueryService>>();
+    return new BlogService.Infrastructure.Services.CachedPostQueryService(inner, cache, logger);
 });
 
 // MongoDB Index Service
