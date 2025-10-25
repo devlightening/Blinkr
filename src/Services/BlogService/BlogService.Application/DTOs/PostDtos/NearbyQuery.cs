@@ -22,7 +22,7 @@ public readonly record struct NearbyQuery(
     public NearbyQuery Clamp() => new(
         Lat,
         Lon,
-        Math.Clamp(RadiusMeters, 50, 50_000),   // 50 m – 50 km
+        Math.Clamp(RadiusMeters, 50, 500_000),   // 50 m – 500 km (for testing)
         Math.Max(1, Page),
         Math.Clamp(PageSize, 1, 50)
     );

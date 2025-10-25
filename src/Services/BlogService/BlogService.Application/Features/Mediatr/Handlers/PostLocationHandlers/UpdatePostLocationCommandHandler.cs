@@ -5,7 +5,7 @@ using BlogService.Domain.Common.Interfaces;
 using BlogService.Domain.Events;
 using Microsoft.Extensions.Logging;
 
-namespace BlogService.Application.Features.Mediatr.Handlers.PostLocationHandlers;
+namespace BlogService.Application.Features.MediatR.Handlers.PostLocationHandlers;
 
 /// <summary>
 /// Handler for updating post location

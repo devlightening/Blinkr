@@ -146,5 +146,25 @@ namespace BlogService.Domain.Entities
                 Likes.Remove(likeToRemove);
             }
         }
+
+        // --- LOCATION APPLY METHODS ---
+
+        private void Apply(PostLocationAddedEvent e)
+        {
+            // Location is handled by read model projections
+            // No state change needed in aggregate
+        }
+
+        private void Apply(PostLocationUpdatedEvent e)
+        {
+            // Location is handled by read model projections
+            // No state change needed in aggregate
+        }
+
+        private void Apply(PostLocationRemovedEvent e)
+        {
+            // Location is handled by read model projections
+            // No state change needed in aggregate
+        }
     }
 }

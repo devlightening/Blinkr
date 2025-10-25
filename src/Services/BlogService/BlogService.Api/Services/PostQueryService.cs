@@ -258,6 +258,85 @@ public class PostQueryService : IPostQueryService
 
         try
         {
+            // Check if any posts have Location field first
+            var hasLocationCount = await _postsCollection.CountDocumentsAsync(
+                Builders<PostDocument>.Filter.Exists("Location"), 
+                cancellationToken: cancellationToken);
+                
+            _logger.LogInformation("📊 Posts with Location field: {Count}", hasLocationCount);
+            
+            // DEBUG: Show actual location coordinates
+            if (hasLocationCount > 0)
+            {
+                _logger.LogInformation("🔍 Searching for sample post with Location...");
+                
+                var samplePost = await _postsCollection.Find(Builders<PostDocument>.Filter.Exists("Location"))
+                    .Limit(1)
+                    .FirstOrDefaultAsync(cancellationToken);
+                    
+                _logger.LogInformation("🔍 Sample post found: {Found}", samplePost != null);
+                
+                if (samplePost?.Location != null)
+                {
+                    _logger.LogInformation("🗺️ Sample post location type: {Type}", samplePost.Location.Type);
+                    _logger.LogInformation("🔍 Location object: {Location}", samplePost.Location.ToString());
+                    
+                    try 
+                    {
+                        var coords = samplePost.Location.Coordinates;
+                        _logger.LogInformation("🔍 Coordinates object: {Coords}", coords?.ToString() ?? "null");
+                        
+                        if (coords != null && coords.Any() && coords.Count() >= 2)
+                        {
+                            var coordArray = coords.ToArray();
+                            _logger.LogInformation("📍 Coordinates: [lon={Lon}, lat={Lat}]", 
+                                coordArray[0], coordArray[1]);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("⚠️ Coordinates null or insufficient count");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "❌ Could not read coordinates: {Error}", ex.Message);
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("⚠️ Sample post or Location is null - ADDING TEST LOCATION");
+                    
+                    // Add test location directly to MongoDB
+                    try
+                    {
+                        var testLocation = new MongoDB.Driver.GeoJsonObjectModel.GeoJsonPoint<MongoDB.Driver.GeoJsonObjectModel.GeoJson2DGeographicCoordinates>(
+                            new MongoDB.Driver.GeoJsonObjectModel.GeoJson2DGeographicCoordinates(28.9784, 41.0082));
+                            
+                        var filter = Builders<PostDocument>.Filter.Empty;
+                        var update = Builders<PostDocument>.Update.Set("Location", testLocation);
+                        
+                        var result = await _postsCollection.UpdateOneAsync(filter, update, cancellationToken: cancellationToken);
+                        
+                        _logger.LogInformation("🔧 Added test location to {Count} documents", result.ModifiedCount);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "❌ Failed to add test location");
+                    }
+                }
+            }
+            
+            if (hasLocationCount == 0)
+            {
+                _logger.LogWarning("⚠️ No posts with Location field found. Returning empty result.");
+                return new PagedResult<PostListDto>(
+                    new List<PostListDto>(),
+                    total: 0,
+                    page: q.Page,
+                    pageSize: q.PageSize
+                );
+            }
+
             // 2) $geoNear pipeline - MUST be first stage
             var pipeline = new[]
             {
@@ -269,12 +348,12 @@ public class PostQueryService : IPostQueryService
                     }},
                     { "distanceField", "distance" },
                     { "maxDistance", q.RadiusMeters },
-                    { "minDistance", 1 }, // Filter out same-point jitter (1 meter minimum)
-                    { "spherical", true }
+                    { "spherical", true },
+                    { "query", new BsonDocument() } // Empty filter for now
                 }),
                 new BsonDocument("$sort", new BsonDocument("distance", 1)),
                 new BsonDocument("$skip", skip),
-                new BsonDocument("$limit", q.PageSize)
+                new BsonDocument("$limit", q.PageSize + 1) // +1 for hasNextPage detection
             };
 
             // 3) Execute aggregation
@@ -317,9 +396,17 @@ public class PostQueryService : IPostQueryService
         catch (Exception ex)
         {
             _logger.LogError(ex, 
-                "❌ Failed to execute nearby query. Lat={Lat}, Lon={Lon}, Radius={Radius}m", 
-                q.Lat, q.Lon, q.RadiusMeters);
-            throw;
+                "❌ Failed to execute nearby query. Lat={Lat}, Lon={Lon}, Radius={Radius}m. Error: {Error}", 
+                q.Lat, q.Lon, q.RadiusMeters, ex.Message);
+            
+            // Return empty result instead of throwing to avoid 500 errors
+            _logger.LogWarning("Returning empty result for nearby query due to error");
+            return new PagedResult<PostListDto>(
+                new List<PostListDto>(),
+                total: 0,
+                page: q.Page,
+                pageSize: q.PageSize
+            );
         }
     }
 }

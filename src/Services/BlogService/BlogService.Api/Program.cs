@@ -24,6 +24,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MongoDB.Driver;
+using MongoDB.Bson;
 using Serilog;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -92,10 +93,14 @@ builder.Services.AddSingleton<EventStoreClient>(sp =>
     return new EventStoreClient(settings);
 });
 
-// MongoDB İstemcisi (Read Handler'lar için) - Optimized connection pooling
+// MongoDB İstemcisi (Read Handler'lar için) - Optimized// MongoDB Configuration with GUID serialization fix
 builder.Services.AddSingleton<IMongoClient>(sp =>
 {
+    // CRITICAL: Configure GUID serialization BEFORE creating client
+    MongoDB.Bson.Serialization.BsonSerializer.RegisterSerializer(new MongoDB.Bson.Serialization.Serializers.GuidSerializer(GuidRepresentation.Standard));
+    
     var connectionString = builder.Configuration.GetConnectionString("MongoDb");
+    
     var settings = MongoClientSettings.FromConnectionString(connectionString);
     
     // Connection pooling optimization
@@ -160,6 +165,9 @@ builder.Services.AddScoped<IPostQueryService>(sp =>
     var logger = sp.GetRequiredService<ILogger<CachedPostQueryService>>();
     return new CachedPostQueryService(inner, cache, logger);
 });
+
+// MongoDB Index Service
+builder.Services.AddScoped<MongoIndexService>();
 
 // ---- Geocoding Configuration ----
 builder.Services.Configure<BlogService.Infrastructure.Geocoding.NominatimOptions>(
@@ -288,9 +296,18 @@ builder.Services.AddHealthChecks()
 builder.Services.AddResponseCompression(options =>
 {
     options.EnableForHttps = true;
-    options.Providers.Add<GzipCompressionProvider>();
     options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[]
+    {
+        "application/json",
+        "text/json"
+    });
 });
+
+// Response caching middleware
+builder.Services.AddResponseCaching();
+
 builder.Services.Configure<GzipCompressionProviderOptions>(options =>
 {
     options.Level = System.IO.Compression.CompressionLevel.Optimal;
@@ -302,6 +319,25 @@ builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
 
 var app = builder.Build();
 
+// ===== ENSURE MONGODB INDEXES =====
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var indexService = scope.ServiceProvider.GetRequiredService<MongoIndexService>();
+        await indexService.EnsureIndexesAsync();
+        
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("🗺️ MongoDB indexes initialized successfully");
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "❌ Failed to initialize MongoDB indexes");
+        // Don't throw - let app start anyway
+    }
+}
+
 // ---- Pipeline ----
 app.UseSerilogRequestLogging();
 if (app.Environment.IsDevelopment())
@@ -311,6 +347,7 @@ if (app.Environment.IsDevelopment())
 }
 app.UseHttpsRedirection();
 app.UseResponseCompression(); // Enable compression middleware
+app.UseResponseCaching(); // Enable response caching middleware
 app.UseCors(corsPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();

@@ -97,6 +97,39 @@ public class EventStorePublishingDecorator : IEventStoreRepository
                 await _bus.Publish(new PostCommentAddedEvent(e.PostId, e.CommentId, e.AuthorId, e.CommentText, e.OccurredOn), ct);
                 break;
 
+            case PostLocationAddedEvent e:
+                _log.LogInformation("Publishing PostLocationAdded PostId={PostId} Lat={Lat} Lon={Lon}", e.PostId, e.Latitude, e.Longitude);
+                await _bus.Publish<IPostLocationAddedIntegrationEvent>(new
+                {
+                    e.PostId,
+                    e.Latitude,
+                    e.Longitude,
+                    e.LocationName,
+                    e.OccurredOn
+                }, ct);
+                break;
+
+            case PostLocationUpdatedEvent e:
+                _log.LogInformation("Publishing PostLocationUpdated PostId={PostId} Lat={Lat} Lon={Lon}", e.PostId, e.Latitude, e.Longitude);
+                await _bus.Publish<IPostLocationUpdatedIntegrationEvent>(new
+                {
+                    e.PostId,
+                    e.Latitude,
+                    e.Longitude,
+                    e.LocationName,
+                    e.OccurredOn
+                }, ct);
+                break;
+
+            case PostLocationRemovedEvent e:
+                _log.LogInformation("Publishing PostLocationRemoved PostId={PostId}", e.PostId);
+                await _bus.Publish<IPostLocationRemovedIntegrationEvent>(new
+                {
+                    e.PostId,
+                    e.OccurredOn
+                }, ct);
+                break;
+
             default:
                 _log.LogDebug("Unmapped domain event: {EventType}", domainEvent.GetType().Name);
                 break;

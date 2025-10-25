@@ -134,8 +134,8 @@ public class PostsReadController : ControllerBase
     [ProducesResponseType(typeof(PagedResult<PostListDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PagedResult<PostListDto>>> GetNearby(
-        [FromQuery] double lat,
-        [FromQuery] double lon,
+        [FromQuery(Name = "lat")] string latStr,
+        [FromQuery(Name = "lon")] string lonStr,
         [FromQuery] int radius = 5000,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
@@ -143,12 +143,29 @@ public class PostsReadController : ControllerBase
     {
         try
         {
+            // Parse coordinates with invariant culture
+            if (!double.TryParse(latStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double lat))
+            {
+                _logger.LogWarning("❌ Invalid latitude format: {LatStr}", latStr);
+                return BadRequest($"Invalid latitude format: {latStr}");
+            }
+            
+            if (!double.TryParse(lonStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double lon))
+            {
+                _logger.LogWarning("❌ Invalid longitude format: {LonStr}", lonStr);
+                return BadRequest($"Invalid longitude format: {lonStr}");
+            }
+            
             // Validate coordinates
+            _logger.LogInformation("🔍 Parsed coordinates: lat={Lat}, lon={Lon}, radius={Radius}", lat, lon, radius);
+            
             if (lat is < -90 or > 90 || lon is < -180 or > 180)
             {
-                _logger.LogWarning("Invalid coordinates provided: lat={Lat}, lon={Lon}", lat, lon);
+                _logger.LogWarning("❌ Invalid coordinates provided: lat={Lat}, lon={Lon}", lat, lon);
                 return BadRequest("Invalid latitude/longitude. Latitude must be between -90 and 90, longitude between -180 and 180.");
             }
+            
+            _logger.LogInformation("✅ Coordinates validated successfully");
 
             var query = new NearbyQuery(lat, lon, radius, page, pageSize);
             var result = await _queryService.GetNearbyAsync(query, ct);
@@ -168,7 +185,7 @@ public class PostsReadController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving nearby posts: lat={Lat}, lon={Lon}, radius={Radius}m", lat, lon, radius);
+            _logger.LogError(ex, "Error retrieving nearby posts: latStr={LatStr}, lonStr={LonStr}, radius={Radius}m", latStr, lonStr, radius);
             return StatusCode(500, "An error occurred while retrieving nearby posts");
         }
     }
