@@ -5,15 +5,31 @@ namespace BlogService.Api.RateLimiting;
 /// </summary>
 public sealed class RateLimitPolicy
 {
-    /// <summary>
-    /// Maximum number of tokens in the bucket
-    /// </summary>
-    public int Capacity { get; set; } = 60;
+    private int _capacity = 60;
+    private double _refillPerSecond = 1.0;
 
     /// <summary>
-    /// Tokens refilled per second
+    /// Maximum number of tokens in the bucket (1-10000)
     /// </summary>
-    public double RefillPerSecond { get; set; } = 1.0;
+    public int Capacity 
+    { 
+        get => _capacity;
+        set => _capacity = Math.Clamp(value, 1, 10000);
+    }
+
+    /// <summary>
+    /// Tokens refilled per second (0.01-100.0)
+    /// </summary>
+    public double RefillPerSecond 
+    { 
+        get => _refillPerSecond;
+        set => _refillPerSecond = Math.Clamp(value, 0.01, 100.0);
+    }
+
+    /// <summary>
+    /// Validate policy configuration
+    /// </summary>
+    public bool IsValid => Capacity > 0 && RefillPerSecond > 0;
 }
 
 /// <summary>

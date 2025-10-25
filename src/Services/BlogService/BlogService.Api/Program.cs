@@ -152,6 +152,7 @@ builder.Services.AddStackExchangeRedisCache(options =>
 // Rate Limiting Services
 builder.Services.Configure<RateLimitingOptions>(builder.Configuration.GetSection("RateLimiting"));
 builder.Services.AddSingleton<ITokenBucketLimiter, RedisTokenBucketLimiter>();
+builder.Services.AddSingleton<RateLimitingMetrics>();
 builder.Services.AddTransient<RateLimitingMiddleware>();
 
 // Forwarded Headers for proxy scenarios (Kubernetes/Nginx/etc.)

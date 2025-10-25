@@ -11,15 +11,18 @@ public sealed class RateLimitingMiddleware : IMiddleware
     private readonly ITokenBucketLimiter _limiter;
     private readonly RateLimitingOptions _options;
     private readonly ILogger<RateLimitingMiddleware> _logger;
+    private readonly RateLimitingMetrics _metrics;
 
     public RateLimitingMiddleware(
         ITokenBucketLimiter limiter, 
         IOptions<RateLimitingOptions> options,
-        ILogger<RateLimitingMiddleware> logger)
+        ILogger<RateLimitingMiddleware> logger,
+        RateLimitingMetrics metrics)
     {
         _limiter = limiter;
         _options = options.Value;
         _logger = logger;
+        _metrics = metrics;
     }
 
     public async Task InvokeAsync(HttpContext context, RequestDelegate next)
@@ -65,6 +68,9 @@ public sealed class RateLimitingMiddleware : IMiddleware
 
             if (!allowed)
             {
+                // Record blocked request metrics
+                _metrics.RecordBlocked(policyName, identifier, resetSeconds);
+                
                 _logger.LogWarning("Rate limit exceeded for {Policy} by {Identifier}. Reset in {ResetSeconds}s. " +
                     "Remaining: {Remaining}", policyName, identifier, resetSeconds, remaining);
 
@@ -85,6 +91,9 @@ public sealed class RateLimitingMiddleware : IMiddleware
                 return;
             }
 
+            // Record allowed request metrics
+            _metrics.RecordAllowed(policyName, identifier, remaining);
+            
             _logger.LogDebug("Rate limit check passed for {Policy} by {Identifier}. Remaining: {Remaining}/{Capacity}", 
                 policyName, identifier, remaining, policy.Capacity);
 
