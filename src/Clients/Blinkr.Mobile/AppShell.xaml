@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="Blinkr.Mobile.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:Blinkr.Mobile"
+    xmlns:views="clr-namespace:Blinkr.Mobile.Features"
+    Title="Blinkr"
+    Shell.TabBarBackgroundColor="{StaticResource White}"
+    Shell.TabBarForegroundColor="{StaticResource Primary}"
+    Shell.TabBarUnselectedColor="{StaticResource Gray400}">
+
+    <!-- Bottom Tab Navigation -->
+    <TabBar>
+        <!-- Map Tab -->
+        <ShellContent 
+            Title="Harita" 
+            Icon="dotnet_bot.png"
+            ContentTemplate="{DataTemplate views:MapPage}" 
+            Route="map" />
+        
+        <!-- Feed Tab -->
+        <ShellContent 
+            Title="Akış" 
+            Icon="dotnet_bot.png"
+            ContentTemplate="{DataTemplate views:FeedPage}" 
+            Route="feed" />
+        
+        <!-- Create Tab (Modal) -->
+        <ShellContent 
+            Title="Oluştur" 
+            Icon="dotnet_bot.png"
+            ContentTemplate="{DataTemplate views:CreatePage}" 
+            Route="create" />
+        
+        <!-- Notifications Tab -->
+        <ShellContent 
+            Title="Bildirimler" 
+            Icon="dotnet_bot.png"
+            ContentTemplate="{DataTemplate views:NotificationsPage}" 
+            Route="notifications" />
+        
+        <!-- Profile Tab -->
+        <ShellContent 
+            Title="Profil" 
+            Icon="dotnet_bot.png"
+            ContentTemplate="{DataTemplate views:ProfilePage}" 
+            Route="profile" />
+    </TabBar>
+
+</Shell>

@@ -39,14 +39,29 @@ using StackExchange.Redis;
 var builder = WebApplication.CreateBuilder(args);
 
 const string corsPolicyName = "BlinkrCors";
-builder.Services.AddCors(o =>
+builder.Services.AddCors(options =>
 {
-    o.AddPolicy(corsPolicyName, p =>
+    options.AddDefaultPolicy(policy =>
     {
-        p.WithOrigins("https://localhost:7259", "https://localhost:5173")
-         .AllowAnyHeader()
-         .AllowAnyMethod()
-         .WithExposedHeaders("RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset", "Retry-After");
+        policy.WithOrigins(
+                // Development
+                "https://localhost:7259",
+                "http://localhost:5215",
+                // Android Emulator
+                "http://10.0.2.2:5215",
+                "http://10.0.2.2:7259",
+                // iOS Simulator
+                "http://localhost",
+                "https://localhost",
+                // Production (add your domains)
+                "https://blinkr.app",
+                "https://api.blinkr.app"
+            )
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials()
+            // Expose rate limiting headers for mobile
+            .WithExposedHeaders("RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset", "Retry-After");
     });
 });
 builder.Host.UseSerilog((ctx, lc) => lc.ReadFrom.Configuration(ctx.Configuration).WriteTo.Console());

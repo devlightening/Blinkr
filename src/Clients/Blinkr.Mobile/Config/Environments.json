@@ -1,0 +1,24 @@
+{
+  "current": "dev",
+  "dev": {
+    "apiBase": "http://10.0.2.2:5215",
+    "authority": "http://10.0.2.2:5001",
+    "clientId": "blinkr.mobile",
+    "redirectUri": "blinkr://auth-callback",
+    "scopes": "openid profile api.read api.write"
+  },
+  "staging": {
+    "apiBase": "https://api-staging.blinkr.app",
+    "authority": "https://identity-staging.blinkr.app",
+    "clientId": "blinkr.mobile",
+    "redirectUri": "blinkr://auth-callback",
+    "scopes": "openid profile api.read api.write"
+  },
+  "prod": {
+    "apiBase": "https://api.blinkr.app",
+    "authority": "https://identity.blinkr.app",
+    "clientId": "blinkr.mobile",
+    "redirectUri": "blinkr://auth-callback",
+    "scopes": "openid profile api.read api.write"
+  }
+}

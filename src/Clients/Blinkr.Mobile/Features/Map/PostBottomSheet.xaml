@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView x:Class="Blinkr.Mobile.Features.Map.PostBottomSheet"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:api="clr-namespace:Blinkr.Mobile.Core.Api">
+
+    <!-- Glass Bottom Sheet -->
+    <Frame Style="{StaticResource BottomSheet}"
+           x:Name="SheetFrame">
+        
+        <StackLayout Spacing="16">
+            
+            <!-- Handle Bar -->
+            <BoxView WidthRequest="40"
+                     HeightRequest="4"
+                     CornerRadius="2"
+                     BackgroundColor="{StaticResource Gray300}"
+                     HorizontalOptions="Center" />
+            
+            <!-- Post Header -->
+            <Grid ColumnDefinitions="50,*,Auto" ColumnSpacing="12">
+                
+                <!-- Author Avatar -->
+                <Frame Grid.Column="0"
+                       WidthRequest="40"
+                       HeightRequest="40"
+                       CornerRadius="20"
+                       Padding="0"
+                       BackgroundColor="{StaticResource Primary}">
+                    <Label Text="👤"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"
+                           FontSize="20"
+                           TextColor="{StaticResource White}" />
+                </Frame>
+                
+                <!-- Author Info -->
+                <StackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                    <Label Text="{Binding AuthorName}"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource PrimaryDarkText}" />
+                    <Label Text="{Binding DistanceText}"
+                           FontSize="12"
+                           TextColor="{StaticResource SecondaryDarkText}" />
+                </StackLayout>
+                
+                <!-- More Options -->
+                <Button Grid.Column="2"
+                        Text="⋯"
+                        BackgroundColor="Transparent"
+                        TextColor="{StaticResource SecondaryDarkText}"
+                        FontSize="20"
+                        WidthRequest="40"
+                        HeightRequest="40" />
+            </Grid>
+
+            <!-- Post Content -->
+            <StackLayout Spacing="8">
+                <Label Text="{Binding Title}"
+                       FontSize="20"
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource PrimaryDarkText}"
+                       LineBreakMode="WordWrap" />
+                
+                <Label Text="{Binding Content}"
+                       FontSize="14"
+                       TextColor="{StaticResource SecondaryDarkText}"
+                       LineBreakMode="WordWrap"
+                       MaxLines="3" />
+                
+                <!-- Created Date -->
+                <Label Text="{Binding CreatedAtText}"
+                       FontSize="12"
+                       TextColor="{StaticResource Gray500}" />
+            </StackLayout>
+
+            <!-- Action Buttons -->
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="16">
+                
+                <!-- Like Button -->
+                <Button Grid.Column="0"
+                        Text="❤️"
+                        BackgroundColor="Transparent"
+                        TextColor="{StaticResource Tertiary}"
+                        FontSize="20"
+                        WidthRequest="40"
+                        Command="{Binding LikeCommand}" />
+                
+                <!-- Like Count -->
+                <Label Grid.Column="1"
+                       Text="{Binding LikeCount}"
+                       FontSize="14"
+                       TextColor="{StaticResource SecondaryDarkText}"
+                       VerticalOptions="Center" />
+                
+                <!-- Spacer -->
+                
+                <!-- Comment Button -->
+                <Button Grid.Column="3"
+                        Text="💬"
+                        BackgroundColor="Transparent"
+                        TextColor="{StaticResource SecondaryDarkText}"
+                        FontSize="20"
+                        WidthRequest="40"
+                        Command="{Binding CommentCommand}" />
+                
+                <!-- Share Button -->
+                <Button Grid.Column="4"
+                        Text="📤"
+                        BackgroundColor="Transparent"
+                        TextColor="{StaticResource SecondaryDarkText}"
+                        FontSize="20"
+                        WidthRequest="40"
+                        Command="{Binding ShareCommand}" />
+            </Grid>
+
+            <!-- Quick Actions -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <Button Grid.Column="0"
+                        Text="Yorum Yap"
+                        Style="{StaticResource SecondaryButton}"
+                        FontSize="14"
+                        Command="{Binding CommentCommand}" />
+                
+                <Button Grid.Column="1"
+                        Text="Yol Tarifi"
+                        Style="{StaticResource PrimaryButton}"
+                        FontSize="14"
+                        Command="{Binding DirectionsCommand}" />
+            </Grid>
+            
+        </StackLayout>
+    </Frame>
+</ContentView>

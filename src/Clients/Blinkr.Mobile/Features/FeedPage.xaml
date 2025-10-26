@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage x:Class="Blinkr.Mobile.Features.FeedPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             Title="Akış"
+             BackgroundColor="{StaticResource Secondary}">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Filter Tabs -->
+        <Grid Grid.Row="0" 
+              BackgroundColor="{StaticResource White}"
+              Padding="16,12"
+              ColumnDefinitions="*,*,*">
+            
+            <Button Grid.Column="0"
+                    Text="Yakın"
+                    Style="{StaticResource PrimaryButton}"
+                    FontSize="14" />
+            
+            <Button Grid.Column="1"
+                    Text="Popüler"
+                    Style="{StaticResource SecondaryButton}"
+                    FontSize="14" />
+            
+            <Button Grid.Column="2"
+                    Text="Yeni"
+                    Style="{StaticResource SecondaryButton}"
+                    FontSize="14" />
+        </Grid>
+
+        <!-- Posts List -->
+        <CollectionView Grid.Row="1"
+                        x:Name="PostsCollectionView"
+                        ItemsSource="{Binding Posts}"
+                        BackgroundColor="Transparent">
+            
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Frame Style="{StaticResource GlassCard}">
+                        <StackLayout Spacing="12">
+                            
+                            <!-- Post Header -->
+                            <Grid ColumnDefinitions="50,*,Auto">
+                                <Frame Grid.Column="0"
+                                       WidthRequest="40"
+                                       HeightRequest="40"
+                                       CornerRadius="20"
+                                       Padding="0"
+                                       BackgroundColor="{StaticResource Primary}">
+                                    <Label Text="👤"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center"
+                                           FontSize="18" />
+                                </Frame>
+                                
+                                <StackLayout Grid.Column="1" Spacing="2">
+                                    <Label Text="{Binding Author}"
+                                           FontSize="14"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryDarkText}" />
+                                    <Label Text="{Binding Distance}"
+                                           FontSize="12"
+                                           TextColor="{StaticResource SecondaryDarkText}" />
+                                </StackLayout>
+                                
+                                <Label Grid.Column="2"
+                                       Text="{Binding TimeAgo}"
+                                       FontSize="12"
+                                       TextColor="{StaticResource SecondaryDarkText}"
+                                       VerticalOptions="Start" />
+                            </Grid>
+
+                            <!-- Post Content -->
+                            <Label Text="{Binding Title}"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource PrimaryDarkText}" />
+                            
+                            <Label Text="{Binding Content}"
+                                   FontSize="14"
+                                   TextColor="{StaticResource SecondaryDarkText}" />
+
+                            <!-- Action Buttons -->
+                            <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                                <Button Grid.Column="0"
+                                        Text="❤️"
+                                        BackgroundColor="Transparent"
+                                        TextColor="{StaticResource Tertiary}"
+                                        FontSize="18"
+                                        WidthRequest="40" />
+                                
+                                <Label Grid.Column="1"
+                                       Text="{Binding LikeCount}"
+                                       FontSize="14"
+                                       TextColor="{StaticResource SecondaryDarkText}"
+                                       VerticalOptions="Center" />
+                                
+                                <Button Grid.Column="3"
+                                        Text="💬"
+                                        BackgroundColor="Transparent"
+                                        TextColor="{StaticResource SecondaryDarkText}"
+                                        FontSize="18"
+                                        WidthRequest="40" />
+                            </Grid>
+                        </StackLayout>
+                    </Frame>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+</ContentPage>

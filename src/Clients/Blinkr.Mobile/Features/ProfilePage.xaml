@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage x:Class="Blinkr.Mobile.Features.ProfilePage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             Title="Profil"
+             BackgroundColor="{StaticResource Secondary}">
+
+    <ScrollView>
+        <StackLayout Spacing="20" Padding="16">
+            
+            <!-- Profile Header -->
+            <Frame Style="{StaticResource GlassCard}">
+                <StackLayout Spacing="16" HorizontalOptions="Center">
+                    
+                    <!-- Profile Picture -->
+                    <Frame WidthRequest="80"
+                           HeightRequest="80"
+                           CornerRadius="40"
+                           Padding="0"
+                           BackgroundColor="{StaticResource Primary}"
+                           BorderColor="{StaticResource Tertiary}">
+                        <Label Text="👤"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center"
+                               FontSize="40" />
+                    </Frame>
+                    
+                    <!-- Stats -->
+                    <Grid ColumnDefinitions="*,*,*" 
+                          ColumnSpacing="20">
+                        <StackLayout Grid.Column="0" HorizontalOptions="Center">
+                            <Label Text="124"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource PrimaryDarkText}"
+                                   HorizontalOptions="Center" />
+                            <Label Text="gönderi"
+                                   FontSize="12"
+                                   TextColor="{StaticResource SecondaryDarkText}"
+                                   HorizontalOptions="Center" />
+                        </StackLayout>
+                        
+                        <StackLayout Grid.Column="1" HorizontalOptions="Center">
+                            <Label Text="2.5K"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource PrimaryDarkText}"
+                                   HorizontalOptions="Center" />
+                            <Label Text="takipçi"
+                                   FontSize="12"
+                                   TextColor="{StaticResource SecondaryDarkText}"
+                                   HorizontalOptions="Center" />
+                        </StackLayout>
+                        
+                        <StackLayout Grid.Column="2" HorizontalOptions="Center">
+                            <Label Text="890"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource PrimaryDarkText}"
+                                   HorizontalOptions="Center" />
+                            <Label Text="takip edillen"
+                                   FontSize="12"
+                                   TextColor="{StaticResource SecondaryDarkText}"
+                                   HorizontalOptions="Center" />
+                        </StackLayout>
+                    </Grid>
+                    
+                    <!-- Filter Tabs -->
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                        <Button Grid.Column="0"
+                                Text="Yakın"
+                                Style="{StaticResource PrimaryButton}"
+                                FontSize="12" />
+                        <Button Grid.Column="1"
+                                Text="Popüler"
+                                Style="{StaticResource SecondaryButton}"
+                                FontSize="12" />
+                        <Button Grid.Column="2"
+                                Text="Yeni"
+                                Style="{StaticResource SecondaryButton}"
+                                FontSize="12" />
+                    </Grid>
+                </StackLayout>
+            </Frame>
+
+            <!-- Photo Grid -->
+            <Frame Style="{StaticResource GlassCard}">
+                <StackLayout Spacing="12">
+                    <Label Text="mini işi haritası"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource PrimaryDarkText}" />
+                    
+                    <!-- 2x3 Photo Grid -->
+                    <Grid RowDefinitions="100,100" 
+                          ColumnDefinitions="*,*,*"
+                          RowSpacing="8"
+                          ColumnSpacing="8">
+                        
+                        <Frame Grid.Row="0" Grid.Column="0"
+                               BackgroundColor="{StaticResource Gray200}"
+                               CornerRadius="8"
+                               Padding="0">
+                            <Label Text="🏛️"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   FontSize="30" />
+                        </Frame>
+                        
+                        <Frame Grid.Row="0" Grid.Column="1"
+                               BackgroundColor="{StaticResource Gray200}"
+                               CornerRadius="8"
+                               Padding="0">
+                            <Label Text="🌅"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   FontSize="30" />
+                        </Frame>
+                        
+                        <Frame Grid.Row="0" Grid.Column="2"
+                               BackgroundColor="{StaticResource Gray200}"
+                               CornerRadius="8"
+                               Padding="0">
+                            <Label Text="🏛️"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   FontSize="30" />
+                        </Frame>
+                        
+                        <Frame Grid.Row="1" Grid.Column="0"
+                               BackgroundColor="{StaticResource Gray200}"
+                               CornerRadius="8"
+                               Padding="0">
+                            <Label Text="🌆"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   FontSize="30" />
+                        </Frame>
+                        
+                        <Frame Grid.Row="1" Grid.Column="1"
+                               BackgroundColor="{StaticResource Gray200}"
+                               CornerRadius="8"
+                               Padding="0">
+                            <Label Text="🏙️"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   FontSize="30" />
+                        </Frame>
+                        
+                        <Frame Grid.Row="1" Grid.Column="2"
+                               BackgroundColor="{StaticResource Gray200}"
+                               CornerRadius="8"
+                               Padding="0">
+                            <Label Text="🌉"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   FontSize="30" />
+                        </Frame>
+                    </Grid>
+                </StackLayout>
+            </Frame>
+
+            <!-- Settings -->
+            <Button Text="Ayarlar"
+                    Style="{StaticResource SecondaryButton}"
+                    Clicked="OnSettingsClicked" />
+
+        </StackLayout>
+    </ScrollView>
+</ContentPage>

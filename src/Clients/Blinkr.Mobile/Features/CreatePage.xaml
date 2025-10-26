@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage x:Class="Blinkr.Mobile.Features.CreatePage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             Title="Oluştur"
+             BackgroundColor="{StaticResource Secondary}">
+
+    <ScrollView Padding="16">
+        <StackLayout Spacing="20">
+            
+            <!-- Photo/Video Section -->
+            <Frame Style="{StaticResource GlassCard}">
+                <StackLayout Spacing="12">
+                    <Label Text="Fotoğraf/Video Ekle"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource PrimaryDarkText}" />
+                    
+                    <Frame x:Name="MediaFrame"
+                           HeightRequest="200"
+                           BackgroundColor="{StaticResource Gray100}"
+                           BorderColor="{StaticResource GlassBorder}"
+                           CornerRadius="12">
+                        <Button Text="📷 Medya Seç"
+                                Style="{StaticResource SecondaryButton}"
+                                VerticalOptions="Center"
+                                Clicked="OnSelectMediaClicked" />
+                    </Frame>
+                </StackLayout>
+            </Frame>
+
+            <!-- Content Section -->
+            <Frame Style="{StaticResource GlassCard}">
+                <StackLayout Spacing="12">
+                    <Entry x:Name="TitleEntry"
+                           Placeholder="Başlık"
+                           FontSize="16"
+                           TextColor="{StaticResource PrimaryDarkText}"
+                           PlaceholderColor="{StaticResource SecondaryDarkText}" />
+                    
+                    <Editor x:Name="ContentEditor"
+                            Placeholder="Açıklama"
+                            HeightRequest="100"
+                            FontSize="14"
+                            TextColor="{StaticResource PrimaryDarkText}"
+                            PlaceholderColor="{StaticResource SecondaryDarkText}" />
+                </StackLayout>
+            </Frame>
+
+            <!-- Location Section -->
+            <Frame Style="{StaticResource GlassCard}">
+                <StackLayout Spacing="12">
+                    <Label Text="Konum"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource PrimaryDarkText}" />
+                    
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0"
+                               x:Name="LocationLabel"
+                               Text="Kesin (~1.2 km)"
+                               FontSize="14"
+                               TextColor="{StaticResource SecondaryDarkText}"
+                               VerticalOptions="Center" />
+                        
+                        <Switch Grid.Column="1"
+                                x:Name="LocationSwitch"
+                                IsToggled="True"
+                                OnColor="{StaticResource Primary}" />
+                    </Grid>
+                </StackLayout>
+            </Frame>
+
+            <!-- Action Buttons -->
+            <StackLayout Spacing="12">
+                <Button Text="Gönder"
+                        Style="{StaticResource PrimaryButton}"
+                        Clicked="OnPostClicked" />
+                
+                <Button Text="İptal"
+                        Style="{StaticResource SecondaryButton}"
+                        Clicked="OnCancelClicked" />
+            </StackLayout>
+
+        </StackLayout>
+    </ScrollView>
+</ContentPage>
