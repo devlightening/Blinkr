@@ -4,28 +4,45 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
 
-    <!-- Note: For Android please see also Platforms\Android\Resources\values\colors.xml -->
-    <!-- Blinkr Theme Colors - Minimal Light with Purple Accents -->
-    <Color x:Key="Primary">#8B5CF6</Color>          <!-- Purple accent -->
-    <Color x:Key="PrimaryDark">#7C3AED</Color>      <!-- Darker purple -->
-    <Color x:Key="PrimaryDarkText">#1F2937</Color>  <!-- Dark text -->
-    <Color x:Key="Secondary">#F3F4F6</Color>        <!-- Light gray background -->
-    <Color x:Key="SecondaryDarkText">#6B7280</Color><!-- Medium gray text -->
-    <Color x:Key="Tertiary">#EF4444</Color>         <!-- Red accent for likes -->
+    <!-- Blinkr Theme Colors - Minimal Light with Coral Accents (Based on UI Design) -->
+    
+    <!-- Primary Colors (Coral/Orange from design) -->
+    <Color x:Key="Primary">#FF6B47</Color>          <!-- Coral primary -->
+    <Color x:Key="PrimaryDark">#E55A3A</Color>      <!-- Darker coral -->
+    <Color x:Key="PrimaryLight">#FF8A6B</Color>     <!-- Lighter coral -->
+    
+    <!-- Background Colors -->
+    <Color x:Key="Background">#F5F5F7</Color>       <!-- Light gray background -->
+    <Color x:Key="Surface">#FFFFFF</Color>          <!-- White cards/surfaces -->
+    <Color x:Key="SurfaceVariant">#F0F0F0</Color>   <!-- Light gray chips -->
+    
+    <!-- Text Colors -->
+    <Color x:Key="OnSurface">#000000</Color>        <!-- Primary text -->
+    <Color x:Key="OnSurfaceVariant">#666666</Color> <!-- Secondary text -->
+    <Color x:Key="OnSurfaceDisabled">#999999</Color><!-- Tertiary text -->
+    
+    <!-- Border Colors -->
+    <Color x:Key="Outline">#E0E0E0</Color>          <!-- Light borders -->
+    <Color x:Key="OutlineVariant">#F0F0F0</Color>   <!-- Very light borders -->
     
     <!-- Glassmorphism Colors -->
-    <Color x:Key="GlassBackground">#F8FAFC</Color>   <!-- Very light background -->
-    <Color x:Key="GlassBorder">#E5E7EB</Color>       <!-- Light border -->
+    <Color x:Key="GlassBackground">#FAFAFA</Color>   <!-- Glass background -->
+    <Color x:Key="GlassBorder">#E5E7EB</Color>       <!-- Glass border -->
     <Color x:Key="GlassShadow">#1F29371A</Color>     <!-- Subtle shadow -->
     
     <!-- Map Colors -->
-    <Color x:Key="MapPin">#8B5CF6</Color>            <!-- Purple pins -->
-    <Color x:Key="MapCluster">#F59E0B</Color>        <!-- Orange clusters -->
+    <Color x:Key="MapPin">#FF6B47</Color>            <!-- Coral pins -->
+    <Color x:Key="MapCluster">#FF6B47</Color>        <!-- Coral clusters -->
     
     <!-- Status Colors -->
     <Color x:Key="Success">#10B981</Color>           <!-- Green -->
     <Color x:Key="Warning">#F59E0B</Color>           <!-- Orange -->
     <Color x:Key="Error">#EF4444</Color>             <!-- Red -->
+    <Color x:Key="Like">#FF6B47</Color>              <!-- Coral for likes -->
+    
+    <!-- Legacy Colors (keep for compatibility) -->
+    <Color x:Key="Secondary">#F5F5F7</Color>        <!-- Background alias -->
+    <Color x:Key="Tertiary">#FF6B47</Color>         <!-- Primary alias -->
     
     <Color x:Key="White">White</Color>
     <Color x:Key="Black">Black</Color>

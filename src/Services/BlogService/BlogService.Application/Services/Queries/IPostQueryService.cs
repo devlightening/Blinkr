@@ -43,4 +43,31 @@ public interface IPostQueryService
     /// Get nearby posts within specified radius (geospatial query)
     /// </summary>
     Task<PagedResult<PostListDto>> GetNearbyAsync(NearbyQuery query, CancellationToken cancellationToken = default);
+
+    // FEED API METHODS
+    
+    /// <summary>
+    /// Get nearby posts for feed
+    /// </summary>
+    Task<IEnumerable<PostListDto>> GetNearbyPostsAsync(double lat, double lon, int radiusMeters, int page, int pageSize, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Get count of nearby posts
+    /// </summary>
+    Task<int> GetNearbyPostsCountAsync(double lat, double lon, int radiusMeters, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Get popular posts (by engagement score)
+    /// </summary>
+    Task<IEnumerable<PostListDto>> GetPopularPostsAsync(int page, int pageSize, TimeSpan timeWindow, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Get latest posts
+    /// </summary>
+    Task<IEnumerable<PostListDto>> GetLatestPostsAsync(int page, int pageSize, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Get total posts count
+    /// </summary>
+    Task<int> GetTotalPostsCountAsync(CancellationToken cancellationToken = default);
 }

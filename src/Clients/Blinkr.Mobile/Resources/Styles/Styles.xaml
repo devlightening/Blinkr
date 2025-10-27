@@ -4,6 +4,112 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
 
+    <!-- BLINKR CUSTOM STYLES - Based on UI Design -->
+    
+    <!-- Card Style (White rounded cards) -->
+    <Style x:Key="CardStyle" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{StaticResource Surface}"/>
+        <Setter Property="StrokeShape" Value="RoundRectangle 16"/>
+        <Setter Property="StrokeThickness" Value="0"/>
+        <Setter Property="Padding" Value="16"/>
+        <Setter Property="Margin" Value="16,8"/>
+        <Setter Property="Shadow">
+            <Shadow Brush="{StaticResource OnSurfaceDisabled}" 
+                    Opacity="0.1" 
+                    Radius="8" 
+                    Offset="0,2"/>
+        </Setter>
+    </Style>
+    
+    <!-- Chip Style (Filter chips) -->
+    <Style x:Key="ChipStyle" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{StaticResource SurfaceVariant}"/>
+        <Setter Property="StrokeShape" Value="RoundRectangle 20"/>
+        <Setter Property="Padding" Value="16,8"/>
+        <Setter Property="Margin" Value="4,0"/>
+    </Style>
+    
+    <!-- Active Chip Style -->
+    <Style x:Key="ActiveChipStyle" TargetType="Border" BasedOn="{StaticResource ChipStyle}">
+        <Setter Property="BackgroundColor" Value="{StaticResource Surface}"/>
+        <Setter Property="StrokeThickness" Value="1"/>
+        <Setter Property="Stroke" Value="{StaticResource Primary}"/>
+    </Style>
+    
+    <!-- Search Bar Style -->
+    <Style x:Key="SearchBarStyle" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{StaticResource Surface}"/>
+        <Setter Property="StrokeShape" Value="RoundRectangle 24"/>
+        <Setter Property="StrokeThickness" Value="0"/>
+        <Setter Property="Padding" Value="16,12"/>
+        <Setter Property="Margin" Value="16,8"/>
+    </Style>
+    
+    <!-- Bottom Sheet Style -->
+    <Style x:Key="BottomSheetStyle" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{StaticResource Surface}"/>
+        <Setter Property="StrokeShape" Value="RoundRectangle 20,20,0,0"/>
+        <Setter Property="StrokeThickness" Value="0"/>
+        <Setter Property="Padding" Value="20"/>
+        <Setter Property="Shadow">
+            <Shadow Brush="{StaticResource OnSurfaceDisabled}" 
+                    Opacity="0.2" 
+                    Radius="16" 
+                    Offset="0,-4"/>
+        </Setter>
+    </Style>
+    
+    <!-- TYPOGRAPHY STYLES -->
+    
+    <!-- Headline Style (Post titles, page headers) -->
+    <Style x:Key="HeadlineStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="20"/>
+        <Setter Property="FontAttributes" Value="Bold"/>
+        <Setter Property="TextColor" Value="{StaticResource OnSurface}"/>
+        <Setter Property="LineBreakMode" Value="WordWrap"/>
+    </Style>
+    
+    <!-- Title Style (Card titles) -->
+    <Style x:Key="TitleStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="18"/>
+        <Setter Property="FontAttributes" Value="Bold"/>
+        <Setter Property="TextColor" Value="{StaticResource OnSurface}"/>
+        <Setter Property="LineBreakMode" Value="WordWrap"/>
+    </Style>
+    
+    <!-- Subtitle Style (Location, author info) -->
+    <Style x:Key="SubtitleStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="FontAttributes" Value="Bold"/>
+        <Setter Property="TextColor" Value="{StaticResource OnSurfaceVariant}"/>
+    </Style>
+    
+    <!-- Body Style (Post content, descriptions) -->
+    <Style x:Key="BodyStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="TextColor" Value="{StaticResource OnSurfaceVariant}"/>
+        <Setter Property="LineBreakMode" Value="WordWrap"/>
+    </Style>
+    
+    <!-- Caption Style (Timestamps, distances) -->
+    <Style x:Key="CaptionStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="TextColor" Value="{StaticResource OnSurfaceDisabled}"/>
+    </Style>
+    
+    <!-- Action Text Style (Like, Share buttons) -->
+    <Style x:Key="ActionTextStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="TextColor" Value="{StaticResource OnSurfaceVariant}"/>
+        <Setter Property="FontAttributes" Value="Bold"/>
+    </Style>
+    
+    <!-- Primary Action Text (Active state) -->
+    <Style x:Key="PrimaryActionTextStyle" TargetType="Label" BasedOn="{StaticResource ActionTextStyle}">
+        <Setter Property="TextColor" Value="{StaticResource Primary}"/>
+        <Setter Property="FontAttributes" Value="Bold"/>
+    </Style>
+
     <Style TargetType="ActivityIndicator">
         <Setter Property="Color" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource White}}" />
     </Style>

@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net9.0</TargetFramework>
+		<TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
+		<!-- Android target framework for emulator testing -->
+		<!-- <TargetFrameworks>net9.0-android;net9.0-windows10.0.19041.0</TargetFrameworks> -->
 		
 		<!-- Android target framework for emulator testing -->
 		<!-- Fallback to net9.0 if Android SDK issues persist -->
@@ -10,6 +12,9 @@
 		<AndroidSdkDirectory Condition="'$(AndroidSdkDirectory)' == '' AND Exists('$(USERPROFILE)\AppData\Local\Android\Sdk')">$(USERPROFILE)\AppData\Local\Android\Sdk</AndroidSdkDirectory>
 		<AndroidSdkDirectory Condition="'$(AndroidSdkDirectory)' == '' AND Exists('C:\Program Files (x86)\Android\android-sdk')">C:\Program Files (x86)\Android\android-sdk</AndroidSdkDirectory>
 		<AndroidSdkDirectory Condition="'$(AndroidSdkDirectory)' == '' AND Exists('C:\Android\android-sdk')">C:\Android\android-sdk</AndroidSdkDirectory>
+		
+		<!-- Accept Android SDK Licenses -->
+		<AcceptAndroidSDKLicenses>true</AcceptAndroidSDKLicenses>
 		<!-- Uncomment to also build the tizen app. You will need to install tizen by following this: https://github.com/Samsung/Tizen.NET -->
 		<!-- <TargetFrameworks>$(TargetFrameworks);net9.0-tizen</TargetFrameworks> -->
 
@@ -70,6 +75,7 @@
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" />
 		<PackageReference Include="CommunityToolkit.Mvvm" />
 		<PackageReference Include="Refit" />
+		<PackageReference Include="Microsoft.Extensions.Http.Resilience" />
 		<PackageReference Include="Polly" />
 		<PackageReference Include="Polly.Extensions.Http" />
 	</ItemGroup>

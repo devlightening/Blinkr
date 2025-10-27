@@ -1,0 +1,41 @@
+{
+  "Development": {
+    "ApiBaseUrl": "http://10.0.2.2:5215",
+    "IdentityBaseUrl": "http://10.0.2.2:7122",
+    "EnableLogging": true,
+    "CacheTimeout": 300,
+    "RequestTimeout": 30,
+    "RetryCount": 3,
+    "Features": {
+      "EnableCrashReporting": false,
+      "EnableAnalytics": false,
+      "EnablePushNotifications": false
+    }
+  },
+  "Staging": {
+    "ApiBaseUrl": "https://api-staging.blinkr.com",
+    "IdentityBaseUrl": "https://id-staging.blinkr.com",
+    "EnableLogging": true,
+    "CacheTimeout": 600,
+    "RequestTimeout": 30,
+    "RetryCount": 3,
+    "Features": {
+      "EnableCrashReporting": true,
+      "EnableAnalytics": true,
+      "EnablePushNotifications": true
+    }
+  },
+  "Production": {
+    "ApiBaseUrl": "https://api.blinkr.com",
+    "IdentityBaseUrl": "https://id.blinkr.com",
+    "EnableLogging": false,
+    "CacheTimeout": 900,
+    "RequestTimeout": 30,
+    "RetryCount": 2,
+    "Features": {
+      "EnableCrashReporting": true,
+      "EnableAnalytics": true,
+      "EnablePushNotifications": true
+    }
+  }
+}

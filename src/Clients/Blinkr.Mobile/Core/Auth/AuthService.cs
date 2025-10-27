@@ -13,6 +13,7 @@ public interface IAuthService
     Task LogoutAsync();
     Task<string?> GetAccessTokenAsync();
     Task<bool> IsAuthenticatedAsync();
+    Task<(bool IsSuccess, string? ErrorMessage)> RefreshTokenAsync(CancellationToken ct = default);
 }
 
 public sealed class AuthService : IAuthService
@@ -97,6 +98,50 @@ public sealed class AuthService : IAuthService
     {
         var token = await GetAccessTokenAsync();
         return !string.IsNullOrEmpty(token);
+    }
+
+    public async Task<(bool IsSuccess, string? ErrorMessage)> RefreshTokenAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var refreshToken = await SecureStorage.GetAsync(RefreshTokenKey);
+            if (string.IsNullOrEmpty(refreshToken))
+            {
+                return (false, "No refresh token available");
+            }
+
+            using var client = new HttpClient();
+            var form = new Dictionary<string, string>
+            {
+                ["client_id"] = _env.ClientId,
+                ["grant_type"] = "refresh_token",
+                ["refresh_token"] = refreshToken
+            };
+
+            var tokenResp = await client.PostAsync($"{_env.Authority}/connect/token", 
+                new FormUrlEncodedContent(form), ct);
+            
+            if (!tokenResp.IsSuccessStatusCode)
+            {
+                return (false, $"Token refresh failed: {tokenResp.StatusCode}");
+            }
+
+            var json = await tokenResp.Content.ReadFromJsonAsync<TokenResponse>(cancellationToken: ct);
+            if (json?.access_token is null)
+            {
+                return (false, "Invalid token response");
+            }
+
+            await SecureStorage.SetAsync(AccessTokenKey, json.access_token);
+            if (!string.IsNullOrEmpty(json.refresh_token))
+                await SecureStorage.SetAsync(RefreshTokenKey, json.refresh_token);
+
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
     }
 
     public Task LogoutAsync()

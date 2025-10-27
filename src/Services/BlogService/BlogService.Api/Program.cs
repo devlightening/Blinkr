@@ -4,6 +4,7 @@ using BlogService.Application.Services.Queries;
 using BlogService.Infrastructure.Services;
 using BlogService.Infrastructure.Services.Indexes;
 using BlogService.Api.RateLimiting;
+using BlogService.Api.Middleware;
 using BlogService.Application.Common.Behaviors;
 using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Mappings;
@@ -35,6 +36,15 @@ using System.IO.Compression;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.HttpOverrides;
 using StackExchange.Redis;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Mvc.Versioning;
+using Microsoft.AspNetCore.Mvc.ApiExplorer;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
+using Amazon.S3;
+using BlogService.Api.Services;
+using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -70,29 +80,95 @@ builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.Co
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<CreatePostDtoValidator>();
 builder.Services.AddEndpointsApiExplorer();
+
+// Rate Limiting Configuration
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    
+    // Global rate limiter
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        var deviceId = httpContext.Request.Headers["X-Device-Id"].ToString();
+        var key = string.IsNullOrWhiteSpace(deviceId)
+            ? httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon"
+            : $"dev:{deviceId}";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: key,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 100,                // 100 req / window
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            });
+    });
+
+    // Feed-specific rate limiter (more restrictive)
+    options.AddPolicy("feed", httpContext =>
+    {
+        var deviceId = httpContext.Request.Headers["X-Device-Id"].ToString();
+        var key = string.IsNullOrWhiteSpace(deviceId)
+            ? httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon"
+            : $"dev:{deviceId}";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: key,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,                // 60 req / window for feed
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            });
+    });
+});
+
+// API Versioning
+builder.Services.AddApiVersioning(o =>
+{
+    o.AssumeDefaultVersionWhenUnspecified = true;
+    o.DefaultApiVersion = new ApiVersion(1, 0);
+    o.ReportApiVersions = true;
+    o.ApiVersionReader = new UrlSegmentApiVersionReader();
+});
+builder.Services.AddVersionedApiExplorer(o =>
+{
+    o.GroupNameFormat = "'v'VVV";
+    o.SubstituteApiVersionInUrl = true;
+});
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new() { Title = "BlogService.Api", Version = "v1" });
+    c.SwaggerDoc("v1", new() { Title = "Blinkr API", Version = "v1" });
+    
+    var authority = builder.Configuration["Auth:Authority"] ?? "https://localhost:7122";
     c.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
     {
         Type = SecuritySchemeType.OAuth2,
         Flows = new OpenApiOAuthFlows
         {
-            Password = new OpenApiOAuthFlow
+            AuthorizationCode = new OpenApiOAuthFlow
             {
-                TokenUrl = new Uri("https://localhost:7122/connect/token"),
-                Scopes = new Dictionary<string, string> {
-                    {"blinkr.api.read","Read"}, {"blinkr.api.write","Write"},
-                    {"openid","OpenID"}, {"profile","Profile"}, {"roles","Roles"},
-                    {"offline_access","Refresh token"}
+                AuthorizationUrl = new Uri($"{authority}/connect/authorize"),
+                TokenUrl = new Uri($"{authority}/connect/token"),
+                Scopes = new Dictionary<string, string>
+                {
+                    ["blinkr_api"] = "Blinkr core API access",
+                    ["blinkr.api.read"] = "Read access",
+                    ["blinkr.api.write"] = "Write access",
+                    ["openid"] = "OpenID",
+                    ["profile"] = "Profile",
+                    ["roles"] = "Roles",
+                    ["offline_access"] = "Refresh token"
                 }
             }
         }
     });
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement{
-        { new OpenApiSecurityScheme{
-            Reference = new OpenApiReference{ Type = ReferenceType.SecurityScheme, Id = "oauth2"} },
-            new []{ "blinkr.api.read","blinkr.api.write" } }
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        [ new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "oauth2" } } ] =
+            new[] { "blinkr_api" }
     });
 });
 
@@ -160,8 +236,18 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    var multiplexer = builder.Services.BuildServiceProvider().GetRequiredService<IConnectionMultiplexer>();
-    options.ConnectionMultiplexerFactory = () => Task.FromResult(multiplexer);
+    // Use a factory to get the multiplexer when needed
+    options.ConnectionMultiplexerFactory = () =>
+    {
+        var connectionString = builder.Configuration.GetConnectionString("Redis");
+        var configOptions = ConfigurationOptions.Parse(connectionString ?? "");
+        configOptions.AbortOnConnectFail = false;
+        configOptions.ConnectRetry = 3;
+        configOptions.SyncTimeout = 2000;
+        configOptions.AsyncTimeout = 5000;
+        configOptions.ReconnectRetryPolicy = new ExponentialRetry(1000);
+        return Task.FromResult<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(configOptions));
+    };
 });
 
 // Rate Limiting Services
@@ -193,7 +279,7 @@ builder.Services.AddScoped<IPostReadRepository, PostReadRepository>();
 
 // Query Service (MongoDB Read Model) with Redis caching
 builder.Services.AddScoped<BlogService.Infrastructure.Services.PostQueryService>();
-builder.Services.AddScoped<IPostQueryService>(sp =>
+builder.Services.AddScoped<BlogService.Application.Services.Queries.IPostQueryService>(sp =>
 {
     var inner = sp.GetRequiredService<BlogService.Infrastructure.Services.PostQueryService>();
     var cache = sp.GetRequiredService<IDistributedCache>();
@@ -202,7 +288,7 @@ builder.Services.AddScoped<IPostQueryService>(sp =>
 });
 
 // MongoDB Index Service
-builder.Services.AddScoped<MongoIndexService>();
+builder.Services.AddScoped<BlogService.Infrastructure.Services.Indexes.MongoIndexService>();
 
 // ---- Geocoding Configuration ----
 builder.Services.Configure<BlogService.Infrastructure.Geocoding.NominatimOptions>(
@@ -250,11 +336,11 @@ var enableSubscription = builder.Configuration.GetValue<bool>("EventStore:Enable
 if (enableSubscription)
 {
     builder.Services.AddHostedService<EventStoreToRabbitMqPublisher>();
-    Log.Information("🔔 EventStore subscription ENABLED");
+    Serilog.Log.Information("🔔 EventStore subscription ENABLED");
 }
 else
 {
-    Log.Information("🔕 EventStore subscription DISABLED - using decorator pattern");
+    Serilog.Log.Information("🔕 EventStore subscription DISABLED - using decorator pattern");
 }
 
 // MassTransit (Sadece Yayıncı olarak ayarlandı)
@@ -325,7 +411,11 @@ builder.Services.AddAuthorization(options =>
         .Build();
 });
 builder.Services.AddHealthChecks()
-    .AddCheck<BlogService.Infrastructure.Geocoding.GeocodingHealthCheck>("geocoding");
+    .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy()) // liveness
+    .AddMongoDb(sp => sp.GetRequiredService<IMongoClient>(), name: "mongo", tags: new[] { "ready" })
+    .AddRedis(builder.Configuration.GetConnectionString("Redis") ?? "", name: "redis", tags: new[] { "ready" })
+    .AddRabbitMQ(builder.Configuration.GetConnectionString("RabbitMq") ?? "", name: "rabbitmq", tags: new[] { "ready" })
+    .AddCheck<BlogService.Infrastructure.Geocoding.GeocodingHealthCheck>("geocoding", tags: new[] { "ready" });
 
 // Response Compression (gzip/brotli) for better performance
 builder.Services.AddResponseCompression(options =>
@@ -352,6 +442,38 @@ builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
     options.Level = System.IO.Compression.CompressionLevel.Optimal;
 });
 
+// Object Storage Configuration (S3)
+builder.Services.AddSingleton<IAmazonS3>(sp =>
+{
+    var config = new AmazonS3Config
+    {
+        RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(builder.Configuration["AWS:Region"] ?? "us-east-1"),
+        ServiceURL = builder.Configuration["AWS:S3ServiceUrl"] // For local development with LocalStack
+    };
+    return new AmazonS3Client(config);
+});
+
+builder.Services.AddScoped<IObjectStorage>(sp =>
+{
+    var s3 = sp.GetRequiredService<IAmazonS3>();
+    var bucket = builder.Configuration["AWS:S3Bucket"] ?? "blinkr-media";
+    var logger = sp.GetRequiredService<ILogger<S3Storage>>();
+    return new S3Storage(s3, bucket, logger);
+});
+
+// OpenTelemetry Configuration
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(r => r.AddService("BlogService.Api"))
+    .WithTracing(t => t
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter())            // OTLP->Grafana Tempo/Jaeger
+    .WithMetrics(m => m
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        // .AddRuntimeInstrumentation() // Not available in this version
+        .AddPrometheusExporter());     // Prometheus scrape
+
 var app = builder.Build();
 
 // ===== ENSURE MONGODB INDEXES =====
@@ -359,7 +481,7 @@ using (var scope = app.Services.CreateScope())
 {
     try
     {
-        var indexService = scope.ServiceProvider.GetRequiredService<MongoIndexService>();
+        var indexService = scope.ServiceProvider.GetRequiredService<BlogService.Infrastructure.Services.Indexes.MongoIndexService>();
         await indexService.EnsureIndexesAsync();
         
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
@@ -375,25 +497,59 @@ using (var scope = app.Services.CreateScope())
 
 // ---- Pipeline ----
 app.UseSerilogRequestLogging();
+
+// Request-Id middleware for correlation
+app.Use(async (ctx, next) =>
+{
+    var rid = ctx.Request.Headers["X-Request-Id"].ToString();
+    if (string.IsNullOrWhiteSpace(rid)) rid = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
+    ctx.Response.Headers["Request-Id"] = rid;
+    ctx.Items["RequestId"] = rid;
+    await next();
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(o =>
+    {
+        o.SwaggerEndpoint("/swagger/v1/swagger.json", "Blinkr API v1");
+        o.OAuthClientId("swagger-ui");
+        o.OAuthUsePkce();               // 🔑 PKCE
+        o.OAuthScopes("blinkr_api");
+    });
 }
 app.UseForwardedHeaders(); // Handle proxy headers FIRST
 app.UseHttpsRedirection();
 app.UseResponseCompression(); // Enable compression middleware
 app.UseResponseCaching(); // Enable response caching middleware
 
+// Device headers middleware for telemetry
+app.UseMiddleware<DeviceHeadersMiddleware>();
+
 // Rate limiting BEFORE authentication (IP-based protection)
 app.UseMiddleware<RateLimitingMiddleware>();
+app.UseRateLimiter();
 
 app.UseCors(corsPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.MapHealthChecks("/health", new HealthCheckOptions { ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse })
-   .AllowAnonymous(); // Health check should be public
+
+// Health check endpoints
+app.MapHealthChecks("/health/liveness", new HealthCheckOptions
+{
+    Predicate = r => r.Name == "self"
+});
+
+app.MapHealthChecks("/health/readiness", new HealthCheckOptions
+{
+    Predicate = r => r.Tags.Contains("ready"),
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+
+// Prometheus metrics endpoint
+app.MapPrometheusScrapingEndpoint("/metrics");
 
 app.Run();
 

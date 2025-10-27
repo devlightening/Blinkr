@@ -377,4 +377,110 @@ public class PostQueryService : IPostQueryService
             DistanceMeters = distance
         };
     }
+
+    // FEED API IMPLEMENTATIONS
+
+    public async Task<IEnumerable<PostListDto>> GetNearbyPostsAsync(double lat, double lon, int radiusMeters, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("📍 Getting nearby posts: lat={Lat}, lon={Lon}, radius={Radius}m, page={Page}", lat, lon, radiusMeters, page);
+        
+        var skip = (page - 1) * pageSize;
+        
+        var filter = Builders<PostDocument>.Filter.Near(
+            p => p.Location,
+            lon, lat, // GeoJSON format: longitude first
+            radiusMeters
+        );
+
+        var posts = await _postsCollection
+            .Find(filter)
+            .SortByDescending(p => p.CreatedAtUtc)
+            .Skip(skip)
+            .Limit(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return posts.Select(p => new PostListDto
+        {
+            Id = p.Id,
+            Title = p.Title,
+            Content = p.Content,
+            AuthorName = p.AuthorName,
+            AuthorId = p.AuthorId,
+            CreatedAt = p.CreatedAtUtc,
+            LikeCount = p.LikeCount,
+            CommentCount = p.CommentCount,
+            LocationName = p.LocationName,
+            MediaUrls = p.Media?.Select(m => m.Url).ToList() ?? new List<string>(),
+            Location = p.Location,
+            DistanceMeters = CalculateDistance(lat, lon, p.Location?.Coordinates?[1] ?? 0, p.Location?.Coordinates?[0] ?? 0)
+        });
+    }
+
+    public async Task<int> GetNearbyPostsCountAsync(double lat, double lon, int radiusMeters, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<PostDocument>.Filter.Near(
+            p => p.Location,
+            lon, lat,
+            radiusMeters
+        );
+
+        return (int)await _postsCollection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
+    }
+
+    public async Task<IEnumerable<PostListDto>> GetPopularPostsAsync(int page, int pageSize, TimeSpan timeWindow, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("🔥 Getting popular posts: page={Page}, timeWindow={TimeWindow}", page, timeWindow);
+        
+        var skip = (page - 1) * pageSize;
+        var cutoffDate = DateTime.UtcNow.Subtract(timeWindow);
+        
+        var filter = Builders<PostDocument>.Filter.Gte(p => p.CreatedAtUtc, cutoffDate);
+        
+        var posts = await _postsCollection
+            .Find(filter)
+            .SortByDescending(p => p.LikeCount + p.CommentCount) // Engagement score
+            .ThenByDescending(p => p.CreatedAtUtc)
+            .Skip(skip)
+            .Limit(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return posts.Select(MapToPostListDto);
+    }
+
+    public async Task<IEnumerable<PostListDto>> GetLatestPostsAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("🆕 Getting latest posts: page={Page}", page);
+        
+        var skip = (page - 1) * pageSize;
+        
+        var posts = await _postsCollection
+            .Find(FilterDefinition<PostDocument>.Empty)
+            .SortByDescending(p => p.CreatedAtUtc)
+            .Skip(skip)
+            .Limit(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return posts.Select(MapToPostListDto);
+    }
+
+    public async Task<int> GetTotalPostsCountAsync(CancellationToken cancellationToken = default)
+    {
+        return (int)await _postsCollection.CountDocumentsAsync(FilterDefinition<PostDocument>.Empty, cancellationToken: cancellationToken);
+    }
+
+    private static double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double earthRadius = 6371000; // Earth radius in meters
+        
+        var dLat = (lat2 - lat1) * Math.PI / 180;
+        var dLon = (lon2 - lon1) * Math.PI / 180;
+        
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        
+        return earthRadius * c;
+    }
 }

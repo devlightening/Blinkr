@@ -6,44 +6,44 @@
     xmlns:local="clr-namespace:Blinkr.Mobile"
     xmlns:views="clr-namespace:Blinkr.Mobile.Features"
     Title="Blinkr"
-    Shell.TabBarBackgroundColor="{StaticResource White}"
+    Shell.TabBarBackgroundColor="{StaticResource Surface}"
     Shell.TabBarForegroundColor="{StaticResource Primary}"
-    Shell.TabBarUnselectedColor="{StaticResource Gray400}">
+    Shell.TabBarUnselectedColor="{StaticResource OnSurfaceDisabled}">
 
-    <!-- Bottom Tab Navigation -->
+    <!-- Bottom Tab Navigation - Order matches UI design -->
     <TabBar>
-        <!-- Map Tab -->
-        <ShellContent 
-            Title="Harita" 
-            Icon="dotnet_bot.png"
-            ContentTemplate="{DataTemplate views:MapPage}" 
-            Route="map" />
-        
-        <!-- Feed Tab -->
+        <!-- Feed Tab (First - matches design) -->
         <ShellContent 
             Title="Akış" 
-            Icon="dotnet_bot.png"
+            Icon="feed_icon.png"
             ContentTemplate="{DataTemplate views:FeedPage}" 
             Route="feed" />
         
-        <!-- Create Tab (Modal) -->
+        <!-- Map Tab -->
+        <ShellContent 
+            Title="Harita" 
+            Icon="map_icon.png"
+            ContentTemplate="{DataTemplate views:MapPage}" 
+            Route="map" />
+        
+        <!-- Create Tab (Center - FAB style) -->
         <ShellContent 
             Title="Oluştur" 
-            Icon="dotnet_bot.png"
+            Icon="create_icon.png"
             ContentTemplate="{DataTemplate views:CreatePage}" 
             Route="create" />
         
         <!-- Notifications Tab -->
         <ShellContent 
             Title="Bildirimler" 
-            Icon="dotnet_bot.png"
+            Icon="notifications_icon.png"
             ContentTemplate="{DataTemplate views:NotificationsPage}" 
             Route="notifications" />
         
         <!-- Profile Tab -->
         <ShellContent 
             Title="Profil" 
-            Icon="dotnet_bot.png"
+            Icon="profile_icon.png"
             ContentTemplate="{DataTemplate views:ProfilePage}" 
             Route="profile" />
     </TabBar>

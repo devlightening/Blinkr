@@ -209,6 +209,153 @@ public class CachedPostQueryService : IPostQueryService
         }
     }
 
+    // FEED API METHODS - Delegate to inner service with basic caching
+    public async Task<IEnumerable<PostListDto>> GetNearbyPostsAsync(double lat, double lon, int radiusMeters, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var cacheKey = $"nearby:feed:{lat:F5}:{lon:F5}:{radiusMeters}:{page}:{pageSize}";
+        
+        try
+        {
+            var cached = await GetFromCacheAsync<IEnumerable<PostListDto>>(cacheKey, cancellationToken);
+            if (cached is not null)
+            {
+                _logger.LogDebug("Cache HIT for nearby posts feed: {CacheKey}", cacheKey);
+                return cached;
+            }
+
+            _logger.LogDebug("Cache MISS for nearby posts feed: {CacheKey}", cacheKey);
+            var result = await _inner.GetNearbyPostsAsync(lat, lon, radiusMeters, page, pageSize, cancellationToken);
+            
+            // Cache for 2 minutes
+            await SetCacheAsync(cacheKey, result, TimeSpan.FromMinutes(2), cancellationToken);
+            
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Cache error for nearby posts feed, falling back to database");
+            return await _inner.GetNearbyPostsAsync(lat, lon, radiusMeters, page, pageSize, cancellationToken);
+        }
+    }
+
+    public async Task<int> GetNearbyPostsCountAsync(double lat, double lon, int radiusMeters, CancellationToken cancellationToken = default)
+    {
+        var cacheKey = $"nearby:count:{lat:F5}:{lon:F5}:{radiusMeters}";
+        
+        try
+        {
+            var cached = await _cache.GetStringAsync(cacheKey, cancellationToken);
+            if (!string.IsNullOrEmpty(cached) && int.TryParse(cached, out var count))
+            {
+                _logger.LogDebug("Cache HIT for nearby posts count: {CacheKey}", cacheKey);
+                return count;
+            }
+
+            _logger.LogDebug("Cache MISS for nearby posts count: {CacheKey}", cacheKey);
+            var result = await _inner.GetNearbyPostsCountAsync(lat, lon, radiusMeters, cancellationToken);
+            
+            // Cache for 5 minutes
+            await _cache.SetStringAsync(cacheKey, result.ToString(), new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+            }, cancellationToken);
+            
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Cache error for nearby posts count, falling back to database");
+            return await _inner.GetNearbyPostsCountAsync(lat, lon, radiusMeters, cancellationToken);
+        }
+    }
+
+    public async Task<IEnumerable<PostListDto>> GetPopularPostsAsync(int page, int pageSize, TimeSpan timeWindow, CancellationToken cancellationToken = default)
+    {
+        var cacheKey = $"popular:feed:{page}:{pageSize}:{timeWindow.TotalHours:F0}h";
+        
+        try
+        {
+            var cached = await GetFromCacheAsync<IEnumerable<PostListDto>>(cacheKey, cancellationToken);
+            if (cached is not null)
+            {
+                _logger.LogDebug("Cache HIT for popular posts feed: {CacheKey}", cacheKey);
+                return cached;
+            }
+
+            _logger.LogDebug("Cache MISS for popular posts feed: {CacheKey}", cacheKey);
+            var result = await _inner.GetPopularPostsAsync(page, pageSize, timeWindow, cancellationToken);
+            
+            // Cache for 10 minutes
+            await SetCacheAsync(cacheKey, result, TimeSpan.FromMinutes(10), cancellationToken);
+            
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Cache error for popular posts feed, falling back to database");
+            return await _inner.GetPopularPostsAsync(page, pageSize, timeWindow, cancellationToken);
+        }
+    }
+
+    public async Task<IEnumerable<PostListDto>> GetLatestPostsAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var cacheKey = $"latest:feed:{page}:{pageSize}";
+        
+        try
+        {
+            var cached = await GetFromCacheAsync<IEnumerable<PostListDto>>(cacheKey, cancellationToken);
+            if (cached is not null)
+            {
+                _logger.LogDebug("Cache HIT for latest posts feed: {CacheKey}", cacheKey);
+                return cached;
+            }
+
+            _logger.LogDebug("Cache MISS for latest posts feed: {CacheKey}", cacheKey);
+            var result = await _inner.GetLatestPostsAsync(page, pageSize, cancellationToken);
+            
+            // Cache for 5 minutes
+            await SetCacheAsync(cacheKey, result, TimeSpan.FromMinutes(5), cancellationToken);
+            
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Cache error for latest posts feed, falling back to database");
+            return await _inner.GetLatestPostsAsync(page, pageSize, cancellationToken);
+        }
+    }
+
+    public async Task<int> GetTotalPostsCountAsync(CancellationToken cancellationToken = default)
+    {
+        const string cacheKey = "posts:total:count";
+        
+        try
+        {
+            var cached = await _cache.GetStringAsync(cacheKey, cancellationToken);
+            if (!string.IsNullOrEmpty(cached) && int.TryParse(cached, out var count))
+            {
+                _logger.LogDebug("Cache HIT for total posts count");
+                return count;
+            }
+
+            _logger.LogDebug("Cache MISS for total posts count");
+            var result = await _inner.GetTotalPostsCountAsync(cancellationToken);
+            
+            // Cache for 30 minutes
+            await _cache.SetStringAsync(cacheKey, result.ToString(), new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+            }, cancellationToken);
+            
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Cache error for total posts count, falling back to database");
+            return await _inner.GetTotalPostsCountAsync(cancellationToken);
+        }
+    }
+
     // Helper methods for cache operations
     private async Task<T?> GetFromCacheAsync<T>(string key, CancellationToken cancellationToken) where T : class
     {
