@@ -1,75 +1,26 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<ContentPage x:Class="Blinkr.Mobile.Features.MapPage"
-             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
-             xmlns:map="clr-namespace:Blinkr.Mobile.Features.Map"
-             Title="Harita"
-             BackgroundColor="{StaticResource Secondary}">
+             x:Class="Blinkr.Mobile.Features.MapPage"
+             Title="Harita">
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+  <Grid RowDefinitions="Auto,*" ColumnDefinitions="*">
 
-        <!-- Status and Controls -->
-        <StackLayout Grid.Row="0" Spacing="8" Padding="16">
-            <Label Text="{Binding StatusMessage}" 
-                   FontSize="14" 
-                   TextColor="{StaticResource PrimaryDarkText}"
-                   HorizontalOptions="Center" />
-            
-            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
-                <Button Grid.Column="0"
-                        Text="Login"
-                        Command="{Binding LoginCommand}"
-                        IsVisible="{Binding IsAuthenticated, Converter={StaticResource InvertedBoolConverter}}"
-                        Style="{StaticResource PrimaryButton}"
-                        FontSize="12" />
-                
-                <Button Grid.Column="1"
-                        Text="Load Nearby"
-                        Command="{Binding LoadNearbyCommand}"
-                        IsEnabled="{Binding IsAuthenticated}"
-                        Style="{StaticResource SecondaryButton}"
-                        FontSize="12" />
-                
-                <Button Grid.Column="2"
-                        Text="Logout"
-                        Command="{Binding LogoutCommand}"
-                        IsVisible="{Binding IsAuthenticated}"
-                        Style="{StaticResource SecondaryButton}"
-                        FontSize="12" />
-            </Grid>
-        </StackLayout>
+    <!-- Arama kapsülü -->
+    <Border Style="{StaticResource Card}" Margin="0,4,0,8" Padding="10" StrokeThickness="0">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+        <Image Source="ic_search.png" WidthRequest="20" HeightRequest="20" Opacity="0.6"/>
+        <Entry Grid.Column="1" Placeholder="Konum ara..." BackgroundColor="Transparent" />
+      </Grid>
+    </Border>
 
-        <!-- Map -->
-        <maps:Map Grid.Row="1"
-                  x:Name="MainMap"
-                  MapType="Street"
-                  IsShowingUser="True"
-                  IsScrollEnabled="True"
-                  IsZoomEnabled="True">
-            
-            <!-- Map will be populated with pins programmatically -->
-            
-        </maps:Map>
-
-        <!-- Bottom Sheet for Post Details -->
-        <map:PostBottomSheet Grid.Row="1"
-                             x:Name="BottomSheet"
-                             VerticalOptions="End"
-                             IsVisible="False" />
-
-        <!-- FAB for Create Post -->
-        <Button Grid.Row="1"
-                Text="+"
-                Style="{StaticResource FAB}"
-                HorizontalOptions="End"
-                VerticalOptions="End"
-                Margin="20,20,20,100"
-                Clicked="OnCreatePostClicked" />
-
-    </Grid>
+    <!-- Google Harita -->
+    <maps:Map x:Name="BlinkrMap"
+              Grid.Row="1"
+              IsTrafficEnabled="False"
+              MapType="Street"
+              VerticalOptions="FillAndExpand"
+              HorizontalOptions="FillAndExpand"/>
+  </Grid>
 </ContentPage>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+  <!-- Splash tema -->
+  <style name="Maui.SplashTheme" parent="Theme.Material3.Light.NoActionBar">
+    <item name="android:windowSplashScreenAnimatedIcon">@mipmap/appicon</item>
+    <item name="android:windowSplashScreenBackground">@android:color/white</item>
+  </style>
+
+  <!-- Ana tema: Material3 Light, action bar yok -->
+  <style name="Maui.MainTheme" parent="Theme.Material3.Light.NoActionBar">
+    <!-- Kenardan kenara ama beyaz/light status bar -->
+    <item name="android:statusBarColor">@android:color/transparent</item>
+    <item name="android:navigationBarColor">@android:color/white</item>
+    <item name="android:windowLightStatusBar">true</item>
+    <item name="android:windowLightNavigationBar">true</item>
+
+    <!-- Palet (Shell ve native control'lere akar) -->
+    <item name="colorPrimary">#FF5C34</item>
+    <item name="colorSecondary">#FF8A65</item>
+    <item name="colorSurface">#FFFFFFFF</item>
+    <item name="colorOnSurface">#2A2E34</item>
+
+    <!-- Material button default radius -->
+    <item name="materialButtonStyle">@style/Blinkr.MaterialButton</item>
+  </style>
+
+  <style name="Blinkr.MaterialButton" parent="@style/Widget.Material3.Button">
+    <item name="cornerRadius">18dp</item>
+    <item name="android:minHeight">48dp</item>
+  </style>
+
+</resources>

@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
+		<TargetFrameworks>net9.0-android;net9.0-windows10.0.19041.0</TargetFrameworks>
 		<!-- Android target framework for emulator testing -->
-		<!-- <TargetFrameworks>net9.0-android;net9.0-windows10.0.19041.0</TargetFrameworks> -->
+		<!-- <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework> -->
 		
 		<!-- Android target framework for emulator testing -->
 		<!-- Fallback to net9.0 if Android SDK issues persist -->
@@ -25,7 +25,7 @@
 		either BOTH runtimes must be indicated or ONLY macatalyst-x64. -->
 		<!-- For example: <RuntimeIdentifiers>maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers> -->
 
-		<OutputType>Library</OutputType>
+		<OutputType>Exe</OutputType>
 		<RootNamespace>Blinkr.Mobile</RootNamespace>
 		<UseMaui>true</UseMaui>
 		<SingleProject>true</SingleProject>
@@ -48,7 +48,32 @@
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
 	</PropertyGroup>
 
+	<!-- Debug için linker'ı kapat -->
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-android|AnyCPU'">
+		<AndroidLinkMode>None</AndroidLinkMode>
+		<RunAOTCompilation>false</RunAOTCompilation>
+		<UseInterpreter>false</UseInterpreter>
+		<AndroidEnableSGenConcurrent>true</AndroidEnableSGenConcurrent>
+		<EmbedAssembliesIntoApk>false</EmbedAssembliesIntoApk>
+		
+		<!-- Fast Deployment -->
+		<AndroidEnableFastDeployment>true</AndroidEnableFastDeployment>
+		<AndroidFastDeploymentType>Assemblies:Dexes</AndroidFastDeploymentType>
+		
+		<!-- Debug Keystore (tek keystore kullan) -->
+		<AndroidSigningKeyStore>$(UserProfile)\.android\debug.keystore</AndroidSigningKeyStore>
+		<AndroidSigningKeyAlias>androiddebugkey</AndroidSigningKeyAlias>
+		<AndroidSigningKeyPass>android</AndroidSigningKeyPass>
+		<AndroidSigningStorePass>android</AndroidSigningStorePass>
+	</PropertyGroup>
+
 	<ItemGroup>
+		<!-- XAML’leri MAUI olarak derle (auto-include olduğundan Update kullan) -->
+		<MauiXaml Update="Resources\Styles\Colors.xaml" />
+		<MauiXaml Update="Resources\Styles\Styles.xaml" />
+		<MauiXaml Update="AppShell.xaml" />
+		<MauiXaml Update="HomePage.xaml" />
+
 		<!-- App Icon -->
 		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
 
@@ -75,6 +100,8 @@
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" />
 		<PackageReference Include="CommunityToolkit.Mvvm" />
 		<PackageReference Include="Refit" />
+		<PackageReference Include="Refit.HttpClientFactory" />
+		<PackageReference Include="Microsoft.Extensions.Http" />
 		<PackageReference Include="Microsoft.Extensions.Http.Resilience" />
 		<PackageReference Include="Polly" />
 		<PackageReference Include="Polly.Extensions.Http" />

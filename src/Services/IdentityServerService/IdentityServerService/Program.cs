@@ -21,10 +21,12 @@ builder.Services.AddCors(o =>
     {
         p.WithOrigins(
                 "https://localhost:7259", // BlogService Swagger
-                "https://localhost:5173"  // UI (dev)
+                "http://localhost:5215",   // BlogService Swagger
+                "https://localhost:5173"   // UI (dev)
             )
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials(); // OAuth2 için gerekli
     });
 });
 
@@ -35,7 +37,10 @@ builder.Host.UseSerilog((ctx, lc) =>
 // Users DB (senin AppDbContext’in)
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
-        b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)));
+        npg => npg.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)
+                  .CommandTimeout(300)) // 5 dakika timeout
+       .EnableDetailedErrors()
+       .EnableSensitiveDataLogging());
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>("IdentityServerService-Postgres");
@@ -73,7 +78,9 @@ builder.Services
     .AddOperationalStore(opt =>
     {
         opt.ConfigureDbContext = b =>
-            b.UseNpgsql(connectionString, sql => sql.MigrationsAssembly(migrationsAssembly));
+            b.UseNpgsql(connectionString, sql => sql.MigrationsAssembly(migrationsAssembly)
+                                                     .CommandTimeout(300)) // 5 dakika timeout
+             .EnableDetailedErrors();
         opt.EnableTokenCleanup = true;
         opt.TokenCleanupInterval = 3600;
     })
@@ -86,6 +93,9 @@ builder.Services.AddTransient<Duende.IdentityServer.Validation.IResourceOwnerPas
 
 // Yetkilendirme Servisini Ekle (app.UseAuthorization() için zorunludur)
 builder.Services.AddAuthorization();
+
+// Razor Pages (Login UI için gerekli)
+builder.Services.AddRazorPages();
 
 // IdentityServer CORS (opsiyonel)
 builder.Services.AddSingleton<ICorsPolicyService>(sp =>
@@ -102,6 +112,8 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment()) app.UseHsts();
 app.UseHttpsRedirection();
 
+app.UseStaticFiles();
+
 app.UseRouting();
 app.UseCors(CorsPolicy);
 
@@ -110,6 +122,8 @@ await ApplyMigrationsWithRetry(app);
 
 app.UseIdentityServer();
 app.UseAuthorization();
+
+app.MapRazorPages();
 
 app.MapGet("/", () => "Blinkr IdentityServer running");
 
@@ -149,15 +163,16 @@ async Task ApplyMigrationsWithRetry(IApplicationBuilder app)
                 return; // Başarılı olursa fonksiyondan çık
             }
         }
-        catch (PostgresException ex) when (ex.SqlState == "57P03") // Sadece 'database starting up' hatasını yakala
+        catch (NpgsqlException ex) when (i < maxRetries - 1) // Son denemede throw et
         {
-            logger.LogWarning("Veritabanı henüz hazır değil. Sonraki deneme için {Delay} saniye bekleniyor.", delay.TotalSeconds);
+            logger.LogWarning(ex, "Postgres bağlantı hatası (deneme {Attempt}/{MaxRetries}). {Delay} saniye bekleniyor...", 
+                i + 1, maxRetries, delay.TotalSeconds);
             await Task.Delay(delay);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (i < maxRetries - 1)
         {
-            logger.LogError(ex, "Migration sırasında beklenmedik bir hata oluştu.");
-            throw;
+            logger.LogError(ex, "Migration sırasında beklenmedik hata (deneme {Attempt}/{MaxRetries}).", i + 1, maxRetries);
+            await Task.Delay(delay);
         }
     }
 

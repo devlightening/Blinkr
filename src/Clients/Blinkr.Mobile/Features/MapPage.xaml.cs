@@ -1,95 +1,85 @@
 using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
-using Blinkr.Mobile.Features.Map;
+using Blinkr.Mobile.Core.Api;
 
 namespace Blinkr.Mobile.Features;
 
 public partial class MapPage : ContentPage
 {
-    public MapPage(MapViewModel viewModel)
+    private readonly IApiClient? _apiClient;
+    private readonly IGeolocation _geolocation;
+
+    // Constructor with DI
+    public MapPage(IApiClient? apiClient = null, IGeolocation? geolocation = null)
     {
         InitializeComponent();
-        BindingContext = viewModel;
-        InitializeMap();
+        
+        _apiClient = apiClient;
+        _geolocation = geolocation ?? Geolocation.Default;
     }
 
-    private void InitializeMap()
+    protected override async void OnAppearing()
     {
-        // Set initial location to Istanbul
-        var istanbul = new Location(41.0082, 28.9784);
-        var mapSpan = MapSpan.FromCenterAndRadius(istanbul, Distance.FromKilometers(5));
-        MainMap.MoveToRegion(mapSpan);
-
-        // Add sample pins (will be replaced with real data)
-        AddSamplePins();
+        base.OnAppearing();
+        
+        // Initialize map when page appears
+        await InitializeMapAsync();
     }
 
-    private void AddSamplePins()
+    private async Task InitializeMapAsync()
     {
-        // Sample pins for demonstration
-        var pins = new[]
+        try
         {
-            new Pin
+            // Get user's current location
+            var location = await _geolocation.GetLocationAsync(new GeolocationRequest
             {
-                Label = "Galata Kulesi",
-                Address = "Beyoğlu, İstanbul",
-                Type = PinType.Place,
-                Location = new Location(41.0256, 28.9744)
-            },
-            new Pin
+                DesiredAccuracy = GeolocationAccuracy.Medium,
+                Timeout = TimeSpan.FromSeconds(10)
+            });
+
+            if (location != null)
             {
-                Label = "Sultanahmet",
-                Address = "Fatih, İstanbul", 
-                Type = PinType.Place,
-                Location = new Location(41.0058, 28.9784)
-            },
-            new Pin
-            {
-                Label = "Taksim Meydanı",
-                Address = "Beyoğlu, İstanbul",
-                Type = PinType.Place,
-                Location = new Location(41.0369, 28.9850)
+                // Center map on user's location
+                var position = new Location(location.Latitude, location.Longitude);
+                BlinkrMap.MoveToRegion(MapSpan.FromCenterAndRadius(position, Distance.FromKilometers(2)));
+                
+                // Load nearby posts
+                await LoadNearbyPostsAsync(location.Latitude, location.Longitude);
             }
-        };
-
-        foreach (var pin in pins)
+            else
+            {
+                // Fallback to Istanbul
+                var istanbul = new Location(41.0082, 28.9784);
+                BlinkrMap.MoveToRegion(MapSpan.FromCenterAndRadius(istanbul, Distance.FromKilometers(5)));
+            }
+        }
+        catch (Exception ex)
         {
-            MainMap.Pins.Add(pin);
+            System.Diagnostics.Debug.WriteLine($"Map initialization error: {ex.Message}");
+            
+            // Fallback to Istanbul on error
+            var istanbul = new Location(41.0082, 28.9784);
+            BlinkrMap.MoveToRegion(MapSpan.FromCenterAndRadius(istanbul, Distance.FromKilometers(5)));
         }
     }
 
-    private async void OnCreatePostClicked(object sender, EventArgs e)
+    private async Task LoadNearbyPostsAsync(double lat, double lon)
     {
-        // Navigate to create post page
-        await Shell.Current.GoToAsync("//create");
-    }
+        if (_apiClient == null) return;
 
-    // Handle pin selection to show bottom sheet
-    private async void OnPinClicked(object sender, EventArgs e)
-    {
-        // TODO: Get actual post data from pin
-        // For now, show sample data
-        var samplePost = new Blinkr.Mobile.Core.Api.PostListDto(
-            Id: Guid.NewGuid(),
-            Title: "Galata Kulesi Manzarası",
-            Content: "İstanbul'un en güzel manzaralarından biri. Günbatımında muhteşem görünüyor.",
-            AuthorName: "Gezgin Kullanıcı",
-            CreatedAt: DateTime.Now.AddHours(-2),
-            LikeCount: 15,
-            DistanceMeters: 350,
-            LocationName: "Galata Kulesi"
-        );
-        
-        BottomSheet.Post = samplePost;
-        await BottomSheet.ShowAsync();
-    }
-
-    // Handle map tap to hide bottom sheet
-    private async void OnMapTapped(object sender, EventArgs e)
-    {
-        if (BottomSheet.IsVisible)
+        try
         {
-            await BottomSheet.HideAsync();
+            var posts = await _apiClient.GetNearbyAsync(lat, lon, radius: 5000, page: 1, pageSize: 20);
+            
+            // TODO: Add pins to map for each post
+            foreach (var post in posts.Items)
+            {
+                // Add map pins here when we have location data
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error loading nearby posts: {ex.Message}");
         }
     }
 }

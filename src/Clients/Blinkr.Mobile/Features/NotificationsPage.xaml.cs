@@ -1,14 +1,17 @@
 using System.Collections.ObjectModel;
+using Blinkr.Mobile.Core.Api;
 
 namespace Blinkr.Mobile.Features;
 
 public partial class NotificationsPage : ContentPage
 {
+    private readonly IApiClient? _apiClient;
     public ObservableCollection<NotificationItem> Notifications { get; set; } = new();
 
-    public NotificationsPage()
+    public NotificationsPage(IApiClient? apiClient = null)
     {
         InitializeComponent();
+        _apiClient = apiClient;
         LoadSampleData();
         BindingContext = this;
     }

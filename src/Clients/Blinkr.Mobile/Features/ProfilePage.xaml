@@ -2,168 +2,206 @@
 <ContentPage x:Class="Blinkr.Mobile.Features.ProfilePage"
              xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             Title="Profil"
-             BackgroundColor="{StaticResource Secondary}">
+             Title="Profil">
 
     <ScrollView>
-        <StackLayout Spacing="20" Padding="16">
+        <StackLayout Spacing="0" Padding="0">
+            
+            <!-- Page Title -->
+            <Label Text="Profil"
+                   Style="{StaticResource PageTitle}" />
             
             <!-- Profile Header -->
-            <Frame Style="{StaticResource GlassCard}">
-                <StackLayout Spacing="16" HorizontalOptions="Center">
+            <Border BackgroundColor="{StaticResource Surface}"
+                    StrokeThickness="0"
+                    Margin="16,8">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="16" />
+                </Border.StrokeShape>
+                <StackLayout Spacing="16" Padding="16" HorizontalOptions="Center">
                     
-                    <!-- Profile Picture -->
-                    <Frame WidthRequest="80"
-                           HeightRequest="80"
-                           CornerRadius="40"
-                           Padding="0"
-                           BackgroundColor="{StaticResource Primary}"
-                           BorderColor="{StaticResource Tertiary}">
-                        <Label Text="👤"
-                               HorizontalOptions="Center"
-                               VerticalOptions="Center"
-                               FontSize="40" />
-                    </Frame>
+                    <!-- Profile Picture with Border -->
+                    <Border WidthRequest="90"
+                            HeightRequest="90"
+                            StrokeThickness="3"
+                            Stroke="{StaticResource Primary}"
+                            BackgroundColor="{StaticResource ChipBackground}"
+                            HorizontalOptions="Center">
+                        <Border.StrokeShape>
+                            <Ellipse />
+                        </Border.StrokeShape>
+                        <Border WidthRequest="80"
+                                HeightRequest="80"
+                                StrokeThickness="0"
+                                BackgroundColor="{StaticResource SuccessMint}"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center">
+                            <Border.StrokeShape>
+                                <Ellipse />
+                            </Border.StrokeShape>
+                            <Label Text="👤"
+                                   FontSize="40"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center" />
+                        </Border>
+                    </Border>
                     
                     <!-- Stats -->
                     <Grid ColumnDefinitions="*,*,*" 
-                          ColumnSpacing="20">
+                          ColumnSpacing="32"
+                          Margin="0,8,0,0">
                         <StackLayout Grid.Column="0" HorizontalOptions="Center">
                             <Label Text="124"
-                                   FontSize="18"
+                                   FontSize="20"
                                    FontAttributes="Bold"
-                                   TextColor="{StaticResource PrimaryDarkText}"
+                                   TextColor="{StaticResource TextPrimary}"
                                    HorizontalOptions="Center" />
                             <Label Text="gönderi"
-                                   FontSize="12"
-                                   TextColor="{StaticResource SecondaryDarkText}"
+                                   Style="{StaticResource Caption}"
                                    HorizontalOptions="Center" />
                         </StackLayout>
                         
                         <StackLayout Grid.Column="1" HorizontalOptions="Center">
                             <Label Text="2.5K"
-                                   FontSize="18"
+                                   FontSize="20"
                                    FontAttributes="Bold"
-                                   TextColor="{StaticResource PrimaryDarkText}"
+                                   TextColor="{StaticResource TextPrimary}"
                                    HorizontalOptions="Center" />
                             <Label Text="takipçi"
-                                   FontSize="12"
-                                   TextColor="{StaticResource SecondaryDarkText}"
+                                   Style="{StaticResource Caption}"
                                    HorizontalOptions="Center" />
                         </StackLayout>
                         
                         <StackLayout Grid.Column="2" HorizontalOptions="Center">
                             <Label Text="890"
-                                   FontSize="18"
+                                   FontSize="20"
                                    FontAttributes="Bold"
-                                   TextColor="{StaticResource PrimaryDarkText}"
+                                   TextColor="{StaticResource TextPrimary}"
                                    HorizontalOptions="Center" />
                             <Label Text="takip edillen"
-                                   FontSize="12"
-                                   TextColor="{StaticResource SecondaryDarkText}"
+                                   Style="{StaticResource Caption}"
                                    HorizontalOptions="Center" />
                         </StackLayout>
                     </Grid>
                     
                     <!-- Filter Tabs -->
-                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
-                        <Button Grid.Column="0"
-                                Text="Yakın"
-                                Style="{StaticResource PrimaryButton}"
-                                FontSize="12" />
-                        <Button Grid.Column="1"
-                                Text="Popüler"
-                                Style="{StaticResource SecondaryButton}"
-                                FontSize="12" />
-                        <Button Grid.Column="2"
-                                Text="Yeni"
-                                Style="{StaticResource SecondaryButton}"
-                                FontSize="12" />
-                    </Grid>
+                    <HorizontalStackLayout Spacing="8" Padding="0,8,0,0" HorizontalOptions="Center">
+                        <Label Text="Sırala:" 
+                               FontSize="14" 
+                               TextColor="{StaticResource TextSecondary}"
+                               VerticalOptions="Center"
+                               Margin="0,0,8,0" />
+                        <Button Text="Yakın"
+                                Style="{StaticResource TabButtonActive}" />
+                        <Button Text="Popüler"
+                                Style="{StaticResource TabButton}" />
+                        <Button Text="Yeni"
+                                Style="{StaticResource TabButton}" />
+                    </HorizontalStackLayout>
                 </StackLayout>
-            </Frame>
+            </Border>
 
             <!-- Photo Grid -->
-            <Frame Style="{StaticResource GlassCard}">
-                <StackLayout Spacing="12">
+            <Border BackgroundColor="{StaticResource Surface}"
+                    StrokeThickness="0"
+                    Margin="16,8">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="16" />
+                </Border.StrokeShape>
+                <StackLayout Spacing="12" Padding="16">
                     <Label Text="mini işi haritası"
                            FontSize="16"
                            FontAttributes="Bold"
-                           TextColor="{StaticResource PrimaryDarkText}" />
+                           TextColor="{StaticResource TextPrimary}" />
                     
                     <!-- 2x3 Photo Grid -->
-                    <Grid RowDefinitions="100,100" 
-                          ColumnDefinitions="*,*,*"
-                          RowSpacing="8"
-                          ColumnSpacing="8">
-                        
-                        <Frame Grid.Row="0" Grid.Column="0"
-                               BackgroundColor="{StaticResource Gray200}"
-                               CornerRadius="8"
-                               Padding="0">
-                            <Label Text="🏛️"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center"
-                                   FontSize="30" />
-                        </Frame>
-                        
-                        <Frame Grid.Row="0" Grid.Column="1"
-                               BackgroundColor="{StaticResource Gray200}"
-                               CornerRadius="8"
-                               Padding="0">
-                            <Label Text="🌅"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center"
-                                   FontSize="30" />
-                        </Frame>
-                        
-                        <Frame Grid.Row="0" Grid.Column="2"
-                               BackgroundColor="{StaticResource Gray200}"
-                               CornerRadius="8"
-                               Padding="0">
-                            <Label Text="🏛️"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center"
-                                   FontSize="30" />
-                        </Frame>
-                        
-                        <Frame Grid.Row="1" Grid.Column="0"
-                               BackgroundColor="{StaticResource Gray200}"
-                               CornerRadius="8"
-                               Padding="0">
-                            <Label Text="🌆"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center"
-                                   FontSize="30" />
-                        </Frame>
-                        
-                        <Frame Grid.Row="1" Grid.Column="1"
-                               BackgroundColor="{StaticResource Gray200}"
-                               CornerRadius="8"
-                               Padding="0">
-                            <Label Text="🏙️"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center"
-                                   FontSize="30" />
-                        </Frame>
-                        
-                        <Frame Grid.Row="1" Grid.Column="2"
-                               BackgroundColor="{StaticResource Gray200}"
-                               CornerRadius="8"
-                               Padding="0">
-                            <Label Text="🌉"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center"
-                                   FontSize="30" />
-                        </Frame>
-                    </Grid>
+                    <Border BackgroundColor="Transparent"
+                            StrokeThickness="2"
+                            Stroke="{StaticResource Primary}"
+                            Padding="8">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="12" />
+                        </Border.StrokeShape>
+                        <Grid RowDefinitions="100,100" 
+                              ColumnDefinitions="*,*,*"
+                              RowSpacing="8"
+                              ColumnSpacing="8">
+                            
+                            <Border Grid.Row="0" Grid.Column="0"
+                                    BackgroundColor="{StaticResource ChipBackground}"
+                                    StrokeThickness="0">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="8" />
+                                </Border.StrokeShape>
+                                <Label Text="🏛️"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"
+                                       FontSize="30" />
+                            </Border>
+                            
+                            <Border Grid.Row="0" Grid.Column="1"
+                                    BackgroundColor="{StaticResource ChipBackground}"
+                                    StrokeThickness="0">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="8" />
+                                </Border.StrokeShape>
+                                <Label Text="🌅"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"
+                                       FontSize="30" />
+                            </Border>
+                            
+                            <Border Grid.Row="0" Grid.Column="2"
+                                    BackgroundColor="{StaticResource ChipBackground}"
+                                    StrokeThickness="0">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="8" />
+                                </Border.StrokeShape>
+                                <Label Text="🏛️"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"
+                                       FontSize="30" />
+                            </Border>
+                            
+                            <Border Grid.Row="1" Grid.Column="0"
+                                    BackgroundColor="{StaticResource ChipBackground}"
+                                    StrokeThickness="0">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="8" />
+                                </Border.StrokeShape>
+                                <Label Text="🌆"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"
+                                       FontSize="30" />
+                            </Border>
+                            
+                            <Border Grid.Row="1" Grid.Column="1"
+                                    BackgroundColor="{StaticResource ChipBackground}"
+                                    StrokeThickness="0">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="8" />
+                                </Border.StrokeShape>
+                                <Label Text="🏙️"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"
+                                       FontSize="30" />
+                            </Border>
+                            
+                            <Border Grid.Row="1" Grid.Column="2"
+                                    BackgroundColor="{StaticResource ChipBackground}"
+                                    StrokeThickness="0">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="8" />
+                                </Border.StrokeShape>
+                                <Label Text="🌉"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"
+                                       FontSize="30" />
+                            </Border>
+                        </Grid>
+                    </Border>
                 </StackLayout>
-            </Frame>
-
-            <!-- Settings -->
-            <Button Text="Ayarlar"
-                    Style="{StaticResource SecondaryButton}"
-                    Clicked="OnSettingsClicked" />
+            </Border>
 
         </StackLayout>
     </ScrollView>

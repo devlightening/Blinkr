@@ -1,10 +1,15 @@
+using Blinkr.Mobile.Core.Api;
+
 namespace Blinkr.Mobile.Features;
 
 public partial class CreatePage : ContentPage
 {
-    public CreatePage()
+    private readonly IApiClient? _apiClient;
+
+    public CreatePage(IApiClient? apiClient = null)
     {
         InitializeComponent();
+        _apiClient = apiClient;
     }
 
     private async void OnSelectMediaClicked(object sender, EventArgs e)

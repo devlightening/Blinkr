@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage x:Class="Blinkr.Mobile.Pages.ComposePage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             Title="Oluştur">
+  <ScrollView>
+    <VerticalStackLayout Spacing="12">
+      <Border Style="{StaticResource Card}">
+        <Image Source="placeholder.png" 
+               HeightRequest="160" 
+               Aspect="AspectFill" 
+               BackgroundColor="#EEE" />
+      </Border>
+
+      <Entry Placeholder="Başlık" />
+      <Editor Placeholder="Açıklama" AutoSize="TextChanges" />
+
+      <Grid ColumnDefinitions="Auto,*,Auto" Padding="6,0">
+        <Label Text="Konum" VerticalOptions="Center" Style="{StaticResource Body}"/>
+        <Label Text="Kesin (~1.2 km)" Grid.Column="1" VerticalOptions="Center" HorizontalOptions="Start" Style="{StaticResource Body}"/>
+        <Switch Grid.Column="2" IsToggled="True"/>
+      </Grid>
+
+      <Button Text="GÖNDER" Style="{StaticResource PrimaryButton}" />
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>
+

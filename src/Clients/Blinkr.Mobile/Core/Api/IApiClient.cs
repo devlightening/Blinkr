@@ -2,23 +2,19 @@ using Refit;
 
 namespace Blinkr.Mobile.Core.Api;
 
+/// <summary>
+/// Refit API client interface - only contains Refit-decorated methods
+/// </summary>
 public interface IApiClient
 {
-    // Nearby Posts
-    [Get("/api/posts-read/nearby")]
-    Task<PagedResult<PostListDto>> GetNearbyAsync(
-        [Query] double lat, 
-        [Query] double lon, 
-        [Query] int radius = 5000, 
-        [Query] int page = 1, 
-        [Query] int pageSize = 15);
-
-    // Feed Posts
-    [Get("/api/posts-read")]
-    Task<PagedResult<PostListDto>> GetFeedAsync(
-        [Query] int page = 1, 
+    // Feed API - Get feed with sorting
+    [Get("/api/v1/Feed")]
+    Task<FeedResponse> GetFeedAsync(
+        [Query] string sort = "nearby",
+        [Query] int page = 1,
         [Query] int pageSize = 15,
-        [Query] string? sort = null);
+        [Query] double? lat = null,
+        [Query] double? lon = null);
 
     // Add Location
     [Post("/api/posts/{postId}/location")]
@@ -27,6 +23,51 @@ public interface IApiClient
     // Create Post
     [Post("/api/posts")]
     Task<ApiResult<Guid>> CreatePostAsync([Body] CreatePostRequest req);
+}
+
+/// <summary>
+/// Extension methods for IApiClient to provide convenience methods
+/// </summary>
+public static class ApiClientExtensions
+{
+    public static async Task<PagedResult<PostListDto>> GetNearbyAsync(
+        this IApiClient client,
+        double lat,
+        double lon,
+        int radius = 5000,
+        int page = 1,
+        int pageSize = 15)
+    {
+        var response = await client.GetFeedAsync("nearby", page, pageSize, lat, lon);
+        return new PagedResult<PostListDto>(
+            response.Items,
+            response.Pagination.TotalCount,
+            response.Pagination.CurrentPage,
+            response.Pagination.PageSize
+        );
+    }
+
+    public static async Task<PagedResult<PostListDto>> GetFeedAsync(
+        this IApiClient client,
+        int page,
+        int pageSize,
+        string? sort)
+    {
+        var sortParam = sort switch
+        {
+            "likeCount:desc" => "popular",
+            "createdAt:desc" => "new",
+            _ => "nearby"
+        };
+
+        var response = await client.GetFeedAsync(sortParam, page, pageSize);
+        return new PagedResult<PostListDto>(
+            response.Items,
+            response.Pagination.TotalCount,
+            response.Pagination.CurrentPage,
+            response.Pagination.PageSize
+        );
+    }
 }
 
 // DTOs
@@ -39,6 +80,23 @@ public record PagedResult<T>(
     public bool HasNext => Page * PageSize < TotalCount;
 }
 
+public record FeedResponse
+{
+    public List<PostListDto> Items { get; init; } = new();
+    public PaginationInfo Pagination { get; init; } = new();
+    public string Sort { get; init; } = string.Empty;
+    public DateTime Timestamp { get; init; }
+}
+
+public record PaginationInfo
+{
+    public int CurrentPage { get; init; }
+    public int PageSize { get; init; }
+    public int TotalCount { get; init; }
+    public bool HasMore { get; init; }
+    public int TotalPages { get; init; }
+}
+
 public record PostListDto(
     Guid Id, 
     string Title, 
@@ -46,6 +104,7 @@ public record PostListDto(
     string AuthorName,
     DateTime CreatedAt,
     int LikeCount,
+    int CommentCount,
     double? DistanceMeters = null,
     string? LocationName = null);
 

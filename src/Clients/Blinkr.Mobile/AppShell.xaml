@@ -1,51 +1,44 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Shell
-    x:Class="Blinkr.Mobile.AppShell"
-    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:local="clr-namespace:Blinkr.Mobile"
-    xmlns:views="clr-namespace:Blinkr.Mobile.Features"
-    Title="Blinkr"
-    Shell.TabBarBackgroundColor="{StaticResource Surface}"
-    Shell.TabBarForegroundColor="{StaticResource Primary}"
-    Shell.TabBarUnselectedColor="{StaticResource OnSurfaceDisabled}">
-
-    <!-- Bottom Tab Navigation - Order matches UI design -->
-    <TabBar>
-        <!-- Feed Tab (First - matches design) -->
-        <ShellContent 
-            Title="Akış" 
-            Icon="feed_icon.png"
-            ContentTemplate="{DataTemplate views:FeedPage}" 
-            Route="feed" />
-        
-        <!-- Map Tab -->
-        <ShellContent 
-            Title="Harita" 
-            Icon="map_icon.png"
-            ContentTemplate="{DataTemplate views:MapPage}" 
-            Route="map" />
-        
-        <!-- Create Tab (Center - FAB style) -->
-        <ShellContent 
-            Title="Oluştur" 
-            Icon="create_icon.png"
-            ContentTemplate="{DataTemplate views:CreatePage}" 
-            Route="create" />
-        
-        <!-- Notifications Tab -->
-        <ShellContent 
-            Title="Bildirimler" 
-            Icon="notifications_icon.png"
-            ContentTemplate="{DataTemplate views:NotificationsPage}" 
-            Route="notifications" />
-        
-        <!-- Profile Tab -->
-        <ShellContent 
-            Title="Profil" 
-            Icon="profile_icon.png"
-            ContentTemplate="{DataTemplate views:ProfilePage}" 
-            Route="profile" />
-    </TabBar>
-
+<Shell x:Class="Blinkr.Mobile.AppShell"
+       xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:local="clr-namespace:Blinkr.Mobile"
+       xmlns:features="clr-namespace:Blinkr.Mobile.Features"
+       Shell.FlyoutBehavior="Disabled"
+       Shell.NavBarIsVisible="False"
+       Shell.TabBarBackgroundColor="{StaticResource Surface}"
+       Shell.TabBarForegroundColor="{StaticResource Primary}"
+       Shell.TabBarUnselectedColor="{StaticResource TabInactive}"
+       Shell.TabBarTitleColor="{StaticResource Primary}">
+  
+  <Shell.Resources>
+    <Style TargetType="TabBar">
+      <Setter Property="Shell.TabBarBackgroundColor" Value="{StaticResource Surface}" />
+      <Setter Property="Shell.TabBarForegroundColor" Value="{StaticResource Primary}" />
+      <Setter Property="Shell.TabBarUnselectedColor" Value="{StaticResource TabInactive}" />
+    </Style>
+  </Shell.Resources>
+  
+  <TabBar>
+    <Tab Title="Akış" Icon="feed.png" Route="feed">
+      <ShellContent ContentTemplate="{DataTemplate features:FeedPage}" />
+    </Tab>
+    
+    <Tab Title="Harita" Icon="map.png" Route="map">
+      <ShellContent ContentTemplate="{DataTemplate features:MapPage}" />
+    </Tab>
+    
+    <Tab Title="Oluştur" Icon="create.png" Route="create">
+      <ShellContent ContentTemplate="{DataTemplate features:CreatePage}" />
+    </Tab>
+    
+    <Tab Title="Bildirimler" Icon="notifications.png" Route="notifications">
+      <ShellContent ContentTemplate="{DataTemplate features:NotificationsPage}" />
+    </Tab>
+    
+    <Tab Title="Profil" Icon="profile.png" Route="profile">
+      <ShellContent ContentTemplate="{DataTemplate features:ProfilePage}" />
+    </Tab>
+  </TabBar>
+  
 </Shell>

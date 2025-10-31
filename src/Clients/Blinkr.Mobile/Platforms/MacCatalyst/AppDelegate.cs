@@ -1,6 +1,6 @@
 ﻿using Foundation;
 
-namespace Blinkr.Mobile;
+namespace Blinkr.Mobile.Platforms.MacCatalyst;
 
 [Register("AppDelegate")]
 public class AppDelegate : MauiUIApplicationDelegate

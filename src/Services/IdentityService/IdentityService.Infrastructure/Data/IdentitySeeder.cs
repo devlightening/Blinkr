@@ -11,6 +11,7 @@ namespace IdentityService.Infrastructure.Data
         // Not: Bu ID'ler, AppDbContext HasData'da kullanılan sabit ID'lerle eşleşmelidir.
         public const string AdminId = "11111111-1111-1111-1111-111111111111";
         public const string UserId = "22222222-2222-2222-2222-222222222222";
+        public const string TestUserId = "33333333-3333-3333-3333-333333333333";
 
         public static async Task SeedAsync(AppDbContext _context)
         {
@@ -35,7 +36,7 @@ namespace IdentityService.Infrastructure.Data
                 _context.Users.Add(admin);
             }
 
-            // 2. AHMET kullanıcısını kontrol et ve ekle
+            // 2. MEHMET kullanıcısını kontrol et ve ekle
             var userGuid = Guid.Parse(UserId);
             var userExists = await _context.Users.AnyAsync(u => u.Id == userGuid);
 
@@ -51,6 +52,24 @@ namespace IdentityService.Infrastructure.Data
                     CreatedAt = DateTime.UtcNow
                 };
                 _context.Users.Add(user);
+            }
+
+            // 3. TEST kullanıcısını kontrol et ve ekle
+            var testUserGuid = Guid.Parse(TestUserId);
+            var testUserExists = await _context.Users.AnyAsync(u => u.Id == testUserGuid);
+
+            if (!testUserExists)
+            {
+                var testUser = new User
+                {
+                    Id = testUserGuid,
+                    UserName = "testuser",
+                    Email = "testuser@blinkr.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Test123!"),
+                    Role = "User",
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Users.Add(testUser);
             }
 
             // Sadece değişiklik varsa kaydet

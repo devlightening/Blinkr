@@ -13,15 +13,16 @@ public static class IdsConfig
 
     public static IEnumerable<ApiScope> ApiScopes => new[]
     {
-        new ApiScope("blinkr.api.read"),
-        new ApiScope("blinkr.api.write")
+        new ApiScope("blinkr_api", "Blinkr API (legacy)"),
+        new ApiScope("blinkr.api.read", "Read access to Blinkr API"),
+        new ApiScope("blinkr.api.write", "Write access to Blinkr API")
     };
 
     public static IEnumerable<ApiResource> ApiResources => new[]
     {
         new ApiResource("blinkr.api", "Blinkr Microservices")
         {
-            Scopes = { "blinkr.api.read", "blinkr.api.write" },
+            Scopes = { "blinkr_api", "blinkr.api.read", "blinkr.api.write" },
             UserClaims = { "role", "name", "email" }
         }
     };
@@ -60,6 +61,50 @@ public static class IdsConfig
 
             // Refresh sonrası access token claim’lerini güncellemek istersen:
             UpdateAccessTokenClaimsOnRefresh = true
+        },
+
+        // Swagger UI için OAuth2 Authorization Code + PKCE
+        new Client
+        {
+            ClientId = "swagger-ui",
+            ClientName = "Swagger UI",
+            RequireClientSecret = false, // Public client
+            AllowedGrantTypes = GrantTypes.Code,
+            
+            RedirectUris = 
+            { 
+                "https://localhost:7259/swagger/oauth2-redirect.html",
+                "http://localhost:5215/swagger/oauth2-redirect.html",
+                "https://localhost:7122/swagger/oauth2-redirect.html" // IdentityServer Swagger
+            },
+            
+            PostLogoutRedirectUris = 
+            {
+                "https://localhost:7259/swagger",
+                "http://localhost:5215/swagger",
+                "https://localhost:7122/swagger"
+            },
+            
+            AllowedScopes = 
+            { 
+                "openid", 
+                "profile", 
+                "roles",
+                "blinkr_api",
+                "blinkr.api.read", 
+                "blinkr.api.write" 
+            },
+            
+            RequirePkce = true,
+            AllowAccessTokensViaBrowser = true,
+            AllowPlainTextPkce = false,
+            
+            AllowedCorsOrigins = 
+            { 
+                "https://localhost:7259", 
+                "http://localhost:5215",
+                "https://localhost:7122"
+            }
         },
 
         // ileride web/mobile için PKCE örneği

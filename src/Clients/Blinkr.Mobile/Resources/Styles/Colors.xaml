@@ -1,76 +1,54 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<?xaml-comp compile="true" ?>
-<ResourceDictionary 
-    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
-
-    <!-- Blinkr Theme Colors - Minimal Light with Coral Accents (Based on UI Design) -->
-    
-    <!-- Primary Colors (Coral/Orange from design) -->
-    <Color x:Key="Primary">#FF6B47</Color>          <!-- Coral primary -->
-    <Color x:Key="PrimaryDark">#E55A3A</Color>      <!-- Darker coral -->
-    <Color x:Key="PrimaryLight">#FF8A6B</Color>     <!-- Lighter coral -->
-    
-    <!-- Background Colors -->
-    <Color x:Key="Background">#F5F5F7</Color>       <!-- Light gray background -->
-    <Color x:Key="Surface">#FFFFFF</Color>          <!-- White cards/surfaces -->
-    <Color x:Key="SurfaceVariant">#F0F0F0</Color>   <!-- Light gray chips -->
-    
-    <!-- Text Colors -->
-    <Color x:Key="OnSurface">#000000</Color>        <!-- Primary text -->
-    <Color x:Key="OnSurfaceVariant">#666666</Color> <!-- Secondary text -->
-    <Color x:Key="OnSurfaceDisabled">#999999</Color><!-- Tertiary text -->
-    
-    <!-- Border Colors -->
-    <Color x:Key="Outline">#E0E0E0</Color>          <!-- Light borders -->
-    <Color x:Key="OutlineVariant">#F0F0F0</Color>   <!-- Very light borders -->
-    
-    <!-- Glassmorphism Colors -->
-    <Color x:Key="GlassBackground">#FAFAFA</Color>   <!-- Glass background -->
-    <Color x:Key="GlassBorder">#E5E7EB</Color>       <!-- Glass border -->
-    <Color x:Key="GlassShadow">#1F29371A</Color>     <!-- Subtle shadow -->
-    
-    <!-- Map Colors -->
-    <Color x:Key="MapPin">#FF6B47</Color>            <!-- Coral pins -->
-    <Color x:Key="MapCluster">#FF6B47</Color>        <!-- Coral clusters -->
-    
-    <!-- Status Colors -->
-    <Color x:Key="Success">#10B981</Color>           <!-- Green -->
-    <Color x:Key="Warning">#F59E0B</Color>           <!-- Orange -->
-    <Color x:Key="Error">#EF4444</Color>             <!-- Red -->
-    <Color x:Key="Like">#FF6B47</Color>              <!-- Coral for likes -->
-    
-    <!-- Legacy Colors (keep for compatibility) -->
-    <Color x:Key="Secondary">#F5F5F7</Color>        <!-- Background alias -->
-    <Color x:Key="Tertiary">#FF6B47</Color>         <!-- Primary alias -->
-    
-    <Color x:Key="White">White</Color>
-    <Color x:Key="Black">Black</Color>
-    <Color x:Key="Magenta">#D600AA</Color>
-    <Color x:Key="MidnightBlue">#190649</Color>
-    <Color x:Key="OffBlack">#1f1f1f</Color>
-
-    <Color x:Key="Gray100">#E1E1E1</Color>
-    <Color x:Key="Gray200">#C8C8C8</Color>
-    <Color x:Key="Gray300">#ACACAC</Color>
-    <Color x:Key="Gray400">#919191</Color>
-    <Color x:Key="Gray500">#6E6E6E</Color>
-    <Color x:Key="Gray600">#404040</Color>
-    <Color x:Key="Gray900">#212121</Color>
-    <Color x:Key="Gray950">#141414</Color>
-
-    <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Primary}"/>
-    <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource Secondary}"/>
-    <SolidColorBrush x:Key="TertiaryBrush" Color="{StaticResource Tertiary}"/>
-    <SolidColorBrush x:Key="WhiteBrush" Color="{StaticResource White}"/>
-    <SolidColorBrush x:Key="BlackBrush" Color="{StaticResource Black}"/>
-
-    <SolidColorBrush x:Key="Gray100Brush" Color="{StaticResource Gray100}"/>
-    <SolidColorBrush x:Key="Gray200Brush" Color="{StaticResource Gray200}"/>
-    <SolidColorBrush x:Key="Gray300Brush" Color="{StaticResource Gray300}"/>
-    <SolidColorBrush x:Key="Gray400Brush" Color="{StaticResource Gray400}"/>
-    <SolidColorBrush x:Key="Gray500Brush" Color="{StaticResource Gray500}"/>
-    <SolidColorBrush x:Key="Gray600Brush" Color="{StaticResource Gray600}"/>
-    <SolidColorBrush x:Key="Gray900Brush" Color="{StaticResource Gray900}"/>
-    <SolidColorBrush x:Key="Gray950Brush" Color="{StaticResource Gray950}"/>
+<?xml version="1.0" encoding="utf-8" ?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+  
+  <!-- Primary Colors -->
+  <Color x:Key="Primary">#FF6B47</Color>
+  <Color x:Key="OnPrimary">#FFFFFF</Color>
+  <Color x:Key="PrimaryLight">#FF8A6B</Color>
+  <Color x:Key="PrimaryDark">#E55A36</Color>
+  
+  <!-- Secondary Colors -->
+  <Color x:Key="Secondary">#F1F3F5</Color>
+  <Color x:Key="OnSecondary">#2A2E34</Color>
+  
+  <!-- Background Colors -->
+  <Color x:Key="Background">#F5F5F7</Color>
+  <Color x:Key="Surface">#FFFFFF</Color>
+  <Color x:Key="OnSurface">#2A2E34</Color>
+  <Color x:Key="CardBackground">#FFFFFF</Color>
+  
+  <!-- Text Colors -->
+  <Color x:Key="TextPrimary">#000000</Color>
+  <Color x:Key="TextSecondary">#666666</Color>
+  <Color x:Key="TextTertiary">#999999</Color>
+  <Color x:Key="SecondaryDarkText">#2A2E34</Color>
+  <Color x:Key="SecondaryLightText">#8E9199</Color>
+  
+  <!-- Border & Divider -->
+  <Color x:Key="Border">#E0E0E0</Color>
+  <Color x:Key="Divider">#F0F0F0</Color>
+  
+  <!-- Accent Colors -->
+  <Color x:Key="SuccessMint">#8BE3D1</Color>
+  <Color x:Key="LikeRed">#FF6B6B</Color>
+  <Color x:Key="CommentBlue">#4A90E2</Color>
+  <Color x:Key="LocationPin">#FF6B47</Color>
+  
+  <!-- Tab Bar -->
+  <Color x:Key="TabActive">#FF6B47</Color>
+  <Color x:Key="TabInactive">#999999</Color>
+  
+  <!-- Chip Background -->
+  <Color x:Key="ChipBackground">#F0F0F0</Color>
+  
+  <!-- Shadow -->
+  <SolidColorBrush x:Key="CardShadowBrush" Color="#10000000"/>
+  
+  <!-- Brushes -->
+  <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Primary}" />
+  <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource Secondary}" />
+  <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource Surface}" />
+  <SolidColorBrush x:Key="OnSurfaceBrush" Color="{StaticResource OnSurface}" />
+  
 </ResourceDictionary>

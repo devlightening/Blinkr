@@ -1,16 +1,3 @@
-using Refit;
-
-namespace Blinkr.Mobile.Core.Api;
-
-public class BlinkrApiClient : IBlinkrApiClient
-{
-    private readonly HttpClient _httpClient;
-
-    public BlinkrApiClient(HttpClient httpClient)
-    {
-        _httpClient = httpClient;
-    }
-
-    // This will be implemented with Refit interfaces
-    // For now, it's a placeholder
-}
+// This file is no longer needed.
+// API client wrapper functionality has been moved to extension methods in IApiClient.cs
+// See ApiClientExtensions class for GetNearbyAsync and GetFeedAsync convenience methods.

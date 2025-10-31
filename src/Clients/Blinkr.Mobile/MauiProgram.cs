@@ -1,111 +1,79 @@
 using Microsoft.Extensions.Logging;
-using Blinkr.Mobile.Core.Auth;
 using Blinkr.Mobile.Core.Api;
-using Blinkr.Mobile.Core.Services;
-using Blinkr.Mobile.Core.Http;
 using Blinkr.Mobile.Features;
-using Blinkr.Mobile.Features.Map;
-using Microsoft.Extensions.Http.Resilience;
+using Refit;
+using System.Net.Http;
 
 namespace Blinkr.Mobile;
 
 public static class MauiProgram
 {
-	public static MauiApp CreateMauiApp()
-	{
-		var builder = MauiApp.CreateBuilder();
-		builder
-			.UseMauiApp<App>()
-			.UseMauiMaps()
-			.ConfigureFonts(fonts =>
-			{
-				fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
-				fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
-			});
-
-		// Register Services
-		RegisterServices(builder.Services);
-
-		// Register Pages and ViewModels
-		RegisterPages(builder.Services);
+    public static MauiApp CreateMauiApp()
+    {
+        var builder = MauiApp.CreateBuilder();
+        
+        builder
+            .UseMauiApp<App>()
+            .UseMauiMaps()
+            .ConfigureFonts(fonts =>
+            {
+                fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+                fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+            });
 
 #if DEBUG
-		builder.Logging.AddDebug();
+        builder.Logging.AddDebug();
 #endif
 
-		return builder.Build();
-	}
+        // API Configuration
+        ConfigureApiServices(builder.Services);
+        
+        // Register Pages
+        ConfigurePages(builder.Services);
 
-	private static void RegisterServices(IServiceCollection services)
-	{
-		// Environment Configuration
-		services.AddSingleton<EnvironmentService>();
-		services.AddSingleton(provider => provider.GetRequiredService<EnvironmentService>().Current);
+        return builder.Build();
+    }
 
-		// Legacy Env support (for compatibility)
-		services.AddSingleton<Env>(provider =>
-		{
-			var config = provider.GetRequiredService<EnvironmentConfig>();
-			return new Env(
-				ApiBase: config.ApiBaseUrl,
-				Authority: config.IdentityBaseUrl,
-				ClientId: "blinkr.mobile",
-				RedirectUri: "blinkr://auth-callback",
-				Scopes: "openid profile api.read api.write"
-			);
-		});
+    private static void ConfigureApiServices(IServiceCollection services)
+    {
+        // Base URL - Android emulator uses 10.0.2.2 to access host machine
+        // BlogService API runs on port 5215 (see launchSettings.json)
+        var baseUrl = DeviceInfo.Platform == DevicePlatform.Android
+            ? "http://10.0.2.2:5215" // Android emulator -> host machine
+            : "http://localhost:5215"; // Windows/iOS
 
-		// Auth Service
-		services.AddSingleton<IAuthService, AuthService>();
+        // Configure Refit HTTP Client with proper error handling
+        services.AddRefitClient<IApiClient>()
+            .ConfigureHttpClient(c =>
+            {
+                c.BaseAddress = new Uri(baseUrl);
+                c.Timeout = TimeSpan.FromSeconds(30);
+                c.DefaultRequestHeaders.Add("User-Agent", "Blinkr-Mobile/1.0");
+            })
+            .ConfigurePrimaryHttpMessageHandler(() =>
+            {
+#if DEBUG
+                // Development only - bypass SSL validation
+                return new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+                };
+#else
+                return new HttpClientHandler();
+#endif
+            });
 
-		// HTTP Client with Device Headers and Resilience
-		services.AddHttpClient("BlinkrApi", (provider, client) =>
-		{
-			var config = provider.GetRequiredService<EnvironmentConfig>();
-			client.BaseAddress = new Uri(config.ApiBaseUrl);
-			client.Timeout = TimeSpan.FromSeconds(15); // Overall timeout
-			
-			// Add device headers
-			client.DefaultRequestHeaders.Add("X-Device-Id", GetDeviceId());
-			client.DefaultRequestHeaders.Add("X-App-Version", GetAppVersion());
-			client.DefaultRequestHeaders.Add("X-Platform", DeviceInfo.Platform.ToString());
-		})
-		.AddStandardResilienceHandler();
+        // Geolocation service
+        services.AddSingleton<IGeolocation>(Geolocation.Default);
+    }
 
-		// Auth refresh handler
-		services.AddTransient<AuthRefreshHandler>();
-
-		// API Client with Auth Refresh Handler
-		services.AddHttpClient<IBlinkrApiClient, BlinkrApiClient>("BlinkrApi")
-			.AddHttpMessageHandler<AuthRefreshHandler>();
-	}
-
-	private static string GetDeviceId()
-	{
-		var deviceId = Preferences.Get("DeviceId", string.Empty);
-		if (string.IsNullOrEmpty(deviceId))
-		{
-			deviceId = Guid.NewGuid().ToString();
-			Preferences.Set("DeviceId", deviceId);
-		}
-		return deviceId;
-	}
-
-	private static string GetAppVersion()
-	{
-		return AppInfo.VersionString;
-	}
-
-	private static void RegisterPages(IServiceCollection services)
-	{
-		// ViewModels
-		services.AddTransient<MapViewModel>();
-
-		// Pages
-		services.AddTransient<MapPage>();
-		services.AddTransient<FeedPage>();
-		services.AddTransient<CreatePage>();
-		services.AddTransient<NotificationsPage>();
-		services.AddTransient<ProfilePage>();
-	}
+    private static void ConfigurePages(IServiceCollection services)
+    {
+        // Register all pages as transient
+        services.AddTransient<FeedPage>();
+        services.AddTransient<MapPage>();
+        services.AddTransient<CreatePage>();
+        services.AddTransient<NotificationsPage>();
+        services.AddTransient<ProfilePage>();
+    }
 }

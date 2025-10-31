@@ -1,7 +1,7 @@
 ﻿using ObjCRuntime;
 using UIKit;
 
-namespace Blinkr.Mobile;
+namespace Blinkr.Mobile.Platforms.iOS;
 
 public class Program
 {

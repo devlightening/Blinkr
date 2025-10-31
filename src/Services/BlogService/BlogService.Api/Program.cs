@@ -536,17 +536,22 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Health check endpoints
+// Health check endpoints (AllowAnonymous)
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    Predicate = _ => true
+}).AllowAnonymous();
+
 app.MapHealthChecks("/health/liveness", new HealthCheckOptions
 {
     Predicate = r => r.Name == "self"
-});
+}).AllowAnonymous();
 
 app.MapHealthChecks("/health/readiness", new HealthCheckOptions
 {
     Predicate = r => r.Tags.Contains("ready"),
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-});
+}).AllowAnonymous();
 
 // Prometheus metrics endpoint
 app.MapPrometheusScrapingEndpoint("/metrics");
