@@ -2,53 +2,97 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
   
-  <!-- Primary Colors -->
-  <Color x:Key="Primary">#FF6B47</Color>
+  <!-- ============================================ -->
+  <!-- FUTURISTIC DARK THEME (Indigo → Purple)      -->
+  <!-- ============================================ -->
+  
+  <!-- Primary Colors (Gradient: Indigo → Purple) -->
+  <Color x:Key="Primary">#6366F1</Color>        <!-- Indigo 500 -->
+  <Color x:Key="Primary2">#8B5CF6</Color>       <!-- Purple 500 -->
   <Color x:Key="OnPrimary">#FFFFFF</Color>
-  <Color x:Key="PrimaryLight">#FF8A6B</Color>
-  <Color x:Key="PrimaryDark">#E55A36</Color>
+  <Color x:Key="PrimaryLight">#818CF8</Color>   <!-- Indigo 400 -->
+  <Color x:Key="PrimaryDark">#4F46E5</Color>    <!-- Indigo 600 -->
   
-  <!-- Secondary Colors -->
-  <Color x:Key="Secondary">#F1F3F5</Color>
-  <Color x:Key="OnSecondary">#2A2E34</Color>
+  <!-- Secondary Colors (Gradient: Pink → Rose) -->
+  <Color x:Key="SecondaryAccent">#EC4899</Color>  <!-- Pink 500 -->
+  <Color x:Key="SecondaryAccent2">#F43F5E</Color> <!-- Rose 500 -->
   
-  <!-- Background Colors -->
-  <Color x:Key="Background">#F5F5F7</Color>
-  <Color x:Key="Surface">#FFFFFF</Color>
-  <Color x:Key="OnSurface">#2A2E34</Color>
-  <Color x:Key="CardBackground">#FFFFFF</Color>
+  <!-- Background Colors (Deep Space) -->
+  <Color x:Key="Background">#0F172A</Color>     <!-- Slate 900 -->
+  <Color x:Key="Surface">#1E293B</Color>        <!-- Slate 800 -->
+  <Color x:Key="CardBackground">#334155</Color> <!-- Slate 700 -->
+  <Color x:Key="OnSurface">#F8FAFC</Color>      <!-- Slate 50 -->
   
-  <!-- Text Colors -->
-  <Color x:Key="TextPrimary">#000000</Color>
-  <Color x:Key="TextSecondary">#666666</Color>
-  <Color x:Key="TextTertiary">#999999</Color>
-  <Color x:Key="SecondaryDarkText">#2A2E34</Color>
-  <Color x:Key="SecondaryLightText">#8E9199</Color>
+  <!-- Secondary Surface -->
+  <Color x:Key="Secondary">#1E293B</Color>      <!-- Slate 800 -->
+  <Color x:Key="OnSecondary">#F8FAFC</Color>
   
-  <!-- Border & Divider -->
-  <Color x:Key="Border">#E0E0E0</Color>
-  <Color x:Key="Divider">#F0F0F0</Color>
+  <!-- Text Colors (High Contrast) -->
+  <Color x:Key="TextPrimary">#F8FAFC</Color>    <!-- Slate 50 -->
+  <Color x:Key="TextSecondary">#CBD5E1</Color>  <!-- Slate 300 -->
+  <Color x:Key="TextTertiary">#94A3B8</Color>   <!-- Slate 400 -->
+  <Color x:Key="TextMuted">#64748B</Color>      <!-- Slate 500 -->
   
-  <!-- Accent Colors -->
-  <Color x:Key="SuccessMint">#8BE3D1</Color>
-  <Color x:Key="LikeRed">#FF6B6B</Color>
-  <Color x:Key="CommentBlue">#4A90E2</Color>
-  <Color x:Key="LocationPin">#FF6B47</Color>
+  <!-- Border & Divider (Subtle) -->
+  <Color x:Key="Border">#334155</Color>         <!-- Slate 700 -->
+  <Color x:Key="Divider">#1E293B</Color>        <!-- Slate 800 -->
   
-  <!-- Tab Bar -->
-  <Color x:Key="TabActive">#FF6B47</Color>
-  <Color x:Key="TabInactive">#999999</Color>
+  <!-- Accent Colors (Vibrant) -->
+  <Color x:Key="Accent">#06B6D4</Color>         <!-- Cyan 500 -->
+  <Color x:Key="AccentGlow">#22D3EE</Color>     <!-- Cyan 400 -->
+  <Color x:Key="SuccessMint">#10B981</Color>    <!-- Emerald 500 -->
+  <Color x:Key="LikeRed">#EF4444</Color>        <!-- Red 500 -->
+  <Color x:Key="CommentBlue">#3B82F6</Color>    <!-- Blue 500 -->
+  <Color x:Key="LocationPin">#6366F1</Color>    <!-- Indigo 500 -->
+  <Color x:Key="MapPin">#6366F1</Color>         <!-- Indigo 500 (alias) -->
   
-  <!-- Chip Background -->
-  <Color x:Key="ChipBackground">#F0F0F0</Color>
+  <!-- Utility Colors -->
+  <Color x:Key="White">#FFFFFF</Color>
+  <Color x:Key="Gray300">#CBD5E1</Color>        <!-- Slate 300 -->
+  <Color x:Key="Gray500">#64748B</Color>        <!-- Slate 500 -->
   
-  <!-- Shadow -->
-  <SolidColorBrush x:Key="CardShadowBrush" Color="#10000000"/>
+  <!-- Tab Bar (Gradient Active) -->
+  <Color x:Key="TabActive">#6366F1</Color>      <!-- Indigo 500 -->
+  <Color x:Key="TabInactive">#64748B</Color>    <!-- Slate 500 -->
   
-  <!-- Brushes -->
+  <!-- Chip Background (Glass) -->
+  <Color x:Key="ChipBackground">#334155</Color> <!-- Slate 700 -->
+  
+  <!-- Shadow (Deep) -->
+  <Color x:Key="Shadow">#40000000</Color>
+  <SolidColorBrush x:Key="CardShadowBrush" Color="#30000000"/>
+  
+  <!-- Card Stroke (Subtle Glow) -->
+  <Color x:Key="CardStroke">#475569</Color>     <!-- Slate 600 -->
+  <Color x:Key="CardStrokeGlow">#6366F1</Color> <!-- Indigo 500 (for hover) -->
+  
+  <!-- Solid Brushes -->
   <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Primary}" />
   <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource Secondary}" />
   <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource Surface}" />
   <SolidColorBrush x:Key="OnSurfaceBrush" Color="{StaticResource OnSurface}" />
+  <SolidColorBrush x:Key="CardStrokeBrush" Color="{StaticResource CardStroke}" />
+  <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource Background}" />
+  <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource Accent}" />
+  
+  <!-- Gradient Brushes (Futuristic) -->
+  <LinearGradientBrush x:Key="PrimaryGradient" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="{StaticResource Primary}" Offset="0.0" />
+    <GradientStop Color="{StaticResource Primary2}" Offset="1.0" />
+  </LinearGradientBrush>
+  
+  <LinearGradientBrush x:Key="SecondaryGradient" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="{StaticResource SecondaryAccent}" Offset="0.0" />
+    <GradientStop Color="{StaticResource SecondaryAccent2}" Offset="1.0" />
+  </LinearGradientBrush>
+  
+  <LinearGradientBrush x:Key="AccentGradient" StartPoint="0,0" EndPoint="1,0">
+    <GradientStop Color="{StaticResource Accent}" Offset="0.0" />
+    <GradientStop Color="{StaticResource AccentGlow}" Offset="1.0" />
+  </LinearGradientBrush>
+  
+  <!-- Glass Effect (Semi-transparent) -->
+  <SolidColorBrush x:Key="GlassBackground" Color="#20334155" />
+  <SolidColorBrush x:Key="GlassBorder" Color="#40475569" />
   
 </ResourceDictionary>

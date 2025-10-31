@@ -56,9 +56,9 @@
 		<AndroidEnableSGenConcurrent>true</AndroidEnableSGenConcurrent>
 		<EmbedAssembliesIntoApk>false</EmbedAssembliesIntoApk>
 		
-		<!-- Fast Deployment -->
-		<AndroidEnableFastDeployment>true</AndroidEnableFastDeployment>
-		<AndroidFastDeploymentType>Assemblies:Dexes</AndroidFastDeploymentType>
+		<!-- Fast Deployment (Geçici olarak kapalı - broken pipe hatası) -->
+		<AndroidEnableFastDeployment>false</AndroidEnableFastDeployment>
+		<!-- <AndroidFastDeploymentType>Assemblies:Dexes</AndroidFastDeploymentType> -->
 		
 		<!-- Debug Keystore (tek keystore kullan) -->
 		<AndroidSigningKeyStore>$(UserProfile)\.android\debug.keystore</AndroidSigningKeyStore>

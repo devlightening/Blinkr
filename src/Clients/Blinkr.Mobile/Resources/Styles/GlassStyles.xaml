@@ -4,17 +4,19 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
 
-    <!-- Glassmorphism Card Style -->
-    <Style x:Key="GlassCard" TargetType="Frame">
-        <Setter Property="BackgroundColor" Value="{StaticResource GlassBackground}" />
-        <Setter Property="BorderColor" Value="{StaticResource GlassBorder}" />
-        <Setter Property="CornerRadius" Value="18" />
-        <Setter Property="HasShadow" Value="True" />
+    <!-- Glassmorphism Card Style (Border) -->
+    <Style x:Key="GlassCardAlt" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        <Setter Property="Stroke" Value="{StaticResource CardStrokeBrush}" />
+        <Setter Property="StrokeThickness" Value="1" />
         <Setter Property="Padding" Value="16" />
         <Setter Property="Margin" Value="12,8" />
+        <Setter Property="StrokeShape">
+            <Setter.Value><RoundRectangle CornerRadius="18" /></Setter.Value>
+        </Setter>
         <Setter Property="Shadow">
             <Setter.Value>
-                <Shadow Brush="{StaticResource GlassShadow}"
+                <Shadow Brush="{StaticResource Shadow}"
                         Offset="0,4"
                         Radius="12"
                         Opacity="0.1" />
@@ -22,15 +24,17 @@
         </Setter>
     </Style>
 
-    <!-- Bottom Sheet Style -->
-    <Style x:Key="BottomSheet" TargetType="Frame">
-        <Setter Property="BackgroundColor" Value="{StaticResource White}" />
-        <Setter Property="CornerRadius" Value="24,24,0,0" />
-        <Setter Property="HasShadow" Value="True" />
+    <!-- Bottom Sheet Style (Border) -->
+    <Style x:Key="BottomSheet" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
         <Setter Property="Padding" Value="20,16" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="StrokeShape">
+            <Setter.Value><RoundRectangle CornerRadius="24,24,0,0" /></Setter.Value>
+        </Setter>
         <Setter Property="Shadow">
             <Setter.Value>
-                <Shadow Brush="{StaticResource GlassShadow}"
+                <Shadow Brush="{StaticResource Shadow}"
                         Offset="0,-4"
                         Radius="16"
                         Opacity="0.15" />
@@ -38,14 +42,16 @@
         </Setter>
     </Style>
 
-    <!-- Map Pin Style -->
-    <Style x:Key="MapPinFrame" TargetType="Frame">
-        <Setter Property="BackgroundColor" Value="{StaticResource MapPin}" />
-        <Setter Property="CornerRadius" Value="20" />
-        <Setter Property="HasShadow" Value="True" />
+    <!-- Map Pin Style (Border) -->
+    <Style x:Key="MapPinFrame" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
         <Setter Property="Padding" Value="8" />
         <Setter Property="WidthRequest" Value="40" />
         <Setter Property="HeightRequest" Value="40" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="StrokeShape">
+            <Setter.Value><Ellipse /></Setter.Value>
+        </Setter>
         <Setter Property="Shadow">
             <Setter.Value>
                 <Shadow Brush="{StaticResource Primary}"
@@ -58,9 +64,9 @@
 
     <!-- Search Bar Style -->
     <Style x:Key="GlassSearchBar" TargetType="SearchBar">
-        <Setter Property="BackgroundColor" Value="{StaticResource GlassBackground}" />
-        <Setter Property="TextColor" Value="{StaticResource PrimaryDarkText}" />
-        <Setter Property="PlaceholderColor" Value="{StaticResource SecondaryDarkText}" />
+        <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource TextSecondary}" />
         <Setter Property="CancelButtonColor" Value="{StaticResource Primary}" />
         <Setter Property="Margin" Value="16,12" />
     </Style>
@@ -68,7 +74,7 @@
     <!-- Button Styles -->
     <Style x:Key="PrimaryButton" TargetType="Button">
         <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
-        <Setter Property="TextColor" Value="{StaticResource White}" />
+        <Setter Property="TextColor" Value="White" />
         <Setter Property="CornerRadius" Value="12" />
         <Setter Property="FontSize" Value="16" />
         <Setter Property="FontAttributes" Value="Bold" />
@@ -85,8 +91,8 @@
 
     <Style x:Key="SecondaryButton" TargetType="Button">
         <Setter Property="BackgroundColor" Value="{StaticResource Secondary}" />
-        <Setter Property="TextColor" Value="{StaticResource PrimaryDarkText}" />
-        <Setter Property="BorderColor" Value="{StaticResource GlassBorder}" />
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="BorderColor" Value="{StaticResource CardStroke}" />
         <Setter Property="BorderWidth" Value="1" />
         <Setter Property="CornerRadius" Value="12" />
         <Setter Property="FontSize" Value="16" />
@@ -96,7 +102,7 @@
     <!-- FAB (Floating Action Button) Style -->
     <Style x:Key="FAB" TargetType="Button">
         <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
-        <Setter Property="TextColor" Value="{StaticResource White}" />
+        <Setter Property="TextColor" Value="White" />
         <Setter Property="CornerRadius" Value="28" />
         <Setter Property="WidthRequest" Value="56" />
         <Setter Property="HeightRequest" Value="56" />

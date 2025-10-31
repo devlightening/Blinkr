@@ -2,10 +2,17 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
 
-  <!-- Page Style -->
+  <!-- Page Style (Dark Background) -->
   <Style TargetType="ContentPage">
     <Style.Setters>
       <Setter Property="BackgroundColor" Value="{StaticResource Background}" />
+    </Style.Setters>
+  </Style>
+  
+  <!-- ScrollView Style -->
+  <Style TargetType="ScrollView">
+    <Style.Setters>
+      <Setter Property="BackgroundColor" Value="Transparent" />
     </Style.Setters>
   </Style>
 
@@ -145,17 +152,18 @@
     </Style.Setters>
   </Style>
 
-  <!-- Card Style -->
+  <!-- Card Style (Glassmorphism) -->
   <Style TargetType="Border" x:Key="Card">
     <Style.Setters>
-      <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
-      <Setter Property="StrokeThickness" Value="0" />
+      <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+      <Setter Property="Stroke" Value="{StaticResource CardStrokeBrush}" />
+      <Setter Property="StrokeThickness" Value="1" />
       <Setter Property="StrokeShape">
-        <Setter.Value><RoundRectangle CornerRadius="16" /></Setter.Value>
+        <Setter.Value><RoundRectangle CornerRadius="20" /></Setter.Value>
       </Setter>
       <Setter Property="Shadow">
         <Setter.Value>
-          <Shadow Brush="{StaticResource CardShadowBrush}" Offset="0,2" Radius="8" Opacity="0.1" />
+          <Shadow Brush="{StaticResource Shadow}" Offset="0,4" Radius="16" Opacity="0.3" />
         </Setter.Value>
       </Setter>
       <Setter Property="Padding" Value="16" />
@@ -163,16 +171,22 @@
     </Style.Setters>
   </Style>
 
-  <!-- Search Bar Style -->
+  <!-- Search Bar Style (Glass) -->
   <Style TargetType="Border" x:Key="SearchBar">
     <Style.Setters>
-      <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
-      <Setter Property="StrokeThickness" Value="0" />
+      <Setter Property="Background" Value="{StaticResource GlassBackground}" />
+      <Setter Property="Stroke" Value="{StaticResource GlassBorder}" />
+      <Setter Property="StrokeThickness" Value="1" />
       <Setter Property="StrokeShape">
         <Setter.Value><RoundRectangle CornerRadius="24" /></Setter.Value>
       </Setter>
       <Setter Property="Padding" Value="16,12" />
       <Setter Property="Margin" Value="16,8" />
+      <Setter Property="Shadow">
+        <Setter.Value>
+          <Shadow Brush="{StaticResource Shadow}" Offset="0,2" Radius="8" Opacity="0.2" />
+        </Setter.Value>
+      </Setter>
     </Style.Setters>
   </Style>
 
@@ -189,15 +203,51 @@
     </Style.Setters>
   </Style>
 
-  <!-- Chip Style -->
+  <!-- Chip Style (Glass) -->
   <Style TargetType="Border" x:Key="Chip">
     <Style.Setters>
-      <Setter Property="BackgroundColor" Value="{StaticResource ChipBackground}" />
-      <Setter Property="StrokeThickness" Value="0" />
+      <Setter Property="Background" Value="{StaticResource GlassBackground}" />
+      <Setter Property="Stroke" Value="{StaticResource GlassBorder}" />
+      <Setter Property="StrokeThickness" Value="1" />
       <Setter Property="StrokeShape">
         <Setter.Value><RoundRectangle CornerRadius="20" /></Setter.Value>
       </Setter>
       <Setter Property="Padding" Value="12,6" />
+    </Style.Setters>
+  </Style>
+
+  <!-- Glass Card Style (Glassmorphism) -->
+  <Style TargetType="Border" x:Key="GlassCard">
+    <Style.Setters>
+      <Setter Property="Stroke" Value="{StaticResource CardStrokeBrush}" />
+      <Setter Property="StrokeThickness" Value="1" />
+      <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+      <Setter Property="Padding" Value="12" />
+      <Setter Property="StrokeShape">
+        <Setter.Value><RoundRectangle CornerRadius="16" /></Setter.Value>
+      </Setter>
+      <Setter Property="Shadow">
+        <Setter.Value>
+          <Shadow Brush="{StaticResource Shadow}" Radius="8" />
+        </Setter.Value>
+      </Setter>
+    </Style.Setters>
+  </Style>
+
+  <!-- FAB (Floating Action Button) -->
+  <Style TargetType="Button" x:Key="FAB">
+    <Style.Setters>
+      <Setter Property="Background" Value="{StaticResource PrimaryGradient}" />
+      <Setter Property="TextColor" Value="White" />
+      <Setter Property="CornerRadius" Value="28" />
+      <Setter Property="WidthRequest" Value="56" />
+      <Setter Property="HeightRequest" Value="56" />
+      <Setter Property="FontSize" Value="24" />
+      <Setter Property="Shadow">
+        <Setter.Value>
+          <Shadow Brush="{StaticResource Primary}" Offset="0,4" Radius="16" Opacity="0.5" />
+        </Setter.Value>
+      </Setter>
     </Style.Setters>
   </Style>
 

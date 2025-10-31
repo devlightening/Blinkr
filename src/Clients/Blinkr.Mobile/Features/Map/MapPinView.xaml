@@ -7,7 +7,7 @@
     <Grid WidthRequest="50" HeightRequest="60">
         
         <!-- Pin Shadow -->
-        <Ellipse Fill="{StaticResource GlassShadow}"
+        <Ellipse Fill="{StaticResource Shadow}"
                  WidthRequest="20"
                  HeightRequest="8"
                  VerticalOptions="End"
@@ -17,7 +17,7 @@
         <Border WidthRequest="40"
                 HeightRequest="40"
                 StrokeThickness="3"
-                Stroke="{StaticResource White}"
+                Stroke="White"
                 BackgroundColor="{StaticResource MapPin}"
                 VerticalOptions="Start">
             <Border.StrokeShape>
@@ -30,7 +30,7 @@
                 <Label x:Name="AvatarLabel"
                        Text="👤"
                        FontSize="20"
-                       TextColor="{StaticResource White}"
+                       TextColor="White"
                        HorizontalOptions="Center"
                        VerticalOptions="Center"
                        IsVisible="{Binding IsSinglePost}" />
@@ -40,7 +40,7 @@
                        Text="{Binding PostCount}"
                        FontSize="14"
                        FontAttributes="Bold"
-                       TextColor="{StaticResource White}"
+                       TextColor="White"
                        HorizontalOptions="Center"
                        VerticalOptions="Center"
                        IsVisible="{Binding IsCluster}" />

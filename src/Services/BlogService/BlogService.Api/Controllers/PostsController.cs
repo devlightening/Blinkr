@@ -103,4 +103,16 @@ public class PostsController : ControllerBase
         var result = await _mediator.Send(query);
         return Ok(result);
     }
+
+    [HttpGet("nearby")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetNearby(
+        [FromQuery] double lat,
+        [FromQuery] double lng,
+        [FromQuery] double radiusKm = 5.0)
+    {
+        var query = new GetNearbyPostsQuery(lat, lng, radiusKm);
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
 }

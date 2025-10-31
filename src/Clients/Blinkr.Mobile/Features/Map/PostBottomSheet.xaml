@@ -5,51 +5,55 @@
              xmlns:api="clr-namespace:Blinkr.Mobile.Core.Api">
 
     <!-- Glass Bottom Sheet -->
-    <Frame Style="{StaticResource BottomSheet}"
+    <Border Style="{StaticResource BottomSheet}"
            x:Name="SheetFrame">
         
         <StackLayout Spacing="16">
             
             <!-- Handle Bar -->
-            <BoxView WidthRequest="40"
+            <Border WidthRequest="40"
                      HeightRequest="4"
-                     CornerRadius="2"
                      BackgroundColor="{StaticResource Gray300}"
-                     HorizontalOptions="Center" />
+                     HorizontalOptions="Center"
+                     StrokeThickness="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="2" />
+                </Border.StrokeShape>
+            </Border>
             
             <!-- Post Header -->
             <Grid ColumnDefinitions="50,*,Auto" ColumnSpacing="12">
                 
                 <!-- Author Avatar -->
-                <Frame Grid.Column="0"
+                <Border Grid.Column="0"
                        WidthRequest="40"
                        HeightRequest="40"
-                       CornerRadius="20"
-                       Padding="0"
-                       BackgroundColor="{StaticResource Primary}">
+                       BackgroundColor="{StaticResource Primary}"
+                       StrokeShape="Ellipse"
+                       StrokeThickness="0">
                     <Label Text="👤"
                            HorizontalOptions="Center"
                            VerticalOptions="Center"
                            FontSize="20"
-                           TextColor="{StaticResource White}" />
-                </Frame>
+                           TextColor="White" />
+                </Border>
                 
                 <!-- Author Info -->
                 <StackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
                     <Label Text="{Binding AuthorName}"
                            FontSize="16"
                            FontAttributes="Bold"
-                           TextColor="{StaticResource PrimaryDarkText}" />
+                           TextColor="{StaticResource TextPrimary}" />
                     <Label Text="{Binding DistanceText}"
                            FontSize="12"
-                           TextColor="{StaticResource SecondaryDarkText}" />
+                           TextColor="{StaticResource TextSecondary}" />
                 </StackLayout>
                 
                 <!-- More Options -->
                 <Button Grid.Column="2"
                         Text="⋯"
                         BackgroundColor="Transparent"
-                        TextColor="{StaticResource SecondaryDarkText}"
+                        TextColor="{StaticResource TextSecondary}"
                         FontSize="20"
                         WidthRequest="40"
                         HeightRequest="40" />
@@ -60,19 +64,19 @@
                 <Label Text="{Binding Title}"
                        FontSize="20"
                        FontAttributes="Bold"
-                       TextColor="{StaticResource PrimaryDarkText}"
+                       TextColor="{StaticResource TextPrimary}"
                        LineBreakMode="WordWrap" />
                 
                 <Label Text="{Binding Content}"
                        FontSize="14"
-                       TextColor="{StaticResource SecondaryDarkText}"
+                       TextColor="{StaticResource TextSecondary}"
                        LineBreakMode="WordWrap"
                        MaxLines="3" />
                 
                 <!-- Created Date -->
                 <Label Text="{Binding CreatedAtText}"
                        FontSize="12"
-                       TextColor="{StaticResource Gray500}" />
+                       TextColor="{StaticResource TextTertiary}" />
             </StackLayout>
 
             <!-- Action Buttons -->
@@ -91,7 +95,7 @@
                 <Label Grid.Column="1"
                        Text="{Binding LikeCount}"
                        FontSize="14"
-                       TextColor="{StaticResource SecondaryDarkText}"
+                       TextColor="{StaticResource TextSecondary}"
                        VerticalOptions="Center" />
                 
                 <!-- Spacer -->
@@ -100,7 +104,7 @@
                 <Button Grid.Column="3"
                         Text="💬"
                         BackgroundColor="Transparent"
-                        TextColor="{StaticResource SecondaryDarkText}"
+                        TextColor="{StaticResource TextSecondary}"
                         FontSize="20"
                         WidthRequest="40"
                         Command="{Binding CommentCommand}" />
@@ -109,7 +113,7 @@
                 <Button Grid.Column="4"
                         Text="📤"
                         BackgroundColor="Transparent"
-                        TextColor="{StaticResource SecondaryDarkText}"
+                        TextColor="{StaticResource TextSecondary}"
                         FontSize="20"
                         WidthRequest="40"
                         Command="{Binding ShareCommand}" />
@@ -131,5 +135,5 @@
             </Grid>
             
         </StackLayout>
-    </Frame>
+    </Border>
 </ContentView>

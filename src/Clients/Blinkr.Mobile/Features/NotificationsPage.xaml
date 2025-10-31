@@ -3,13 +3,13 @@
              xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              Title="Bildirimler"
-             BackgroundColor="{StaticResource Secondary}">
+             BackgroundColor="{StaticResource Background}">
 
     <StackLayout>
         <!-- Header -->
-        <Label Text="Daha Ölsi"
+        <Label Text="Daha Önce"
                FontSize="14"
-               TextColor="{StaticResource SecondaryDarkText}"
+               TextColor="{StaticResource TextSecondary}"
                Margin="16,16,16,8" />
 
         <!-- Notifications List -->
@@ -19,22 +19,22 @@
             
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <Frame Style="{StaticResource GlassCard}"
+                    <Border Style="{StaticResource GlassCard}"
                            Margin="12,4">
                         <Grid ColumnDefinitions="50,*,Auto,Auto">
                             
                             <!-- User Avatar -->
-                            <Frame Grid.Column="0"
+                            <Border Grid.Column="0"
                                    WidthRequest="40"
                                    HeightRequest="40"
-                                   CornerRadius="20"
-                                   Padding="0"
-                                   BackgroundColor="{Binding AvatarColor}">
+                                   BackgroundColor="{Binding AvatarColor}"
+                                   StrokeShape="Ellipse"
+                                   StrokeThickness="0">
                                 <Label Text="{Binding Avatar}"
                                        HorizontalOptions="Center"
                                        VerticalOptions="Center"
                                        FontSize="18" />
-                            </Frame>
+                            </Border>
                             
                             <!-- Notification Content -->
                             <StackLayout Grid.Column="1" 
@@ -43,10 +43,10 @@
                                 <Label Text="{Binding Title}"
                                        FontSize="14"
                                        FontAttributes="Bold"
-                                       TextColor="{StaticResource PrimaryDarkText}" />
+                                       TextColor="{StaticResource TextPrimary}" />
                                 <Label Text="{Binding Message}"
                                        FontSize="12"
-                                       TextColor="{StaticResource SecondaryDarkText}" />
+                                       TextColor="{StaticResource TextSecondary}" />
                             </StackLayout>
                             
                             <!-- Action Icon -->
@@ -61,10 +61,10 @@
                             <Label Grid.Column="3"
                                    Text="{Binding TimeAgo}"
                                    FontSize="12"
-                                   TextColor="{StaticResource SecondaryDarkText}"
+                                   TextColor="{StaticResource TextSecondary}"
                                    VerticalOptions="Center" />
                         </Grid>
-                    </Frame>
+                    </Border>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
