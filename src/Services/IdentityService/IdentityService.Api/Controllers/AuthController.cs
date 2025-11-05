@@ -30,5 +30,18 @@ namespace IdentityService.Api.Controllers
             if (response == null) return Unauthorized("Invalid credentials.");
             return Ok(response);
         }
+
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request)
+        {
+            var response = await _userService.RefreshTokenAsync(request.RefreshToken);
+            if (response == null) return Unauthorized("Invalid refresh token.");
+            return Ok(response);
+        }
+    }
+
+    public class RefreshTokenRequest
+    {
+        public string RefreshToken { get; set; } = string.Empty;
     }
 }

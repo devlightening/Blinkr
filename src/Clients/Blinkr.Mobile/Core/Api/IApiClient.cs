@@ -105,8 +105,12 @@ public record PostListDto(
     DateTime CreatedAt,
     int LikeCount,
     int CommentCount,
-    double? DistanceMeters = null,
-    string? LocationName = null);
+    List<string>? MediaUrls = null,
+    string? LocationName = null,
+    object? Location = null,
+    double? Latitude = null,
+    double? Longitude = null,
+    double? DistanceMeters = null);
 
 public record AddLocationRequest(
     double Latitude, 

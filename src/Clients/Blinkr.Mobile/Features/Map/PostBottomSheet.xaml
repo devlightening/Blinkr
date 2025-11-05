@@ -44,7 +44,7 @@
                            FontSize="16"
                            FontAttributes="Bold"
                            TextColor="{StaticResource TextPrimary}" />
-                    <Label Text="{Binding DistanceText}"
+                    <Label Text="Yakında"
                            FontSize="12"
                            TextColor="{StaticResource TextSecondary}" />
                 </StackLayout>
@@ -86,14 +86,14 @@
                 <Button Grid.Column="0"
                         Text="❤️"
                         BackgroundColor="Transparent"
-                        TextColor="{StaticResource Tertiary}"
+                        TextColor="{StaticResource LikeRed}"
                         FontSize="20"
                         WidthRequest="40"
                         Command="{Binding LikeCommand}" />
                 
                 <!-- Like Count -->
                 <Label Grid.Column="1"
-                       Text="{Binding LikeCount}"
+                       Text="{Binding LikeCount, StringFormat='{0}'}"
                        FontSize="14"
                        TextColor="{StaticResource TextSecondary}"
                        VerticalOptions="Center" />
@@ -124,14 +124,12 @@
                 <Button Grid.Column="0"
                         Text="Yorum Yap"
                         Style="{StaticResource SecondaryButton}"
-                        FontSize="14"
-                        Command="{Binding CommentCommand}" />
+                        FontSize="14" />
                 
                 <Button Grid.Column="1"
                         Text="Yol Tarifi"
                         Style="{StaticResource PrimaryButton}"
-                        FontSize="14"
-                        Command="{Binding DirectionsCommand}" />
+                        FontSize="14" />
             </Grid>
             
         </StackLayout>

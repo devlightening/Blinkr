@@ -1,31 +1,41 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using IdentityService.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace IdentityService.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class SecureTestController : ControllerBase
+    [Authorize]
+    public class UsersController : ControllerBase
     {
-     
-        [HttpGet("me")]
-        [Authorize]
-        public IActionResult GetMe()
+        private readonly IUserService _userService;
+
+        public UsersController(IUserService userService)
         {
-            var claims = User.Claims.Select(c => new { c.Type, c.Value });
-            return Ok(new
-            {
-                Message = "You are authorized ",
-                Claims = claims
-            });
+            _userService = userService;
         }
 
-
-        [HttpGet("public")]
-        [AllowAnonymous]
-        public IActionResult PublicEndpoint()
+        /// <summary>
+        /// GET /api/users/me - Get current user info
+        /// </summary>
+        [HttpGet("me")]
+        public async Task<IActionResult> GetMe()
         {
-            return Ok("This is a public endpoint ");
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized("Invalid token.");
+            }
+
+            var user = await _userService.GetUserByIdAsync(userId);
+            if (user == null)
+            {
+                return NotFound("User not found.");
+            }
+
+            return Ok(user);
         }
     }
 }

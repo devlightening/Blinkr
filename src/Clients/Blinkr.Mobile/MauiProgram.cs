@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Blinkr.Mobile.Core.Api;
+using Blinkr.Mobile.Core.Auth;
 using Blinkr.Mobile.Features;
+using Blinkr.Mobile.Features.Map;
 using Refit;
 using System.Net.Http;
 
@@ -12,9 +14,9 @@ public static class MauiProgram
     {
         var builder = MauiApp.CreateBuilder();
         
+        // 1) App'i factory ile kaydet (sp => new App(sp))
         builder
-            .UseMauiApp<App>()
-            .UseMauiMaps()
+            .UseMauiApp(sp => new App(sp))
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -28,9 +30,12 @@ public static class MauiProgram
         // API Configuration
         ConfigureApiServices(builder.Services);
         
-        // Register Pages
+        // Register Pages (must be before AppShell)
         ConfigurePages(builder.Services);
 
+        // 2) AppShell'i FACTORYSİZ kaydet (erken kurulum tetiklenmesin)
+        builder.Services.AddSingleton<AppShell>();
+        
         return builder.Build();
     }
 
@@ -63,17 +68,49 @@ public static class MauiProgram
 #endif
             });
 
+        // Blinkr API Client (for map/posts)
+        services.AddRefitClient<IBlinkrApiClient>()
+            .ConfigureHttpClient(c =>
+            {
+                c.BaseAddress = new Uri(baseUrl);
+                c.Timeout = TimeSpan.FromSeconds(30);
+                c.DefaultRequestHeaders.Add("User-Agent", "Blinkr-Mobile/1.0");
+            })
+            .ConfigurePrimaryHttpMessageHandler(() =>
+            {
+#if DEBUG
+                return new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+                };
+#else
+                return new HttpClientHandler();
+#endif
+            });
+
+        // Environment Configuration
+        var env = Env.LoadFromConfig();
+        services.AddSingleton(env);
+
+        // Auth Service
+        services.AddSingleton<IAuthService, AuthService>();
+
         // Geolocation service
         services.AddSingleton<IGeolocation>(Geolocation.Default);
     }
 
     private static void ConfigurePages(IServiceCollection services)
     {
+        // Register ViewModels
+        services.AddTransient<MapViewModel>();
+        services.AddTransient<SettingsViewModel>();
+
         // Register all pages as transient
         services.AddTransient<FeedPage>();
         services.AddTransient<MapPage>();
         services.AddTransient<CreatePage>();
         services.AddTransient<NotificationsPage>();
         services.AddTransient<ProfilePage>();
+        services.AddTransient<SettingsPage>();
     }
 }

@@ -52,6 +52,57 @@ namespace IdentityService.Infrastructure.Services
             return GenerateAuthResponse(user);
         }
 
+        public async Task<AuthResponse?> RefreshTokenAsync(string refreshToken)
+        {
+            // Simple implementation: decode refresh token and validate
+            // In production, store refresh tokens in DB with expiry
+            try
+            {
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var key = Encoding.UTF8.GetBytes(_config["Jwt:Key"]);
+
+                var validationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = true,
+                    ValidIssuer = _config["Jwt:Issuer"],
+                    ValidateAudience = true,
+                    ValidAudience = _config["Jwt:Audience"],
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.Zero
+                };
+
+                var principal = tokenHandler.ValidateToken(refreshToken, validationParameters, out var validatedToken);
+                var userIdClaim = principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
+                if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                    return null;
+
+                var user = await _context.Users.FindAsync(userId);
+                if (user == null) return null;
+
+                return GenerateAuthResponse(user);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public async Task<UserResponse?> GetUserByIdAsync(Guid userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return null;
+
+            return new UserResponse
+            {
+                UserId = user.Id,
+                UserName = user.UserName,
+                Email = user.Email
+            };
+        }
+
         private AuthResponse GenerateAuthResponse(User user)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
@@ -77,12 +128,32 @@ namespace IdentityService.Infrastructure.Services
 
             var token = tokenHandler.CreateToken(tokenDescriptor);
 
+            // Generate refresh token (longer expiry)
+            var refreshTokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(new[]
+                {
+                    new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString())
+                }),
+                Expires = DateTime.UtcNow.AddDays(7), // 7 days
+                SigningCredentials = new SigningCredentials(
+                    new SymmetricSecurityKey(key),
+                    SecurityAlgorithms.HmacSha256Signature
+                ),
+                Audience = _config["Jwt:Audience"],
+                Issuer = _config["Jwt:Issuer"]
+            };
+
+            var refreshToken = tokenHandler.CreateToken(refreshTokenDescriptor);
+
             return new AuthResponse
             {
                 UserId = user.Id,
                 UserName = user.UserName,
                 Email = user.Email,
-                Token = tokenHandler.WriteToken(token)
+                Token = tokenHandler.WriteToken(token),
+                RefreshToken = tokenHandler.WriteToken(refreshToken),
+                ExpiresIn = 7200 // 2 hours in seconds
             };
         }
     }

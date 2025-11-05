@@ -14,7 +14,7 @@ public partial class ProfilePage : ContentPage
 
     private async void OnSettingsClicked(object sender, EventArgs e)
     {
-        // TODO: Navigate to settings page
-        await DisplayAlert("Ayarlar", "Ayarlar sayfası yakında eklenecek.", "Tamam");
+        // Navigate to settings page
+        await Shell.Current.GoToAsync(nameof(SettingsPage));
     }
 }

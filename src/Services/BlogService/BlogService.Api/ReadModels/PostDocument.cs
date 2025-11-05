@@ -13,6 +13,10 @@ public class PostDocument
     public Guid Id { get; set; }
 
     public Guid AuthorId { get; set; }
+    
+    [BsonIgnoreIfNull]
+    public string? AuthorName { get; set; }
+    
     public string Title { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }

@@ -15,13 +15,23 @@ namespace Blinkr.Projections.Worker.Documents
         // Also store AuthorId as string to avoid GuidRepresentation issues
         [BsonRepresentation(BsonType.String)]
         public Guid AuthorId { get; set; }
+        
+        [BsonIgnoreIfNull]
+        public string? AuthorName { get; set; }
 
         public string Title { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
         public DateTime CreatedAtUtc { get; set; }
+        public DateTime? UpdatedAtUtc { get; set; }
 
         public int LikeCount { get; set; }
         public List<Comment> Comments { get; set; } = new List<Comment>();
+        
+        /// <summary>
+        /// Computed property for comment count
+        /// </summary>
+        [BsonIgnore]
+        public int CommentCount => Comments?.Count ?? 0;
         public List<Media> Media { get; set; } = new List<Media>();
         
         // Location support - GeoJSON Point for 2dsphere indexing

@@ -362,6 +362,25 @@ public class PostQueryService : IPostQueryService
             var items = docs.Select(d =>
             {
                 var id = d.GetValue("_id", BsonNull.Value)?.ToString() ?? throw new InvalidOperationException("_id missing");
+                
+                // Extract Location coordinates (GeoJSON format: [lng, lat])
+                double? latitude = null;
+                double? longitude = null;
+                
+                if (d.Contains("Location") && d["Location"].IsBsonDocument)
+                {
+                    var location = d["Location"].AsBsonDocument;
+                    if (location.Contains("coordinates") && location["coordinates"].IsBsonArray)
+                    {
+                        var coords = location["coordinates"].AsBsonArray;
+                        if (coords.Count >= 2)
+                        {
+                            longitude = coords[0].ToDouble(); // GeoJSON: [lng, lat]
+                            latitude = coords[1].ToDouble();
+                        }
+                    }
+                }
+                
                 return new PostListDto
                 {
                     Id = Guid.Parse(id),
@@ -374,6 +393,8 @@ public class PostQueryService : IPostQueryService
                     MediaUrls = d.Contains("Media") ? 
                         d["Media"].AsBsonArray.Select(m => m.AsBsonDocument.GetValue("Url", "").AsString).ToList() : 
                         new List<string>(),
+                    Latitude = latitude,
+                    Longitude = longitude,
                     DistanceMeters = d.GetValue("distance", 0.0).ToDouble()
                 };
             }).ToList();

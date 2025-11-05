@@ -1,10 +1,14 @@
 using Refit;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Blinkr.Mobile.Core.Api;
 
 public interface IBlinkrApiClient
 {
-    // Posts
+    /// <summary>
+    /// Get nearby posts - Backend returns List<PostLocationDto> directly with Lat/Lng
+    /// </summary>
     [Get("/api/posts/nearby")]
     Task<List<PostLocationDto>> GetNearbyPosts(
         [Query] double lat,
@@ -13,15 +17,12 @@ public interface IBlinkrApiClient
 }
 
 // DTOs
+/// <summary>
+/// Lightweight DTO for map markers - matches backend response
+/// </summary>
 public record PostLocationDto(
     Guid Id,
     string Title,
-    string? Content,
     double Lat,
     double Lng,
-    string? AuthorName,
-    string? AuthorAvatarUrl,
-    string? MediaUrl,
-    int LikeCount,
-    int CommentCount,
-    DateTime CreatedAt);
+    string? MediaUrl = null);

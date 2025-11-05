@@ -18,6 +18,8 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageVersion Include="Microsoft.IdentityModel.Tokens" Version="8.0.2" />
     <PackageVersion Include="MongoDB.Bson" Version="3.0.0" />
+    <PackageVersion Include="NetTopologySuite" Version="2.6.0" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" Version="9.0.4" />
     <PackageVersion Include="StackExchange.Redis" Version="2.9.32" />
     <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.0.2" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
@@ -45,7 +47,6 @@
     <PackageVersion Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageVersion Include="IdentityModel" Version="7.0.0" />
     <PackageVersion Include="MongoDB.Driver" Version="3.0.0" />
-    
     <!-- MAUI Mobile Packages -->
     <PackageVersion Include="Microsoft.Maui.Controls" Version="9.0.111" />
     <PackageVersion Include="Microsoft.Maui.Controls.Maps" Version="9.0.111" />
@@ -57,7 +58,6 @@
     <PackageVersion Include="Polly" Version="8.4.2" />
     <PackageVersion Include="Polly.Extensions.Http" Version="3.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="9.0.0" />
-    
     <!-- Additional packages for BlogService.Api -->
     <PackageVersion Include="Microsoft.AspNetCore.RateLimiting" Version="7.0.0-rc.2.22476.2" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Versioning" Version="5.1.0" />
@@ -70,5 +70,6 @@
     <PackageVersion Include="AspNetCore.HealthChecks.RabbitMQ" Version="8.0.1" />
     <PackageVersion Include="AWSSDK.S3" Version="3.7.401" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="8.0.11" />
+    <PackageVersion Include="Yarp.ReverseProxy" Version="2.3.0" />
   </ItemGroup>
 </Project>

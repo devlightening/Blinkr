@@ -98,6 +98,13 @@
                         <Button Text="Yeni"
                                 Style="{StaticResource TabButton}" />
                     </HorizontalStackLayout>
+                    
+                    <!-- Settings Button -->
+                    <Button Text="⚙️ Ayarlar"
+                            Style="{StaticResource SecondaryButton}"
+                            Clicked="OnSettingsClicked"
+                            Margin="0,16,0,0"
+                            HorizontalOptions="Center" />
                 </StackLayout>
             </Border>
 

@@ -1,26 +1,43 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
+             xmlns:map="clr-namespace:Blinkr.Mobile.Features.Map"
+             xmlns:vm="clr-namespace:Blinkr.Mobile.Features.Map"
              x:Class="Blinkr.Mobile.Features.MapPage"
-             Title="Harita">
+             x:DataType="vm:MapViewModel"
+             Title="Harita"
+             BackgroundColor="{StaticResource Background}">
 
-  <Grid RowDefinitions="Auto,*" ColumnDefinitions="*">
+  <Grid>
+    <!-- Leaflet Harita (WebView) -->
+    <WebView x:Name="MapWebView"
+             VerticalOptions="FillAndExpand"
+             HorizontalOptions="FillAndExpand"
+             Navigating="OnWebViewNavigating"
+             Navigated="OnWebViewNavigated" />
 
-    <!-- Arama kapsülü -->
-    <Border Style="{StaticResource Card}" Margin="0,4,0,8" Padding="10" StrokeThickness="0">
-      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-        <Image Source="ic_search.png" WidthRequest="20" HeightRequest="20" Opacity="0.6"/>
-        <Entry Grid.Column="1" Placeholder="Konum ara..." BackgroundColor="Transparent" />
-      </Grid>
+    <!-- Status Message -->
+    <Border Background="{StaticResource GlassBackground}"
+            Stroke="{StaticResource GlassBorder}"
+            StrokeThickness="1"
+            Padding="16,12"
+            Margin="16"
+            VerticalOptions="End"
+            HorizontalOptions="Center"
+            IsVisible="{Binding IsBusy}">
+      <Border.StrokeShape>
+        <RoundRectangle CornerRadius="24" />
+      </Border.StrokeShape>
+      <Label Text="{Binding StatusMessage}"
+             TextColor="{StaticResource TextPrimary}"
+             FontSize="14" />
     </Border>
 
-    <!-- Google Harita -->
-    <maps:Map x:Name="BlinkrMap"
-              Grid.Row="1"
-              IsTrafficEnabled="False"
-              MapType="Street"
-              VerticalOptions="FillAndExpand"
-              HorizontalOptions="FillAndExpand"/>
+    <!-- Bottom Sheet -->
+    <map:PostBottomSheet x:Name="BottomSheet"
+                         Post="{Binding SelectedPost}"
+                         VerticalOptions="End"
+                         TranslationY="500"
+                         IsVisible="{Binding IsBottomSheetVisible}" />
   </Grid>
 </ContentPage>

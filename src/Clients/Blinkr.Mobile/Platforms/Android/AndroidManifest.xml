@@ -11,12 +11,6 @@
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
   <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-  
-  <!-- Google Maps Requirements -->
-  <uses-feature android:name="android.hardware.location" android:required="false" />
-  <uses-feature android:name="android.hardware.location.gps" android:required="false" />
-  <uses-feature android:name="android.hardware.location.network" android:required="false" />
-  <uses-feature android:glEsVersion="0x00020000" android:required="true" />
 
   <application
       android:allowBackup="true"
@@ -25,11 +19,7 @@
       android:supportsRtl="true"
       android:usesCleartextTraffic="true"
       android:networkSecurityConfig="@xml/network_security_config"
-      android:theme="@style/Maui.MainTheme"> 
-    <!-- Google Maps API Key -->
-    <meta-data
-        android:name="com.google.android.geo.API_KEY"
-        android:value="@string/google_maps_api_key" />
+      android:theme="@style/Maui.MainTheme">
 
     <!-- Yanlış/Eski ACW (hash'li) MainActivity kayıtlarını sil -->
     <activity android:name="crc6488302ad6e9e4df1a.MainActivity" tools:node="remove" />

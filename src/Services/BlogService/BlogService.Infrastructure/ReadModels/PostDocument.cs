@@ -11,9 +11,17 @@ public class PostDocument
     [BsonId]
     [BsonRepresentation(MongoDB.Bson.BsonType.String)]
     public Guid Id { get; set; }
+    
+    /// <summary>
+    /// Extra elements from MongoDB (e.g., distance from $geoNear)
+    /// </summary>
+    [BsonExtraElements]
+    public MongoDB.Bson.BsonDocument? ExtraElements { get; set; }
 
     public Guid AuthorId { get; set; }
-    public string AuthorName { get; set; } = string.Empty;
+    
+    [BsonIgnoreIfNull]
+    public string? AuthorName { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
@@ -68,20 +76,26 @@ public class LocationEntity
     /// <summary>
     /// GeoJSON type (always "Point")
     /// </summary>
+    [MongoDB.Bson.Serialization.Attributes.BsonElement("type")]
     public string Type { get; set; } = "Point";
     
     /// <summary>
     /// GeoJSON coordinates [longitude, latitude]
     /// </summary>
+    [MongoDB.Bson.Serialization.Attributes.BsonElement("coordinates")]
     public double[] Coordinates { get; set; } = new double[2];
     
     /// <summary>
     /// Optional location name from reverse geocoding
     /// </summary>
+    [MongoDB.Bson.Serialization.Attributes.BsonElement("name")]
+    [MongoDB.Bson.Serialization.Attributes.BsonIgnoreIfNull]
     public string? Name { get; set; }
     
     /// <summary>
     /// Timestamp when location was added/updated
     /// </summary>
+    [MongoDB.Bson.Serialization.Attributes.BsonElement("createdAt")]
+    [MongoDB.Bson.Serialization.Attributes.BsonIgnoreIfDefault]
     public DateTime CreatedAtUtc { get; set; }
 }

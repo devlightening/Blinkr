@@ -15,6 +15,9 @@
 		
 		<!-- Accept Android SDK Licenses -->
 		<AcceptAndroidSDKLicenses>true</AcceptAndroidSDKLicenses>
+		
+		<!-- Android Permissions -->
+		<AndroidInternetPermission>true</AndroidInternetPermission>
 		<!-- Uncomment to also build the tizen app. You will need to install tizen by following this: https://github.com/Samsung/Tizen.NET -->
 		<!-- <TargetFrameworks>$(TargetFrameworks);net9.0-tizen</TargetFrameworks> -->
 
@@ -92,11 +95,13 @@
 		
 		<!-- Config Files -->
 		<MauiAsset Include="Config\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+		
+		<!-- Leaflet HTML Files -->
+		<MauiAsset Include="wwwroot\**" LogicalName="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" />
-		<PackageReference Include="Microsoft.Maui.Controls.Maps" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" />
 		<PackageReference Include="CommunityToolkit.Mvvm" />
 		<PackageReference Include="Refit" />

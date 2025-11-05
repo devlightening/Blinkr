@@ -363,6 +363,16 @@ public class PostQueryService : IPostQueryService
 
     private static PostListDto MapToPostListDtoWithDistance(PostDocument post, double? distance)
     {
+        // Extract lat/lng from Location (GeoJSON format: [lng, lat])
+        double? latitude = null;
+        double? longitude = null;
+        
+        if (post.Location?.Coordinates != null && post.Location.Coordinates.Length >= 2)
+        {
+            longitude = post.Location.Coordinates[0]; // GeoJSON: [lng, lat]
+            latitude = post.Location.Coordinates[1];
+        }
+        
         return new PostListDto
         {
             Id = post.Id,
@@ -374,6 +384,8 @@ public class PostQueryService : IPostQueryService
             LikeCount = post.LikeCount,
             CommentCount = post.CommentCount,
             MediaUrls = post.Media?.Select(m => m.Url).ToList() ?? new List<string>(),
+            Latitude = latitude,
+            Longitude = longitude,
             DistanceMeters = distance
         };
     }

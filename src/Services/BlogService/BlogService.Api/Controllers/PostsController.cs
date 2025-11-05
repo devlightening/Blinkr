@@ -104,8 +104,13 @@ public class PostsController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// GET /api/posts/nearby - Lightweight endpoint for mobile map
+    /// Returns minimal DTO for map markers
+    /// </summary>
     [HttpGet("nearby")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(List<PostLocationDto>), 200)]
     public async Task<IActionResult> GetNearby(
         [FromQuery] double lat,
         [FromQuery] double lng,
@@ -113,6 +118,28 @@ public class PostsController : ControllerBase
     {
         var query = new GetNearbyPostsQuery(lat, lng, radiusKm);
         var result = await _mediator.Send(query);
-        return Ok(result);
+        
+        // Transform to lightweight DTO for mobile
+        var locationDtos = result.Items.Select(p => new PostLocationDto(
+            p.Id,
+            p.Title,
+            ExtractLatitude(p),
+            ExtractLongitude(p),
+            p.MediaUrls?.FirstOrDefault()
+        )).ToList();
+        
+        return Ok(locationDtos);
+    }
+    
+    // Helper methods to extract lat/lng from PostListDto
+    private static double ExtractLatitude(PostListDto post)
+    {
+        return post.Latitude ?? 0;
+    }
+    
+    private static double ExtractLongitude(PostListDto post)
+    {
+        return post.Longitude ?? 0;
     }
 }
+

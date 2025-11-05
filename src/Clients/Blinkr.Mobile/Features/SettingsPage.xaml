@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Blinkr.Mobile.Features"
+             x:Class="Blinkr.Mobile.Features.SettingsPage"
+             x:DataType="vm:SettingsViewModel"
+             Title="Ayarlar"
+             BackgroundColor="{AppThemeBinding Dark=#0F172A, Light=White}">
+
+  <ScrollView>
+    <VerticalStackLayout Padding="16" Spacing="12">
+      
+      <!-- Dark Theme Toggle -->
+      <Border Style="{StaticResource GlassCard}">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <Label Text="Karanlık Tema" 
+                 TextColor="{StaticResource OnSurface}" 
+                 VerticalOptions="Center"
+                 FontSize="16" />
+          <Switch Grid.Column="1" 
+                  IsToggled="{Binding IsDark, Mode=TwoWay}"
+                  OnColor="{StaticResource Primary}"
+                  ThumbColor="{StaticResource OnSurface}" />
+        </Grid>
+      </Border>
+
+      <!-- Change Password -->
+      <Border Style="{StaticResource GlassCard}">
+        <VerticalStackLayout Spacing="12">
+          <Label Text="Şifre Değiştir" 
+                 FontAttributes="Bold" 
+                 FontSize="18"
+                 TextColor="{StaticResource OnSurface}"/>
+          
+          <Entry Placeholder="Eski şifre" 
+                 IsPassword="True"
+                 Text="{Binding OldPassword}"
+                 TextColor="{StaticResource TextPrimary}"
+                 PlaceholderColor="{StaticResource TextTertiary}" />
+          
+          <Entry Placeholder="Yeni şifre" 
+                 IsPassword="True"
+                 Text="{Binding NewPassword}"
+                 TextColor="{StaticResource TextPrimary}"
+                 PlaceholderColor="{StaticResource TextTertiary}" />
+          
+          <Button Text="Kaydet" 
+                  Style="{StaticResource PrimaryButton}"
+                  Command="{Binding ChangePasswordCommand}"
+                  Margin="0,8,0,0" />
+        </VerticalStackLayout>
+      </Border>
+
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>
+

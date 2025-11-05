@@ -12,6 +12,12 @@
        Shell.TabBarTitleColor="{StaticResource Primary}">
   
   <Shell.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+    
     <Style TargetType="TabBar">
       <Setter Property="Shell.TabBarBackgroundColor" Value="{StaticResource Surface}" />
       <Setter Property="Shell.TabBarForegroundColor" Value="{StaticResource Primary}" />

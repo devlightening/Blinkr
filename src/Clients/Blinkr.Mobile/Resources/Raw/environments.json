@@ -1,6 +1,6 @@
 {
   "Development": {
-    "ApiBaseUrl": "http://10.0.2.2:5215",
+    "ApiBaseUrl": "http://10.0.2.2:5100",
     "IdentityBaseUrl": "http://10.0.2.2:7122",
     "EnableLogging": true,
     "CacheTimeout": 300,

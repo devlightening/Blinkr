@@ -20,6 +20,16 @@ public record PostListDto
     public object? Location { get; init; }
     
     /// <summary>
+    /// Latitude (extracted from Location GeoJSON)
+    /// </summary>
+    public double? Latitude { get; init; }
+    
+    /// <summary>
+    /// Longitude (extracted from Location GeoJSON)
+    /// </summary>
+    public double? Longitude { get; init; }
+    
+    /// <summary>
     /// Distance in meters (populated by $geoNear queries)
     /// </summary>
     public double? DistanceMeters { get; init; }

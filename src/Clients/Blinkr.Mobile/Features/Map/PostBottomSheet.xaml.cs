@@ -7,11 +7,11 @@ namespace Blinkr.Mobile.Features.Map;
 public partial class PostBottomSheet : ContentView
 {
     public static readonly BindableProperty PostProperty =
-        BindableProperty.Create(nameof(Post), typeof(PostListDto), typeof(PostBottomSheet), null, propertyChanged: OnPostChanged);
+        BindableProperty.Create(nameof(Post), typeof(PostLocationDto), typeof(PostBottomSheet), null, propertyChanged: OnPostChanged);
 
-    public PostListDto? Post
+    public PostLocationDto? Post
     {
-        get => (PostListDto?)GetValue(PostProperty);
+        get => (PostLocationDto?)GetValue(PostProperty);
         set => SetValue(PostProperty, value);
     }
 
@@ -26,7 +26,7 @@ public partial class PostBottomSheet : ContentView
 
     private static void OnPostChanged(BindableObject bindable, object oldValue, object newValue)
     {
-        if (bindable is PostBottomSheet sheet && newValue is PostListDto post)
+        if (bindable is PostBottomSheet sheet && newValue is PostLocationDto post)
         {
             sheet.ViewModel.UpdatePost(post);
         }
@@ -48,32 +48,19 @@ public partial class PostBottomSheet : ContentView
 
 public partial class PostBottomSheetViewModel : ObservableObject
 {
-    [ObservableProperty] private string authorName = string.Empty;
     [ObservableProperty] private string title = string.Empty;
-    [ObservableProperty] private string content = string.Empty;
-    [ObservableProperty] private string distanceText = string.Empty;
-    [ObservableProperty] private string createdAtText = string.Empty;
+    [ObservableProperty] private string locationText = string.Empty;
+    [ObservableProperty] private string? mediaUrl;
     [ObservableProperty] private int likeCount;
 
-    public void UpdatePost(PostListDto post)
+    public void UpdatePost(PostLocationDto post)
     {
-        AuthorName = post.AuthorName;
         Title = post.Title;
-        Content = post.Content;
-        LikeCount = post.LikeCount;
-        CreatedAtText = GetRelativeTime(post.CreatedAt);
+        LocationText = $"{post.Lat:F4}, {post.Lng:F4}";
+        MediaUrl = post.MediaUrl;
         
-        if (post.DistanceMeters.HasValue)
-        {
-            var distance = post.DistanceMeters.Value;
-            DistanceText = distance < 1000 
-                ? $"{distance:F0} m" 
-                : $"{distance / 1000:F1} km";
-        }
-        else
-        {
-            DistanceText = post.LocationName ?? "Konum bilgisi yok";
-        }
+        // Lightweight DTO doesn't have like count - will be loaded separately if needed
+        LikeCount = 0;
     }
 
     [RelayCommand]
@@ -97,7 +84,7 @@ public partial class PostBottomSheetViewModel : ObservableObject
         // TODO: Implement share functionality
         await Share.Default.RequestAsync(new ShareTextRequest
         {
-            Text = $"{Title}\n\n{Content}",
+            Text = $"{Title}\n\n{LocationText}",
             Title = "Blinkr'dan Paylaş"
         });
     }
@@ -109,17 +96,4 @@ public partial class PostBottomSheetViewModel : ObservableObject
         await Shell.Current.DisplayAlert("Yol Tarifi", "Harita uygulaması açılacak.", "Tamam");
     }
 
-    private static string GetRelativeTime(DateTime dateTime)
-    {
-        var timeSpan = DateTime.Now - dateTime;
-        
-        return timeSpan.TotalMinutes switch
-        {
-            < 1 => "Az önce",
-            < 60 => $"{(int)timeSpan.TotalMinutes} dk önce",
-            < 1440 => $"{(int)timeSpan.TotalHours} sa önce",
-            < 10080 => $"{(int)timeSpan.TotalDays} gün önce",
-            _ => dateTime.ToString("dd.MM.yyyy")
-        };
-    }
 }
