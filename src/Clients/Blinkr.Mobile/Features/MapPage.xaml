@@ -35,7 +35,7 @@
 
     <!-- Bottom Sheet -->
     <map:PostBottomSheet x:Name="BottomSheet"
-                         Post="{Binding SelectedPost}"
+                         Post="{Binding SelectedPostDetail}"
                          VerticalOptions="End"
                          TranslationY="500"
                          IsVisible="{Binding IsBottomSheetVisible}" />

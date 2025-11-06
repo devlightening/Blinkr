@@ -1,7 +1,7 @@
 {
   "current": "dev",
   "dev": {
-    "apiBase": "http://10.0.2.2:5215",
+    "apiBase": "http://10.0.2.2:5100",
     "authority": "http://10.0.2.2:5001",
     "clientId": "blinkr.mobile",
     "redirectUri": "blinkr://auth-callback",

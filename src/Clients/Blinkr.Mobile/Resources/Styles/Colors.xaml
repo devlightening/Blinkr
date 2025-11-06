@@ -48,6 +48,8 @@
   
   <!-- Utility Colors -->
   <Color x:Key="White">#FFFFFF</Color>
+  <Color x:Key="Gray100">#F1F5F9</Color>        <!-- Slate 100 -->
+  <Color x:Key="Gray200">#E2E8F0</Color>        <!-- Slate 200 -->
   <Color x:Key="Gray300">#CBD5E1</Color>        <!-- Slate 300 -->
   <Color x:Key="Gray500">#64748B</Color>        <!-- Slate 500 -->
   

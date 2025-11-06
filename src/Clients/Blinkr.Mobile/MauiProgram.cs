@@ -57,7 +57,13 @@ public static class MauiProgram
             })
             .ConfigurePrimaryHttpMessageHandler(() =>
             {
-#if DEBUG
+#if ANDROID
+                // Android requires AndroidMessageHandler for cleartext HTTP
+                return new Xamarin.Android.Net.AndroidMessageHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+                };
+#elif DEBUG
                 // Development only - bypass SSL validation
                 return new HttpClientHandler
                 {
@@ -78,7 +84,13 @@ public static class MauiProgram
             })
             .ConfigurePrimaryHttpMessageHandler(() =>
             {
-#if DEBUG
+#if ANDROID
+                // Android requires AndroidMessageHandler for cleartext HTTP
+                return new Xamarin.Android.Net.AndroidMessageHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+                };
+#elif DEBUG
                 return new HttpClientHandler
                 {
                     ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator

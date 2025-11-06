@@ -225,6 +225,7 @@ public partial class MapPage : ContentPage
     {
         try
         {
+            System.Diagnostics.Debug.WriteLine($"[MapPage] HandleAppScheme: {url}");
             var uri = new Uri(url);
             
             if (uri.Host == "pin")
@@ -235,11 +236,18 @@ public partial class MapPage : ContentPage
                 var latStr = query.GetValueOrDefault("lat");
                 var lngStr = query.GetValueOrDefault("lng");
                 
-                if (!string.IsNullOrEmpty(id))
+                System.Diagnostics.Debug.WriteLine($"[MapPage] Pin ID: {id}");
+                
+                if (!string.IsNullOrEmpty(id) && Guid.TryParse(id, out var postId))
                 {
-                    // Use ShowPostById method
-                    await _viewModel.ShowPostById(id);
-                    System.Diagnostics.Debug.WriteLine($"✅ Pin clicked: {id}");
+                    System.Diagnostics.Debug.WriteLine($"[MapPage] Calling LoadPostDetailAsync...");
+                    // Load full post detail
+                    await _viewModel.LoadPostDetailAsync(postId);
+                    System.Diagnostics.Debug.WriteLine($"[MapPage] LoadPostDetailAsync completed");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MapPage] Invalid post ID: {id}");
                 }
             }
             else if (uri.Host == "mapclick")

@@ -4,6 +4,10 @@ using CommunityToolkit.Mvvm.Input;
 using Blinkr.Mobile.Core.Api;
 using Blinkr.Mobile.Core.Auth;
 
+#if ANDROID
+using Android.Util;
+#endif
+
 namespace Blinkr.Mobile.Features.Map;
 
 public partial class MapViewModel : ObservableObject
@@ -16,7 +20,9 @@ public partial class MapViewModel : ObservableObject
     [ObservableProperty] private string statusMessage = "Haritayı hareket ettirin";
     [ObservableProperty] private ObservableCollection<PostLocationDto> nearbyPosts = new();
     [ObservableProperty] private PostLocationDto? selectedPost;
+    [ObservableProperty] private PostDetailDto? selectedPostDetail;
     [ObservableProperty] private bool isBottomSheetVisible;
+    [ObservableProperty] private bool isLoadingDetail;
     
     // Markers for WebView (no MAUI Maps dependency)
     public ObservableCollection<MapMarker> Markers { get; } = new();
@@ -67,6 +73,11 @@ public partial class MapViewModel : ObservableObject
 
         try
         {
+#if ANDROID
+            Log.Info("Blinkr", $"[MapViewModel] LoadNearbyAsync called: lat={lat}, lng={lng}");
+#else
+            Console.WriteLine($"[MapViewModel] LoadNearbyAsync called: lat={lat}, lng={lng}");
+#endif
             IsBusy = true;
             StatusMessage = "Yakındaki postlar yükleniyor...";
 
@@ -146,7 +157,11 @@ public partial class MapViewModel : ObservableObject
             {
                 StatusMessage = $"Hata: {ex.Message}";
             });
-            System.Diagnostics.Debug.WriteLine($"LoadNearby error: {ex}");
+#if ANDROID
+            Log.Error("Blinkr", $"[MapViewModel] LoadNearby error: {ex.Message}");
+#else
+            Console.WriteLine($"[MapViewModel] LoadNearby error: {ex.Message}");
+#endif
         }
         finally
         {
@@ -216,11 +231,15 @@ public partial class MapViewModel : ObservableObject
     /// </summary>
     public async Task ScanAsync(MapBounds? bounds)
     {
-        System.Diagnostics.Debug.WriteLine("🔍 [C#] ScanAsync called");
+        System.Diagnostics.Debug.WriteLine(" [C#] ScanAsync called");
         
         if (IsBusy)
         {
-            System.Diagnostics.Debug.WriteLine("⚠️ [C#] ScanAsync: Already busy, skipping");
+#if ANDROID
+            Log.Warn("Blinkr", "[MapViewModel] ScanAsync: Already busy, skipping");
+#else
+            Console.WriteLine("[MapViewModel] ScanAsync: Already busy, skipping");
+#endif
             return;
         }
 
@@ -229,7 +248,11 @@ public partial class MapViewModel : ObservableObject
             IsBusy = true;
             StatusMessage = "Gönderiler taranıyor...";
             
-            System.Diagnostics.Debug.WriteLine($"📍 [C#] ScanAsync: bounds={bounds?.Center?.Lat},{bounds?.Center?.Lng}");
+#if ANDROID
+            Log.Info("Blinkr", $"[MapViewModel] ScanAsync: bounds={bounds?.Center?.Lat},{bounds?.Center?.Lng}");
+#else
+            Console.WriteLine($"[MapViewModel] ScanAsync: bounds={bounds?.Center?.Lat},{bounds?.Center?.Lng}");
+#endif
 
             // Calculate center and radius from bounds, or use Istanbul as default
             double lat, lng, radiusKm;
@@ -264,12 +287,20 @@ public partial class MapViewModel : ObservableObject
             }
 
             // Call API on background thread
-            System.Diagnostics.Debug.WriteLine($"🌐 [C#] Calling API: lat={lat:F4}, lng={lng:F4}, radius={radiusKm}km");
+#if ANDROID
+            Log.Info("Blinkr", $"[MapViewModel] Calling API: lat={lat:F4}, lng={lng:F4}, radius={radiusKm:F2}km");
+#else
+            Console.WriteLine($"[MapViewModel] Calling API: lat={lat:F4}, lng={lng:F4}, radius={radiusKm:F2}km");
+#endif
             
             var posts = await Task.Run(async () =>
                 await _apiClient.GetNearbyPosts(lat, lng, radiusKm));
             
-            System.Diagnostics.Debug.WriteLine($"✅ [C#] API returned {posts.Count} posts");
+#if ANDROID
+            Log.Info("Blinkr", $"[MapViewModel] API returned {posts.Count} posts");
+#else
+            Console.WriteLine($"[MapViewModel] API returned {posts.Count} posts");
+#endif
 
             // If no posts found, add seed data for Istanbul (for testing)
             if (posts.Count == 0)
@@ -314,7 +345,12 @@ public partial class MapViewModel : ObservableObject
             {
                 StatusMessage = $"Hata: {ex.Message}";
             });
-            System.Diagnostics.Debug.WriteLine($"Scan error: {ex}");
+#if ANDROID
+            Log.Error("Blinkr", $"[MapViewModel] ScanAsync error: {ex.Message}");
+            Log.Error("Blinkr", $"[MapViewModel] Stack trace: {ex.StackTrace}");
+#else
+            Console.WriteLine($"[MapViewModel] ScanAsync error: {ex}");
+#endif
         }
         finally
         {
@@ -388,6 +424,54 @@ public partial class MapViewModel : ObservableObject
         }
         
         return posts;
+    }
+    
+    /// <summary>
+    /// Load full post detail when pin is clicked
+    /// </summary>
+    [RelayCommand]
+    public async Task LoadPostDetailAsync(Guid postId)
+    {
+        if (IsLoadingDetail) return;
+        
+        try
+        {
+            IsLoadingDetail = true;
+            System.Diagnostics.Debug.WriteLine($"[MapViewModel] Loading post detail: {postId}");
+            
+            // Add timeout to prevent ANR
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            
+            var detail = await _apiClient.GetPostById(postId);
+            
+            System.Diagnostics.Debug.WriteLine($"[MapViewModel] Post detail loaded: {detail?.Title}");
+            
+            if (detail != null)
+            {
+                SelectedPostDetail = detail;
+                IsBottomSheetVisible = true;
+                System.Diagnostics.Debug.WriteLine($"[MapViewModel] Bottom sheet opened");
+            }
+            else
+            {
+                StatusMessage = "Post bulunamadı";
+                System.Diagnostics.Debug.WriteLine($"[MapViewModel] Post not found");
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            StatusMessage = "Zaman aşımı";
+            System.Diagnostics.Debug.WriteLine($"[MapViewModel] LoadPostDetail timeout");
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Hata: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine($"[MapViewModel] LoadPostDetail error: {ex}");
+        }
+        finally
+        {
+            IsLoadingDetail = false;
+        }
     }
 }
 

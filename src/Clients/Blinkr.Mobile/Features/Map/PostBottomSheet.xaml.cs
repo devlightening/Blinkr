@@ -7,11 +7,11 @@ namespace Blinkr.Mobile.Features.Map;
 public partial class PostBottomSheet : ContentView
 {
     public static readonly BindableProperty PostProperty =
-        BindableProperty.Create(nameof(Post), typeof(PostLocationDto), typeof(PostBottomSheet), null, propertyChanged: OnPostChanged);
+        BindableProperty.Create(nameof(Post), typeof(PostDetailDto), typeof(PostBottomSheet), null, propertyChanged: OnPostChanged);
 
-    public PostLocationDto? Post
+    public PostDetailDto? Post
     {
-        get => (PostLocationDto?)GetValue(PostProperty);
+        get => (PostDetailDto?)GetValue(PostProperty);
         set => SetValue(PostProperty, value);
     }
 
@@ -26,7 +26,7 @@ public partial class PostBottomSheet : ContentView
 
     private static void OnPostChanged(BindableObject bindable, object oldValue, object newValue)
     {
-        if (bindable is PostBottomSheet sheet && newValue is PostLocationDto post)
+        if (bindable is PostBottomSheet sheet && newValue is PostDetailDto post)
         {
             sheet.ViewModel.UpdatePost(post);
         }
@@ -49,18 +49,50 @@ public partial class PostBottomSheet : ContentView
 public partial class PostBottomSheetViewModel : ObservableObject
 {
     [ObservableProperty] private string title = string.Empty;
-    [ObservableProperty] private string locationText = string.Empty;
-    [ObservableProperty] private string? mediaUrl;
+    [ObservableProperty] private string content = string.Empty;
+    [ObservableProperty] private string authorName = string.Empty;
+    [ObservableProperty] private string? authorAvatarUrl;
+    [ObservableProperty] private string? locationName;
+    [ObservableProperty] private string relativeTime = string.Empty;
+    [ObservableProperty] private List<MediaDto>? media;
     [ObservableProperty] private int likeCount;
+    [ObservableProperty] private int commentCount;
+    
+    public bool HasMedia => Media != null && Media.Count > 0;
+    public bool HasLocation => !string.IsNullOrEmpty(LocationName);
+    public bool HasAvatar => !string.IsNullOrEmpty(AuthorAvatarUrl);
+    public bool HasNoAvatar => string.IsNullOrEmpty(AuthorAvatarUrl);
 
-    public void UpdatePost(PostLocationDto post)
+    public void UpdatePost(PostDetailDto post)
     {
         Title = post.Title;
-        LocationText = $"{post.Lat:F4}, {post.Lng:F4}";
-        MediaUrl = post.MediaUrl;
+        Content = post.Content;
+        AuthorName = post.AuthorName ?? "Bilinmeyen";
+        AuthorAvatarUrl = post.AuthorAvatarUrl;
+        LocationName = post.LocationName;
+        RelativeTime = GetRelativeTime(post.CreatedAt);
+        Media = post.Media;
+        LikeCount = post.LikeCount;
+        CommentCount = post.CommentCount;
         
-        // Lightweight DTO doesn't have like count - will be loaded separately if needed
-        LikeCount = 0;
+        OnPropertyChanged(nameof(HasMedia));
+        OnPropertyChanged(nameof(HasLocation));
+        OnPropertyChanged(nameof(HasAvatar));
+        OnPropertyChanged(nameof(HasNoAvatar));
+    }
+    
+    private static string GetRelativeTime(DateTime dateTime)
+    {
+        var timeSpan = DateTime.Now - dateTime;
+        
+        return timeSpan.TotalMinutes switch
+        {
+            < 1 => "Az önce",
+            < 60 => $"{(int)timeSpan.TotalMinutes} dk önce",
+            < 1440 => $"{(int)timeSpan.TotalHours} sa önce",
+            < 10080 => $"{(int)timeSpan.TotalDays} gün önce",
+            _ => dateTime.ToString("dd.MM.yyyy")
+        };
     }
 
     [RelayCommand]
@@ -84,7 +116,7 @@ public partial class PostBottomSheetViewModel : ObservableObject
         // TODO: Implement share functionality
         await Share.Default.RequestAsync(new ShareTextRequest
         {
-            Text = $"{Title}\n\n{LocationText}",
+            Text = $"{Title}\n\n{LocationName ?? ""}",
             Title = "Blinkr'dan Paylaş"
         });
     }
