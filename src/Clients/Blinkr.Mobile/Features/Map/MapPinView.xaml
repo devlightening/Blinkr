@@ -14,7 +14,8 @@
                  Opacity="0.3" />
         
         <!-- Pin Body -->
-        <Border WidthRequest="40"
+        <Border x:Name="PinBorder"
+                WidthRequest="40"
                 HeightRequest="40"
                 StrokeThickness="3"
                 Stroke="White"
@@ -48,7 +49,8 @@
         </Border>
         
         <!-- Pin Pointer -->
-        <Polygon Points="20,35 25,45 15,45"
+        <Polygon x:Name="PinPointer"
+                 Points="20,35 25,45 15,45"
                  Fill="{StaticResource MapPin}"
                  VerticalOptions="Start"
                  HorizontalOptions="Center" />

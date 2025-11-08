@@ -11,7 +11,8 @@ namespace BlogService.Application.DTOs.PostDtos
         string Title,
         double Lat,
         double Lng,
-        string? MediaUrl = null
+        string? MediaUrl = null,
+        string? AuthorGender = null  // "Male", "Female", "Other", null
     );
 
 }

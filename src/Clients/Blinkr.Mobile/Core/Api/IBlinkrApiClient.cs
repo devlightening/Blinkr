@@ -7,7 +7,7 @@ namespace Blinkr.Mobile.Core.Api;
 public interface IBlinkrApiClient
 {
     /// <summary>
-    /// Get nearby posts - Backend returns List<PostLocationDto> directly with Lat/Lng
+    /// Get nearby posts - Backend returns List of PostLocationDto directly with Lat/Lng
     /// </summary>
     [Get("/api/posts/nearby")]
     Task<List<PostLocationDto>> GetNearbyPosts(
@@ -31,7 +31,8 @@ public record PostLocationDto(
     string Title,
     double Lat,
     double Lng,
-    string? MediaUrl = null);
+    string? MediaUrl = null,
+    string? AuthorGender = null);
 
 /// <summary>
 /// Full post detail DTO - matches backend PostResponseDto

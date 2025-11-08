@@ -11,17 +11,23 @@
         <ScrollView>
             <StackLayout Spacing="0">
             
-                <!-- Handle Bar -->
-                <Border WidthRequest="40"
-                         HeightRequest="4"
-                         BackgroundColor="{StaticResource Gray300}"
-                         HorizontalOptions="Center"
-                         Margin="0,8,0,16"
-                         StrokeThickness="0">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="2" />
-                    </Border.StrokeShape>
-                </Border>
+                <!-- Handle Bar (tappable to close) -->
+                <Grid Margin="0,8,0,16">
+                    <Border WidthRequest="40"
+                             HeightRequest="4"
+                             BackgroundColor="{StaticResource Gray300}"
+                             HorizontalOptions="Center"
+                             StrokeThickness="0">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="2" />
+                        </Border.StrokeShape>
+                    </Border>
+                    <Button BackgroundColor="Transparent"
+                            HeightRequest="44"
+                            WidthRequest="200"
+                            HorizontalOptions="Center"
+                            Clicked="OnHandleTapped" />
+                </Grid>
                 
                 <!-- Media Carousel (if available) -->
                 <CarouselView ItemsSource="{Binding Media}"

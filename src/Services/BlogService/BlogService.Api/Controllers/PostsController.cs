@@ -125,7 +125,8 @@ public class PostsController : ControllerBase
             p.Title,
             ExtractLatitude(p),
             ExtractLongitude(p),
-            p.MediaUrls?.FirstOrDefault()
+            p.MediaUrls?.FirstOrDefault(),
+            p.AuthorGender  // Gender for map pin color
         )).ToList();
         
         return Ok(locationDtos);

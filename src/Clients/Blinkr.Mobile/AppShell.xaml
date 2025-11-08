@@ -4,6 +4,7 @@
        xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
        xmlns:local="clr-namespace:Blinkr.Mobile"
        xmlns:features="clr-namespace:Blinkr.Mobile.Features"
+       xmlns:pages="clr-namespace:Blinkr.Mobile.Pages"
        Shell.FlyoutBehavior="Disabled"
        Shell.NavBarIsVisible="False"
        Shell.TabBarBackgroundColor="{StaticResource Surface}"

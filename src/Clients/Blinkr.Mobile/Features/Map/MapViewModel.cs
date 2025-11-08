@@ -21,7 +21,7 @@ public partial class MapViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<PostLocationDto> nearbyPosts = new();
     [ObservableProperty] private PostLocationDto? selectedPost;
     [ObservableProperty] private PostDetailDto? selectedPostDetail;
-    [ObservableProperty] private bool isBottomSheetVisible;
+    [ObservableProperty] private bool isBottomSheetVisible = false; // Start closed
     [ObservableProperty] private bool isLoadingDetail;
     
     // Markers for WebView (no MAUI Maps dependency)
@@ -39,31 +39,14 @@ public partial class MapViewModel : ObservableObject
     [RelayCommand]
     public async Task LoginAsync()
     {
-        if (IsBusy) return;
-
+        // Navigate to login page instead of calling auth service directly
         try
         {
-            IsBusy = true;
-            StatusMessage = "Logging in...";
-
-            var success = await _auth.LoginAsync();
-            if (success)
-            {
-                IsAuthenticated = true;
-                StatusMessage = "Login successful! Tap to load nearby posts";
-            }
-            else
-            {
-                StatusMessage = "Login failed. Please try again.";
-            }
+            await Shell.Current.GoToAsync("//login");
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Login error: {ex.Message}";
-        }
-        finally
-        {
-            IsBusy = false;
+            StatusMessage = $"Navigation error: {ex.Message}";
         }
     }
 
@@ -315,6 +298,11 @@ public partial class MapViewModel : ObservableObject
             
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
+                // Close bottom sheet if open (prevent auto-opening)
+                IsBottomSheetVisible = false;
+                SelectedPost = null;
+                SelectedPostDetail = null;
+                
                 NearbyPosts.Clear();
                 Markers.Clear();
                 
@@ -326,7 +314,8 @@ public partial class MapViewModel : ObservableObject
                         Title: post.Title,
                         Lat: post.Lat,
                         Lng: post.Lng,
-                        Address: "" // Backend doesn't return address in lightweight DTO
+                        Address: "", // Backend doesn't return address in lightweight DTO
+                        Gender: post.AuthorGender // For pin color
                     ));
                 }
                 
@@ -341,9 +330,13 @@ public partial class MapViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            var errorMessage = ex.Message.Contains("Connection") || ex.Message.Contains("network") || ex.Message.Contains("refused")
+                ? "Sunucuya bağlanılamıyor. Gateway'in çalıştığından emin olun (port 5100)."
+                : $"Hata: {ex.Message}";
+            
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                StatusMessage = $"Hata: {ex.Message}";
+                StatusMessage = errorMessage;
             });
 #if ANDROID
             Log.Error("Blinkr", $"[MapViewModel] ScanAsync error: {ex.Message}");
@@ -413,12 +406,17 @@ public partial class MapViewModel : ObservableObject
                 var likes = random.Next(0, 100);
                 var comments = random.Next(0, 20);
                 
+                // Random gender for pin color testing
+                var genders = new[] { "Male", "Female", "Other", null };
+                var gender = genders[random.Next(genders.Length)];
+                
                 posts.Add(new PostLocationDto(
                     Id: Guid.NewGuid(),
                     Title: $"{postType} - {name}",
                     Lat: offsetLat,
                     Lng: offsetLng,
-                    MediaUrl: null
+                    MediaUrl: null,
+                    AuthorGender: gender
                 ));
             }
         }
@@ -473,21 +471,4 @@ public partial class MapViewModel : ObservableObject
             IsLoadingDetail = false;
         }
     }
-}
-
-// Helper class for map bounds
-public class MapBounds
-{
-    public double North { get; set; }
-    public double South { get; set; }
-    public double East { get; set; }
-    public double West { get; set; }
-    public MapCenter? Center { get; set; }
-    public int Zoom { get; set; }
-}
-
-public class MapCenter
-{
-    public double Lat { get; set; }
-    public double Lng { get; set; }
 }

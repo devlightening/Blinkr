@@ -5,5 +5,6 @@ public sealed record MapMarker(
     string Title,
     double Lat,
     double Lng,
-    string? Address = null
+    string? Address = null,
+    string? Gender = null
 );

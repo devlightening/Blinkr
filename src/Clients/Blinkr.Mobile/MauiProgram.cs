@@ -41,71 +41,78 @@ public static class MauiProgram
 
     private static void ConfigureApiServices(IServiceCollection services)
     {
-        // Base URL - Android emulator uses 10.0.2.2 to access host machine
-        // BlogService API runs on port 5215 (see launchSettings.json)
-        var baseUrl = DeviceInfo.Platform == DevicePlatform.Android
-            ? "http://10.0.2.2:5215" // Android emulator -> host machine
-            : "http://localhost:5215"; // Windows/iOS
+        // Gateway Base URL - Android emulator uses 10.0.2.2 to access host machine
+        // Gateway runs on port 5100
+        var gatewayUrl = DeviceInfo.Platform == DevicePlatform.Android
+            ? "http://10.0.2.2:5100" // Android emulator -> host machine
+            : "http://localhost:5100"; // Windows/iOS
 
-        // Configure Refit HTTP Client with proper error handling
-        services.AddRefitClient<IApiClient>()
+        // Create HttpClient handler factory
+        System.Func<HttpMessageHandler> createHandler = () =>
+        {
+#if ANDROID
+            // Android requires AndroidMessageHandler for cleartext HTTP
+            return new Xamarin.Android.Net.AndroidMessageHandler
+            {
+                ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true,
+                AllowAutoRedirect = false  // 🔥 307 redirect'leri takip etme (backend düzeltilene kadar)
+            };
+#elif DEBUG
+            // Development only - bypass SSL validation
+            return new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            };
+#else
+            return new HttpClientHandler();
+#endif
+        };
+
+        // Register TokenStore
+        services.AddSingleton<ITokenStore, TokenStore>();
+
+        // Register AuthService (depends on ITokenStore)
+        services.AddSingleton<IAuthService, AuthService>();
+
+        // Register AuthMessageHandler (for HttpClient token injection)
+        services.AddTransient<AuthMessageHandler>();
+        
+        // Register AuthRefreshHandler (with automatic 401 refresh)
+        services.AddTransient<AuthRefreshHandler>();
+        
+        // Auth API Client (for login/refresh) - No auth handler needed (login endpoint)
+        services.AddRefitClient<IAuthApiClient>()
             .ConfigureHttpClient(c =>
             {
-                c.BaseAddress = new Uri(baseUrl);
+                c.BaseAddress = new Uri(gatewayUrl);
                 c.Timeout = TimeSpan.FromSeconds(30);
                 c.DefaultRequestHeaders.Add("User-Agent", "Blinkr-Mobile/1.0");
             })
-            .ConfigurePrimaryHttpMessageHandler(() =>
-            {
-#if ANDROID
-                // Android requires AndroidMessageHandler for cleartext HTTP
-                return new Xamarin.Android.Net.AndroidMessageHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
-                };
-#elif DEBUG
-                // Development only - bypass SSL validation
-                return new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-                };
-#else
-                return new HttpClientHandler();
-#endif
-            });
+            .ConfigurePrimaryHttpMessageHandler(createHandler);
 
-        // Blinkr API Client (for map/posts)
+        // Blinkr API Client (for map/posts) - WITH auth handlers (token injection + auto-refresh on 401)
         services.AddRefitClient<IBlinkrApiClient>()
             .ConfigureHttpClient(c =>
             {
-                c.BaseAddress = new Uri(baseUrl);
+                c.BaseAddress = new Uri(gatewayUrl);
                 c.Timeout = TimeSpan.FromSeconds(30);
                 c.DefaultRequestHeaders.Add("User-Agent", "Blinkr-Mobile/1.0");
             })
-            .ConfigurePrimaryHttpMessageHandler(() =>
+            .AddHttpMessageHandler<AuthMessageHandler>()  // 🔑 Bearer token injection
+            .AddHttpMessageHandler<AuthRefreshHandler>()  // 🔄 401 auto-refresh
+            .ConfigurePrimaryHttpMessageHandler(createHandler);
+
+        // Legacy API Client (if still used) - WITH auth handlers
+        services.AddRefitClient<IApiClient>()
+            .ConfigureHttpClient(c =>
             {
-#if ANDROID
-                // Android requires AndroidMessageHandler for cleartext HTTP
-                return new Xamarin.Android.Net.AndroidMessageHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
-                };
-#elif DEBUG
-                return new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-                };
-#else
-                return new HttpClientHandler();
-#endif
-            });
-
-        // Environment Configuration
-        var env = Env.LoadFromConfig();
-        services.AddSingleton(env);
-
-        // Auth Service
-        services.AddSingleton<IAuthService, AuthService>();
+                c.BaseAddress = new Uri(gatewayUrl);
+                c.Timeout = TimeSpan.FromSeconds(30);
+                c.DefaultRequestHeaders.Add("User-Agent", "Blinkr-Mobile/1.0");
+            })
+            .AddHttpMessageHandler<AuthMessageHandler>()  // 🔑 Bearer token injection
+            .AddHttpMessageHandler<AuthRefreshHandler>()  // 🔄 401 auto-refresh
+            .ConfigurePrimaryHttpMessageHandler(createHandler);
 
         // Geolocation service
         services.AddSingleton<IGeolocation>(Geolocation.Default);
@@ -118,6 +125,7 @@ public static class MauiProgram
         services.AddTransient<SettingsViewModel>();
 
         // Register all pages as transient
+        services.AddTransient<Pages.LoginPage>();
         services.AddTransient<FeedPage>();
         services.AddTransient<MapPage>();
         services.AddTransient<CreatePage>();

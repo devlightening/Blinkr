@@ -3,48 +3,51 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
   
   <!-- ============================================ -->
-  <!-- FUTURISTIC DARK THEME (Indigo → Purple)      -->
+  <!-- SNAPCHAT-VARI YELLOW ACCENT THEME           -->
   <!-- ============================================ -->
   
-  <!-- Primary Colors (Gradient: Indigo → Purple) -->
-  <Color x:Key="Primary">#6366F1</Color>        <!-- Indigo 500 -->
-  <Color x:Key="Primary2">#8B5CF6</Color>       <!-- Purple 500 -->
-  <Color x:Key="OnPrimary">#FFFFFF</Color>
-  <Color x:Key="PrimaryLight">#818CF8</Color>   <!-- Indigo 400 -->
-  <Color x:Key="PrimaryDark">#4F46E5</Color>    <!-- Indigo 600 -->
-  
-  <!-- Secondary Colors (Gradient: Pink → Rose) -->
-  <Color x:Key="SecondaryAccent">#EC4899</Color>  <!-- Pink 500 -->
-  <Color x:Key="SecondaryAccent2">#F43F5E</Color> <!-- Rose 500 -->
-  
-  <!-- Background Colors (Deep Space) -->
-  <Color x:Key="Background">#0F172A</Color>     <!-- Slate 900 -->
-  <Color x:Key="Surface">#1E293B</Color>        <!-- Slate 800 -->
-  <Color x:Key="CardBackground">#334155</Color> <!-- Slate 700 -->
-  <Color x:Key="OnSurface">#F8FAFC</Color>      <!-- Slate 50 -->
-  
-  <!-- Secondary Surface -->
-  <Color x:Key="Secondary">#1E293B</Color>      <!-- Slate 800 -->
-  <Color x:Key="OnSecondary">#F8FAFC</Color>
+  <!-- Core Background Colors -->
+  <Color x:Key="BgNavy">#0F172A</Color>         <!-- Slate 900 -->
+  <Color x:Key="CardNavy">#162133</Color>       <!-- Slate 850 -->
+  <Color x:Key="Surface">#111827</Color>        <!-- Slate 900 variant -->
   
   <!-- Text Colors (High Contrast) -->
   <Color x:Key="TextPrimary">#F8FAFC</Color>    <!-- Slate 50 -->
-  <Color x:Key="TextSecondary">#CBD5E1</Color>  <!-- Slate 300 -->
+  <Color x:Key="TextSecondary">#C7D2FE</Color>  <!-- Indigo 200 -->
   <Color x:Key="TextTertiary">#94A3B8</Color>   <!-- Slate 400 -->
   <Color x:Key="TextMuted">#64748B</Color>      <!-- Slate 500 -->
   
-  <!-- Border & Divider (Subtle) -->
+  <!-- Accent Colors (Snapchat Yellow) -->
+  <Color x:Key="AccentYellow">#FFFC00</Color>   <!-- Snapchat sarısı -->
+  <Color x:Key="AccentPurple">#8B5CF6</Color>   <!-- Purple 500 -->
+  <Color x:Key="SecondaryAccent">#EC4899</Color>  <!-- Pink 500 (for compatibility) -->
+  <Color x:Key="SecondaryAccent2">#F43F5E</Color> <!-- Rose 500 (for compatibility) -->
+  
+  <!-- Border & Stroke -->
+  <Color x:Key="Stroke">#243145</Color>         <!-- Slate 700 variant -->
   <Color x:Key="Border">#334155</Color>         <!-- Slate 700 -->
   <Color x:Key="Divider">#1E293B</Color>        <!-- Slate 800 -->
   
-  <!-- Accent Colors (Vibrant) -->
-  <Color x:Key="Accent">#06B6D4</Color>         <!-- Cyan 500 -->
-  <Color x:Key="AccentGlow">#22D3EE</Color>     <!-- Cyan 400 -->
-  <Color x:Key="SuccessMint">#10B981</Color>    <!-- Emerald 500 -->
+  <!-- Semantic Colors -->
+  <Color x:Key="Danger">#EF4444</Color>         <!-- Red 500 -->
+  <Color x:Key="Success">#10B981</Color>        <!-- Emerald 500 -->
   <Color x:Key="LikeRed">#EF4444</Color>        <!-- Red 500 -->
   <Color x:Key="CommentBlue">#3B82F6</Color>    <!-- Blue 500 -->
-  <Color x:Key="LocationPin">#6366F1</Color>    <!-- Indigo 500 -->
-  <Color x:Key="MapPin">#6366F1</Color>         <!-- Indigo 500 (alias) -->
+  
+  <!-- Legacy/Compatibility (mapped to new colors) -->
+  <Color x:Key="Primary">#FFFC00</Color>        <!-- AccentYellow -->
+  <Color x:Key="Primary2">#8B5CF6</Color>       <!-- AccentPurple -->
+  <Color x:Key="OnPrimary">#000000</Color>      <!-- Black (for yellow text) -->
+  <Color x:Key="Background">#0F172A</Color>     <!-- BgNavy -->
+  <Color x:Key="CardBackground">#162133</Color> <!-- CardNavy -->
+  <Color x:Key="OnSurface">#F8FAFC</Color>      <!-- TextPrimary -->
+  <Color x:Key="Secondary">#162133</Color>      <!-- CardNavy -->
+  <Color x:Key="OnSecondary">#F8FAFC</Color>    <!-- TextPrimary -->
+  <Color x:Key="Accent">#FFFC00</Color>         <!-- AccentYellow -->
+  <Color x:Key="AccentGlow">#FFFF33</Color>     <!-- Yellow light -->
+  <Color x:Key="SuccessMint">#10B981</Color>    <!-- Success -->
+  <Color x:Key="LocationPin">#FFFC00</Color>    <!-- AccentYellow -->
+  <Color x:Key="MapPin">#FFFC00</Color>         <!-- AccentYellow -->
   
   <!-- Utility Colors -->
   <Color x:Key="White">#FFFFFF</Color>
@@ -53,20 +56,20 @@
   <Color x:Key="Gray300">#CBD5E1</Color>        <!-- Slate 300 -->
   <Color x:Key="Gray500">#64748B</Color>        <!-- Slate 500 -->
   
-  <!-- Tab Bar (Gradient Active) -->
-  <Color x:Key="TabActive">#6366F1</Color>      <!-- Indigo 500 -->
+  <!-- Tab Bar -->
+  <Color x:Key="TabActive">#FFFC00</Color>      <!-- AccentYellow -->
   <Color x:Key="TabInactive">#64748B</Color>    <!-- Slate 500 -->
   
   <!-- Chip Background (Glass) -->
-  <Color x:Key="ChipBackground">#334155</Color> <!-- Slate 700 -->
+  <Color x:Key="ChipBackground">#162133</Color> <!-- CardNavy -->
   
   <!-- Shadow (Deep) -->
-  <Color x:Key="Shadow">#40000000</Color>
-  <SolidColorBrush x:Key="CardShadowBrush" Color="#30000000"/>
+  <Color x:Key="Shadow">#80000000</Color>
+  <SolidColorBrush x:Key="CardShadowBrush" Color="#80000000"/>
   
-  <!-- Card Stroke (Subtle Glow) -->
-  <Color x:Key="CardStroke">#475569</Color>     <!-- Slate 600 -->
-  <Color x:Key="CardStrokeGlow">#6366F1</Color> <!-- Indigo 500 (for hover) -->
+  <!-- Card Stroke -->
+  <Color x:Key="CardStroke">#243145</Color>     <!-- Stroke -->
+  <Color x:Key="CardStrokeGlow">#FFFC00</Color> <!-- AccentYellow (for hover) -->
   
   <!-- Solid Brushes -->
   <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Primary}" />
@@ -94,7 +97,7 @@
   </LinearGradientBrush>
   
   <!-- Glass Effect (Semi-transparent) -->
-  <SolidColorBrush x:Key="GlassBackground" Color="#20334155" />
-  <SolidColorBrush x:Key="GlassBorder" Color="#40475569" />
+  <SolidColorBrush x:Key="GlassBackground" Color="#1A1E293B" />
+  <SolidColorBrush x:Key="GlassBorder" Color="#40243145" />
   
 </ResourceDictionary>

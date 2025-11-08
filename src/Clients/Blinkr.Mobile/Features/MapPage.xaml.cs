@@ -18,6 +18,14 @@ public partial class MapPage : ContentPage
         
         // Subscribe to property changes
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        
+        // Subscribe to bottom sheet close request
+        BottomSheet.CloseRequested += OnBottomSheetCloseRequested;
+    }
+
+    private void OnBottomSheetCloseRequested(object? sender, EventArgs e)
+    {
+        _viewModel.CloseBottomSheetCommand.Execute(null);
     }
 
     protected override void OnAppearing()

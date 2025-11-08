@@ -10,6 +10,7 @@ public record PostListDto
     public string Content { get; init; } = string.Empty;
     public Guid AuthorId { get; init; }
     public string AuthorName { get; init; } = string.Empty;
+    public string? AuthorGender { get; init; }  // "Male", "Female", "Other", null
     public DateTime CreatedAt { get; init; }
     public DateTime CreatedAtUtc { get; init; }
     public DateTime? UpdatedAtUtc { get; init; }

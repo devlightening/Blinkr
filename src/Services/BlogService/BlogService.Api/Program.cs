@@ -384,6 +384,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
         NameClaimType = "sub",
         RoleClaimType = "role"
     };
+    
+    // 🔥 FIX: 307 redirect yerine 401 dön (mobil için kritik)
+    o.Events = new JwtBearerEvents
+    {
+        OnChallenge = context =>
+        {
+            context.HandleResponse();
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.ContentType = "application/json";
+            return context.Response.WriteAsync("{\"error\":\"Unauthorized\"}");
+        }
+    };
 });
 builder.Services.AddAuthorization(options =>
 {
@@ -520,7 +532,13 @@ if (app.Environment.IsDevelopment())
     });
 }
 app.UseForwardedHeaders(); // Handle proxy headers FIRST
-app.UseHttpsRedirection();
+
+// HTTPS redirection only in production (Gateway handles this in dev)
+if (app.Environment.IsProduction())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseResponseCompression(); // Enable compression middleware
 app.UseResponseCaching(); // Enable response caching middleware
 

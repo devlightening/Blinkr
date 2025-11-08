@@ -21,6 +21,7 @@ public partial class AppShell : Shell
 	private void RegisterRoutes()
 	{
 		// Register routes for navigation
+		Routing.RegisterRoute("login", typeof(Pages.LoginPage));
 		Routing.RegisterRoute(nameof(FeedPage), typeof(FeedPage));
 		Routing.RegisterRoute(nameof(MapPage), typeof(MapPage));
 		Routing.RegisterRoute(nameof(CreatePage), typeof(CreatePage));

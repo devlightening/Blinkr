@@ -9,7 +9,11 @@ namespace Blinkr.Mobile.Core.Services;
 
 public static class ApiClientFactory
 {
-    public static (IApiClient api, HttpClient http) Create(Env env, IAuthService auth)
+    /// <summary>
+    /// Creates an API client with authentication handler.
+    /// Note: This is a legacy factory. New code should use DI from MauiProgram.
+    /// </summary>
+    public static (IApiClient api, HttpClient http) Create(string gatewayBaseUrl, IAuthService auth)
     {
         // Simple retry policy without Polly for now
         // TODO: Implement proper retry policy when needed
@@ -17,7 +21,7 @@ public static class ApiClientFactory
         // Create HttpClient with Auth Handler
         var httpClient = new HttpClient(new AuthHandler(auth))
         {
-            BaseAddress = new Uri(env.ApiBase),
+            BaseAddress = new Uri(gatewayBaseUrl),
             Timeout = TimeSpan.FromSeconds(30)
         };
 

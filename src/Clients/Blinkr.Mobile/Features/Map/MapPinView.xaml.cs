@@ -11,6 +11,9 @@ public partial class MapPinView : ContentView
     public static readonly BindableProperty IsClusterProperty =
         BindableProperty.Create(nameof(IsCluster), typeof(bool), typeof(MapPinView), false);
 
+    public static readonly BindableProperty GenderProperty =
+        BindableProperty.Create(nameof(Gender), typeof(string), typeof(MapPinView), null);
+
     public int PostCount
     {
         get => (int)GetValue(PostCountProperty);
@@ -27,6 +30,12 @@ public partial class MapPinView : ContentView
     {
         get => (bool)GetValue(IsClusterProperty);
         set => SetValue(IsClusterProperty, value);
+    }
+
+    public string? Gender
+    {
+        get => (string?)GetValue(GenderProperty);
+        set => SetValue(GenderProperty, value);
     }
 
     public MapPinView()

@@ -44,6 +44,14 @@ public partial class PostBottomSheet : ContentView
         await SheetFrame.TranslateTo(0, 300, 300, Easing.CubicIn);
         IsVisible = false;
     }
+
+    private void OnHandleTapped(object? sender, EventArgs e)
+    {
+        // Close bottom sheet when handle is tapped
+        CloseRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    public event EventHandler? CloseRequested;
 }
 
 public partial class PostBottomSheetViewModel : ObservableObject

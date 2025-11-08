@@ -33,11 +33,13 @@
              FontSize="14" />
     </Border>
 
-    <!-- Bottom Sheet -->
+    <!-- Bottom Sheet - Max height to leave map buttons accessible (FAB buttons are at bottom right) -->
     <map:PostBottomSheet x:Name="BottomSheet"
                          Post="{Binding SelectedPostDetail}"
                          VerticalOptions="End"
                          TranslationY="500"
+                         ZIndex="1"
+                         MaximumHeightRequest="400"
                          IsVisible="{Binding IsBottomSheetVisible}" />
   </Grid>
 </ContentPage>
