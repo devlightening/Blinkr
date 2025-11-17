@@ -3,12 +3,11 @@ using IdentityService.Application.Interfaces;
 using IdentityService.Domain.Entities;
 using IdentityService.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using BCrypt.Net;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Configuration;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.Tokens;
 
 namespace IdentityService.Infrastructure.Services
 {

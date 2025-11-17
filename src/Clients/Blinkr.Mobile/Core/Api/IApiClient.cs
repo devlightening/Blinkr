@@ -72,12 +72,16 @@ public static class ApiClientExtensions
 
 // DTOs
 public record PagedResult<T>(
-    IReadOnlyList<T> Items, 
-    int TotalCount, 
+    IEnumerable<T> Items, 
+    int Total, 
     int Page, 
     int PageSize) 
 {
-    public bool HasNext => Page * PageSize < TotalCount;
+    public bool HasNext => Page * PageSize < Total;
+    
+    // Backward compatibility properties
+    public int TotalCount => Total;
+    public IReadOnlyList<T> ItemsList => Items.ToList();
 }
 
 public record FeedResponse
@@ -123,6 +127,7 @@ public record CreatePostRequest(
     string Content,
     double? Latitude = null,
     double? Longitude = null,
+    double? AccuracyMeters = null,
     string? LocationName = null);
 
 public record ApiResult(bool Success, string? Message = null);

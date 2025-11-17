@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Blinkr.Mobile.Core.Api;
 using Blinkr.Mobile.Core.Auth;
+using Blinkr.Mobile.Core.Services;
 using Blinkr.Mobile.Features;
 using Blinkr.Mobile.Features.Map;
 using Refit;
@@ -41,11 +42,18 @@ public static class MauiProgram
 
     private static void ConfigureApiServices(IServiceCollection services)
     {
-        // Gateway Base URL - Android emulator uses 10.0.2.2 to access host machine
-        // Gateway runs on port 5100
-        var gatewayUrl = DeviceInfo.Platform == DevicePlatform.Android
-            ? "http://10.0.2.2:5100" // Android emulator -> host machine
-            : "http://localhost:5100"; // Windows/iOS
+        // Service Base URLs - Android emulator uses 10.0.2.2 to access host machine
+        var blogServiceUrl = DeviceInfo.Platform == DevicePlatform.Android
+            ? "http://10.0.2.2:5215" // BlogService port
+            : "http://localhost:5215";
+            
+        var notificationsServiceUrl = DeviceInfo.Platform == DevicePlatform.Android
+            ? "http://10.0.2.2:5212" // NotificationsService port
+            : "http://localhost:5212";
+            
+        var identityServiceUrl = DeviceInfo.Platform == DevicePlatform.Android
+            ? "http://10.0.2.2:5001" // IdentityService port (assumed)
+            : "http://localhost:5001";
 
         // Create HttpClient handler factory
         System.Func<HttpMessageHandler> createHandler = () =>
@@ -54,8 +62,7 @@ public static class MauiProgram
             // Android requires AndroidMessageHandler for cleartext HTTP
             return new Xamarin.Android.Net.AndroidMessageHandler
             {
-                ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true,
-                AllowAutoRedirect = false  // 🔥 307 redirect'leri takip etme (backend düzeltilene kadar)
+                ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
             };
 #elif DEBUG
             // Development only - bypass SSL validation
@@ -70,9 +77,22 @@ public static class MauiProgram
 
         // Register TokenStore
         services.AddSingleton<ITokenStore, TokenStore>();
+        
+        // Register notification services
+        services.AddSingleton<INotificationDeviceTokenProvider, StubNotificationDeviceTokenProvider>();
+        services.AddSingleton<INotificationsBadgeService, NotificationsBadgeService>();
+        
+        // Register geolocation service
+        services.AddSingleton<IGeolocation>(Geolocation.Default);
 
-        // Register AuthService (depends on ITokenStore)
-        services.AddSingleton<IAuthService, AuthService>();
+        // Register AuthService (depends on ITokenStore + optional notification services)
+        services.AddSingleton<IAuthService>(sp =>
+        {
+            var tokenStore = sp.GetRequiredService<ITokenStore>();
+            var notificationsApi = sp.GetService<INotificationsApiClient>();
+            var tokenProvider = sp.GetService<INotificationDeviceTokenProvider>();
+            return new AuthService(tokenStore, notificationsApi, tokenProvider);
+        });
 
         // Register AuthMessageHandler (for HttpClient token injection)
         services.AddTransient<AuthMessageHandler>();
@@ -84,34 +104,43 @@ public static class MauiProgram
         services.AddRefitClient<IAuthApiClient>()
             .ConfigureHttpClient(c =>
             {
-                c.BaseAddress = new Uri(gatewayUrl);
+                c.BaseAddress = new Uri(identityServiceUrl);
                 c.Timeout = TimeSpan.FromSeconds(30);
                 c.DefaultRequestHeaders.Add("User-Agent", "Blinkr-Mobile/1.0");
             })
             .ConfigurePrimaryHttpMessageHandler(createHandler);
 
-        // Blinkr API Client (for map/posts) - WITH auth handlers (token injection + auto-refresh on 401)
+        // Blinkr API Client (for map/posts) - WITH auth refresh handler (auto-refresh on 401)
         services.AddRefitClient<IBlinkrApiClient>()
             .ConfigureHttpClient(c =>
             {
-                c.BaseAddress = new Uri(gatewayUrl);
+                c.BaseAddress = new Uri(blogServiceUrl);
                 c.Timeout = TimeSpan.FromSeconds(30);
                 c.DefaultRequestHeaders.Add("User-Agent", "Blinkr-Mobile/1.0");
             })
-            .AddHttpMessageHandler<AuthMessageHandler>()  // 🔑 Bearer token injection
-            .AddHttpMessageHandler<AuthRefreshHandler>()  // 🔄 401 auto-refresh
+            .AddHttpMessageHandler<AuthRefreshHandler>()
             .ConfigurePrimaryHttpMessageHandler(createHandler);
 
-        // Legacy API Client (if still used) - WITH auth handlers
+        // Notifications API Client - WITH auth refresh handler
+        services.AddRefitClient<INotificationsApiClient>()
+            .ConfigureHttpClient(c =>
+            {
+                c.BaseAddress = new Uri(notificationsServiceUrl);
+                c.Timeout = TimeSpan.FromSeconds(30);
+                c.DefaultRequestHeaders.Add("User-Agent", "Blinkr-Mobile/1.0");
+            })
+            .AddHttpMessageHandler<AuthRefreshHandler>()
+            .ConfigurePrimaryHttpMessageHandler(createHandler);
+
+        // Legacy API Client (if still used) - WITH auth refresh handler
         services.AddRefitClient<IApiClient>()
             .ConfigureHttpClient(c =>
             {
-                c.BaseAddress = new Uri(gatewayUrl);
+                c.BaseAddress = new Uri(blogServiceUrl);
                 c.Timeout = TimeSpan.FromSeconds(30);
                 c.DefaultRequestHeaders.Add("User-Agent", "Blinkr-Mobile/1.0");
             })
-            .AddHttpMessageHandler<AuthMessageHandler>()  // 🔑 Bearer token injection
-            .AddHttpMessageHandler<AuthRefreshHandler>()  // 🔄 401 auto-refresh
+            .AddHttpMessageHandler<AuthRefreshHandler>()
             .ConfigurePrimaryHttpMessageHandler(createHandler);
 
         // Geolocation service
@@ -128,7 +157,12 @@ public static class MauiProgram
         services.AddTransient<Pages.LoginPage>();
         services.AddTransient<FeedPage>();
         services.AddTransient<MapPage>();
-        services.AddTransient<CreatePage>();
+        services.AddTransient<CreatePage>(sp =>
+        {
+            var apiClient = sp.GetService<IApiClient>();
+            var geolocation = sp.GetRequiredService<IGeolocation>();
+            return new CreatePage(apiClient, geolocation);
+        });
         services.AddTransient<NotificationsPage>();
         services.AddTransient<ProfilePage>();
         services.AddTransient<SettingsPage>();

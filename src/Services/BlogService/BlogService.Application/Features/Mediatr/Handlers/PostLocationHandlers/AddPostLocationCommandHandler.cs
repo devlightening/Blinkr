@@ -10,14 +10,15 @@ namespace BlogService.Application.Features.MediatR.Handlers.PostLocationHandlers
 /// <summary>
 /// Handler for adding location to a post
 /// </summary>
-public sealed class AddPostLocationCommandHandler : IRequestHandler<AddPostLocationCommand>
+public sealed class AddPostLocationCommandHandler
+    : IRequestHandler<AddPostLocationCommand, Unit>   // <-- TResponse: Unit
 {
     private readonly IEventStoreRepository _repository;
     private readonly IGeocodingService _geocodingService;
     private readonly ILogger<AddPostLocationCommandHandler> _logger;
 
     public AddPostLocationCommandHandler(
-        IEventStoreRepository repository, 
+        IEventStoreRepository repository,
         IGeocodingService geocodingService,
         ILogger<AddPostLocationCommandHandler> logger)
     {
@@ -26,7 +27,7 @@ public sealed class AddPostLocationCommandHandler : IRequestHandler<AddPostLocat
         _logger = logger;
     }
 
-    public async Task Handle(AddPostLocationCommand command, CancellationToken cancellationToken)
+    public async Task<Unit> Handle(AddPostLocationCommand command, CancellationToken cancellationToken)
     {
         try
         {
@@ -40,21 +41,19 @@ public sealed class AddPostLocationCommandHandler : IRequestHandler<AddPostLocat
 
             // Load aggregate, add location, save (events will be published via decorator)
             var post = await _repository.LoadAsync<BlogService.Domain.Entities.PostAggregate>(command.PostId, cancellationToken);
-            
-            // Add location to aggregate (this will raise domain event)
+
             post.AddLocation(lat, lon, locationName);
-            
-            // Save aggregate (decorator will publish events)
             await _repository.SaveAsync(post, cancellationToken);
 
             _logger.LogInformation(
                 "📍 PostLocationAdded: PostId={PostId}, Lat={Lat}, Lon={Lon}, Name={Name}, Precision={Precision}",
                 command.PostId, lat, lon, locationName, command.Precision);
+
+            return Unit.Value; // <-- önemli
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, 
-                "❌ Failed to add location to post: PostId={PostId}", command.PostId);
+            _logger.LogError(ex, "❌ Failed to add location to post: PostId={PostId}", command.PostId);
             throw;
         }
     }

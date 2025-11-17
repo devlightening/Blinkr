@@ -20,7 +20,15 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
     {
         // Get authenticated user ID - authentication is required
         var authorId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User authentication required");
-        var postAggregate = PostAggregate.Create(Guid.NewGuid(), authorId, request.Title, request.Content);
+        var postAggregate = PostAggregate.Create(
+            Guid.NewGuid(), 
+            authorId, 
+            request.Title, 
+            request.Content,
+            request.Latitude,
+            request.Longitude,
+            request.AccuracyMeters,
+            request.LocationName);
 
         if (request.Media is not null)
         {

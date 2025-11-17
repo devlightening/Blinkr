@@ -269,14 +269,18 @@ namespace BlogService.Api
                 switch (domainEvent)
                 {
                     case PostCreatedEvent e:
-                        _log.LogInformation("Publish PostCreated PostId={PostId}", e.PostId);
+                        _log.LogInformation("Publish PostCreated PostId={PostId} Location={HasLocation}", e.PostId, e.Latitude.HasValue && e.Longitude.HasValue);
                         await _bus.Publish<IPostCreatedIntegrationEvent>(new
                         {
                             e.PostId,
                             e.AuthorId,
                             e.Title,
                             e.Content,
-                            e.OccurredOn
+                            e.OccurredOn,
+                            e.Latitude,
+                            e.Longitude,
+                            e.AccuracyMeters,
+                            e.LocationName
                         }, ct).ConfigureAwait(false);
                         break;
 
@@ -297,12 +301,108 @@ namespace BlogService.Api
 
                     case PostLikedEvent e:
                         _log.LogInformation("Publish PostLiked PostId={PostId} UserId={UserId}", e.PostId, e.UserId);
-                        await _bus.Publish(new PostLikedEvent(e.PostId, e.UserId, e.OccurredOn), ct).ConfigureAwait(false);
+                        // For WS-07A: We need to get PostOwnerId from the aggregate
+                        // This requires loading the aggregate, which is expensive but necessary for notifications
+                        try
+                        {
+                            var streamName = $"PostAggregate-{e.PostId}";
+                            var events = _es.ReadStreamAsync(Direction.Forwards, streamName, StreamPosition.Start, cancellationToken: ct);
+                            
+                            Guid? postOwnerId = null;
+                            await foreach (var evt in events)
+                            {
+                                if (evt.Event.EventType.EndsWith(nameof(PostCreatedEvent), StringComparison.Ordinal))
+                                {
+                                    var createdEvent = JsonSerializer.Deserialize<PostCreatedEvent>(evt.Event.Data.Span, JsonOpts);
+                                    postOwnerId = createdEvent?.AuthorId;
+                                    break;
+                                }
+                            }
+                            
+                            if (postOwnerId.HasValue && postOwnerId.Value != Guid.Empty)
+                            {
+                                _log.LogInformation("WS-07A: Resolved PostOwnerId={PostOwnerId} for PostId={PostId}", postOwnerId.Value, e.PostId);
+                                await _bus.Publish<PostLikedIntegrationEvent>(new
+                                {
+                                    PostId = e.PostId,
+                                    PostOwnerId = postOwnerId.Value,
+                                    LikerUserId = e.UserId,
+                                    LikerUserName = "Unknown", // TODO: Get from UserService
+                                    OccurredAtUtc = e.OccurredOn
+                                }, ct).ConfigureAwait(false);
+                                
+                                _log.LogInformation("👍 WS-07A: PostLiked published with PostOwnerId={PostOwnerId}", postOwnerId.Value);
+                            }
+                            else
+                            {
+                                _log.LogWarning("⚠️ WS-07A: PostOwnerId missing/empty for PostId={PostId} - falling back to legacy event", e.PostId);
+                                await _bus.Publish(new PostLikedEvent(e.PostId, e.UserId, e.OccurredOn), ct).ConfigureAwait(false);
+                            }
+                            //else
+                            //{
+                            //    _log.LogWarning("⚠️ WS-07A: Could not determine PostOwnerId for PostId={PostId}", e.PostId);
+                            //    // Fallback to old format
+                            //    await _bus.Publish(new PostLikedEvent(e.PostId, e.UserId, e.OccurredOn), ct).ConfigureAwait(false);
+                            //}
+                        }
+                        catch (Exception ex)
+                        {
+                            _log.LogError(ex, "❌ WS-07A: Error getting PostOwnerId for PostLiked event");
+                            // Fallback to old format
+                            await _bus.Publish(new PostLikedEvent(e.PostId, e.UserId, e.OccurredOn), ct).ConfigureAwait(false);
+                        }
                         break;
 
                     case PostCommentAddedEvent e:
                         _log.LogInformation("Publish PostCommentAdded PostId={PostId} CommentId={CommentId}", e.PostId, e.CommentId);
-                        await _bus.Publish(new PostCommentAddedEvent(e.PostId, e.CommentId, e.AuthorId, e.CommentText, e.OccurredOn), ct).ConfigureAwait(false);
+                        // WS-07A: Publish integration event with PostOwnerId for NotificationService
+                        try
+                        {
+                            var streamName = $"PostAggregate-{e.PostId}";
+                            var events = _es.ReadStreamAsync(Direction.Forwards, streamName, StreamPosition.Start, cancellationToken: ct);
+                            
+                            Guid? postOwnerId = null;
+                            await foreach (var evt in events)
+                            {
+                                if (evt.Event.EventType == nameof(PostCreatedEvent))
+                                {
+                                    var createdEvent = JsonSerializer.Deserialize<PostCreatedEvent>(evt.Event.Data.Span, JsonOpts);
+                                    postOwnerId = createdEvent?.AuthorId;
+                                    break;
+                                }
+                            }
+                            
+                            if (postOwnerId.HasValue && postOwnerId.Value != Guid.Empty)
+                            {
+                                _log.LogInformation("WS-07A: Publishing integration event comment.created PostId={PostId}, PostOwnerId={OwnerId}, AuthorId={AuthorId}", e.PostId, postOwnerId.Value, e.AuthorId);
+                                await _bus.Publish<PostCommentAddedIntegrationEvent>(new
+                                {
+                                    PostId = e.PostId,
+                                    PostOwnerId = postOwnerId.Value,
+                                    CommentId = e.CommentId,
+                                    CommentAuthorId = e.AuthorId,
+                                    CommentAuthorName = "Unknown", // TODO: enrich with user name
+                                    CommentText = e.CommentText,
+                                    OccurredAtUtc = e.OccurredOn
+                                }, ct).ConfigureAwait(false);
+                            }
+                            //else
+                            //{
+                            //    _log.LogWarning("WS-07A: Could not determine PostOwnerId for PostId={PostId} - falling back to legacy event", e.PostId);
+                            //    await _bus.Publish(new PostCommentAddedEvent(e.PostId, e.CommentId, e.AuthorId, e.CommentText, e.OccurredOn), ct).ConfigureAwait(false);
+                            //}
+                            else
+                            {
+                                _log.LogWarning("WS-07A: Could not determine PostOwnerId for PostId={PostId}", e.PostId);
+                                // Fallback: publish domain event (legacy)
+                                await _bus.Publish(new PostCommentAddedEvent(e.PostId, e.CommentId, e.AuthorId, e.CommentText, e.OccurredOn), ct).ConfigureAwait(false);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _log.LogError(ex, "WS-07A: Error preparing PostCommentAddedIntegrationEvent - falling back to legacy event");
+                            await _bus.Publish(new PostCommentAddedEvent(e.PostId, e.CommentId, e.AuthorId, e.CommentText, e.OccurredOn), ct).ConfigureAwait(false);
+                        }
                         break;
 
                     default:

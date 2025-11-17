@@ -7,6 +7,6 @@ using System.Threading.Tasks;
 
 namespace BlogService.Application.Features.Mediatr.Comamnds.PostLikeCommands
 {
-    public record CreatePostLikeCommand(Guid PostId) : IRequest;
+    public record CreatePostLikeCommand(Guid PostId) : IRequest<Unit>;
 
 }

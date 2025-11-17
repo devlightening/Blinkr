@@ -26,6 +26,9 @@ public class MongoIndexManager
             .Descending(p => p.CreatedAtUtc);
         var userPostsIndexModel = new CreateIndexModel<PostDocument>(userPostsIndexKeys);
         
+        // Note: Geospatial indexing is handled by BlogService MongoIndexService
+        // which creates compound index "ix_posts_location_time" for optimal NOW feed performance
+        
         await postsCollection.Indexes.CreateManyAsync(
             new[] { feedIndexModel, userPostsIndexModel });
     }

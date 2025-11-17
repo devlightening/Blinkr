@@ -390,4 +390,13 @@ public class CachedPostQueryService : IPostQueryService
             _logger.LogWarning(ex, "Error writing to cache for key: {Key}", key);
         }
     }
+    
+    /// <summary>
+    /// Debug method to check posts with location data (no caching for debug)
+    /// </summary>
+    public async Task<int> DebugCheckLocationPostsAsync(CancellationToken cancellationToken = default)
+    {
+        // Debug methods should not be cached
+        return await _inner.DebugCheckLocationPostsAsync(cancellationToken);
+    }
 }

@@ -4,7 +4,6 @@ using BlogService.Application.Services.Queries;
 using BlogService.Infrastructure.Services;
 using BlogService.Infrastructure.Services.Indexes;
 using BlogService.Api.RateLimiting;
-using BlogService.Api.Middleware;
 using BlogService.Application.Common.Behaviors;
 using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Mappings;
@@ -30,7 +29,7 @@ using MongoDB.Driver;
 using MongoDB.Bson;
 using Serilog;
 using System.Reflection;
-using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json.Serialization;
 using System.IO.Compression;
 using Microsoft.AspNetCore.ResponseCompression;
@@ -45,6 +44,7 @@ using OpenTelemetry.Metrics;
 using Amazon.S3;
 using BlogService.Api.Services;
 using System.Diagnostics;
+using BlogService.Api.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -70,13 +70,18 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials()
-            // Expose rate limiting headers for mobile
             .WithExposedHeaders("RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset", "Retry-After");
     });
 });
-builder.Host.UseSerilog((ctx, lc) => lc.ReadFrom.Configuration(ctx.Configuration).WriteTo.Console());
+
+builder.Host.UseSerilog((ctx, lc) =>
+    lc.ReadFrom.Configuration(ctx.Configuration).WriteTo.Console());
+
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
+builder.Services.AddControllers()
+    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<CreatePostDtoValidator>();
 builder.Services.AddEndpointsApiExplorer();
@@ -85,7 +90,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    
+
     // Global rate limiter
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
     {
@@ -98,7 +103,7 @@ builder.Services.AddRateLimiter(options =>
             partitionKey: key,
             factory: _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 100,                // 100 req / window
+                PermitLimit = 100, // 100 req / window
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0,
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst
@@ -117,7 +122,7 @@ builder.Services.AddRateLimiter(options =>
             partitionKey: key,
             factory: _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 60,                // 60 req / window for feed
+                PermitLimit = 60, // 60 req / window for feed
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0,
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst
@@ -138,105 +143,122 @@ builder.Services.AddVersionedApiExplorer(o =>
     o.GroupNameFormat = "'v'VVV";
     o.SubstituteApiVersionInUrl = true;
 });
+
+// Swagger – Bearer JWT
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "Blinkr API", Version = "v1" });
-    
-    var authority = builder.Configuration["Auth:Authority"] ?? "https://localhost:7122";
-    c.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Type = SecuritySchemeType.OAuth2,
-        Flows = new OpenApiOAuthFlows
-        {
-            AuthorizationCode = new OpenApiOAuthFlow
-            {
-                AuthorizationUrl = new Uri($"{authority}/connect/authorize"),
-                TokenUrl = new Uri($"{authority}/connect/token"),
-                Scopes = new Dictionary<string, string>
-                {
-                    ["blinkr_api"] = "Blinkr core API access",
-                    ["blinkr.api.read"] = "Read access",
-                    ["blinkr.api.write"] = "Write access",
-                    ["openid"] = "OpenID",
-                    ["profile"] = "Profile",
-                    ["roles"] = "Roles",
-                    ["offline_access"] = "Refresh token"
-                }
-            }
-        }
+        In = ParameterLocation.Header,
+        Description = "JWT: Bearer {token}",
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
     });
+
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
-        [ new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "oauth2" } } ] =
-            new[] { "blinkr_api" }
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
     });
 });
 
-// --- SERVİS KAYITLARI (TAM VE DÜZELTİLMİŞ) ---
+// --- SERVİS KAYITLARI ---
 
-builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
-// PostgreSQL DbContext (Sadece eski Read Model ve gerekirse diğer tablolar için)
+// PostgreSQL DbContext
 builder.Services.AddDbContext<BlogDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("BlogDb")));
 
-// EventStoreDB İstemcisi
+// EventStoreDB Client
 builder.Services.AddSingleton<EventStoreClient>(sp =>
 {
     var connectionString = builder.Configuration.GetConnectionString("EventStore");
-    if (string.IsNullOrEmpty(connectionString)) throw new InvalidOperationException("EventStore connection string not configured.");
+    if (string.IsNullOrEmpty(connectionString))
+        throw new InvalidOperationException("EventStore connection string not configured.");
+    
+    Serilog.Log.Information("📡 EventStore connection string: {ConnectionString}", connectionString);
+    
     var settings = EventStoreClientSettings.Create(connectionString);
-    return new EventStoreClient(settings);
+    var client = new EventStoreClient(settings);
+    
+    // Quick connectivity test (fire & forget)
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await client.ReadAllAsync(Direction.Forwards, Position.Start, 1, cancellationToken: cts.Token)
+                        .FirstOrDefaultAsync(cts.Token);
+            Serilog.Log.Information("✅ EventStore connectivity check OK");
+        }
+        catch (Exception ex)
+        {
+            Serilog.Log.Error(ex, "❌ EventStore connectivity check FAILED");
+        }
+    });
+    
+    return client;
 });
 
-// MongoDB İstemcisi (Read Handler'lar için) - Optimized// MongoDB Configuration with GUID serialization fix
+// MongoDB Client (with GUID fix)
 builder.Services.AddSingleton<IMongoClient>(sp =>
 {
-    // CRITICAL: Configure GUID serialization BEFORE creating client
-    MongoDB.Bson.Serialization.BsonSerializer.RegisterSerializer(new MongoDB.Bson.Serialization.Serializers.GuidSerializer(GuidRepresentation.Standard));
-    
+    MongoDB.Bson.Serialization.BsonSerializer.RegisterSerializer(
+        new MongoDB.Bson.Serialization.Serializers.GuidSerializer(GuidRepresentation.Standard));
+
     var connectionString = builder.Configuration.GetConnectionString("MongoDb");
-    
+
     var settings = MongoClientSettings.FromConnectionString(connectionString);
-    
-    // Connection pooling optimization
     settings.MaxConnectionPoolSize = 200;
     settings.MinConnectionPoolSize = 10;
     settings.ConnectTimeout = TimeSpan.FromSeconds(10);
     settings.WaitQueueTimeout = TimeSpan.FromSeconds(5);
     settings.ServerSelectionTimeout = TimeSpan.FromSeconds(5);
     settings.WriteConcern = WriteConcern.WMajority;
-    
+
     return new MongoClient(settings);
 });
+
 builder.Services.AddSingleton<IMongoDatabase>(sp =>
 {
     var client = sp.GetRequiredService<IMongoClient>();
     var dbName = builder.Configuration["MongoDbSettings:DatabaseName"];
-    if (string.IsNullOrEmpty(dbName)) throw new InvalidOperationException("MongoDB DatabaseName is not configured.");
+    if (string.IsNullOrEmpty(dbName))
+        throw new InvalidOperationException("MongoDB DatabaseName is not configured.");
     return client.GetDatabase(dbName);
 });
 
-// Redis Cache (IDistributedCache için) - Optimized connection multiplexer
+// Redis Cache
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
     var connectionString = builder.Configuration.GetConnectionString("Redis");
     var options = ConfigurationOptions.Parse(connectionString);
-    
-    // Connection resiliency optimization
+
     options.AbortOnConnectFail = false;
     options.ConnectRetry = 3;
     options.SyncTimeout = 2000;
     options.AsyncTimeout = 5000;
     options.ReconnectRetryPolicy = new ExponentialRetry(1000);
-    
+
     return ConnectionMultiplexer.Connect(options);
 });
 
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    // Use a factory to get the multiplexer when needed
     options.ConnectionMultiplexerFactory = () =>
     {
         var connectionString = builder.Configuration.GetConnectionString("Redis");
@@ -256,7 +278,7 @@ builder.Services.AddSingleton<ITokenBucketLimiter, RedisTokenBucketLimiter>();
 builder.Services.AddSingleton<RateLimitingMetrics>();
 builder.Services.AddTransient<RateLimitingMiddleware>();
 
-// Forwarded Headers for proxy scenarios (Kubernetes/Nginx/etc.)
+// Forwarded Headers
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -266,8 +288,8 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 builder.Services.AddSingleton<ICheckpointStore, MongoCheckpointStore>();
 
-// Repository Kayıtları
-builder.Services.AddScoped<EventStoreDbRepository>(); // Inner repository
+// Repository registrations
+builder.Services.AddScoped<EventStoreDbRepository>();
 builder.Services.AddScoped<IEventStoreRepository>(sp =>
 {
     var inner = sp.GetRequiredService<EventStoreDbRepository>();
@@ -277,7 +299,7 @@ builder.Services.AddScoped<IEventStoreRepository>(sp =>
 });
 builder.Services.AddScoped<IPostReadRepository, PostReadRepository>();
 
-// Query Service (MongoDB Read Model) with Redis caching
+// Query service with caching
 builder.Services.AddScoped<BlogService.Infrastructure.Services.PostQueryService>();
 builder.Services.AddScoped<BlogService.Application.Services.Queries.IPostQueryService>(sp =>
 {
@@ -290,48 +312,49 @@ builder.Services.AddScoped<BlogService.Application.Services.Queries.IPostQuerySe
 // MongoDB Index Service
 builder.Services.AddScoped<BlogService.Infrastructure.Services.Indexes.MongoIndexService>();
 
-// ---- Geocoding Configuration ----
+// Geocoding configuration
 builder.Services.Configure<BlogService.Infrastructure.Geocoding.NominatimOptions>(
     builder.Configuration.GetSection("Geocoding"));
 
-// ---- Nominatim HttpClient (without Polly for now) ----
+builder.Services.Configure<BlogService.Infrastructure.Geocoding.NowFeedOptions>(
+    builder.Configuration.GetSection("NowFeed"));
+
+// Nominatim HttpClient
 builder.Services.AddHttpClient<BlogService.Infrastructure.Geocoding.NominatimGeocodingService>((sp, c) =>
 {
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BlogService.Infrastructure.Geocoding.NominatimOptions>>().Value;
+    var options = sp.GetRequiredService<
+        Microsoft.Extensions.Options.IOptions<BlogService.Infrastructure.Geocoding.NominatimOptions>>().Value;
     c.BaseAddress = new Uri(options.BaseUrl);
     c.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
     c.DefaultRequestHeaders.UserAgent.ParseAdd(options.UserAgent);
     c.DefaultRequestHeaders.Accept.ParseAdd("application/json");
 });
 
-// ---- Concurrency Gate ----
+// Concurrency Gate
 builder.Services.AddSingleton(sp =>
 {
     var maxConcurrency = builder.Configuration.GetValue<int>("Geocoding:MaxConcurrency", 2);
     return new SemaphoreSlim(maxConcurrency, maxConcurrency);
 });
 
-// ---- Geocoding Service Chain (Nominatim → Constrained → Cached) ----
+// Geocoding service chain
 builder.Services.AddScoped<BlogService.Application.Services.IGeocodingService>(sp =>
 {
-    // Inner service: Nominatim
     var nominatim = sp.GetRequiredService<BlogService.Infrastructure.Geocoding.NominatimGeocodingService>();
-    
-    // Concurrency constraint
+
     var gate = sp.GetRequiredService<SemaphoreSlim>();
     var constrainedLogger = sp.GetRequiredService<ILogger<BlogService.Infrastructure.Geocoding.ConstrainedGeocodingService>>();
     var constrained = new BlogService.Infrastructure.Geocoding.ConstrainedGeocodingService(nominatim, gate, constrainedLogger);
-    
-    // Caching decorator
+
     var cache = sp.GetRequiredService<IDistributedCache>();
     var cachingLogger = sp.GetRequiredService<ILogger<BlogService.Infrastructure.Geocoding.CachingGeocodingService>>();
     var ttlHours = builder.Configuration.GetValue<int>("Geocoding:CacheTtlHours", 24);
-    
+
     return new BlogService.Infrastructure.Geocoding.CachingGeocodingService(
         cache, constrained, cachingLogger, TimeSpan.FromHours(ttlHours));
 });
 
-// EventStoreDB subscription - conditional registration based on configuration
+// EventStore subscription
 var enableSubscription = builder.Configuration.GetValue<bool>("EventStore:EnableSubscription");
 if (enableSubscription)
 {
@@ -343,93 +366,109 @@ else
     Serilog.Log.Information("🔕 EventStore subscription DISABLED - using decorator pattern");
 }
 
-// MassTransit (Sadece Yayıncı olarak ayarlandı)
+// MassTransit
 builder.Services.AddMassTransit(busConfig =>
 {
     busConfig.UsingRabbitMq((context, cfg) =>
     {
         var rabbitMqConfig = builder.Configuration.GetSection("RabbitMq");
-        cfg.Host(rabbitMqConfig["Host"], "/", h => {
+        cfg.Host(rabbitMqConfig["Host"], "/", h =>
+        {
             h.Username("user");
             h.Password("password");
         });
     });
 });
 
-// Diğer Servisler
+// Diğer servisler
 builder.Services.AddSingleton<IAuthorizationHandler, OwnerOrAdminHandler>();
 builder.Services.AddAutoMapper(cfg => cfg.AddProfile<PostMappingProfile>());
-builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.Load("BlogService.Application")));
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssembly(Assembly.Load("BlogService.Application")));
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
-var issuer = "https://localhost:7122";
-var audience = "blinkr.api";
-var publicPemPath = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "..", "IdentityServerService", "IdentityServerService", "keys", "rsa-public.pem"));
-if (!File.Exists(publicPemPath)) throw new FileNotFoundException($"Public key not found: {publicPemPath}");
-var publicPem = File.ReadAllText(publicPemPath);
-var rsa = RSA.Create();
-rsa.ImportFromPem(publicPem);
-var rsaKey = new RsaSecurityKey(rsa) { KeyId = "blinkr-dev-key" };
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, o =>
+// === JWT AUTH: IdentityService HS256 token doğrulama ===
+var jwtSection = builder.Configuration.GetSection("Jwt");
+var jwtIssuer = jwtSection["Issuer"] ?? "https://localhost:7297";
+var jwtAudience = jwtSection["Audience"] ?? "blinkr.api";
+var jwtKey = jwtSection["Key"];
+
+if (string.IsNullOrWhiteSpace(jwtKey))
 {
-    o.MapInboundClaims = false;
-    o.TokenValidationParameters = new TokenValidationParameters
+    throw new InvalidOperationException("Jwt:Key is not configured. Check appsettings.Development.json.");
+}
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(o =>
     {
-        ValidateIssuer = true,
-        ValidIssuer = issuer,
-        ValidateAudience = true,
-        ValidAudiences = new[] { audience, $"{issuer}/resources" },
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = rsaKey,
-        NameClaimType = "sub",
-        RoleClaimType = "role"
-    };
-    
-    // 🔥 FIX: 307 redirect yerine 401 dön (mobil için kritik)
-    o.Events = new JwtBearerEvents
-    {
-        OnChallenge = context =>
+        o.RequireHttpsMetadata = false; // dev
+
+        o.TokenValidationParameters = new TokenValidationParameters
         {
-            context.HandleResponse();
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            context.Response.ContentType = "application/json";
-            return context.Response.WriteAsync("{\"error\":\"Unauthorized\"}");
-        }
-    };
-});
+            ValidateIssuer = true,
+            ValidIssuer = jwtIssuer,
+
+            ValidateAudience = true,
+            ValidAudience = jwtAudience,
+
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(1),
+
+            NameClaimType = "sub",
+            RoleClaimType = "role"
+        };
+
+        o.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = ctx =>
+            {
+                Console.WriteLine($"[JWT FAILED] {ctx.Exception.Message}");
+                return Task.CompletedTask;
+            },
+            OnChallenge = context =>
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+                return context.Response.WriteAsync("{\"error\":\"Unauthorized\"}");
+            }
+        };
+    });
+
+// Authorization
 builder.Services.AddAuthorization(options =>
 {
-    // API Policies with scope requirements
-    options.AddPolicy("api.read", policy => 
-        policy.RequireAuthenticatedUser()
-              .RequireClaim("scope", "blinkr.api.read"));
-              
-    options.AddPolicy("api.write", policy => 
-        policy.RequireAuthenticatedUser()
-              .RequireClaim("scope", "blinkr.api.write"));
-              
-    options.AddPolicy("AdminOnly", policy => 
+    options.AddPolicy("api.read", policy =>
+        policy.RequireAuthenticatedUser());
+
+    options.AddPolicy("api.write", policy =>
+        policy.RequireAuthenticatedUser());
+
+    options.AddPolicy("AdminOnly", policy =>
         policy.RequireAuthenticatedUser()
               .RequireRole("Admin"));
-    
-    // Default policy - require authentication for all endpoints
+
     options.DefaultPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
-        
-    // Fallback policy - apply to endpoints without explicit [Authorize] or [AllowAnonymous]
-    options.FallbackPolicy = new AuthorizationPolicyBuilder()
-        .RequireAuthenticatedUser()
-        .Build();
+
+    options.FallbackPolicy = options.DefaultPolicy;
 });
+
+// HealthChecks
 builder.Services.AddHealthChecks()
-    .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy()) // liveness
+    .AddCheck("self", () =>
+        Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy())
     .AddMongoDb(sp => sp.GetRequiredService<IMongoClient>(), name: "mongo", tags: new[] { "ready" })
     .AddRedis(builder.Configuration.GetConnectionString("Redis") ?? "", name: "redis", tags: new[] { "ready" })
     .AddRabbitMQ(builder.Configuration.GetConnectionString("RabbitMq") ?? "", name: "rabbitmq", tags: new[] { "ready" })
     .AddCheck<BlogService.Infrastructure.Geocoding.GeocodingHealthCheck>("geocoding", tags: new[] { "ready" });
 
-// Response Compression (gzip/brotli) for better performance
+// Response Compression
 builder.Services.AddResponseCompression(options =>
 {
     options.EnableForHttps = true;
@@ -442,29 +481,31 @@ builder.Services.AddResponseCompression(options =>
     });
 });
 
-// Response caching middleware
 builder.Services.AddResponseCaching();
 
 builder.Services.Configure<GzipCompressionProviderOptions>(options =>
 {
-    options.Level = System.IO.Compression.CompressionLevel.Optimal;
+    options.Level = CompressionLevel.Optimal;
 });
 builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
 {
-    options.Level = System.IO.Compression.CompressionLevel.Optimal;
+    options.Level = CompressionLevel.Optimal;
 });
 
-// Object Storage Configuration (S3)
+// Object Storage (S3)
 builder.Services.AddSingleton<IAmazonS3>(sp =>
 {
     var config = new AmazonS3Config
     {
-        RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(builder.Configuration["AWS:Region"] ?? "us-east-1"),
-        ServiceURL = builder.Configuration["AWS:S3ServiceUrl"] // For local development with LocalStack
+        RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(
+            builder.Configuration["AWS:Region"] ?? "us-east-1"),
+        ServiceURL = builder.Configuration["AWS:S3ServiceUrl"]
     };
     return new AmazonS3Client(config);
 });
 
+// S3Storage registration (temporary in API layer)
+// TODO: Move to Infrastructure layer for proper Onion Architecture
 builder.Services.AddScoped<IObjectStorage>(sp =>
 {
     var s3 = sp.GetRequiredService<IAmazonS3>();
@@ -473,29 +514,28 @@ builder.Services.AddScoped<IObjectStorage>(sp =>
     return new S3Storage(s3, bucket, logger);
 });
 
-// OpenTelemetry Configuration
+// OpenTelemetry
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("BlogService.Api"))
     .WithTracing(t => t
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
-        .AddOtlpExporter())            // OTLP->Grafana Tempo/Jaeger
+        .AddOtlpExporter())
     .WithMetrics(m => m
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
-        // .AddRuntimeInstrumentation() // Not available in this version
-        .AddPrometheusExporter());     // Prometheus scrape
+        .AddPrometheusExporter());
 
 var app = builder.Build();
 
-// ===== ENSURE MONGODB INDEXES =====
+// MongoDB index ensure
 using (var scope = app.Services.CreateScope())
 {
     try
     {
         var indexService = scope.ServiceProvider.GetRequiredService<BlogService.Infrastructure.Services.Indexes.MongoIndexService>();
         await indexService.EnsureIndexesAsync();
-        
+
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         logger.LogInformation("🗺️ MongoDB indexes initialized successfully");
     }
@@ -503,18 +543,18 @@ using (var scope = app.Services.CreateScope())
     {
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         logger.LogError(ex, "❌ Failed to initialize MongoDB indexes");
-        // Don't throw - let app start anyway
     }
 }
 
-// ---- Pipeline ----
+// Pipeline
 app.UseSerilogRequestLogging();
 
-// Request-Id middleware for correlation
+// Request-Id middleware
 app.Use(async (ctx, next) =>
 {
     var rid = ctx.Request.Headers["X-Request-Id"].ToString();
-    if (string.IsNullOrWhiteSpace(rid)) rid = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
+    if (string.IsNullOrWhiteSpace(rid))
+        rid = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
     ctx.Response.Headers["Request-Id"] = rid;
     ctx.Items["RequestId"] = rid;
     await next();
@@ -526,35 +566,33 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(o =>
     {
         o.SwaggerEndpoint("/swagger/v1/swagger.json", "Blinkr API v1");
-        o.OAuthClientId("swagger-ui");
-        o.OAuthUsePkce();               // 🔑 PKCE
-        o.OAuthScopes("blinkr_api");
+        // Sadece Bearer token kullanılacak, OAuth2 yok.
     });
 }
-app.UseForwardedHeaders(); // Handle proxy headers FIRST
 
-// HTTPS redirection only in production (Gateway handles this in dev)
+app.UseForwardedHeaders();
+
 if (app.Environment.IsProduction())
 {
     app.UseHttpsRedirection();
 }
 
-app.UseResponseCompression(); // Enable compression middleware
-app.UseResponseCaching(); // Enable response caching middleware
+app.UseResponseCompression();
+app.UseResponseCaching();
 
-// Device headers middleware for telemetry
 app.UseMiddleware<DeviceHeadersMiddleware>();
 
-// Rate limiting BEFORE authentication (IP-based protection)
 app.UseMiddleware<RateLimitingMiddleware>();
 app.UseRateLimiter();
 
 app.UseCors(corsPolicyName);
+
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 
-// Health check endpoints (AllowAnonymous)
+// Health endpoints
 app.MapHealthChecks("/health", new HealthCheckOptions
 {
     Predicate = _ => true
@@ -571,8 +609,7 @@ app.MapHealthChecks("/health/readiness", new HealthCheckOptions
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 }).AllowAnonymous();
 
-// Prometheus metrics endpoint
+// Prometheus metrics
 app.MapPrometheusScrapingEndpoint("/metrics");
 
 app.Run();
-

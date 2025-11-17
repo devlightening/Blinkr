@@ -23,11 +23,8 @@ public partial class LoginPage : ContentPage
         var email = EmailEntry.Text?.Trim() ?? string.Empty;
         var password = PasswordEntry.Text ?? string.Empty;
 
-        System.Diagnostics.Debug.WriteLine($"[Blinkr] Login başlatıldı: {email}");
-
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
         {
-            System.Diagnostics.Debug.WriteLine("[Blinkr] Login: Validasyon hatası");
             ShowError("E-posta ve şifre gereklidir.");
             return;
         }
@@ -37,38 +34,24 @@ public partial class LoginPage : ContentPage
 
         try
         {
-            System.Diagnostics.Debug.WriteLine("[Blinkr] Login: API isteği gönderiliyor...");
             var request = new LoginRequest(email, password);
             var response = await _authApiClient.LoginAsync(request);
-
-            System.Diagnostics.Debug.WriteLine($"[Blinkr] Login: Token alındı, uzunluk={response.Token?.Length}");
 
             // Save tokens
             await _tokenStore.SaveTokensAsync(response.Token, response.RefreshToken);
 
-            System.Diagnostics.Debug.WriteLine("[Blinkr] Login başarılı, Shell'e geçiliyor");
-
-            // Navigate to main app - MainPage swap ile
-            var shell = ((App)Application.Current).Services.GetRequiredService<AppShell>();
-#pragma warning disable CS0618
-            Application.Current.MainPage = shell;
-#pragma warning restore CS0618
+            // Navigate to main app
+            await Shell.Current.GoToAsync("//feed");
         }
         catch (ApiException apiEx)
         {
-            var errorBody = "";
-            try { errorBody = await apiEx.GetContentAsAsync<string>() ?? "(boş)"; } catch { }
-            System.Diagnostics.Debug.WriteLine($"[Blinkr] Login HATA: {apiEx.StatusCode} - {errorBody}");
-            
             var errorMessage = apiEx.StatusCode == System.Net.HttpStatusCode.Unauthorized
                 ? "E-posta veya şifre hatalı."
-                : $"Giriş hatası: {(int)apiEx.StatusCode}";
+                : "Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.";
             ShowError(errorMessage);
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[Blinkr] Login EXCEPTION: {ex.GetType().Name} - {ex.Message}");
-            System.Diagnostics.Debug.WriteLine($"[Blinkr] StackTrace: {ex.StackTrace}");
             ShowError($"Bağlantı hatası: {ex.Message}");
         }
         finally

@@ -5,32 +5,40 @@
              Title="Bildirimler"
              BackgroundColor="{StaticResource Background}">
 
-    <StackLayout>
-        <!-- Header -->
-        <Label Text="Daha Önce"
+    <Grid RowDefinitions="Auto,*">
+        <!-- Status Message -->
+        <Label Grid.Row="0"
+               Text="{Binding StatusMessage}"
                FontSize="14"
                TextColor="{StaticResource TextSecondary}"
-               Margin="16,16,16,8" />
+               Margin="16,16,16,8"
+               IsVisible="{Binding IsBusy}" />
 
-        <!-- Notifications List -->
-        <CollectionView x:Name="NotificationsCollectionView"
-                        ItemsSource="{Binding Notifications}"
-                        BackgroundColor="Transparent">
+        <!-- Notifications List with Pull-to-Refresh -->
+        <RefreshView Grid.Row="1"
+                     IsRefreshing="{Binding IsRefreshing}"
+                     Command="{Binding RefreshCommand}">
+            <CollectionView ItemsSource="{Binding Notifications}"
+                            BackgroundColor="Transparent">
             
             <CollectionView.ItemTemplate>
                 <DataTemplate>
                     <Border Style="{StaticResource GlassCard}"
                            Margin="12,4">
-                        <Grid ColumnDefinitions="50,*,Auto,Auto">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding TapCommand}" />
+                        </Border.GestureRecognizers>
+                        
+                        <Grid ColumnDefinitions="50,*,Auto">
                             
-                            <!-- User Avatar -->
+                            <!-- Notification Icon -->
                             <Border Grid.Column="0"
                                    WidthRequest="40"
                                    HeightRequest="40"
-                                   BackgroundColor="{Binding AvatarColor}"
+                                   BackgroundColor="{StaticResource Primary}"
                                    StrokeShape="Ellipse"
                                    StrokeThickness="0">
-                                <Label Text="{Binding Avatar}"
+                                <Label Text="🔔"
                                        HorizontalOptions="Center"
                                        VerticalOptions="Center"
                                        FontSize="18" />
@@ -39,35 +47,30 @@
                             <!-- Notification Content -->
                             <StackLayout Grid.Column="1" 
                                          Spacing="4"
-                                         VerticalOptions="Center">
-                                <Label Text="{Binding Title}"
+                                         VerticalOptions="Center"
+                                         Margin="12,0">
+                                <Label Text="{Binding DisplayTitle}"
                                        FontSize="14"
                                        FontAttributes="Bold"
                                        TextColor="{StaticResource TextPrimary}" />
-                                <Label Text="{Binding Message}"
+                                <Label Text="{Binding Body}"
                                        FontSize="12"
-                                       TextColor="{StaticResource TextSecondary}" />
+                                       TextColor="{StaticResource TextSecondary}"
+                                       MaxLines="2" />
                             </StackLayout>
                             
-                            <!-- Action Icon -->
-                            <Label Grid.Column="2"
-                                   Text="{Binding ActionIcon}"
-                                   FontSize="16"
-                                   TextColor="{Binding ActionColor}"
-                                   VerticalOptions="Center"
-                                   Margin="8,0" />
-                            
                             <!-- Time -->
-                            <Label Grid.Column="3"
-                                   Text="{Binding TimeAgo}"
+                            <Label Grid.Column="2"
+                                   Text="{Binding RelativeTime}"
                                    FontSize="12"
                                    TextColor="{StaticResource TextSecondary}"
-                                   VerticalOptions="Center" />
+                                   VerticalOptions="Start"
+                                   Margin="8,4" />
                         </Grid>
                     </Border>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
-        </CollectionView>
-
-    </StackLayout>
+            </CollectionView>
+        </RefreshView>
+    </Grid>
 </ContentPage>

@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Blinkr.Mobile.Core.Api;
 using Blinkr.Mobile.Core.Auth;
+using Blinkr.Mobile.Core.Services;
 
 #if ANDROID
 using Android.Util;
@@ -14,6 +15,7 @@ public partial class MapViewModel : ObservableObject
 {
     private readonly IBlinkrApiClient _apiClient;
     private readonly IAuthService _auth;
+    private readonly INotificationsBadgeService? _badgeService;
 
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private bool isAuthenticated;
@@ -23,14 +25,23 @@ public partial class MapViewModel : ObservableObject
     [ObservableProperty] private PostDetailDto? selectedPostDetail;
     [ObservableProperty] private bool isBottomSheetVisible = false; // Start closed
     [ObservableProperty] private bool isLoadingDetail;
+    [ObservableProperty] private int unreadNotificationsCount;
     
     // Markers for WebView (no MAUI Maps dependency)
     public ObservableCollection<MapMarker> Markers { get; } = new();
 
-    public MapViewModel(IBlinkrApiClient apiClient, IAuthService auth)
+    public MapViewModel(IBlinkrApiClient apiClient, IAuthService auth, INotificationsBadgeService? badgeService = null)
     {
         _apiClient = apiClient;
         _auth = auth;
+        _badgeService = badgeService;
+        
+        // Subscribe to badge changes
+        if (_badgeService != null)
+        {
+            _badgeService.UnreadCountChanged += OnUnreadCountChanged;
+            UnreadNotificationsCount = _badgeService.UnreadCount;
+        }
         
         // Check auth status on startup
         _ = CheckAuthStatusAsync();
@@ -101,12 +112,15 @@ public partial class MapViewModel : ObservableObject
                 longitude = location.Longitude;
             }
 
-            // Call API asynchronously
-            var posts = await Task.Run(async () =>
+            // Call API with NOW feed (3 hours)
+            var result = await Task.Run(async () =>
                 await _apiClient.GetNearbyPosts(
                     lat: latitude,
-                    lng: longitude,
-                    radiusKm: 5.0));
+                    lon: longitude,
+                    radius: 5000,
+                    sinceMinutes: 180)); // NOW feed: last 3 hours
+                    
+            var posts = result.Items.ToList();
 
             // Update UI on main thread
             await MainThread.InvokeOnMainThreadAsync(() =>
@@ -122,13 +136,16 @@ public partial class MapViewModel : ObservableObject
                 Markers.Clear();
                 foreach (var post in posts)
                 {
-                    Markers.Add(new MapMarker(
-                        Id: post.Id,
-                        Title: post.Title,
-                        Lat: post.Lat,
-                        Lng: post.Lng,
-                        Address: "" // Backend doesn't return address in lightweight DTO
-                    ));
+                    if (post.Latitude.HasValue && post.Longitude.HasValue)
+                    {
+                        Markers.Add(new MapMarker(
+                            Id: post.Id,
+                            Title: GetFreshnessTitle(post),
+                            Lat: post.Latitude.Value,
+                            Lng: post.Longitude.Value,
+                            Address: GetFreshnessText(post)
+                        ));
+                    }
                 }
 
                 StatusMessage = $"{posts.Count} post bulundu";
@@ -201,6 +218,12 @@ public partial class MapViewModel : ObservableObject
             StatusMessage = IsAuthenticated 
                 ? "Ready! Tap to load nearby posts" 
                 : "Tap Login to get started";
+                
+            // Refresh badge if authenticated
+            if (IsAuthenticated)
+            {
+                _ = RefreshBadgeAsync(); // Fire and forget
+            }
         }
         catch (Exception ex)
         {
@@ -276,8 +299,14 @@ public partial class MapViewModel : ObservableObject
             Console.WriteLine($"[MapViewModel] Calling API: lat={lat:F4}, lng={lng:F4}, radius={radiusKm:F2}km");
 #endif
             
-            var posts = await Task.Run(async () =>
-                await _apiClient.GetNearbyPosts(lat, lng, radiusKm));
+            var result = await Task.Run(async () =>
+                await _apiClient.GetNearbyPosts(
+                    lat: lat, 
+                    lon: lng, 
+                    radius: (int)(radiusKm * 1000), // Convert km to meters
+                    sinceMinutes: 180)); // NOW feed: last 3 hours
+                    
+            var posts = result.Items.ToList();
             
 #if ANDROID
             Log.Info("Blinkr", $"[MapViewModel] API returned {posts.Count} posts");
@@ -309,14 +338,16 @@ public partial class MapViewModel : ObservableObject
                 foreach (var post in posts)
                 {
                     NearbyPosts.Add(post);
-                    Markers.Add(new MapMarker(
-                        Id: post.Id,
-                        Title: post.Title,
-                        Lat: post.Lat,
-                        Lng: post.Lng,
-                        Address: "", // Backend doesn't return address in lightweight DTO
-                        Gender: post.AuthorGender // For pin color
-                    ));
+                    if (post.Latitude.HasValue && post.Longitude.HasValue)
+                    {
+                        Markers.Add(new MapMarker(
+                            Id: post.Id,
+                            Title: GetFreshnessTitle(post),
+                            Lat: post.Latitude.Value,
+                            Lng: post.Longitude.Value,
+                            Address: GetFreshnessText(post)
+                        ));
+                    }
                 }
                 
                 StatusMessage = $"{posts.Count} post bulundu";
@@ -406,17 +437,21 @@ public partial class MapViewModel : ObservableObject
                 var likes = random.Next(0, 100);
                 var comments = random.Next(0, 20);
                 
-                // Random gender for pin color testing
-                var genders = new[] { "Male", "Female", "Other", null };
-                var gender = genders[random.Next(genders.Length)];
+                // Generate random freshness (0-180 minutes ago)
+                var minutesAgo = random.Next(0, 180);
+                var createdAt = DateTime.UtcNow.AddMinutes(-minutesAgo);
+                var freshnessSec = minutesAgo * 60;
+                var isLive = freshnessSec <= 3600; // Last hour
                 
                 posts.Add(new PostLocationDto(
                     Id: Guid.NewGuid(),
                     Title: $"{postType} - {name}",
-                    Lat: offsetLat,
-                    Lng: offsetLng,
-                    MediaUrl: null,
-                    AuthorGender: gender
+                    Latitude: offsetLat,
+                    Longitude: offsetLng,
+                    CreatedAtUtc: createdAt,
+                    FreshnessSec: freshnessSec,
+                    IsLive: isLive,
+                    MediaUrl: null
                 ));
             }
         }
@@ -471,4 +506,59 @@ public partial class MapViewModel : ObservableObject
             IsLoadingDetail = false;
         }
     }
+    
+    /// <summary>
+    /// Get post title with freshness indicator
+    /// </summary>
+    private string GetFreshnessTitle(PostLocationDto post)
+    {
+        var indicator = post.IsLive ? "🔴" : "📍";
+        return $"{indicator} {post.Title}";
+    }
+    
+    /// <summary>
+    /// Get human-readable freshness text
+    /// </summary>
+    private string GetFreshnessText(PostLocationDto post)
+    {
+        if (!post.FreshnessSec.HasValue)
+            return "";
+            
+        var seconds = post.FreshnessSec.Value;
+        
+        if (seconds < 60)
+            return "Az önce";
+        else if (seconds < 3600)
+            return $"{seconds / 60} dk önce";
+        else if (seconds < 86400)
+            return $"{seconds / 3600} sa önce";
+        else
+            return $"{seconds / 86400} gün önce";
+    }
+    
+    /// <summary>
+    /// Handle unread count changes from badge service
+    /// </summary>
+    private void OnUnreadCountChanged(object? sender, int count)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            UnreadNotificationsCount = count;
+        });
+    }
+    
+    /// <summary>
+    /// Refresh badge count (call after login)
+    /// </summary>
+    public async Task RefreshBadgeAsync()
+    {
+        if (_badgeService != null)
+        {
+            await _badgeService.RefreshUnreadCountAsync();
+        }
+    }
 }
+
+
+
+

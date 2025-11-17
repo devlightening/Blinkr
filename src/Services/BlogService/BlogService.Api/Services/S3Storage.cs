@@ -1,10 +1,13 @@
 using Amazon.S3;
 using Amazon.S3.Model;
-using BlogService.Api.Services;
 
 namespace BlogService.Api.Services;
 
-public class S3Storage : IObjectStorage
+/// <summary>
+/// AWS S3 implementation of object storage
+/// TODO: Move to BlogService.Infrastructure.Services for proper Onion Architecture
+/// </summary>
+public sealed class S3Storage : IObjectStorage
 {
     private readonly IAmazonS3 _s3;
     private readonly string _bucket;

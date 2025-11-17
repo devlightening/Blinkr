@@ -1,6 +1,7 @@
 using Blinkr.Projections.Worker.Documents;
 using MassTransit;
 using MongoDB.Driver;
+using MongoDB.Driver.GeoJsonObjectModel;
 using Microsoft.Extensions.Caching.Distributed;
 using Shared.Events.Abstractions;
 using Shared.Events.Events.Blog;
@@ -24,7 +25,9 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
     public async Task Consume(ConsumeContext<IPostCreatedIntegrationEvent> context)
     {
         var message = context.Message;
-        _logger.LogInformation("📥 Received PostCreatedIntegrationEvent for PostId: {PostId}", message.PostId);
+        var hasLocation = message.Latitude.HasValue && message.Longitude.HasValue;
+        _logger.LogInformation("📥 Received PostCreatedIntegrationEvent for PostId: {PostId} HasLocation: {HasLocation}", 
+            message.PostId, hasLocation);
 
         try
         {
@@ -33,6 +36,25 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
             var collName = _postsCollection.CollectionNamespace.CollectionName;
             _logger.LogInformation("🎯 Writing to MongoDB: Database={DbName}, Collection={CollName}", dbName, collName);
 
+            // Create GeoJSON Point if location is provided
+            GeoJsonPoint<GeoJson2DGeographicCoordinates>? location = null;
+            if (message.Latitude.HasValue && message.Longitude.HasValue)
+            {
+                _logger.LogInformation("🗺️ Creating GeoJSON Point: Lat={Latitude}, Lon={Longitude}, Accuracy={AccuracyMeters}, Name={LocationName}", 
+                    message.Latitude.Value, message.Longitude.Value, message.AccuracyMeters, message.LocationName);
+                    
+                location = new GeoJsonPoint<GeoJson2DGeographicCoordinates>(
+                    new GeoJson2DGeographicCoordinates(message.Longitude.Value, message.Latitude.Value));
+                    
+                _logger.LogInformation("✅ GeoJSON Point created successfully: [{Lon}, {Lat}]", 
+                    location.Coordinates.Longitude, location.Coordinates.Latitude);
+            }
+            else
+            {
+                _logger.LogWarning("⚠️ No location data: Latitude={Latitude}, Longitude={Longitude}", 
+                    message.Latitude, message.Longitude);
+            }
+
             var newPost = new PostDocument
             {
                 Id = message.PostId,
@@ -40,11 +62,14 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
                 Title = message.Title ?? string.Empty,
                 Content = message.Content ?? string.Empty,
                 CreatedAtUtc = message.OccurredOn,
-                LikeCount = 0
+                LikeCount = 0,
+                Location = location,
+                LocationName = message.LocationName
             };
 
-            _logger.LogInformation("📝 Post data: Title={Title}, Content={Content}, AuthorId={AuthorId}", 
-                newPost.Title, newPost.Content, newPost.AuthorId);
+            _logger.LogInformation("📝 Post data: Title={Title}, Content={Content}, AuthorId={AuthorId}, Location={Location}", 
+                newPost.Title, newPost.Content, newPost.AuthorId, 
+                location != null ? $"({location.Coordinates.Latitude}, {location.Coordinates.Longitude})" : "None");
 
             var filter = Builders<PostDocument>.Filter.Eq(p => p.Id, newPost.Id);
 

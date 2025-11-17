@@ -8,91 +8,46 @@ public partial class App : Application
 {
 	private readonly IServiceProvider _sp;
 
-	// LoginPage'den erişim için public property
-	public IServiceProvider Services => _sp;
-
+	// >>> AppShell DEĞİL, IServiceProvider al
 	public App(IServiceProvider sp)
 	{
-		InitializeComponent();
+		InitializeComponent();          // 1) Uygulama kaynakları burada yüklenir
 		_sp = sp;
 
-		// 1) Önce hafif bir splash göster
-#pragma warning disable CS0618
-		MainPage = new ContentPage
-		{
-			BackgroundColor = (Color)Resources["Surface"],
-			Content = new VerticalStackLayout
-			{
-				VerticalOptions = LayoutOptions.Center,
-				HorizontalOptions = LayoutOptions.Center,
-				Spacing = 16,
-				Children =
-				{
-					new Label
-					{
-						Text = "Blinkr",
-						FontSize = 48,
-						FontAttributes = FontAttributes.Bold,
-						TextColor = (Color)Resources["AccentYellow"],
-						HorizontalOptions = LayoutOptions.Center
-					},
-					new ActivityIndicator
-					{
-						IsRunning = true,
-						Color = (Color)Resources["AccentYellow"],
-						HorizontalOptions = LayoutOptions.Center
-					}
-				}
-			}
-		};
+		// 2) ResourceDictionary yüklendikten sonra Shell'i resolve et
+		var shell = _sp.GetRequiredService<AppShell>();
+#pragma warning disable CS0618 // MainPage is deprecated, but required for App initialization before Window is created
+		MainPage = shell;               // 3) Artık güvenli
 #pragma warning restore CS0618
 
-		// 2) Auth gate'i asenkron başlat (UI thread'i bloklamadan)
-		Dispatcher.Dispatch(async () => await BootstrapAsync());
+		// 4) Check authentication and navigate to login if needed
+		_ = CheckAuthenticationAsync();
 	}
 
-	private async Task BootstrapAsync()
+	private async Task CheckAuthenticationAsync()
 	{
 		try
 		{
-			System.Diagnostics.Debug.WriteLine("[Blinkr] Bootstrap: Auth gate başladı");
+			// Wait a bit for the UI to initialize
+			await Task.Delay(500);
 
 			var authService = _sp.GetRequiredService<IAuthService>();
 			var isAuthenticated = await authService.IsAuthenticatedAsync();
 
-			System.Diagnostics.Debug.WriteLine($"[Blinkr] Bootstrap: isAuthenticated={isAuthenticated}");
-
-			if (isAuthenticated)
+			if (!isAuthenticated)
 			{
-				// Token var → Shell'e geç
-				var shell = _sp.GetRequiredService<AppShell>();
-#pragma warning disable CS0618
-				MainPage = shell;
-#pragma warning restore CS0618
-				System.Diagnostics.Debug.WriteLine("[Blinkr] Bootstrap: Shell yüklendi");
-			}
-			else
-			{
-				// Token yok → Login'e geç
-				var loginPage = _sp.GetRequiredService<Pages.LoginPage>();
-#pragma warning disable CS0618
-				MainPage = new NavigationPage(loginPage)
+				// Navigate to login page
+				await MainThread.InvokeOnMainThreadAsync(async () =>
 				{
-					BarBackgroundColor = (Color)Resources["Surface"],
-					BarTextColor = (Color)Resources["TextPrimary"]
-				};
-#pragma warning restore CS0618
-				System.Diagnostics.Debug.WriteLine("[Blinkr] Bootstrap: LoginPage yüklendi");
+					await Shell.Current.GoToAsync("//login");
+				});
 			}
 		}
 		catch (Exception ex)
 		{
-			System.Diagnostics.Debug.WriteLine($"[Blinkr] Bootstrap HATA: {ex.Message}");
-			// Hata durumunda Login'e düş
-			var loginPage = _sp.GetRequiredService<Pages.LoginPage>();
-#pragma warning disable CS0618
-			MainPage = new NavigationPage(loginPage);
-#pragma warning restore CS0618
+			System.Diagnostics.Debug.WriteLine($"Authentication check failed: {ex.Message}");
 		}
 	}
+
+	// CreateWindow override'ını KALDIR (gerek yok)
 }

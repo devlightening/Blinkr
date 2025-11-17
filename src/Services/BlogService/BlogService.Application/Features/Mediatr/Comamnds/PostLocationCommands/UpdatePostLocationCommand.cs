@@ -16,4 +16,4 @@ public record UpdatePostLocationCommand(
     double Longitude,
     string? LocationName = null,
     LocationPrecision Precision = LocationPrecision.Precise
-) : IRequest;
+) : IRequest<Unit>;

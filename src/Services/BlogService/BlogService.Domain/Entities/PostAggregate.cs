@@ -13,6 +13,13 @@ namespace BlogService.Domain.Entities
         public string Title { get; private set; }
         public string Content { get; private set; }
         public bool IsDeleted { get; private set; }
+        
+        // Location properties for geospatial support
+        public double? Latitude { get; private set; }
+        public double? Longitude { get; private set; }
+        public double? AccuracyMeters { get; private set; }
+        public string? LocationName { get; private set; }
+        
         public ICollection<PostMedia> Media { get; private set; } = new List<PostMedia>();
         public ICollection<PostComment> Comments { get; private set; } = new List<PostComment>();
         public ICollection<PostLike> Likes { get; private set; } = new List<PostLike>();
@@ -21,10 +28,27 @@ namespace BlogService.Domain.Entities
 
         // --- İŞ METOTLARI (BUSINESS METHODS) ---
 
-        public static PostAggregate Create(Guid postId, Guid authorId, string title, string content)
+        public static PostAggregate Create(
+            Guid postId, 
+            Guid authorId, 
+            string title, 
+            string content,
+            double? latitude = null,
+            double? longitude = null,
+            double? accuracyMeters = null,
+            string? locationName = null)
         {
             var post = new PostAggregate();
-            post.ApplyNewEvent(new PostCreatedEvent(postId, authorId, title, content, DateTime.UtcNow));
+            post.ApplyNewEvent(new PostCreatedEvent(
+                postId, 
+                authorId, 
+                title, 
+                content, 
+                DateTime.UtcNow,
+                latitude,
+                longitude,
+                accuracyMeters,
+                locationName));
             return post;
         }
 
@@ -103,6 +127,12 @@ namespace BlogService.Domain.Entities
             Title = e.Title;
             Content = e.Content;
             IsDeleted = false;
+            
+            // Set location fields from event
+            Latitude = e.Latitude;
+            Longitude = e.Longitude;
+            AccuracyMeters = e.AccuracyMeters;
+            LocationName = e.LocationName;
         }
 
         private void Apply(PostContentUpdatedEvent e)

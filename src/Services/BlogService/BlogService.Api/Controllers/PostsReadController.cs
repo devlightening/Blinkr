@@ -123,19 +123,21 @@ public class PostsReadController : ControllerBase
     /// <param name="lat">Latitude coordinate (-90 to 90)</param>
     /// <param name="lon">Longitude coordinate (-180 to 180)</param>
     /// <param name="radius">Search radius in meters (50 to 50,000, default: 5000)</param>
+    /// <param name="sinceMinutes">Only posts created within last N minutes (null = 180 min default, 0 = all time, max 1440 = 24h)</param>
     /// <param name="page">Page number (1-based, default: 1)</param>
     /// <param name="pageSize">Items per page (1 to 50, default: 20)</param>
     /// <param name="ct">Cancellation token</param>
-    /// <returns>Nearby posts ordered by distance</returns>
+    /// <returns>Nearby posts ordered by distance with freshness metadata</returns>
     [HttpGet("nearby")]
     [AllowAnonymous]
-    [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "lat", "lon", "radius", "page", "pageSize" })]
+    [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "lat", "lon", "radius", "sinceMinutes", "page", "pageSize" })]
     [ProducesResponseType(typeof(PagedResult<PostListDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PagedResult<PostListDto>>> GetNearby(
         [FromQuery(Name = "lat")] string latStr,
         [FromQuery(Name = "lon")] string lonStr,
         [FromQuery] int radius = 5000,
+        [FromQuery] int? sinceMinutes = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken ct = default)
@@ -166,7 +168,18 @@ public class PostsReadController : ControllerBase
             
             _logger.LogInformation("✅ Coordinates validated successfully");
 
-            var query = new NearbyQuery(lat, lon, radius, page, pageSize);
+            // Apply default sinceMinutes for NOW feed (3 hours)
+            var effectiveSinceMinutes = sinceMinutes ?? 180;
+            
+            var query = new NearbyQuery(
+                Lat: lat, 
+                Lon: lon, 
+                RadiusMeters: radius,
+                SinceMinutes: effectiveSinceMinutes,
+                Category: null,
+                AfterId: null,
+                Page: page, 
+                PageSize: pageSize);
             var result = await _queryService.GetNearbyAsync(query, ct);
 
             // Avoid double enumeration - use ICollection if available
@@ -234,6 +247,59 @@ public class PostsReadController : ControllerBase
         {
             _logger.LogError(ex, "Error retrieving posts for author: {AuthorId}", authorId);
             return StatusCode(500, "An error occurred while retrieving author posts");
+        }
+    }
+
+    /// <summary>
+    /// Test endpoint for nearby query validation (development/debugging only)
+    /// </summary>
+    /// <param name="lat">Latitude</param>
+    /// <param name="lon">Longitude</param>
+    /// <param name="radius">Search radius in meters (default: 5000)</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>Test validation results</returns>
+    [HttpGet("test-nearby")]
+    [ApiExplorerSettings(IgnoreApi = true)] // Hide from Swagger in production
+    public async Task<ActionResult<object>> TestNearbyQuery(
+        [Required] string lat,
+        [Required] string lon,
+        int radius = 5000,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            if (!double.TryParse(lat, out var latitude) || !double.TryParse(lon, out var longitude))
+            {
+                return BadRequest("Invalid latitude or longitude format");
+            }
+
+            // Cast to concrete type to access test method
+            if (_queryService is BlogService.Infrastructure.Services.PostQueryService concreteService)
+            {
+                var testResult = await concreteService.TestNearbyQueryAsync(latitude, longitude, radius, ct);
+                
+                return Ok(new
+                {
+                    success = testResult.Success,
+                    message = testResult.Message,
+                    itemCount = testResult.ItemCount,
+                    total = testResult.Total,
+                    totalPages = testResult.TotalPages,
+                    hasNext = testResult.HasNext,
+                    hasPrevious = testResult.HasPrevious,
+                    topDecayScore = testResult.TopDecayScore,
+                    testParams = new { lat = latitude, lon = longitude, radius }
+                });
+            }
+            else
+            {
+                return BadRequest("Test method not available for current service implementation");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in nearby query test: lat={Lat}, lon={Lon}, radius={Radius}", lat, lon, radius);
+            return StatusCode(500, $"Test failed: {ex.Message}");
         }
     }
 }

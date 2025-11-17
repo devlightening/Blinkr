@@ -3,7 +3,6 @@ using Blinkr.Mobile.Core.Api;
 using Blinkr.Mobile.Core.Auth;
 using Refit;
 using Polly;
-using Polly.Extensions.Http;
 
 namespace Blinkr.Mobile.Core.Services;
 

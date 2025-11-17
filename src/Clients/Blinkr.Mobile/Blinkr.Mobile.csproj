@@ -1,105 +1,77 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
+﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFrameworks>net9.0-android;net9.0-windows10.0.19041.0</TargetFrameworks>
 		<!-- Android target framework for emulator testing -->
 		<!-- <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework> -->
-		
 		<!-- Android target framework for emulator testing -->
 		<!-- Fallback to net9.0 if Android SDK issues persist -->
-		
 		<!-- Android SDK Configuration -->
 		<AndroidSdkDirectory Condition="'$(AndroidSdkDirectory)' == '' AND Exists('$(USERPROFILE)\AppData\Local\Android\Sdk')">$(USERPROFILE)\AppData\Local\Android\Sdk</AndroidSdkDirectory>
 		<AndroidSdkDirectory Condition="'$(AndroidSdkDirectory)' == '' AND Exists('C:\Program Files (x86)\Android\android-sdk')">C:\Program Files (x86)\Android\android-sdk</AndroidSdkDirectory>
 		<AndroidSdkDirectory Condition="'$(AndroidSdkDirectory)' == '' AND Exists('C:\Android\android-sdk')">C:\Android\android-sdk</AndroidSdkDirectory>
-		
 		<!-- Accept Android SDK Licenses -->
 		<AcceptAndroidSDKLicenses>true</AcceptAndroidSDKLicenses>
-		
 		<!-- Android Permissions -->
 		<AndroidInternetPermission>true</AndroidInternetPermission>
 		<!-- Uncomment to also build the tizen app. You will need to install tizen by following this: https://github.com/Samsung/Tizen.NET -->
 		<!-- <TargetFrameworks>$(TargetFrameworks);net9.0-tizen</TargetFrameworks> -->
-
-		<!-- Note for MacCatalyst:
-		The default runtime is maccatalyst-x64, except in Release config, in which case the default is maccatalyst-x64;maccatalyst-arm64.
-		When specifying both architectures, use the plural <RuntimeIdentifiers> instead of the singular <RuntimeIdentifier>.
-		The Mac App Store will NOT accept apps with ONLY maccatalyst-arm64 indicated;
-		either BOTH runtimes must be indicated or ONLY macatalyst-x64. -->
+		<!-- Note for MacCatalyst: The default runtime is maccatalyst-x64, except in Release config, in which case the default is maccatalyst-x64;maccatalyst-arm64. When specifying both architectures, use the plural <RuntimeIdentifiers> instead of the singular <RuntimeIdentifier>. The Mac App Store will NOT accept apps with ONLY maccatalyst-arm64 indicated; either BOTH runtimes must be indicated or ONLY macatalyst-x64. -->
 		<!-- For example: <RuntimeIdentifiers>maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers> -->
-
 		<OutputType>Exe</OutputType>
 		<RootNamespace>Blinkr.Mobile</RootNamespace>
 		<UseMaui>true</UseMaui>
 		<SingleProject>true</SingleProject>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
-
 		<!-- Display name -->
 		<ApplicationTitle>Blinkr</ApplicationTitle>
-
 		<!-- App Identifier -->
 		<ApplicationId>com.blinkr.mobile</ApplicationId>
-
 		<!-- Versions -->
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
 		<ApplicationVersion>1</ApplicationVersion>
-
 		<!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
 		<WindowsPackageType>None</WindowsPackageType>
-
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
 	</PropertyGroup>
-
-	<!-- Debug için linker'ı kapat -->
+	<!-- Debug iÃ§in linker'Ä± kapat -->
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-android|AnyCPU'">
 		<AndroidLinkMode>None</AndroidLinkMode>
 		<RunAOTCompilation>false</RunAOTCompilation>
 		<UseInterpreter>false</UseInterpreter>
 		<AndroidEnableSGenConcurrent>true</AndroidEnableSGenConcurrent>
 		<EmbedAssembliesIntoApk>false</EmbedAssembliesIntoApk>
-		
-		<!-- Fast Deployment (Geçici olarak kapalı - broken pipe hatası) -->
+		<!-- Fast Deployment (GeÃ§ici olarak kapalÄ± - broken pipe hatasÄ±) -->
 		<AndroidEnableFastDeployment>false</AndroidEnableFastDeployment>
 		<!-- <AndroidFastDeploymentType>Assemblies:Dexes</AndroidFastDeploymentType> -->
-		
 		<!-- Debug Keystore (tek keystore kullan) -->
 		<AndroidSigningKeyStore>$(UserProfile)\.android\debug.keystore</AndroidSigningKeyStore>
 		<AndroidSigningKeyAlias>androiddebugkey</AndroidSigningKeyAlias>
 		<AndroidSigningKeyPass>android</AndroidSigningKeyPass>
 		<AndroidSigningStorePass>android</AndroidSigningStorePass>
 	</PropertyGroup>
-
 	<ItemGroup>
-		<!-- XAML’leri MAUI olarak derle (auto-include olduğundan Update kullan) -->
+		<!-- XAMLâ€™leri MAUI olarak derle (auto-include olduÄŸundan Update kullan) -->
 		<MauiXaml Update="Resources\Styles\Colors.xaml" />
 		<MauiXaml Update="Resources\Styles\Styles.xaml" />
 		<MauiXaml Update="AppShell.xaml" />
 		<MauiXaml Update="HomePage.xaml" />
-
 		<!-- App Icon -->
 		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
-
 		<!-- Splash Screen -->
 		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
-
 		<!-- Images -->
 		<MauiImage Include="Resources\Images\*" />
 		<MauiImage Update="Resources\Images\dotnet_bot.png" Resize="True" BaseSize="300,185" />
-		
 		<!-- Custom Fonts -->
 		<MauiFont Include="Resources\Fonts\*" />
-
 		<!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
-		
 		<!-- Config Files -->
 		<MauiAsset Include="Config\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
-		
 		<!-- Leaflet HTML Files -->
 		<MauiAsset Include="wwwroot\**" LogicalName="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
-
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" />
@@ -108,8 +80,6 @@
 		<PackageReference Include="Refit.HttpClientFactory" />
 		<PackageReference Include="Microsoft.Extensions.Http" />
 		<PackageReference Include="Microsoft.Extensions.Http.Resilience" />
-		<PackageReference Include="Polly" />
-		<PackageReference Include="Polly.Extensions.Http" />
+		<!-- Polly packages removed - managed by Directory.Packages.props -->
 	</ItemGroup>
-
 </Project>

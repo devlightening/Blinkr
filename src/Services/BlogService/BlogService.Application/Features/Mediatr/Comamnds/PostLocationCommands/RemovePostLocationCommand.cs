@@ -8,4 +8,4 @@ namespace BlogService.Application.Features.Mediatr.Comamnds.PostLocationCommands
 /// <param name="PostId">Post identifier</param>
 public record RemovePostLocationCommand(
     Guid PostId
-) : IRequest;
+) : IRequest<Unit>;

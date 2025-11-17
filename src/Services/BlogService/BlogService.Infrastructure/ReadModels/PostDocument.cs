@@ -9,7 +9,7 @@ namespace BlogService.Infrastructure.ReadModels;
 public class PostDocument
 {
     [BsonId]
-    [BsonRepresentation(MongoDB.Bson.BsonType.String)]
+    [BsonGuidRepresentation(MongoDB.Bson.GuidRepresentation.Standard)]
     public Guid Id { get; set; }
     
     /// <summary>
@@ -50,9 +50,10 @@ public class PostDocument
 public class CommentEntity
 {
     [BsonId]
-    [BsonRepresentation(MongoDB.Bson.BsonType.String)]
+    [BsonGuidRepresentation(MongoDB.Bson.GuidRepresentation.Standard)]
     public Guid Id { get; set; }
     
+    [BsonGuidRepresentation(MongoDB.Bson.GuidRepresentation.Standard)]
     public Guid AuthorId { get; set; }
     public string Text { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
@@ -61,7 +62,7 @@ public class CommentEntity
 public class MediaEntity
 {
     [BsonId]
-    [BsonRepresentation(MongoDB.Bson.BsonType.String)]
+    [BsonGuidRepresentation(MongoDB.Bson.GuidRepresentation.Standard)]
     public Guid Id { get; set; }
     
     public string Url { get; set; } = string.Empty;

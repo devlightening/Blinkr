@@ -3,8 +3,9 @@ using MediatR;
 
 namespace BlogService.Application.Common.Behaviors;
 
-public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
-     where TRequest : notnull
+public class ValidationBehavior<TRequest, TResponse>
+    : IPipelineBehavior<TRequest, TResponse>
+    where TRequest : IRequest<TResponse> // <-- kritik kısıt
 {
     private readonly IEnumerable<IValidator<TRequest>> _validators;
 
@@ -19,8 +20,14 @@ public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TReques
         if (_validators.Any())
         {
             var ctx = new ValidationContext<TRequest>(request);
-            var results = await Task.WhenAll(_validators.Select(v => v.ValidateAsync(ctx, cancellationToken)));
-            var failures = results.SelectMany(r => r.Errors).Where(f => f is not null).ToList();
+            var results = await Task.WhenAll(
+                _validators.Select(v => v.ValidateAsync(ctx, cancellationToken))
+            );
+
+            var failures = results
+                .SelectMany(r => r.Errors)
+                .Where(f => f is not null)
+                .ToList();
 
             if (failures.Count != 0)
                 throw new ValidationException(failures);

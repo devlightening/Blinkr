@@ -32,7 +32,8 @@ public class MongoIndexService
             // List existing indexes first for better idempotency
             var existingIndexes = await ListExistingIndexesAsync();
             
-            await EnsureLocationIndexAsync(existingIndexes);
+            // Only create compound location+time index (no separate location index)
+            await EnsureLocationTimeIndexAsync(existingIndexes); // For NOW feed geospatial queries
             await EnsureAuthorIndexAsync(existingIndexes);
             await EnsureCreatedAtIndexAsync(existingIndexes);
             
@@ -118,6 +119,48 @@ public class MongoIndexService
         catch (Exception ex)
         {
             _logger.LogError(ex, "❌ Failed to create Location 2dsphere index");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Create compound index for NOW feed: Location + CreatedAtUtc
+    /// Optimizes geospatial queries with time filtering
+    /// </summary>
+    private async Task EnsureLocationTimeIndexAsync(Dictionary<string, BsonDocument> existingIndexes)
+    {
+        try
+        {
+            var standardIndexName = "ix_posts_location_time";
+            
+            // Check if index exists
+            if (existingIndexes.ContainsKey(standardIndexName))
+            {
+                _logger.LogInformation("🗺️⏰ Location+Time compound index already exists: {Name}", standardIndexName);
+                return;
+            }
+
+            // Create compound index: Location (2dsphere) + CreatedAtUtc (descending)
+            // This optimizes NOW feed queries that filter by both location and time
+            var indexKeys = Builders<PostDocument>.IndexKeys
+                .Geo2DSphere(x => x.Location)
+                .Descending(x => x.CreatedAtUtc);
+                
+            var indexOptions = new CreateIndexOptions 
+            { 
+                Name = standardIndexName,
+                Background = true,
+                Sparse = true // Only index documents with Location
+            };
+
+            await _postsCollection.Indexes.CreateOneAsync(
+                new CreateIndexModel<PostDocument>(indexKeys, indexOptions));
+
+            _logger.LogInformation("🗺️⏰ Created Location+Time compound index: {Name} (for NOW feed optimization)", standardIndexName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ Failed to create Location+Time compound index");
             throw;
         }
     }

@@ -34,6 +34,21 @@ public record PostListDto
     /// Distance in meters (populated by $geoNear queries)
     /// </summary>
     public double? DistanceMeters { get; init; }
+    
+    /// <summary>
+    /// Freshness in seconds (how old is the post)
+    /// </summary>
+    public int? FreshnessSec { get; init; }
+    
+    /// <summary>
+    /// Is this a "live" post (created within last hour)
+    /// </summary>
+    public bool IsLive { get; init; }
+    
+    /// <summary>
+    /// Decay-adjusted ranking score for NOW feed
+    /// </summary>
+    public double? DecayScore { get; init; }
 
     /// <summary>
     /// Content preview (first 200 chars)

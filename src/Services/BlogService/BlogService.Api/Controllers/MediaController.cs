@@ -1,7 +1,7 @@
+using BlogService.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using BlogService.Api.Services;
 
 namespace BlogService.Api.Controllers;
 

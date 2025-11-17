@@ -1,7 +1,8 @@
 using AutoMapper;
-using BlogService.Application.DTOs.PostDtos; // Oluşturduğumuz DTO'lar için
+using BlogService.Application.DTOs.PostDtos;
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommands;
 using BlogService.Application.Features.Mediatr.Queries.PostQueries;
+using BlogService.Application.Services.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,6 +11,7 @@ using BlogService.Application.Features.Mediatr.Comamnds.PostCommentCommands;
 using BlogService.Application.Features.Mediatr.Comamnds.PostLikeCommands;
 using BlogService.Api.Extensions;
 using BlogService.Application.DTOs.PostCommentDtos;
+using BlogService.Infrastructure.Services;
 
 namespace BlogService.Api.Controllers;
 
@@ -20,11 +22,15 @@ public class PostsController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IMapper _mapper;
+    private readonly IPostQueryService _postQueryService;
+    private readonly PostQueryService _postQueryServiceConcrete;
 
-    public PostsController(IMediator mediator, IMapper mapper)
+    public PostsController(IMediator mediator, IMapper mapper, IPostQueryService postQueryService, PostQueryService postQueryServiceConcrete)
     {
         _mediator = mediator;
         _mapper = mapper;
+        _postQueryService = postQueryService;
+        _postQueryServiceConcrete = postQueryServiceConcrete;
     }
 
     [HttpPost]
@@ -34,8 +40,15 @@ public class PostsController : ControllerBase
         // Get authenticated user ID - will be used by handler via ICurrentUserService
         var authorId = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated");
         
-        // Create command (AuthorId handled by ICurrentUserService in handler)
-        var command = new CreatePostCommand(dto.Title, dto.Content, dto.Media?.ToList());
+        // Create command with location (AuthorId handled by ICurrentUserService in handler)
+        var command = new CreatePostCommand(
+            dto.Title, 
+            dto.Content, 
+            dto.Media?.ToList(),
+            dto.Latitude,
+            dto.Longitude,
+            dto.AccuracyMeters,
+            dto.LocationName);
         var postId = await _mediator.Send(command);
         return CreatedAtAction(nameof(GetById), new { id = postId }, new { PostId = postId });
     }
@@ -94,6 +107,16 @@ public class PostsController : ControllerBase
     {
         var post = await _mediator.Send(new GetPostByIdQuery(id));
         return post is null ? NotFound() : Ok(post);
+    }
+    
+    /// <summary>
+    /// Debug endpoint to check posts with location data
+    /// </summary>
+    [HttpGet("debug/location-posts")]
+    public async Task<ActionResult<object>> DebugLocationPosts()
+    {
+        var count = await _postQueryServiceConcrete.DebugCheckLocationPostsAsync();
+        return Ok(new { PostsWithLocation = count, Message = "Check logs for detailed information" });
     }
 
     [HttpGet]

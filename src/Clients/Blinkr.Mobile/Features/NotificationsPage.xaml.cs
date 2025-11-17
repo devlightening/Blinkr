@@ -1,96 +1,194 @@
 using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Blinkr.Mobile.Core.Api;
 
 namespace Blinkr.Mobile.Features;
 
 public partial class NotificationsPage : ContentPage
 {
-    private readonly IApiClient? _apiClient;
-    public ObservableCollection<NotificationItem> Notifications { get; set; } = new();
+    private readonly NotificationsViewModel _viewModel;
 
-    public NotificationsPage(IApiClient? apiClient = null)
+    public NotificationsPage(INotificationsApiClient notificationsApi)
     {
         InitializeComponent();
-        _apiClient = apiClient;
-        LoadSampleData();
-        BindingContext = this;
+        _viewModel = new NotificationsViewModel(notificationsApi);
+        BindingContext = _viewModel;
+    }
+    
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        await _viewModel.LoadNotificationsCommand.ExecuteAsync(null);
     }
 
-    private void LoadSampleData()
+}
+
+/// <summary>
+/// ViewModel for notifications page with real API integration
+/// </summary>
+public partial class NotificationsViewModel : ObservableObject
+{
+    private readonly INotificationsApiClient _notificationsApi;
+
+    [ObservableProperty] private bool isBusy;
+    [ObservableProperty] private bool isRefreshing;
+    [ObservableProperty] private string statusMessage = "Bildirimler yükleniyor...";
+    
+    public ObservableCollection<NotificationItemViewModel> Notifications { get; } = new();
+
+    public NotificationsViewModel(INotificationsApiClient notificationsApi)
     {
-        Notifications = new ObservableCollection<NotificationItem>
+        _notificationsApi = notificationsApi;
+    }
+
+    [RelayCommand]
+    public async Task LoadNotificationsAsync()
+    {
+        if (IsBusy) return;
+
+        try
         {
-            new NotificationItem
+            IsBusy = true;
+            StatusMessage = "Bildirimler yükleniyor...";
+
+            var result = await _notificationsApi.GetNotificationsAsync(page: 1, pageSize: 50);
+            
+            await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                Avatar = "👤",
-                AvatarColor = Color.FromArgb("#8B5CF6"),
-                Title = "Kullanıcı Adı",
-                Message = "gönderini beğendi.",
-                ActionIcon = "❤️",
-                ActionColor = Color.FromArgb("#EF4444"),
-                TimeAgo = "2s"
-            },
-            new NotificationItem
+                Notifications.Clear();
+                foreach (var notification in result.Items)
+                {
+                    Notifications.Add(new NotificationItemViewModel(notification, this));
+                }
+                
+                StatusMessage = Notifications.Count == 0 
+                    ? "Henüz bildirim yok" 
+                    : $"{Notifications.Count} bildirim";
+            });
+        }
+        catch (Exception ex)
+        {
+            await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                Avatar = "👤",
-                AvatarColor = Color.FromArgb("#10B981"),
-                Title = "Başka Biri",
-                Message = "gönderini beğendi.",
-                ActionIcon = "❤️",
-                ActionColor = Color.FromArgb("#EF4444"),
-                TimeAgo = "2s"
-            },
-            new NotificationItem
+                StatusMessage = $"Hata: {ex.Message}";
+            });
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task RefreshAsync()
+    {
+        if (IsRefreshing) return;
+        
+        try
+        {
+            IsRefreshing = true;
+            await LoadNotificationsAsync();
+        }
+        finally
+        {
+            IsRefreshing = false;
+        }
+    }
+
+    /// <summary>
+    /// Mark notification as read and update UI
+    /// </summary>
+    public async Task MarkAsReadAsync(NotificationItemViewModel notification)
+    {
+        if (notification.IsRead) return;
+
+        try
+        {
+            await _notificationsApi.MarkReadAsync(new MarkReadRequest(new[] { notification.Id }));
+            
+            await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                Avatar = "👤",
-                AvatarColor = Color.FromArgb("#F59E0B"),
-                Title = "Başka Biri",
-                Message = "yeni bir yorum yaptı: \"Harika ufk yer!\"",
-                ActionIcon = "💬",
-                ActionColor = Color.FromArgb("#6B7280"),
-                TimeAgo = "5dk"
-            },
-            new NotificationItem
-            {
-                Avatar = "📍",
-                AvatarColor = Color.FromArgb("#8B5CF6"),
-                Title = "Yakınınızda - Yeni Bir",
-                Message = "Mekan kuruldu!",
-                ActionIcon = "📍",
-                ActionColor = Color.FromArgb("#8B5CF6"),
-                TimeAgo = "5dk"
-            },
-            new NotificationItem
-            {
-                Avatar = "📍",
-                AvatarColor = Color.FromArgb("#10B981"),
-                Title = "Yandısatın iş Başçib athler",
-                Message = "Kanika ufk yer!",
-                ActionIcon = "💬",
-                ActionColor = Color.FromArgb("#6B7280"),
-                TimeAgo = "5dk"
-            },
-            new NotificationItem
-            {
-                Avatar = "📍",
-                AvatarColor = Color.FromArgb("#F59E0B"),
-                Title = "Yakınınızda Yeni Bir Mekan",
-                Message = "Keşipded",
-                ActionIcon = "💬",
-                ActionColor = Color.FromArgb("#6B7280"),
-                TimeAgo = "1s"
-            }
-        };
+                notification.IsRead = true;
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[NotificationsViewModel] Mark as read failed: {ex.Message}");
+        }
     }
 }
 
-public class NotificationItem
+/// <summary>
+/// ViewModel wrapper for notification items with UI-specific properties
+/// </summary>
+public partial class NotificationItemViewModel : ObservableObject
 {
-    public string Avatar { get; set; } = string.Empty;
-    public Color AvatarColor { get; set; } = Colors.Gray;
-    public string Title { get; set; } = string.Empty;
-    public string Message { get; set; } = string.Empty;
-    public string ActionIcon { get; set; } = string.Empty;
-    public Color ActionColor { get; set; } = Colors.Gray;
-    public string TimeAgo { get; set; } = string.Empty;
+    private readonly NotificationsViewModel _parent;
+    
+    [ObservableProperty] private bool isRead;
+    
+    public string Id { get; }
+    public string Type { get; }
+    public string Title { get; }
+    public string Body { get; }
+    public string? DeepLink { get; }
+    public DateTime CreatedAtUtc { get; }
+    
+    /// <summary>
+    /// Human-readable relative time ("5 dk önce", "2 sa önce")
+    /// </summary>
+    public string RelativeTime => GetRelativeTime(CreatedAtUtc);
+    
+    /// <summary>
+    /// Display title with unread indicator
+    /// </summary>
+    public string DisplayTitle => IsRead ? Title : $"● {Title}";
+
+    public NotificationItemViewModel(NotificationDto notification, NotificationsViewModel parent)
+    {
+        _parent = parent;
+        Id = notification.Id;
+        Type = notification.Type;
+        Title = notification.Title;
+        Body = notification.Body;
+        DeepLink = notification.DeepLink;
+        CreatedAtUtc = notification.CreatedAtUtc;
+        IsRead = notification.IsRead;
+    }
+
+    [RelayCommand]
+    public async Task TapAsync()
+    {
+        // Mark as read when tapped
+        await _parent.MarkAsReadAsync(this);
+        
+        // TODO: Handle deep link navigation
+        if (!string.IsNullOrEmpty(DeepLink))
+        {
+            System.Diagnostics.Debug.WriteLine($"[NotificationItem] Deep link: {DeepLink}");
+            // Navigate to specific post/content
+        }
+    }
+    
+    private static string GetRelativeTime(DateTime createdAtUtc)
+    {
+        var elapsed = DateTime.UtcNow - createdAtUtc;
+        
+        if (elapsed.TotalMinutes < 1)
+            return "Az önce";
+        else if (elapsed.TotalMinutes < 60)
+            return $"{(int)elapsed.TotalMinutes} dk önce";
+        else if (elapsed.TotalHours < 24)
+            return $"{(int)elapsed.TotalHours} sa önce";
+        else if (elapsed.TotalDays < 7)
+            return $"{(int)elapsed.TotalDays} gün önce";
+        else
+            return createdAtUtc.ToLocalTime().ToString("dd.MM.yyyy");
+    }
+    
+    partial void OnIsReadChanged(bool value)
+    {
+        OnPropertyChanged(nameof(DisplayTitle));
+    }
 }

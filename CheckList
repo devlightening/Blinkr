@@ -15,13 +15,17 @@
 * ✅ Kimlik doğrulama (Identity, JWT)
 * ✅ Yetkilendirme (sahip/admin kontrolleri)
 
-### ✅ **C) Domain Tasarımı (Write)**
-* ✅ Aggregates (PostAggregate)
-* ✅ Domain event'ler (Created/Updated/Deleted/Liked/CommentAdded/LocationAdded/LocationUpdated/LocationRemoved)
-* ✅ Invariants (boş içerik, duplicate like vb.)
-* ❌ **Event şema versiyonlama** - **Sprint 5'e ertelendi**
-* ✅ Command-level idempotency (temel kontroller var)
-* ✅ **Location Domain Events** - **BUGÜN EKLENDİ** (PostLocationAddedEvent, UpdatedEvent, RemovedEvent)
+## 🔐 **WS-02 – Identity & Auth Flow (Login / Refresh / Roles)**
+**Status:** ❌ TODO (Backend hazır, Mobile eksik)  
+**Goal:** MAUI'den login, token sakla, refresh çalışsın  
+**Context:** Kullanıcılar authentication ile tüm servislere erişebilsin  
+**Steps:**
+- [ ] LoginPage (email/password + Continue button)
+- [ ] ITokenStore (SecureStorage ile access_token + refresh_token)
+- [ ] AuthApiClient (POST /api/Auth/login, /api/Auth/refresh)
+- [ ] AuthMessageHandler (Authorization: Bearer header + 401 refresh)
+- [ ] Shell routing (token yoksa LoginPage, varsa MapPage)
+**Definition of Done:** MAUI login çalışır, API çağrıları otomatik authenticated
 
 ### ✅ **D) Write Katmanı (Event Flow)**
 * ✅ Commands & Handlers (MediatR)

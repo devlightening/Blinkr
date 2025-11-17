@@ -184,7 +184,20 @@
         markersLayer.clearLayers();
         arr.forEach(p=>{
           if (typeof p.lat==='number' && typeof p.lng==='number') {
-            const m = L.marker([p.lat,p.lng], { title: p.title||'' });
+            // Gender-based pin color
+            let pinColor = '#FF6B47'; // Default (Primary)
+            if (p.gender === 'Male') pinColor = '#4A90E2';      // Blue
+            else if (p.gender === 'Female') pinColor = '#E24A90'; // Pink
+            else if (p.gender === 'Other') pinColor = '#9B59B6';  // Purple
+            
+            const icon = L.divIcon({
+              className: 'custom-marker',
+              html: `<div style="width:40px;height:40px;background:${pinColor};border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:20px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">📍</div>`,
+              iconSize: [40, 40],
+              iconAnchor: [20, 40]
+            });
+            
+            const m = L.marker([p.lat,p.lng], { icon, title: p.title||'' });
             m.on('click', ()=> location.href = `app://pin?id=${encodeURIComponent(p.id||'')}`);
             markersLayer.addLayer(m);
           }

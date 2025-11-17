@@ -33,8 +33,14 @@ public class AuthRefreshHandler : DelegatingHandler
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         }
 
+        // Log outgoing request
+        System.Diagnostics.Debug.WriteLine($"[Blinkr HTTP] → {request.Method} {request.RequestUri}");
+
         // Send request
         var response = await base.SendAsync(request, cancellationToken);
+        
+        // Log response
+        System.Diagnostics.Debug.WriteLine($"[Blinkr HTTP] ← {(int)response.StatusCode} {response.ReasonPhrase} for {request.RequestUri}");
 
         // If 401, try to refresh token
         if (response.StatusCode == HttpStatusCode.Unauthorized)

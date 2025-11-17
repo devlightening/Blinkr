@@ -70,4 +70,9 @@ public interface IPostQueryService
     /// Get total posts count
     /// </summary>
     Task<int> GetTotalPostsCountAsync(CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Debug method to check posts with location data
+    /// </summary>
+    Task<int> DebugCheckLocationPostsAsync(CancellationToken cancellationToken = default);
 }

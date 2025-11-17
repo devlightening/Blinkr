@@ -9,7 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using System.Security.Cryptography;
 using Npgsql;
-using IdentityService.Infrastructure.Data; 
+using IdentityService.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 

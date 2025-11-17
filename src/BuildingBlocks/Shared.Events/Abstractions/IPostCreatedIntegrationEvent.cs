@@ -13,5 +13,11 @@ namespace Shared.Events.Abstractions
         string Title { get; }
         string Content { get; }
         DateTime OccurredOn { get; }
+        
+        // Location fields for geospatial support
+        double? Latitude { get; }
+        double? Longitude { get; }
+        double? AccuracyMeters { get; }
+        string? LocationName { get; }
     }
 }
