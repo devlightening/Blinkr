@@ -24,17 +24,3 @@ public record PostReadDto
     public double? Latitude { get; init; }
     public double? Longitude { get; init; }
 }
-
-public record CommentDto
-{
-    public Guid CommentId { get; init; }
-    public Guid UserId { get; init; }
-    public string Text { get; init; } = string.Empty;
-    public DateTime CreatedAtUtc { get; init; }
-}
-
-public record MediaDto
-{
-    public string Url { get; init; } = string.Empty;
-    public string MediaType { get; init; } = string.Empty;
-}

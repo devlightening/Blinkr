@@ -294,8 +294,9 @@ builder.Services.AddScoped<IEventStoreRepository>(sp =>
 {
     var inner = sp.GetRequiredService<EventStoreDbRepository>();
     var bus = sp.GetRequiredService<IBus>();
+    var dbContext = sp.GetRequiredService<BlogDbContext>();
     var logger = sp.GetRequiredService<ILogger<EventStorePublishingDecorator>>();
-    return new EventStorePublishingDecorator(inner, bus, logger);
+    return new EventStorePublishingDecorator(inner, bus, dbContext, logger);
 });
 builder.Services.AddScoped<IPostReadRepository, PostReadRepository>();
 

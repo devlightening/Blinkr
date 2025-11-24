@@ -135,6 +135,13 @@ try
                 Log.Information("Configured endpoint post-liked, Consumer: {Consumer}", nameof(PostLikedConsumer));
             });
             
+            cfg.ReceiveEndpoint("post-unliked", e =>
+            {
+                e.PrefetchCount = 32;
+                e.ConfigureConsumer<PostUnlikedConsumer>(ctx);
+                Log.Information("Configured endpoint post-unliked, Consumer: {Consumer}", nameof(PostUnlikedConsumer));
+            });
+            
             cfg.ReceiveEndpoint("post-comment-added", e =>
             {
                 e.PrefetchCount = 32;

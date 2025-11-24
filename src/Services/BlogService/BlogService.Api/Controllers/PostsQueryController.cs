@@ -1,4 +1,5 @@
-using BlogService.Api.DTOs;
+using BlogService.Application.DTOs.PostDtos;
+
 using BlogService.Application.Services.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

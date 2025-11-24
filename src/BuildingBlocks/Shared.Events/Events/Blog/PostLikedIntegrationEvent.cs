@@ -14,3 +14,11 @@ public sealed class PostLikedIntegrationEvent : IntegrationEvent
     public Guid UserId => LikerUserId;
 }
 
+public sealed class PostUnlikedIntegrationEvent : IntegrationEvent
+{
+    public Guid PostId { get; init; }
+    public Guid PostOwnerId { get; init; }
+    public Guid LikerUserId { get; init; }
+    public DateTime OccurredAtUtc { get; init; }
+}
+

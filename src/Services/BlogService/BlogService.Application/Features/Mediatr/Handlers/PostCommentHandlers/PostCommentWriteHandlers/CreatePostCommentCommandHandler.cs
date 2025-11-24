@@ -2,32 +2,46 @@ using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommentCommands;
 using BlogService.Domain.Entities;
 using BlogService.Domain.Events;
-using MassTransit;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Shared.Events.Events.Blog;
+
+namespace BlogService.Application.Features.Mediatr.Handlers.PostCommentHandlers.PostCommentWriteHandlers;
 
 public class CreatePostCommentCommandHandler : IRequestHandler<CreatePostCommentCommand, Guid>
 {
+    private const int MaxCommentLength = 500;
+
     private readonly IEventStoreRepository _eventStoreRepo;
     private readonly ICurrentUserService _currentUser;
-    private readonly IPublishEndpoint _publishEndpoint;
     private readonly ILogger<CreatePostCommentCommandHandler> _logger;
 
     public CreatePostCommentCommandHandler(
         IEventStoreRepository eventStoreRepo,
         ICurrentUserService currentUser,
-        IPublishEndpoint publishEndpoint,
         ILogger<CreatePostCommentCommandHandler> logger)
     {
         _eventStoreRepo = eventStoreRepo;
         _currentUser = currentUser;
-        _publishEndpoint = publishEndpoint;
         _logger = logger;
     }
 
     public async Task<Guid> Handle(CreatePostCommentCommand request, CancellationToken ct)
     {
+        // Validate comment text
+        var commentText = request.CommentText?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(commentText))
+        {
+            _logger.LogWarning("WS-06: CreateComment validation failed - CommentText is empty");
+            throw new ArgumentException("Comment text is required and cannot be empty.");
+        }
+
+        if (commentText.Length > MaxCommentLength)
+        {
+            _logger.LogWarning("WS-06: CreateComment validation failed - CommentText too long (Length={Length}, Max={Max})",
+                commentText.Length, MaxCommentLength);
+            throw new ArgumentException($"Comment must not exceed {MaxCommentLength} characters.");
+        }
+
         var authorId = _currentUser.UserId ?? throw new UnauthorizedAccessException("Authentication required.");
 
         var postAggregate = await _eventStoreRepo.LoadAsync<PostAggregate>(request.PostId, ct);
@@ -36,7 +50,7 @@ public class CreatePostCommentCommandHandler : IRequestHandler<CreatePostComment
             throw new KeyNotFoundException($"Post with ID '{request.PostId}' not found.");
         }
 
-        postAggregate.AddComment(authorId, request.CommentText);
+        postAggregate.AddComment(authorId, commentText);
 
         // Get the event BEFORE saving (SaveAsync clears uncommitted events)
         var commentAddedEvent = postAggregate.GetUncommittedEvents().OfType<PostCommentAddedEvent>().LastOrDefault();
@@ -45,27 +59,13 @@ public class CreatePostCommentCommandHandler : IRequestHandler<CreatePostComment
             throw new InvalidOperationException("PostCommentAddedEvent was not generated.");
         }
 
+        // Persist to EventStore
+        // EventStorePublishingDecorator will publish PostCommentAddedIntegrationEvent
         await _eventStoreRepo.SaveAsync(postAggregate, ct);
 
-        // WS-07-SOCIAL-FIX: Publish integration event with PostOwnerId for NotificationService
         _logger.LogInformation(
-            "WS-07-SOCIAL-FIX: Publishing CommentCreatedIntegrationEvent PostId={PostId}, PostOwnerId={PostOwnerId}, AuthorId={AuthorId}, CommentId={CommentId}",
-            postAggregate.Id, postAggregate.AuthorId, authorId, commentAddedEvent.CommentId);
-
-        var commentTextSnippet = request.CommentText.Length > 50 
-            ? request.CommentText.Substring(0, 50) + "..." 
-            : request.CommentText;
-
-        await _publishEndpoint.Publish(new PostCommentAddedIntegrationEvent
-        {
-            PostId = postAggregate.Id,
-            PostOwnerId = postAggregate.AuthorId,
-            CommentId = commentAddedEvent.CommentId,
-            CommentAuthorId = authorId,
-            CommentAuthorName = "Unknown", // TODO: Get from UserService
-            CommentText = commentTextSnippet,
-            OccurredAtUtc = DateTime.UtcNow
-        }, ct);
+            "WS-06: CommentCreated | PostId={PostId} | CommentId={CommentId} | UserId={UserId} | TextLength={TextLength}",
+            request.PostId, commentAddedEvent.CommentId, authorId, commentText.Length);
 
         return commentAddedEvent.CommentId;
     }

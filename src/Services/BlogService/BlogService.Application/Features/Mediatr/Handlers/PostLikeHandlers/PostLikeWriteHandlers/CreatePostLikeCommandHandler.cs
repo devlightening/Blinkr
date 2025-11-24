@@ -1,10 +1,8 @@
 ﻿using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Features.Mediatr.Comamnds.PostLikeCommands;
 using BlogService.Domain.Entities;
-using MassTransit;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Shared.Events.Events.Blog;
 
 namespace BlogService.Application.Features.Mediatr.Handlers.PostLikeHandlers.PostLikeWriteHandlers;
 
@@ -12,18 +10,15 @@ public class CreatePostLikeCommandHandler : IRequestHandler<CreatePostLikeComman
 {
     private readonly IEventStoreRepository _eventStoreRepo;
     private readonly ICurrentUserService _currentUser;
-    private readonly IPublishEndpoint _publishEndpoint;
     private readonly ILogger<CreatePostLikeCommandHandler> _logger;
 
     public CreatePostLikeCommandHandler(
         IEventStoreRepository eventStoreRepo,
         ICurrentUserService currentUser,
-        IPublishEndpoint publishEndpoint,
         ILogger<CreatePostLikeCommandHandler> logger)
     {
         _eventStoreRepo = eventStoreRepo;
         _currentUser = currentUser;
-        _publishEndpoint = publishEndpoint;
         _logger = logger;
     }
 
@@ -31,51 +26,48 @@ public class CreatePostLikeCommandHandler : IRequestHandler<CreatePostLikeComman
     {
         var userId = _currentUser.UserId ?? throw new UnauthorizedAccessException("Authentication required.");
 
-        // 1) Load aggregate from event history
+        // Load aggregate from EventStore (source of truth)
         var postAggregate = await _eventStoreRepo.LoadAsync<PostAggregate>(request.PostId, cancellationToken);
         if (postAggregate.Id == Guid.Empty)
+        {
+            _logger.LogWarning("WS-06: PostLike validation failed - Post not found (PostId={PostId})", request.PostId);
             throw new KeyNotFoundException($"Post with ID '{request.PostId}' not found.");
-
-        // WS-07-SOCIAL-FIX: Check if user already liked this post (toggle behavior)
-        bool alreadyLiked = postAggregate.Likes.Any(l => l.UserId == userId);
-        
-        if (alreadyLiked)
-        {
-            _logger.LogInformation("WS-07-SOCIAL-FIX: User {UserId} is unliking post {PostId}", userId, request.PostId);
-            postAggregate.UnlikePost(userId);
-        }
-        else
-        {
-            _logger.LogInformation("WS-07-SOCIAL-FIX: User {UserId} is liking post {PostId}", userId, request.PostId);
-            postAggregate.AddLike(userId);
         }
 
-        // 2) Save to EventStore
-        await _eventStoreRepo.SaveAsync(postAggregate, cancellationToken);
+        // Prevent self-like
+        if (postAggregate.AuthorId == userId)
+        {
+            _logger.LogWarning("WS-06: PostLike validation failed - Cannot like own post (PostId={PostId}, UserId={UserId})",
+                request.PostId, userId);
+            throw new InvalidOperationException("You cannot like your own post.");
+        }
 
-        // 3) Publish integration event ONLY on new like (not on unlike)
-        // This prevents notification spam and ensures one notification per "fresh like"
+        // Check if user already liked this post (toggle behavior from EventStore)
+        bool alreadyLiked = postAggregate.Likes.Any(x => x.UserId == userId);
+
+        _logger.LogInformation(
+            "WS-06: PostLike toggle check | PostId={PostId} | UserId={UserId} | AlreadyLiked={AlreadyLiked}",
+            postAggregate.Id, userId, alreadyLiked);
+
+        // Apply appropriate domain event
         if (!alreadyLiked)
         {
             _logger.LogInformation(
-                "WS-07-SOCIAL-FIX: Publishing PostLikedIntegrationEvent PostId={PostId}, PostOwnerId={PostOwnerId}, LikerId={LikerId}",
-                postAggregate.Id, postAggregate.AuthorId, userId);
-
-            await _publishEndpoint.Publish(new PostLikedIntegrationEvent
-            {
-                PostId = postAggregate.Id,
-                PostOwnerId = postAggregate.AuthorId,
-                LikerUserId = userId,
-                LikerUserName = "Unknown", // TODO: Get from UserService
-                OccurredAtUtc = DateTime.UtcNow
-            }, cancellationToken);
+                "WS-06: PostLiked | PostId={PostId} | UserId={UserId} | Action=Like",
+                request.PostId, userId);
+            postAggregate.AddLike(userId);
         }
         else
         {
             _logger.LogInformation(
-                "WS-07-SOCIAL-FIX: Post unliked; no notification published. PostId={PostId}, UserId={UserId}",
-                postAggregate.Id, userId);
+                "WS-06: PostUnliked | PostId={PostId} | UserId={UserId} | Action=Unlike",
+                request.PostId, userId);
+            postAggregate.UnlikePost(userId);
         }
+
+        // Persist to EventStore
+        // EventStorePublishingDecorator will publish PostLikedIntegrationEvent or PostUnlikedIntegrationEvent
+        await _eventStoreRepo.SaveAsync(postAggregate, cancellationToken);
 
         return Unit.Value;
     }

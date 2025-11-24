@@ -6,6 +6,55 @@ using Shared.Events.Events.Blog;
 
 namespace Blinkr.Projections.Worker.Consumers;
 
+public class PostUnlikedConsumer : IConsumer<PostUnlikedIntegrationEvent>
+{
+    private readonly IMongoCollection<PostDocument> _postsCollection;
+    private readonly ILogger<PostUnlikedConsumer> _logger;
+
+    public PostUnlikedConsumer(IMongoDatabase database, ILogger<PostUnlikedConsumer> logger)
+    {
+        _postsCollection = database.GetCollection<PostDocument>("posts");
+        _logger = logger;
+    }
+
+    public async Task Consume(ConsumeContext<PostUnlikedIntegrationEvent> context)
+    {
+        var message = context.Message;
+        _logger.LogInformation(
+            "WS-07-LIKE-TOGGLE-FULL-FIX: Received PostUnlikedIntegrationEvent for PostId: {PostId}, LikerId: {LikerId}",
+            message.PostId, message.LikerUserId);
+
+        try
+        {
+            var filter = Builders<PostDocument>.Filter.Eq(p => p.Id, message.PostId);
+            var update = Builders<PostDocument>.Update.Inc(p => p.LikeCount, -1);
+
+            var result = await _postsCollection.UpdateOneAsync(filter, update);
+
+            if (result.MatchedCount == 0)
+            {
+                _logger.LogWarning(
+                    "WS-07-LIKE-TOGGLE-FULL-FIX: Post not found for PostId: {PostId}",
+                    message.PostId);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "WS-07-LIKE-TOGGLE-FULL-FIX: Successfully decremented like count for PostId: {PostId}",
+                    message.PostId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "WS-07-LIKE-TOGGLE-FULL-FIX: Error processing PostUnlikedIntegrationEvent for PostId: {PostId}",
+                message.PostId);
+            throw;
+        }
+    }
+}
+
 public class PostCommentAddedConsumer : IConsumer<PostCommentAddedIntegrationEvent>
 {
     private readonly IMongoCollection<PostDocument> _postsCollection;

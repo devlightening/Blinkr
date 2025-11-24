@@ -19,8 +19,9 @@ public class PostLikedConsumer : IConsumer<PostLikedIntegrationEvent>
     public async Task Consume(ConsumeContext<PostLikedIntegrationEvent> context)
     {
         var message = context.Message;
-        _logger.LogInformation("Received PostLikedIntegrationEvent for PostId: {PostId}, UserId: {UserId}", 
-            message.PostId, message.UserId);
+        _logger.LogInformation(
+            "WS-07-LIKE-TOGGLE-FULL-FIX: Received PostLikedIntegrationEvent for PostId: {PostId}, LikerId: {LikerId}",
+            message.PostId, message.LikerUserId);
 
         try
         {
@@ -31,16 +32,23 @@ public class PostLikedConsumer : IConsumer<PostLikedIntegrationEvent>
 
             if (result.MatchedCount == 0)
             {
-                _logger.LogWarning("Post not found for PostId: {PostId}", message.PostId);
+                _logger.LogWarning(
+                    "WS-07-LIKE-TOGGLE-FULL-FIX: Post not found for PostId: {PostId}",
+                    message.PostId);
             }
             else
             {
-                _logger.LogInformation("Successfully incremented like count for PostId: {PostId}", message.PostId);
+                _logger.LogInformation(
+                    "WS-07-LIKE-TOGGLE-FULL-FIX: Successfully incremented like count for PostId: {PostId}",
+                    message.PostId);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing PostLikedIntegrationEvent for PostId: {PostId}", message.PostId);
+            _logger.LogError(
+                ex,
+                "WS-07-LIKE-TOGGLE-FULL-FIX: Error processing PostLikedIntegrationEvent for PostId: {PostId}",
+                message.PostId);
             throw;
         }
     }

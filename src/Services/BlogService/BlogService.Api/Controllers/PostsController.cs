@@ -119,6 +119,91 @@ public class PostsController : ControllerBase
         return Ok(new { PostsWithLocation = count, Message = "Check logs for detailed information" });
     }
 
+    /// <summary>
+    /// GET /api/posts/feed - Get paginated feed of posts with sorting
+    /// </summary>
+    [HttpGet("feed")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(PaginatedFeedResponse), 200)]
+    public async Task<IActionResult> GetFeed(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string sortBy = "newest")
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 20;
+
+        var result = await _postQueryService.GetFeedAsync(page, pageSize);
+
+        // Apply sorting
+        var items = result.Items.AsEnumerable();
+        if (sortBy == "top")
+        {
+            items = items.OrderByDescending(p => p.LikeCount)
+                         .ThenByDescending(p => p.CreatedAtUtc);
+        }
+        else // default "newest"
+        {
+            items = items.OrderByDescending(p => p.CreatedAtUtc);
+        }
+
+        var response = new PaginatedFeedResponse
+        {
+            Items = items.ToList(),
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = result.TotalCount,
+            TotalPages = (int)Math.Ceiling(result.TotalCount / (double)pageSize)
+        };
+
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// GET /api/posts/{id}/comments - Get paginated comments for a post
+    /// </summary>
+    [HttpGet("{postId:guid}/comments")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(PaginatedCommentsResponse), 200)]
+    public async Task<IActionResult> GetComments(
+        Guid postId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 50) pageSize = 10;
+
+        var post = await _postQueryService.GetPostByIdAsync(postId);
+        if (post == null)
+        {
+            return NotFound(new { message = "Post not found" });
+        }
+
+        // Get comments from post's Comments array
+        var allComments = post.Comments ?? new List<CommentDto>();
+        var totalCount = allComments.Count;
+        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+        // Apply pagination
+        var paginatedComments = allComments
+            .OrderByDescending(c => c.CreatedAtUtc)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        var response = new PaginatedCommentsResponse
+        {
+            PostId = postId,
+            Items = paginatedComments,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount,
+            TotalPages = totalPages
+        };
+
+        return Ok(response);
+    }
+
     [HttpGet]
     [AllowAnonymous]
     public async Task<IActionResult> GetPaged([FromQuery] GetPostsPagedQuery query)

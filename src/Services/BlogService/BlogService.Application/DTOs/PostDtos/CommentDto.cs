@@ -1,4 +1,4 @@
-namespace BlogService.Api.DTOs;
+namespace BlogService.Application.DTOs.PostDtos;
 
 public record CommentDto
 {

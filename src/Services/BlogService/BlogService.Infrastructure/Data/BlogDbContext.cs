@@ -174,6 +174,15 @@ public class BlogDbContext : DbContext
                     .OnDelete(DeleteBehavior.Cascade);
         });
 
+        // PostLike - WS-07-LIKE-UNIQUENESS: Enforce unique constraint per user/post
+        modelBuilder.Entity<PostLike>(entity =>
+        {
+            entity.HasKey(l => l.Id);
+            entity.HasIndex(l => new { l.PostId, l.UserId })
+                .IsUnique()
+                .HasName("IX_PostLike_PostId_UserId_Unique");
+        });
+
         // PostMedia
         modelBuilder.Entity<PostMedia>(entity =>
         {
