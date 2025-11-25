@@ -14,6 +14,9 @@ public static class NotificationMapper
             n.Content.ImageUrl,
             n.Type,
             n.CreatedAtUtc,
-            n.ReadAtUtc.HasValue
+            n.ReadAtUtc.HasValue,
+            n.PostId,
+            n.ActorUserId,
+            n.ActorUserName
         );
 }

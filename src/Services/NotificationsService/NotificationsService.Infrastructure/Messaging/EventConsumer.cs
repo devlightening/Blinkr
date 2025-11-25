@@ -52,16 +52,16 @@ public class PostLikedNotificationConsumer : IConsumer<PostLikedIntegrationEvent
     public async Task Consume(ConsumeContext<PostLikedIntegrationEvent> context)
     {
         var m = context.Message;
-        _log.LogInformation("WS-07-SOCIAL-FIX: MT consume post.liked PostId={PostId}, Owner={Owner}, Liker={Liker}", m.PostId, m.PostOwnerId, m.LikerUserId);
+        _log.LogInformation("WS-07A: PostLiked event received | PostId={PostId} | PostOwnerId={PostOwnerId} | LikerUserId={LikerUserId}", m.PostId, m.PostOwnerId, m.LikerUserId);
 
         if (m.PostOwnerId == Guid.Empty)
         {
-            _log.LogWarning("WS-07-SOCIAL-FIX: PostLikedIntegrationEvent has empty PostOwnerId. Skipping notification to avoid targeting zero GUID.");
+            _log.LogWarning("WS-07A: PostLikedIntegrationEvent has empty PostOwnerId. Skipping notification.");
             return;
         }
         if (m.PostOwnerId == m.LikerUserId)
         {
-            _log.LogInformation("WS-07-SOCIAL-FIX: User liked their own post. Skipping notification. UserId={UserId}, PostId={PostId}", m.LikerUserId, m.PostId);
+            _log.LogInformation("WS-07A: Self-like detected - skipping notification | UserId={UserId} | PostId={PostId}", m.LikerUserId, m.PostId);
             return;
         }
 
@@ -69,11 +69,14 @@ public class PostLikedNotificationConsumer : IConsumer<PostLikedIntegrationEvent
         {
             UserId = m.PostOwnerId,
             Type = NotificationType.PostLiked,
+            PostId = m.PostId,
+            ActorUserId = m.LikerUserId,
+            ActorUserName = m.LikerUserName,
             Content = new()
             {
                 Title = "Yeni beğeni",
                 Body = string.IsNullOrWhiteSpace(m.LikerUserName) ? "Gönderin beğenildi" : $"{m.LikerUserName} gönderini beğendi.",
-                DeepLink = $"post:{m.PostId}"
+                DeepLink = $"blinkr://posts/{m.PostId}"
             },
             CreatedAtUtc = m.OccurredAtUtc == default ? DateTime.UtcNow : m.OccurredAtUtc
         };
@@ -81,7 +84,7 @@ public class PostLikedNotificationConsumer : IConsumer<PostLikedIntegrationEvent
         await _notifRepo.InsertAsync(notification, context.CancellationToken);
         var tokens = await _tokenRepo.GetByUserIdsAsync(new[] { m.PostOwnerId }, context.CancellationToken);
         await _push.SendAsync(tokens, notification.Content.Title, notification.Content.Body, notification.Content.DeepLink, context.CancellationToken);
-        _log.LogInformation("WS-07-SOCIAL-FIX: Created notification Type={Type} for UserId={UserId}, PostId={PostId}, LikerId={LikerId}", notification.Type, notification.UserId, m.PostId, m.LikerUserId);
+        _log.LogInformation("WS-07A: Created notification | Type={Type} | UserId={UserId} | PostId={PostId} | ActorUserId={ActorUserId}", notification.Type, notification.UserId, m.PostId, m.LikerUserId);
     }
 }
 
@@ -100,16 +103,16 @@ public class PostCommentAddedNotificationConsumer : IConsumer<PostCommentAddedIn
     public async Task Consume(ConsumeContext<PostCommentAddedIntegrationEvent> context)
     {
         var m = context.Message;
-        _log.LogInformation("WS-07-SOCIAL-FIX: MT consume comment.created PostId={PostId}, Owner={Owner}, Author={Author}", m.PostId, m.PostOwnerId, m.CommentAuthorId);
+        _log.LogInformation("WS-07A: CommentAdded event received | PostId={PostId} | PostOwnerId={PostOwnerId} | CommentAuthorId={CommentAuthorId}", m.PostId, m.PostOwnerId, m.CommentAuthorId);
 
         if (m.PostOwnerId == Guid.Empty)
         {
-            _log.LogWarning("WS-07-SOCIAL-FIX: PostCommentAddedIntegrationEvent has empty PostOwnerId. Skipping notification to avoid targeting zero GUID.");
+            _log.LogWarning("WS-07A: PostCommentAddedIntegrationEvent has empty PostOwnerId. Skipping notification.");
             return;
         }
         if (m.PostOwnerId == m.CommentAuthorId)
         {
-            _log.LogInformation("WS-07-SOCIAL-FIX: User commented on their own post. Skipping notification. UserId={UserId}, PostId={PostId}", m.CommentAuthorId, m.PostId);
+            _log.LogInformation("WS-07A: Self-comment detected - skipping notification | UserId={UserId} | PostId={PostId}", m.CommentAuthorId, m.PostId);
             return;
         }
 
@@ -131,7 +134,7 @@ public class PostCommentAddedNotificationConsumer : IConsumer<PostCommentAddedIn
         await _notifRepo.InsertAsync(notification, context.CancellationToken);
         var tokens = await _tokenRepo.GetByUserIdsAsync(new[] { m.PostOwnerId }, context.CancellationToken);
         await _push.SendAsync(tokens, notification.Content.Title, notification.Content.Body, notification.Content.DeepLink, context.CancellationToken);
-        _log.LogInformation("WS-07-SOCIAL-FIX: Created notification Type={Type} for UserId={UserId}, PostId={PostId}, AuthorId={AuthorId}", notification.Type, notification.UserId, m.PostId, m.CommentAuthorId);
+        _log.LogInformation("WS-07A: Created notification | Type={Type} | UserId={UserId} | PostId={PostId} | ActorUserId={ActorUserId}", notification.Type, notification.UserId, m.PostId, m.CommentAuthorId);
     }
 }
 

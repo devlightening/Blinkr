@@ -3,6 +3,7 @@ using BlogService.Application.Features.Mediatr.Comamnds.PostLikeCommands;
 using BlogService.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using FluentValidation;
 
 namespace BlogService.Application.Features.Mediatr.Handlers.PostLikeHandlers.PostLikeWriteHandlers;
 
@@ -39,7 +40,7 @@ public class CreatePostLikeCommandHandler : IRequestHandler<CreatePostLikeComman
         {
             _logger.LogWarning("WS-06: PostLike validation failed - Cannot like own post (PostId={PostId}, UserId={UserId})",
                 request.PostId, userId);
-            throw new InvalidOperationException("You cannot like your own post.");
+            throw new ValidationException("You cannot like your own post.");
         }
 
         // Check if user already liked this post (toggle behavior from EventStore)

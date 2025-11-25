@@ -10,5 +10,8 @@ public record NotificationDto(
     string? ImageUrl,
     NotificationType Type,
     DateTime CreatedAtUtc,
-    bool IsRead
+    bool IsRead,
+    Guid? PostId,
+    Guid? ActorUserId,
+    string? ActorUserName
 );

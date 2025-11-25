@@ -23,10 +23,16 @@ public class MongoNotificationRepository : INotificationRepository, IDeviceToken
 
     private void EnsureIndexes()
     {
-        // Notifications index
+        // Notifications index: UserId + CreatedAtUtc for listing
         _notifs.Indexes.CreateOne(
             new CreateIndexModel<Notification>(
                 Builders<Notification>.IndexKeys.Descending(x => x.UserId).Descending(x => x.CreatedAtUtc)));
+
+        // Unread notifications index: UserId + ReadAtUtc for unread count queries
+        _notifs.Indexes.CreateOne(
+            new CreateIndexModel<Notification>(
+                Builders<Notification>.IndexKeys.Ascending(x => x.UserId).Ascending(x => x.ReadAtUtc)));
+
 
         // Device tokens index
         _tokens.Indexes.CreateOne(
@@ -57,6 +63,11 @@ public class MongoNotificationRepository : INotificationRepository, IDeviceToken
         catch (MongoCommandException)
         {
             // Index already exists, ignore
+        }
+        catch (Exception ex)
+        {
+            // Log but don't fail on index creation errors
+            System.Diagnostics.Debug.WriteLine($"Warning: Failed to create indexes: {ex.Message}");
         }
     }
 
