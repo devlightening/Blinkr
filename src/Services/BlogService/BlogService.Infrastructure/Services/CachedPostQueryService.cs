@@ -399,4 +399,22 @@ public class CachedPostQueryService : IPostQueryService
         // Debug methods should not be cached
         return await _inner.DebugCheckLocationPostsAsync(cancellationToken);
     }
+
+    /// <summary>
+    /// DEBUG: Update all posts without location to specified coordinates (no caching for debug)
+    /// </summary>
+    public async Task<int> UpdatePostLocationsAsync(double latitude, double longitude, string locationName, CancellationToken cancellationToken = default)
+    {
+        // Debug methods should not be cached
+        return await _inner.UpdatePostLocationsAsync(latitude, longitude, locationName, cancellationToken);
+    }
+
+    /// <summary>
+    /// DEBUG: Update all posts with default author name (no caching for debug)
+    /// </summary>
+    public async Task<int> UpdateAuthorNamesAsync(CancellationToken cancellationToken = default)
+    {
+        // Debug methods should not be cached
+        return await _inner.UpdateAuthorNamesAsync(cancellationToken);
+    }
 }

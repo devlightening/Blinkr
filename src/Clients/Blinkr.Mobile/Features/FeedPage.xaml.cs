@@ -3,44 +3,22 @@ using Blinkr.Mobile.Core.Api;
 
 namespace Blinkr.Mobile.Features;
 
-public partial class FeedPage : ContentPage
+public class FeedViewModel
 {
     private readonly IApiClient? _apiClient;
     public ObservableCollection<PostItem> Posts { get; set; } = new();
     private string _currentFilter = "Yakın";
 
-    // Constructor with optional DI
-    public FeedPage(IApiClient? apiClient = null)
+    public FeedViewModel(IApiClient? apiClient = null)
     {
-        InitializeComponent();
-        
         _apiClient = apiClient;
-        BindingContext = this;
+        LoadSampleData();
     }
 
-    protected override async void OnAppearing()
+    public async Task OnFilterClickedAsync(string filterName)
     {
-        base.OnAppearing();
-        
-        // Load data when page appears
+        _currentFilter = filterName;
         await LoadDataAsync();
-    }
-
-    private void OnFilterClicked(object sender, EventArgs e)
-    {
-        if (sender is not Button button) return;
-
-        // Reset all buttons to inactive style
-        BtnYakin.Style = Resources["TabButton"] as Style;
-        BtnPopuler.Style = Resources["TabButton"] as Style;
-        BtnYeni.Style = Resources["TabButton"] as Style;
-
-        // Set clicked button to active style
-        button.Style = Resources["TabButtonActive"] as Style;
-        _currentFilter = button.Text;
-
-        // Load data based on filter
-        _ = LoadDataAsync();
     }
 
     private async Task LoadDataAsync()
@@ -132,21 +110,41 @@ public partial class FeedPage : ContentPage
         {
             new PostItem
             {
-                LocationName = "Beyoğlu",
-                Distance = "1.1 km",
-                Title = "Sokak Lezzetleri Keşfi",
-                Content = "Yeni bir mekan buldum!",
-                LikeText = "Beğen",
+                LocationName = "Beyoğlu, İstanbul",
+                Distance = "1.2 km",
+                Title = "Harika bir kahve dükkanı buldum!",
+                Content = "Çok güzel bir ortam ve lezzetli kahveler. Herkesin deneyebileceği bir yer!",
+                LikeText = "24 Beğeni",
                 CommentText = "",
                 ShareText = "Yorum Paylaş"
             },
             new PostItem
             {
-                LocationName = "Beyoğlu",
-                Distance = "1.1 km",
-                Title = "Sokak Lezzetleri Keşfi",
-                Content = "Yeni bir mekan buldum!",
-                LikeText = "Beğen",
+                LocationName = "Taksim, İstanbul",
+                Distance = "2.5 km",
+                Title = "Gün batımı manzarası müthiş",
+                Content = "Boğaz'ın bu tarafından gün batımı görülüyor. Fotoğraf çekmek için ideal!",
+                LikeText = "156 Beğeni",
+                CommentText = "",
+                ShareText = "Yorum Paylaş"
+            },
+            new PostItem
+            {
+                LocationName = "Galata, İstanbul",
+                Distance = "0.8 km",
+                Title = "Yeni açılan resepsiyon duydum",
+                Content = "Galata'da yeni bir resepsiyon açılmış. Merakla bekliyorum açılışını!",
+                LikeText = "42 Beğeni",
+                CommentText = "",
+                ShareText = "Yorum Paylaş"
+            },
+            new PostItem
+            {
+                LocationName = "Ortaköy, İstanbul",
+                Distance = "3.1 km",
+                Title = "Sahil yürüyüşü çok rahatlatıcı",
+                Content = "Sabah erken saatlerde sahil yürüyüşü yapıyorum. Hava çok güzel!",
+                LikeText = "89 Beğeni",
                 CommentText = "",
                 ShareText = "Yorum Paylaş"
             }
@@ -156,6 +154,43 @@ public partial class FeedPage : ContentPage
         {
             Posts.Add(post);
         }
+    }
+}
+
+public partial class FeedPage : ContentPage
+{
+    private FeedViewModel? _viewModel;
+
+    public FeedPage(FeedViewModel viewModel)
+    {
+        InitializeComponent();
+        _viewModel = viewModel;
+        BindingContext = viewModel;
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        if (_viewModel != null)
+        {
+            await _viewModel.OnFilterClickedAsync("Yakın");
+        }
+    }
+
+    private async void OnFilterClicked(object sender, EventArgs e)
+    {
+        if (sender is not Button button || _viewModel == null) return;
+
+        // Reset all buttons to inactive style
+        BtnYakin.Style = Resources["TabButton"] as Style;
+        BtnPopuler.Style = Resources["TabButton"] as Style;
+        BtnYeni.Style = Resources["TabButton"] as Style;
+
+        // Set clicked button to active style
+        button.Style = Resources["TabButtonActive"] as Style;
+
+        // Load data based on filter
+        await _viewModel.OnFilterClickedAsync(button.Text);
     }
 }
 

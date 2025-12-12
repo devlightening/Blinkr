@@ -12,7 +12,7 @@
                  HeightRequest="64" 
                  Aspect="AspectFill"/>
           <VerticalStackLayout>
-            <Label Text="Kullanıcı Adı" Style="{StaticResource H1}" />
+            <Label Text="Kullanıcı Adı" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource TextPrimary}" />
             <Label Text="124 gönderi • 2.5K takipçi • 890 takip" Style="{StaticResource Body}"/>
           </VerticalStackLayout>
         </HorizontalStackLayout>

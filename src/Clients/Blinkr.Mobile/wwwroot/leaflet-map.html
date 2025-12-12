@@ -1,229 +1,298 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
-  <title>Blinkr Map</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Blinkr Map</title>
 
-  <!-- LOCAL Leaflet -->
-  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <style>
-    html, body { height:100%; margin:0; background:#0F172A; }
-    #map { position:absolute; inset:0; }
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-    /* üst arama kapsülü */
-    .searchbar {
-      position:absolute; left:12px; right:12px;
-      top: calc(env(safe-area-inset-top, 0px) + 12px);
-      background: rgba(255,255,255,.06); backdrop-filter: blur(12px);
-      border: 1px solid rgba(255,255,255,.12); color:#E5E7EB; z-index:2000;
-      border-radius:14px; padding:10px 12px; display:flex; align-items:center; gap:8px;
-      box-shadow: 0 12px 32px rgba(0,0,0,.35);
-    }
-    .searchbar input {
-      flex:1; outline:none; border:0; background:transparent; color:#E5E7EB; font-size:14px;
-    }
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    /* öneri paneli */
-    #suggest {
-      position:absolute; left:12px; right:12px;
-      top: calc(env(safe-area-inset-top, 0px) + 62px);
-      z-index: 2001; display:none; max-height:300px; overflow:auto;
-      background:#0b1324; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.35);
-    }
-    #suggest .item { padding:10px 12px; color:#e5e7eb; border-bottom:1px solid #1f2937; cursor:pointer; }
-    #suggest .item:last-child { border-bottom:none; }
-    #suggest .item:hover { background:#1f2937; }
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            background: #05070B;
+        }
 
-    /* sağ-alt FAB grubu */
-    .fab { position:absolute; right:16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
-      display:flex; flex-direction:column; gap:12px; z-index:2000; }
-    .fab button {
-      width:48px; height:48px; border-radius:16px; border:0; cursor:pointer;
-      background: linear-gradient(135deg,#6366F1,#8B5CF6); color:white; font-size:18px;
-      display:flex; align-items:center; justify-content:center; box-shadow:0 8px 20px rgba(99,102,241,.45);
-    }
+        #map {
+            height: 100%;
+            width: 100%;
+            background: #05070B;
+        }
 
-    /* Leaflet'in zoom kontrolünü gizliyoruz */
-    .leaflet-control-zoom { display:none !important; }
+        /* Custom Pin Styles */
+        .custom-pin {
+            background: none;
+            border: none;
+        }
 
-    /* debug badge */
-    #dbg { position:absolute; left:8px; bottom:72px; z-index:3000;
-      background:rgba(0,0,0,.65); color:#9FE7FF; font:12px ui-monospace,monospace;
-      padding:6px 8px; border-radius:8px; }
-  </style>
+        .pin-container {
+            position: relative;
+            width: 40px;
+            height: 52px;
+            cursor: pointer;
+        }
+
+        .pin-circle {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            transition: all 0.2s ease;
+        }
+
+            .pin-circle:hover {
+                transform: translateX(-50%) scale(1.15);
+            }
+
+        /* Pin pointer/tail */
+        .pin-pointer {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 20px solid;
+        }
+
+        /* Male Pin (Blue) */
+        .pin-male .pin-circle {
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .pin-male .pin-pointer {
+            border-top-color: #2563EB;
+        }
+
+        /* Female Pin (Yellow) */
+        .pin-female .pin-circle {
+            background: linear-gradient(135deg, #FFEA00 0%, #FFC700 100%);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .pin-female .pin-pointer {
+            border-top-color: #FFC700;
+        }
+
+        /* Other/Default Pin (Gray) */
+        .pin-other .pin-circle {
+            background: linear-gradient(135deg, #6B7280 0%, #4B5563 100%);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .pin-other .pin-pointer {
+            border-top-color: #4B5563;
+        }
+
+        /* Selected Pin Animation */
+        .pin-selected .pin-circle {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 0 rgba(255, 234, 0, 0.7);
+            }
+
+            50% {
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 15px rgba(255, 234, 0, 0);
+            }
+        }
+
+        /* Cluster Styles */
+        .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large {
+            background: rgba(255, 234, 0, 0.15) !important;
+            border: 2px solid rgba(255, 234, 0, 0.5) !important;
+            border-radius: 50% !important;
+        }
+
+            .marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
+                background: linear-gradient(135deg, #FFEA00 0%, #FFC700 100%) !important;
+                color: #000 !important;
+                font-weight: bold !important;
+                border-radius: 50% !important;
+            }
+    </style>
 </head>
 <body>
-  <div id="map"></div>
+    <div id="map"></div>
 
-  <!-- arama -->
-  <div class="searchbar">
-    <span style="width:8px;height:8px;border-radius:9999px;background:#94A3B8;display:inline-block;"></span>
-    <input id="search" placeholder="Yer ara (örn: Beyoğlu, Kadıköy)" autocomplete="off"/>
-  </div>
-  <div id="suggest"></div>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- sağ alt aksiyonlar -->
-  <div class="fab">
-    <button id="scan"  title="Gönderileri Tara">⟳</button>
-    <button id="myloc" title="Konumum">◎</button>
-    <button id="zin"   title="Yakınlaş">＋</button>
-    <button id="zout"  title="Uzaklaş">－</button>
-  </div>
+    <script>
+        let map;
+        let markersLayer = L.layerGroup();
+        let currentTheme = 'dark';
+        let currentTileLayer = null;
 
-  <div id="dbg">initializing…</div>
+        // Map Tile Layers
+        const tileLayers = {
+            dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }),
+            light: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19
+            })
+        };
 
-  <!-- LOCAL JS -->
-  <script src="vendor/leaflet/leaflet.js"></script>
-  <script>
-    // -------- util / debug
-    const dbg = (t) => { const el = document.getElementById('dbg'); if(el){el.textContent=t;} console.log('[MAP]',t); };
-    const IST = [41.015137, 28.979530]; // Istanbul center
+        // Initialize Map
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('🗺️ Initializing map...');
 
-    let map, baseNoLabels, labelsOnly, markersLayer;
-    let ready = false;
-
-    // -------- init
-    function initMap() {
-      if (!window.L) { dbg('Leaflet failed to load'); return; }
-
-      // Harita - Istanbul center
-      map = L.map('map', { zoomControl:false, minZoom:3, maxZoom:19 }).setView(IST, 12);
-
-      // CARTO minimalist (nolabels + only_labels)
-      baseNoLabels = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
-        maxZoom:19, subdomains:'abcd',
-        attribution:'&copy; OpenStreetMap & CARTO'
-      }).addTo(map);
-
-      map.createPane('labels');
-      map.getPane('labels').style.pointerEvents = 'none';
-      labelsOnly = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
-        maxZoom:19, subdomains:'abcd', pane:'labels'
-      }).addTo(map);
-
-      // marker layer
-      markersLayer = L.layerGroup().addTo(map);
-
-      // map events
-      map.on('click', (e) => { location.href = `app://mapclick?lat=${e.latlng.lat}&lng=${e.latlng.lng}`; });
-      map.on('movestart', () => { const s=document.getElementById('suggest'); if(s) s.style.display='none'; });
-
-      ready = true;
-      window.__mapReady = true;
-      window.__leafletMap = map;
-      dbg('Map ready');
-    }
-
-    document.addEventListener('DOMContentLoaded', initMap);
-
-    // -------- FABs
-    document.getElementById('zin').onclick  = () => ready && map.zoomIn();
-    document.getElementById('zout').onclick = () => ready && map.zoomOut();
-
-    document.getElementById('myloc').onclick = () => {
-      if (!ready) return;
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(pos => {
-          const lat=pos.coords.latitude, lng=pos.coords.longitude;
-          map.setView([lat,lng], Math.max(map.getZoom(), 15));
-          location.href = `app://mylocation?lat=${lat}&lng=${lng}`;
-        }, err => dbg('geo error: ' + err.message), {enableHighAccuracy:true, timeout:8000});
-      } else dbg('geo unsupported');
-    };
-
-    let scanLock=false;
-    document.getElementById('scan').onclick = () => {
-      if (!ready || scanLock) return;
-      scanLock=true;
-      const b = map.getBounds();
-      const bbox = `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
-      location.href = 'app://scan?bbox=' + encodeURIComponent(bbox);
-      dbg('scan sent: ' + bbox);
-      setTimeout(()=>scanLock=false, 600);
-    };
-
-    // -------- Search (Nominatim, TR)
-    const search = document.getElementById('search');
-    const suggest = document.getElementById('suggest');
-    let searchTimer;
-
-    search.addEventListener('input', () => {
-      clearTimeout(searchTimer);
-      if (!search.value || search.value.length < 2) {
-        suggest.style.display='none'; suggest.innerHTML=''; return;
-      }
-      searchTimer = setTimeout(async () => {
-        try {
-          const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(search.value)}&countrycodes=tr&limit=5`;
-          const res = await fetch(url, { headers:{'Accept':'application/json','User-Agent':'Blinkr-Mobile/1.0'} });
-          if (!res.ok) throw new Error('nominatim failed');
-          const data = await res.json();
-          suggest.innerHTML = data.map(d => `<div class="item" data-lat="${d.lat}" data-lon="${d.lon}">${escapeHtml(d.display_name)}</div>`).join('');
-          suggest.style.display = data.length ? 'block' : 'none';
-        } catch(e){ suggest.style.display='none'; dbg('search err: '+e.message); }
-      }, 350);
-    });
-
-    suggest.addEventListener('click', (e) => {
-      const it = e.target.closest('.item'); if(!it) return;
-      const lat = parseFloat(it.getAttribute('data-lat'));
-      const lon = parseFloat(it.getAttribute('data-lon'));
-      if (!isNaN(lat) && !isNaN(lon)) { map.setView([lat,lon], 14, {animate:true}); suggest.style.display='none'; search.blur(); }
-    });
-
-    document.addEventListener('click',(e)=>{ if(!search.contains(e.target) && !suggest.contains(e.target)) suggest.style.display='none'; });
-
-    function escapeHtml(t){ const d=document.createElement('div'); d.textContent=t??''; return d.innerHTML; }
-
-    // -------- C# → JS API
-    window.updateMarkersFromBase64 = (b64) => {
-      try {
-        if (!ready) return;
-        const arr = JSON.parse(atob(b64)); // [{id,title,lat,lng},...]
-        markersLayer.clearLayers();
-        arr.forEach(p=>{
-          if (typeof p.lat==='number' && typeof p.lng==='number') {
-            // Gender-based pin color
-            let pinColor = '#FF6B47'; // Default (Primary)
-            if (p.gender === 'Male') pinColor = '#4A90E2';      // Blue
-            else if (p.gender === 'Female') pinColor = '#E24A90'; // Pink
-            else if (p.gender === 'Other') pinColor = '#9B59B6';  // Purple
-            
-            const icon = L.divIcon({
-              className: 'custom-marker',
-              html: `<div style="width:40px;height:40px;background:${pinColor};border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:20px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">📍</div>`,
-              iconSize: [40, 40],
-              iconAnchor: [20, 40]
+            map = L.map('map', {
+                center: [41.0082, 28.9784],
+                zoom: 13,
+                zoomControl: false,
+                attributionControl: true
             });
-            
-            const m = L.marker([p.lat,p.lng], { icon, title: p.title||'' });
-            m.on('click', ()=> location.href = `app://pin?id=${encodeURIComponent(p.id||'')}`);
-            markersLayer.addLayer(m);
-          }
+
+            // Add dark theme by default
+            currentTileLayer = tileLayers.dark;
+            currentTileLayer.addTo(map);
+
+            // Add markers layer
+            markersLayer.addTo(map);
+
+            console.log('✅ Map initialized');
+
+            // Map event handlers
+            map.on('moveend', function () {
+                const bounds = map.getBounds();
+                const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+                window.location.href = `app://scan?bbox=${bbox}`;
+            });
+
+            map.on('click', function (e) {
+                if (!e.originalEvent.target.closest('.custom-pin')) {
+                    window.location.href = 'app://mapclick';
+                }
+            });
         });
-        dbg('Updated markers: ' + arr.length);
-      } catch(e){ dbg('updateMarkers error: '+e); }
-    };
 
-    window.setMapCenter = (lat,lng,zoom) => {
-      if (!ready) return;
-      if (typeof lat==='number' && typeof lng==='number') {
-        map.setView([lat,lng], zoom || map.getZoom(), {animate:true});
-        dbg(`Map center set: ${lat.toFixed(4)}, ${lng.toFixed(4)}, z:${zoom||map.getZoom()}`);
-      }
-    };
+        // Set Map Center
+        window.setMapCenter = function (lat, lng, zoom) {
+            if (!map) return;
+            zoom = zoom || 13;
+            map.setView([lat, lng], zoom, { animate: true });
+            console.log(`📍 Map centered: ${lat}, ${lng}, zoom: ${zoom}`);
+        };
 
-    window.setBasemapTheme = (theme) => {
-      if (!ready) return;
-      const light = theme !== 'dark';
-      if (baseNoLabels) map.removeLayer(baseNoLabels);
-      if (labelsOnly)  map.removeLayer(labelsOnly);
-      baseNoLabels = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${light?'light':'dark'}_nolabels/{z}/{x}/{y}{r}.png`, {maxZoom:19, subdomains:'abcd'}).addTo(map);
-      map.createPane('labels'); map.getPane('labels').style.pointerEvents='none';
-      labelsOnly  = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${light?'light':'dark'}_only_labels/{z}/{x}/{y}{r}.png`, {maxZoom:19, subdomains:'abcd', pane:'labels'}).addTo(map);
-      dbg('Basemap theme: '+theme);
-    };
-  </script>
+        // Change Map Theme
+        window.setBasemapTheme = function (theme) {
+            if (!map) return;
+
+            currentTheme = theme;
+
+            if (currentTileLayer) {
+                map.removeLayer(currentTileLayer);
+            }
+
+            currentTileLayer = tileLayers[theme] || tileLayers.dark;
+            currentTileLayer.addTo(map);
+
+            console.log(`🎨 Map theme changed to: ${theme}`);
+        };
+
+        // Create Custom Pin Icon
+        function createPinIcon(gender) {
+            const genderClass = gender === 'male' ? 'pin-male' :
+                gender === 'female' ? 'pin-female' : 'pin-other';
+
+            const emoji = gender === 'male' ? '👨' :
+                gender === 'female' ? '👩' : '👤';
+
+            return L.divIcon({
+                html: `
+                        <div class="pin-container ${genderClass}">
+                            <div class="pin-circle">${emoji}</div>
+                            <div class="pin-pointer"></div>
+                        </div>
+                    `,
+                className: 'custom-pin',
+                iconSize: [40, 52],
+                iconAnchor: [20, 52],
+                popupAnchor: [0, -52]
+            });
+        }
+
+        // Update Markers from Base64
+        window.updateMarkersFromBase64 = function (base64Data) {
+            try {
+                const json = atob(base64Data);
+                const markers = JSON.parse(json);
+
+                console.log(`📍 Updating ${markers.length} markers`);
+
+                markersLayer.clearLayers();
+
+                markers.forEach(function (m) {
+                    if (!m.lat || !m.lng) return;
+
+                    const icon = createPinIcon(m.gender);
+
+                    const marker = L.marker([m.lat, m.lng], {
+                        icon: icon,
+                        title: m.title || 'Untitled'
+                    });
+
+                    marker.on('click', function () {
+                        window.location.href = `app://pin?id=${m.id}`;
+                    });
+
+                    markersLayer.addLayer(marker);
+                });
+
+                console.log(`✅ ${markers.length} markers added to map`);
+            } catch (error) {
+                console.error('❌ Error updating markers:', error);
+            }
+        };
+
+        // Clear All Markers
+        window.clearMarkers = function () {
+            if (markersLayer) {
+                markersLayer.clearLayers();
+                console.log('🗑️ All markers cleared');
+            }
+        };
+
+        // Get Current Map Bounds
+        window.getMapBounds = function () {
+            if (!map) return null;
+            const bounds = map.getBounds();
+            return {
+                north: bounds.getNorth(),
+                south: bounds.getSouth(),
+                east: bounds.getEast(),
+                west: bounds.getWest()
+            };
+        };
+
+        console.log('✅ Leaflet map script loaded');
+    </script>
 </body>
 </html>

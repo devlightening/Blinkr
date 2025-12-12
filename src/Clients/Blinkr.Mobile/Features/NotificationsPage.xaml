@@ -3,74 +3,73 @@
              xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              Title="Bildirimler"
-             BackgroundColor="{StaticResource Background}">
+             BackgroundColor="{StaticResource BlinkrBackground}">
 
     <Grid RowDefinitions="Auto,*">
-        <!-- Status Message -->
-        <Label Grid.Row="0"
-               Text="{Binding StatusMessage}"
-               FontSize="14"
-               TextColor="{StaticResource TextSecondary}"
-               Margin="16,16,16,8"
-               IsVisible="{Binding IsBusy}" />
 
-        <!-- Notifications List with Pull-to-Refresh -->
-        <RefreshView Grid.Row="1"
-                     IsRefreshing="{Binding IsRefreshing}"
-                     Command="{Binding RefreshCommand}">
-            <CollectionView ItemsSource="{Binding Notifications}"
-                            BackgroundColor="Transparent">
-            
+        <!-- HEADER -->
+        <Grid Padding="24,24,24,12" ColumnDefinitions="*,Auto">
+            <Label Text="Bildirimler"
+                   Style="{StaticResource H1}"
+                   VerticalOptions="Center" />
+            <Button Text="Tümünü Oku"
+                    Style="{StaticResource PrimaryButton}"
+                    Padding="16,8"
+                    Command="{Binding MarkAllAsReadCommand}" />
+        </Grid>
+
+        <!-- LIST -->
+        <CollectionView Grid.Row="1"
+                        ItemsSource="{Binding Notifications}"
+                        Margin="16,0,16,16">
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <Border Style="{StaticResource GlassCard}"
-                           Margin="12,4">
-                        <Border.GestureRecognizers>
-                            <TapGestureRecognizer Command="{Binding TapCommand}" />
-                        </Border.GestureRecognizers>
-                        
-                        <Grid ColumnDefinitions="50,*,Auto">
-                            
-                            <!-- Notification Icon -->
-                            <Border Grid.Column="0"
-                                   WidthRequest="40"
-                                   HeightRequest="40"
-                                   BackgroundColor="{StaticResource Primary}"
-                                   StrokeShape="Ellipse"
-                                   StrokeThickness="0">
-                                <Label Text="🔔"
+                    <Border Style="{StaticResource NotificationCardBorder}"
+                            Margin="0,8">
+
+                        <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
+                            <!-- ICON -->
+                            <Frame Grid.RowSpan="2"
+                                   WidthRequest="40" HeightRequest="40"
+                                   CornerRadius="20"
+                                   HasShadow="False"
+                                   Padding="0"
+                                   BackgroundColor="#1F2432">
+                                <Label Text="{Binding Icon}"
                                        HorizontalOptions="Center"
                                        VerticalOptions="Center"
-                                       FontSize="18" />
-                            </Border>
-                            
-                            <!-- Notification Content -->
-                            <StackLayout Grid.Column="1" 
-                                         Spacing="4"
-                                         VerticalOptions="Center"
-                                         Margin="12,0">
-                                <Label Text="{Binding DisplayTitle}"
-                                       FontSize="14"
-                                       FontAttributes="Bold"
-                                       TextColor="{StaticResource TextPrimary}" />
-                                <Label Text="{Binding Body}"
-                                       FontSize="12"
-                                       TextColor="{StaticResource TextSecondary}"
-                                       MaxLines="2" />
-                            </StackLayout>
-                            
-                            <!-- Time -->
+                                       FontSize="20" />
+                            </Frame>
+
+                            <!-- TITLE -->
+                            <Label Grid.Column="1"
+                                   Text="{Binding Title}"
+                                   Style="{StaticResource Body1}" />
+
+                            <!-- TIME -->
                             <Label Grid.Column="2"
-                                   Text="{Binding RelativeTime}"
-                                   FontSize="12"
-                                   TextColor="{StaticResource TextSecondary}"
-                                   VerticalOptions="Start"
-                                   Margin="8,4" />
+                                   Text="{Binding TimeAgo}"
+                                   Style="{StaticResource Body2}"
+                                   HorizontalTextAlignment="End" />
+
+                            <!-- MESSAGE -->
+                            <Label Grid.Row="1" Grid.Column="1"
+                                   Text="{Binding Message}"
+                                   Style="{StaticResource Body2}" />
+
+                            <!-- UNREAD DOT -->
+                            <BoxView Grid.Row="1" Grid.Column="2"
+                                     WidthRequest="8" HeightRequest="8"
+                                     CornerRadius="4"
+                                     VerticalOptions="Center"
+                                     HorizontalOptions="End"
+                                     Color="{StaticResource NotificationUnreadDot}"
+                                     IsVisible="{Binding IsRead, Converter={StaticResource InvertedBoolConverter}}" />
                         </Grid>
+
                     </Border>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
-            </CollectionView>
-        </RefreshView>
+        </CollectionView>
     </Grid>
 </ContentPage>

@@ -1,103 +1,90 @@
-<?xml version="1.0" encoding="utf-8" ?>
-<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
-  
-  <!-- ============================================ -->
-  <!-- SNAPCHAT-VARI YELLOW ACCENT THEME           -->
-  <!-- ============================================ -->
-  
-  <!-- Core Background Colors -->
-  <Color x:Key="BgNavy">#0F172A</Color>         <!-- Slate 900 -->
-  <Color x:Key="CardNavy">#162133</Color>       <!-- Slate 850 -->
-  <Color x:Key="Surface">#111827</Color>        <!-- Slate 900 variant -->
-  
-  <!-- Text Colors (High Contrast) -->
-  <Color x:Key="TextPrimary">#F8FAFC</Color>    <!-- Slate 50 -->
-  <Color x:Key="TextSecondary">#C7D2FE</Color>  <!-- Indigo 200 -->
-  <Color x:Key="TextTertiary">#94A3B8</Color>   <!-- Slate 400 -->
-  <Color x:Key="TextMuted">#64748B</Color>      <!-- Slate 500 -->
-  
-  <!-- Accent Colors (Snapchat Yellow) -->
-  <Color x:Key="AccentYellow">#FFFC00</Color>   <!-- Snapchat sarısı -->
-  <Color x:Key="AccentPurple">#8B5CF6</Color>   <!-- Purple 500 -->
-  <Color x:Key="SecondaryAccent">#EC4899</Color>  <!-- Pink 500 (for compatibility) -->
-  <Color x:Key="SecondaryAccent2">#F43F5E</Color> <!-- Rose 500 (for compatibility) -->
-  
-  <!-- Border & Stroke -->
-  <Color x:Key="Stroke">#243145</Color>         <!-- Slate 700 variant -->
-  <Color x:Key="Border">#334155</Color>         <!-- Slate 700 -->
-  <Color x:Key="Divider">#1E293B</Color>        <!-- Slate 800 -->
-  
-  <!-- Semantic Colors -->
-  <Color x:Key="Danger">#EF4444</Color>         <!-- Red 500 -->
-  <Color x:Key="Success">#10B981</Color>        <!-- Emerald 500 -->
-  <Color x:Key="LikeRed">#EF4444</Color>        <!-- Red 500 -->
-  <Color x:Key="CommentBlue">#3B82F6</Color>    <!-- Blue 500 -->
-  
-  <!-- Legacy/Compatibility (mapped to new colors) -->
-  <Color x:Key="Primary">#FFFC00</Color>        <!-- AccentYellow -->
-  <Color x:Key="Primary2">#8B5CF6</Color>       <!-- AccentPurple -->
-  <Color x:Key="OnPrimary">#000000</Color>      <!-- Black (for yellow text) -->
-  <Color x:Key="Background">#0F172A</Color>     <!-- BgNavy -->
-  <Color x:Key="CardBackground">#162133</Color> <!-- CardNavy -->
-  <Color x:Key="OnSurface">#F8FAFC</Color>      <!-- TextPrimary -->
-  <Color x:Key="Secondary">#162133</Color>      <!-- CardNavy -->
-  <Color x:Key="OnSecondary">#F8FAFC</Color>    <!-- TextPrimary -->
-  <Color x:Key="Accent">#FFFC00</Color>         <!-- AccentYellow -->
-  <Color x:Key="AccentGlow">#FFFF33</Color>     <!-- Yellow light -->
-  <Color x:Key="SuccessMint">#10B981</Color>    <!-- Success -->
-  <Color x:Key="LocationPin">#FFFC00</Color>    <!-- AccentYellow -->
-  <Color x:Key="MapPin">#FFFC00</Color>         <!-- AccentYellow -->
-  
-  <!-- Utility Colors -->
-  <Color x:Key="White">#FFFFFF</Color>
-  <Color x:Key="Gray100">#F1F5F9</Color>        <!-- Slate 100 -->
-  <Color x:Key="Gray200">#E2E8F0</Color>        <!-- Slate 200 -->
-  <Color x:Key="Gray300">#CBD5E1</Color>        <!-- Slate 300 -->
-  <Color x:Key="Gray500">#64748B</Color>        <!-- Slate 500 -->
-  
-  <!-- Tab Bar -->
-  <Color x:Key="TabActive">#FFFC00</Color>      <!-- AccentYellow -->
-  <Color x:Key="TabInactive">#64748B</Color>    <!-- Slate 500 -->
-  
-  <!-- Chip Background (Glass) -->
-  <Color x:Key="ChipBackground">#162133</Color> <!-- CardNavy -->
-  
-  <!-- Shadow (Deep) -->
-  <Color x:Key="Shadow">#80000000</Color>
-  <SolidColorBrush x:Key="CardShadowBrush" Color="#80000000"/>
-  
-  <!-- Card Stroke -->
-  <Color x:Key="CardStroke">#243145</Color>     <!-- Stroke -->
-  <Color x:Key="CardStrokeGlow">#FFFC00</Color> <!-- AccentYellow (for hover) -->
-  
-  <!-- Solid Brushes -->
-  <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Primary}" />
-  <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource Secondary}" />
-  <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource Surface}" />
-  <SolidColorBrush x:Key="OnSurfaceBrush" Color="{StaticResource OnSurface}" />
-  <SolidColorBrush x:Key="CardStrokeBrush" Color="{StaticResource CardStroke}" />
-  <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource Background}" />
-  <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource Accent}" />
-  
-  <!-- Gradient Brushes (Futuristic) -->
-  <LinearGradientBrush x:Key="PrimaryGradient" StartPoint="0,0" EndPoint="1,1">
-    <GradientStop Color="{StaticResource Primary}" Offset="0.0" />
-    <GradientStop Color="{StaticResource Primary2}" Offset="1.0" />
-  </LinearGradientBrush>
-  
-  <LinearGradientBrush x:Key="SecondaryGradient" StartPoint="0,0" EndPoint="1,1">
-    <GradientStop Color="{StaticResource SecondaryAccent}" Offset="0.0" />
-    <GradientStop Color="{StaticResource SecondaryAccent2}" Offset="1.0" />
-  </LinearGradientBrush>
-  
-  <LinearGradientBrush x:Key="AccentGradient" StartPoint="0,0" EndPoint="1,0">
-    <GradientStop Color="{StaticResource Accent}" Offset="0.0" />
-    <GradientStop Color="{StaticResource AccentGlow}" Offset="1.0" />
-  </LinearGradientBrush>
-  
-  <!-- Glass Effect (Semi-transparent) -->
-  <SolidColorBrush x:Key="GlassBackground" Color="#1A1E293B" />
-  <SolidColorBrush x:Key="GlassBorder" Color="#40243145" />
-  
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary 
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- Primary Colors -->
+    <Color x:Key="Primary">#FFEA00</Color>
+    <Color x:Key="PrimaryDark">#D4C400</Color>
+    <Color x:Key="PrimaryLight">#FFF44F</Color>
+    
+    <!-- Background Colors -->
+    <Color x:Key="BackgroundPrimary">#05070B</Color>
+    <Color x:Key="BackgroundSecondary">#0F1419</Color>
+    <Color x:Key="BackgroundTertiary">#1A1F27</Color>
+    <Color x:Key="CardBackground">#16191F</Color>
+    <Color x:Key="CardBackgroundHover">#1D2229</Color>
+    
+    <!-- Text Colors -->
+    <Color x:Key="TextPrimary">#FFFFFF</Color>
+    <Color x:Key="TextSecondary">#9CA3AF</Color>
+    <Color x:Key="TextTertiary">#6B7280</Color>
+    <Color x:Key="TextDisabled">#4B5563</Color>
+    <Color x:Key="TextInverse">#000000</Color>
+    
+    <!-- Accent Colors -->
+    <Color x:Key="AccentYellow">#FFEA00</Color>
+    <Color x:Key="AccentBlue">#3B82F6</Color>
+    <Color x:Key="AccentGreen">#10B981</Color>
+    <Color x:Key="AccentRed">#EF4444</Color>
+    <Color x:Key="AccentCyan">#06B6D4</Color>
+    
+    <!-- Map Pin Colors -->
+    <Color x:Key="MapPinMale">#3B82F6</Color>
+    <Color x:Key="MapPinFemale">#FFEA00</Color>
+    <Color x:Key="MapPinOther">#9CA3AF</Color>
+    <Color x:Key="MapPinDefault">#FFEA00</Color>
+    
+    <!-- Border & Divider Colors -->
+    <Color x:Key="BorderColor">#1F2937</Color>
+    <Color x:Key="DividerColor">#374151</Color>
+    
+    <!-- Icon Colors -->
+    <Color x:Key="IconPrimary">#FFFFFF</Color>
+    <Color x:Key="IconSecondary">#9CA3AF</Color>
+    <Color x:Key="IconAccent">#FFEA00</Color>
+    
+    <!-- Status Colors -->
+    <Color x:Key="Success">#10B981</Color>
+    <Color x:Key="Warning">#F59E0B</Color>
+    <Color x:Key="Error">#EF4444</Color>
+    <Color x:Key="Info">#3B82F6</Color>
+    
+    <!-- Shadow & Overlay -->
+    <Color x:Key="ShadowColor">#000000</Color>
+    <Color x:Key="OverlayColor">#80000000</Color>
+    
+    <!-- Navigation Bar -->
+    <Color x:Key="NavBarBackground">#0F1419</Color>
+    <Color x:Key="NavBarItemActive">#FFEA00</Color>
+    <Color x:Key="NavBarItemInactive">#6B7280</Color>
+
+    <!-- Neon Theme Colors -->
+    <Color x:Key="NeonYellow">#FFD42A</Color>
+    <Color x:Key="NeonYellowGlow">#80FFD42A</Color>
+    <Color x:Key="CardDark">#1C1E26</Color>
+    <Color x:Key="AppBackgroundDark">#0F1115</Color>
+
+    <!-- Legacy Aliases for Compatibility -->
+    <Color x:Key="BlinkrBackground">#05070B</Color>
+    <Color x:Key="BlinkrBackgroundElevated">#0F1419</Color>
+    <Color x:Key="BlinkrCardBackground">#16191F</Color>
+    <Color x:Key="BlinkrCardBackgroundSoft">#1D2229</Color>
+    <Color x:Key="BlinkrAccent">#FFEA00</Color>
+    <Color x:Key="BlinkrAccentSoft">#FFF44F</Color>
+    <Color x:Key="LikeColor">#EF4444</Color>
+    <Color x:Key="CommentColor">#3B82F6</Color>
+    <Color x:Key="NotificationUnreadDot">#FFEA00</Color>
+    <Color x:Key="Accent">#FFEA00</Color>
+    <Color x:Key="AccentGlow">#FFF44F</Color>
+    <Color x:Key="Surface">#0F1419</Color>
+    <Color x:Key="Secondary">#16191F</Color>
+    <Color x:Key="TabInactive">#6B7280</Color>
+    <Color x:Key="Danger">#EF4444</Color>
+    <Color x:Key="BgNavy">#05070B</Color>
+    <Color x:Key="ChipBackground">#1D2229</Color>
+    <Color x:Key="SuccessMint">#10B981</Color>
+    <Color x:Key="SurfaceColor">#16191F</Color>
+
 </ResourceDictionary>

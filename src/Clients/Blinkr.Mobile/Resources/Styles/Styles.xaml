@@ -1,256 +1,395 @@
-<?xml version="1.0" encoding="utf-8" ?>
-<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary 
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
 
-  <!-- Page Style (Dark Background) -->
-  <Style TargetType="ContentPage">
-    <Style.Setters>
-      <Setter Property="BackgroundColor" Value="{StaticResource BgNavy}" />
-    </Style.Setters>
-  </Style>
-  
-  <!-- ScrollView Style -->
-  <Style TargetType="ScrollView">
-    <Style.Setters>
-      <Setter Property="BackgroundColor" Value="Transparent" />
-    </Style.Setters>
-  </Style>
+    <!-- Base Styles -->
+    <Style TargetType="Page" ApplyToDerivedTypes="True">
+        <Setter Property="BackgroundColor" Value="{StaticResource BackgroundPrimary}" />
+    </Style>
 
-  <!-- Shell / TabBar -->
-  <Style TargetType="Shell">
-    <Style.Setters>
-      <Setter Property="NavBarHasShadow" Value="False" />
-      <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
-      <Setter Property="ForegroundColor" Value="{StaticResource TextPrimary}" />
-      <Setter Property="TitleColor" Value="{StaticResource TextPrimary}" />
-      <Setter Property="TabBarBackgroundColor" Value="{StaticResource Surface}" />
-      <Setter Property="TabBarForegroundColor" Value="{StaticResource TabActive}" />
-      <Setter Property="TabBarTitleColor" Value="{StaticResource TabActive}" />
-      <Setter Property="TabBarUnselectedColor" Value="{StaticResource TabInactive}" />
-    </Style.Setters>
-  </Style>
+    <Style TargetType="NavigationPage">
+        <Setter Property="BarBackgroundColor" Value="{StaticResource BackgroundSecondary}" />
+        <Setter Property="BarTextColor" Value="{StaticResource TextPrimary}" />
+    </Style>
 
-  <!-- Tab Bar Item Style -->
-  <Style TargetType="TabBar">
-    <Style.Setters>
-      <Setter Property="Shell.TabBarBackgroundColor" Value="{StaticResource Surface}" />
-    </Style.Setters>
-  </Style>
+    <!-- Label Styles -->
+    <Style x:Key="HeadlineLarge" TargetType="Label">
+        <Setter Property="FontSize" Value="32" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+    </Style>
 
-  <Style TargetType="Tab">
-    <Style.Setters>
-      <Setter Property="Shell.TabBarForegroundColor" Value="{StaticResource Primary}" />
-      <Setter Property="Shell.TabBarUnselectedColor" Value="{StaticResource TabInactive}" />
-      <Setter Property="Shell.TabBarTitleColor" Value="{StaticResource Primary}" />
-    </Style.Setters>
-  </Style>
+    <Style x:Key="HeadlineMedium" TargetType="Label">
+        <Setter Property="FontSize" Value="24" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+    </Style>
 
-  <!-- Typography -->
-  <Style TargetType="Label" x:Key="PageTitle">
-    <Style.Setters>
-      <Setter Property="FontSize" Value="20" />
-      <Setter Property="FontAttributes" Value="Bold" />
-      <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-      <Setter Property="HorizontalOptions" Value="Center" />
-      <Setter Property="Margin" Value="0,16,0,16" />
-    </Style.Setters>
-  </Style>
+    <Style x:Key="TitleLarge" TargetType="Label">
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+    </Style>
 
-  <Style TargetType="Label" x:Key="CardTitle">
-    <Style.Setters>
-      <Setter Property="FontSize" Value="18" />
-      <Setter Property="FontAttributes" Value="Bold" />
-      <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-    </Style.Setters>
-  </Style>
+    <Style x:Key="TitleMedium" TargetType="Label">
+        <Setter Property="FontSize" Value="17" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+    </Style>
 
-  <Style TargetType="Label" x:Key="Subtitle">
-    <Style.Setters>
-      <Setter Property="FontSize" Value="16" />
-      <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
-    </Style.Setters>
-  </Style>
+    <Style x:Key="BodyLarge" TargetType="Label">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+    </Style>
 
-  <Style TargetType="Label" x:Key="Body">
-    <Style.Setters>
-      <Setter Property="FontSize" Value="14" />
-      <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
-    </Style.Setters>
-  </Style>
+    <Style x:Key="BodyMedium" TargetType="Label">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
+    </Style>
 
-  <Style TargetType="Label" x:Key="Caption">
-    <Style.Setters>
-      <Setter Property="FontSize" Value="12" />
-      <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
-    </Style.Setters>
-  </Style>
+    <Style x:Key="BodySmall" TargetType="Label">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
+    </Style>
 
-  <!-- Entry & Editor -->
-  <Style TargetType="Entry">
-    <Style.Setters>
-      <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
-      <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-      <Setter Property="PlaceholderColor" Value="{StaticResource TextTertiary}" />
-    </Style.Setters>
-  </Style>
+    <Style x:Key="CaptionText" TargetType="Label">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
+    </Style>
 
-  <Style TargetType="Editor">
-    <Style.Setters>
-      <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
-      <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-      <Setter Property="PlaceholderColor" Value="{StaticResource TextTertiary}" />
-    </Style.Setters>
-  </Style>
+    <!-- Legacy Label Styles for Compatibility -->
+    <Style x:Key="H1" TargetType="Label" BasedOn="{StaticResource HeadlineLarge}" />
+    <Style x:Key="H2" TargetType="Label" BasedOn="{StaticResource HeadlineMedium}" />
+    <Style x:Key="Body1" TargetType="Label" BasedOn="{StaticResource BodyLarge}" />
+    <Style x:Key="Body1Muted" TargetType="Label" BasedOn="{StaticResource BodyMedium}" />
+    <Style x:Key="Body2" TargetType="Label" BasedOn="{StaticResource BodySmall}" />
+    <Style x:Key="Body1Bold" TargetType="Label">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+    </Style>
+    <Style x:Key="Subtitle" TargetType="Label" BasedOn="{StaticResource BodyMedium}" />
+    <Style x:Key="Caption" TargetType="Label" BasedOn="{StaticResource BodySmall}" />
 
-  <!-- Primary Button (Snapchat Yellow) -->
-  <Style TargetType="Button" x:Key="PrimaryButton">
-    <Style.Setters>
-      <Setter Property="TextColor" Value="Black" />
-      <Setter Property="BackgroundColor" Value="{StaticResource AccentYellow}" />
-      <Setter Property="CornerRadius" Value="16" />
-      <Setter Property="Padding" Value="12,10" />
-      <Setter Property="FontAttributes" Value="Bold" />
-      <Setter Property="FontSize" Value="16" />
-      <Setter Property="HeightRequest" Value="50" />
-      <Setter Property="Margin" Value="16,8" />
-    </Style.Setters>
-  </Style>
+    <!-- Card Styles -->
+    <Style x:Key="CardFrame" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
+        <Setter Property="BorderColor" Value="{StaticResource BorderColor}" />
+        <Setter Property="CornerRadius" Value="24" />
+        <Setter Property="Padding" Value="20" />
+        <Setter Property="HasShadow" Value="True" />
+        <Setter Property="Margin" Value="0,8" />
+    </Style>
 
-  <!-- Secondary Button (Outlined) -->
-  <Style TargetType="Button" x:Key="SecondaryButton">
-    <Style.Setters>
-      <Setter Property="BackgroundColor" Value="Transparent" />
-      <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
-      <Setter Property="BorderColor" Value="{StaticResource Border}" />
-      <Setter Property="BorderWidth" Value="1" />
-      <Setter Property="FontSize" Value="14" />
-      <Setter Property="HeightRequest" Value="40" />
-      <Setter Property="CornerRadius" Value="20" />
-    </Style.Setters>
-  </Style>
+    <Style x:Key="SmallCard" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
+        <Setter Property="BorderColor" Value="{StaticResource BorderColor}" />
+        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="HasShadow" Value="True" />
+    </Style>
 
-  <!-- Tab Button (Filter) -->
-  <Style TargetType="Button" x:Key="TabButton">
-    <Style.Setters>
-      <Setter Property="BackgroundColor" Value="Transparent" />
-      <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
-      <Setter Property="FontSize" Value="14" />
-      <Setter Property="HeightRequest" Value="36" />
-      <Setter Property="CornerRadius" Value="18" />
-      <Setter Property="Padding" Value="16,0" />
-    </Style.Setters>
-  </Style>
+    <Style x:Key="CardContainer" TargetType="Border">
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Stroke" Value="{StaticResource BorderColor}" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="24" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
+        <Setter Property="Padding" Value="20" />
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="#80000000" Radius="16" Opacity="0.15" Offset="0,4" />
+            </Setter.Value>
+        </Setter>
+    </Style>
 
-  <Style TargetType="Button" x:Key="TabButtonActive">
-    <Style.Setters>
-      <Setter Property="BackgroundColor" Value="{StaticResource ChipBackground}" />
-      <Setter Property="TextColor" Value="{StaticResource Primary}" />
-      <Setter Property="FontSize" Value="14" />
-      <Setter Property="FontAttributes" Value="Bold" />
-      <Setter Property="HeightRequest" Value="36" />
-      <Setter Property="CornerRadius" Value="18" />
-      <Setter Property="Padding" Value="16,0" />
-    </Style.Setters>
-  </Style>
+    <!-- Button Styles -->
+    <Style x:Key="PrimaryButton" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+        <Setter Property="TextColor" Value="{StaticResource TextInverse}" />
+        <Setter Property="FontSize" Value="17" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="CornerRadius" Value="24" />
+        <Setter Property="Padding" Value="24,14" />
+        <Setter Property="HeightRequest" Value="56" />
+        <Setter Property="Shadow">
+            <Shadow Brush="{StaticResource Primary}" 
+                    Opacity="0.4" 
+                    Radius="12" 
+                    Offset="0,4" />
+        </Setter>
+    </Style>
 
-  <!-- Card Style (Glassmorphism) -->
-  <Style TargetType="Border" x:Key="Card">
-    <Style.Setters>
-      <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
-      <Setter Property="Stroke" Value="{StaticResource CardStrokeBrush}" />
-      <Setter Property="StrokeThickness" Value="1" />
-      <Setter Property="StrokeShape">
-        <Setter.Value><RoundRectangle CornerRadius="20" /></Setter.Value>
-      </Setter>
-      <Setter Property="Shadow">
-        <Setter.Value>
-          <Shadow Brush="{StaticResource Shadow}" Offset="0,4" Radius="16" Opacity="0.3" />
-        </Setter.Value>
-      </Setter>
-      <Setter Property="Padding" Value="16" />
-      <Setter Property="Margin" Value="16,8" />
-    </Style.Setters>
-  </Style>
+    <Style x:Key="SecondaryButton" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource BackgroundSecondary}" />
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="CornerRadius" Value="24" />
+        <Setter Property="Padding" Value="24,12" />
+        <Setter Property="HeightRequest" Value="48" />
+        <Setter Property="BorderColor" Value="{StaticResource BorderColor}" />
+        <Setter Property="BorderWidth" Value="1" />
+    </Style>
 
-  <!-- Glass Card Style (Modern Glass Effect) -->
-  <Style TargetType="Border" x:Key="GlassCard">
-    <Style.Setters>
-      <Setter Property="Stroke" Value="{StaticResource Stroke}" />
-      <Setter Property="StrokeThickness" Value="1" />
-      <Setter Property="Background" Value="#1A1E293B" />
-      <Setter Property="StrokeShape">
-        <Setter.Value><RoundRectangle CornerRadius="20" /></Setter.Value>
-      </Setter>
-      <Setter Property="Shadow">
-        <Setter.Value>
-          <Shadow Brush="#80000000" Radius="12" Offset="0,6" />
-        </Setter.Value>
-      </Setter>
-      <Setter Property="Padding" Value="12" />
-    </Style.Setters>
-  </Style>
+    <Style x:Key="IconButton" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
+        <Setter Property="TextColor" Value="{StaticResource IconPrimary}" />
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="WidthRequest" Value="40" />
+        <Setter Property="HeightRequest" Value="40" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="#80000000" Offset="0,2" Radius="8" Opacity="0.3" />
+            </Setter.Value>
+        </Setter>
+    </Style>
 
-  <!-- Search Bar Style (Glass) -->
-  <Style TargetType="Border" x:Key="SearchBar">
-    <Style.Setters>
-      <Setter Property="Background" Value="{StaticResource GlassBackground}" />
-      <Setter Property="Stroke" Value="{StaticResource GlassBorder}" />
-      <Setter Property="StrokeThickness" Value="1" />
-      <Setter Property="StrokeShape">
-        <Setter.Value><RoundRectangle CornerRadius="24" /></Setter.Value>
-      </Setter>
-      <Setter Property="Padding" Value="16,12" />
-      <Setter Property="Margin" Value="16,8" />
-      <Setter Property="Shadow">
-        <Setter.Value>
-          <Shadow Brush="{StaticResource Shadow}" Offset="0,2" Radius="8" Opacity="0.2" />
-        </Setter.Value>
-      </Setter>
-    </Style.Setters>
-  </Style>
+    <!-- Entry Styles -->
+    <Style x:Key="ModernEntry" TargetType="Entry">
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource TextTertiary}" />
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="HeightRequest" Value="50" />
+    </Style>
 
-  <!-- Avatar Style -->
-  <Style TargetType="Border" x:Key="Avatar">
-    <Style.Setters>
-      <Setter Property="WidthRequest" Value="40" />
-      <Setter Property="HeightRequest" Value="40" />
-      <Setter Property="StrokeThickness" Value="0" />
-      <Setter Property="StrokeShape">
-        <Setter.Value><Ellipse /></Setter.Value>
-      </Setter>
-      <Setter Property="BackgroundColor" Value="{StaticResource ChipBackground}" />
-    </Style.Setters>
-  </Style>
+    <Style x:Key="SearchEntry" TargetType="Entry">
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource TextTertiary}" />
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="HeightRequest" Value="44" />
+    </Style>
 
-  <!-- Chip Style (Glass) -->
-  <Style TargetType="Border" x:Key="Chip">
-    <Style.Setters>
-      <Setter Property="Background" Value="{StaticResource GlassBackground}" />
-      <Setter Property="Stroke" Value="{StaticResource GlassBorder}" />
-      <Setter Property="StrokeThickness" Value="1" />
-      <Setter Property="StrokeShape">
-        <Setter.Value><RoundRectangle CornerRadius="20" /></Setter.Value>
-      </Setter>
-      <Setter Property="Padding" Value="12,6" />
-    </Style.Setters>
-  </Style>
+    <!-- Border Styles -->
+    <Style x:Key="RoundedBorder" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
+        <Setter Property="Stroke" Value="{StaticResource BorderColor}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 16" />
+    </Style>
 
+    <!-- Profile Avatar Style -->
+    <Style x:Key="AvatarFrame" TargetType="Border">
+        <Setter Property="StrokeShape" Value="RoundRectangle 50" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Stroke" Value="Transparent" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="WidthRequest" Value="56" />
+        <Setter Property="HeightRequest" Value="56" />
+        <Setter Property="BackgroundColor" Value="{StaticResource BackgroundSecondary}" />
+    </Style>
 
-  <!-- FAB (Floating Action Button) - Yellow Accent -->
-  <Style TargetType="Button" x:Key="FAB">
-    <Style.Setters>
-      <Setter Property="BackgroundColor" Value="{StaticResource AccentYellow}" />
-      <Setter Property="TextColor" Value="Black" />
-      <Setter Property="CornerRadius" Value="28" />
-      <Setter Property="WidthRequest" Value="56" />
-      <Setter Property="HeightRequest" Value="56" />
-      <Setter Property="FontSize" Value="24" />
-      <Setter Property="Shadow">
-        <Setter.Value>
-          <Shadow Brush="{StaticResource AccentYellow}" Offset="0,4" Radius="16" Opacity="0.5" />
-        </Setter.Value>
-      </Setter>
-    </Style.Setters>
-  </Style>
+    <!-- Stat Card Style -->
+    <Style x:Key="Card" TargetType="Frame">
+        <Setter Property="CornerRadius" Value="16"/>
+        <Setter Property="HasShadow" Value="True"/>
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
+        <Setter Property="Padding" Value="16"/>
+        <Setter Property="Margin" Value="8"/>
+    </Style>
+
+    <!-- Divider Style -->
+    <Style x:Key="Divider" TargetType="BoxView">
+        <Setter Property="Color" Value="{StaticResource DividerColor}" />
+        <Setter Property="HeightRequest" Value="1" />
+        <Setter Property="Margin" Value="0,12" />
+    </Style>
+
+    <!-- Icon Label Style -->
+    <Style x:Key="IconLabel" TargetType="Label">
+        <Setter Property="FontSize" Value="24" />
+        <Setter Property="TextColor" Value="{StaticResource IconPrimary}" />
+        <Setter Property="VerticalOptions" Value="Center" />
+        <Setter Property="HorizontalOptions" Value="Center" />
+    </Style>
+
+    <!-- Badge Style -->
+    <Style x:Key="Badge" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="HasShadow" Value="False" />
+    </Style>
+
+    <!-- Tab Button Styles -->
+    <Style x:Key="TabButton" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
+        <Setter Property="BorderColor" Value="{StaticResource BorderColor}" />
+        <Setter Property="BorderWidth" Value="1" />
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="16,8" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <Style x:Key="TabButtonActive" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+        <Setter Property="TextColor" Value="{StaticResource TextInverse}" />
+        <Setter Property="BorderColor" Value="{StaticResource Primary}" />
+        <Setter Property="BorderWidth" Value="1" />
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="16,8" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontAttributes" Value="Bold" />
+    </Style>
+
+    <!-- Card Title Style -->
+    <Style x:Key="CardTitle" TargetType="Label">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+    </Style>
+
+    <!-- Body Style (for post content) -->
+    <Style x:Key="Body" TargetType="Label">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
+        <Setter Property="LineBreakMode" Value="WordWrap" />
+    </Style>
+
+    <!-- Page Title Style -->
+    <Style x:Key="PageTitle" TargetType="Label">
+        <Setter Property="FontSize" Value="28" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="Margin" Value="16,16,16,8" />
+    </Style>
+
+    <!-- FAB for legacy usage -->
+    <Style TargetType="Button" x:Key="FAB">
+        <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+        <Setter Property="TextColor" Value="{StaticResource TextInverse}" />
+        <Setter Property="CornerRadius" Value="28" />
+        <Setter Property="WidthRequest" Value="56" />
+        <Setter Property="HeightRequest" Value="56" />
+        <Setter Property="FontSize" Value="24" />
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="{StaticResource Primary}" Offset="0,4" Radius="16" Opacity="0.5" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Search Bar -->
+    <Style TargetType="Border" x:Key="SearchBar">
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
+        <Setter Property="Stroke" Value="{StaticResource BorderColor}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="StrokeShape">
+            <Setter.Value><RoundRectangle CornerRadius="24" /></Setter.Value>
+        </Setter>
+        <Setter Property="Padding" Value="16,12" />
+        <Setter Property="Margin" Value="16,8" />
+    </Style>
+
+    <!-- Bottom Sheet -->
+    <Style TargetType="Border" x:Key="BottomSheet">
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
+        <Setter Property="Stroke" Value="Transparent" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="32,32,0,0" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="#80000000" Offset="0,-4" Radius="20" Opacity="0.3" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Notification Card Style (Frame) -->
+    <Style TargetType="Frame" x:Key="NotificationCard">
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
+        <Setter Property="BorderColor" Value="{StaticResource BorderColor}" />
+        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="HasShadow" Value="True" />
+    </Style>
+
+    <!-- Notification Card Style (Border) -->
+    <Style TargetType="Border" x:Key="NotificationCardBorder">
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
+        <Setter Property="Stroke" Value="{StaticResource BorderColor}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="16" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="#80000000" Offset="0,4" Radius="12" Opacity="0.15" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Shell/TabBar Styles -->
+    <Style TargetType="Shell" ApplyToDerivedTypes="True">
+        <Setter Property="Shell.BackgroundColor" Value="{StaticResource BackgroundPrimary}" />
+        <Setter Property="Shell.NavBarHasShadow" Value="False" />
+        <Setter Property="Shell.TabBarBackgroundColor" Value="{StaticResource NavBarBackground}" />
+        <Setter Property="Shell.TabBarForegroundColor" Value="{StaticResource NavBarItemActive}" />
+        <Setter Property="Shell.TabBarUnselectedColor" Value="{StaticResource NavBarItemInactive}" />
+        <Setter Property="Shell.TabBarTitleColor" Value="{StaticResource TextPrimary}" />
+    </Style>
+
+    <!-- Neon Button Style -->
+    <Style x:Key="NeonButtonStyle" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource NeonYellow}"/>
+        <Setter Property="TextColor" Value="#000000"/>
+        <Setter Property="FontAttributes" Value="Bold"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="CornerRadius" Value="25"/>
+        <Setter Property="HeightRequest" Value="50"/>
+        <Setter Property="Padding" Value="20,0"/>
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="{StaticResource NeonYellow}"
+                        Offset="0,4"
+                        Radius="15"
+                        Opacity="0.6"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Neon Input Border Style -->
+    <Style x:Key="NeonInputBorder" TargetType="Border">
+        <Setter Property="Stroke" Value="{StaticResource NeonYellow}"/>
+        <Setter Property="StrokeThickness" Value="1"/>
+        <Setter Property="BackgroundColor" Value="Transparent"/>
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="15" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Padding" Value="15,0"/>
+        <Setter Property="HeightRequest" Value="50"/>
+    </Style>
+
+    <!-- Dark Card Box Style -->
+    <Style x:Key="DarkCardBox" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{StaticResource CardDark}"/>
+        <Setter Property="StrokeThickness" Value="0"/>
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="20" />
+            </Setter.Value>
+        </Setter>
+    </Style>
 
 </ResourceDictionary>

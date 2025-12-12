@@ -1,15 +1,12 @@
-namespace Blinkr.Mobile.Pages;
+namespace Blinkr.Mobile.Pages.Old;
 
-public partial class FeedPage : ContentPage
+// DEPRECATED: Use Blinkr.Mobile.Features.FeedPage instead
+// This file is kept for reference only
+public partial class FeedPageOld : ContentPage
 {
-    public FeedPage()
+    public FeedPageOld()
     {
         InitializeComponent();
-        FeedList.ItemsSource = new[]
-        {
-            new { Title="Sokak Lezzetleri Keşfi", Subtitle="Yeni bir mekan buldum!", LikeCount="5k", Distance="1.1 km" },
-            new { Title="Galata’ya Gün Batımı",    Subtitle="Çatılardan eşsiz manzara.", LikeCount="12k", Distance="350 m" }
-        };
+        // Deprecated - no longer used
     }
 }
-

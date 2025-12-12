@@ -2,26 +2,32 @@
 <ContentPage x:Class="Blinkr.Mobile.Features.FeedPage"
              xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             Title="Akış">
+             Title="Akış"
+             BackgroundColor="{StaticResource AppBackgroundDark}">
 
-    <Grid RowDefinitions="Auto,Auto,*">
+    <Grid RowDefinitions="Auto,Auto,*" Padding="0">
         
-        <!-- Page Title -->
-        <Label Grid.Row="0"
-               Text="Akış"
-               Style="{StaticResource PageTitle}" />
+        <!-- Header Section -->
+        <VerticalStackLayout Grid.Row="0" Padding="20,24,20,16" Spacing="8" BackgroundColor="{StaticResource AppBackgroundDark}">
+            <Label Text="Blinkr"
+                   Style="{StaticResource H1}"
+                   TextColor="{StaticResource NeonYellow}" />
+            <Label Text="Çevrendeki anlık paylaşımları keşfet"
+                   Style="{StaticResource Body2}"
+                   TextColor="{StaticResource TextSecondary}" />
+        </VerticalStackLayout>
         
         <!-- Filter Tabs (Sırala) -->
         <Border Grid.Row="1"
-                BackgroundColor="{StaticResource Surface}"
+                BackgroundColor="{StaticResource AppBackgroundDark}"
                 StrokeThickness="0"
                 Margin="0">
-            <HorizontalStackLayout Spacing="8" Padding="16,12" HorizontalOptions="Center">
+            <HorizontalStackLayout Spacing="8" Padding="16,12" HorizontalOptions="Start">
                 <Label Text="Sırala:" 
-                       FontSize="14" 
-                       TextColor="{StaticResource TextSecondary}"
+                       FontSize="12" 
+                       TextColor="{StaticResource TextTertiary}"
                        VerticalOptions="Center"
-                       Margin="0,0,8,0" />
+                       Margin="4,0,8,0" />
                 <Button x:Name="BtnYakin"
                         Text="Yakın"
                         Style="{StaticResource TabButtonActive}"
@@ -41,7 +47,8 @@
         <CollectionView Grid.Row="2"
                         x:Name="PostsCollectionView"
                         ItemsSource="{Binding Posts}"
-                        SelectionMode="None">
+                        SelectionMode="None"
+                        Margin="12,12,12,20">
             
             <CollectionView.ItemTemplate>
                 <DataTemplate>
@@ -55,7 +62,7 @@
                                         WidthRequest="50"
                                         HeightRequest="50"
                                         StrokeThickness="1"
-                                        Stroke="{StaticResource Border}"
+                                        Stroke="{StaticResource BorderColor}"
                                         StrokeShape="RoundRectangle 8"
                                         BackgroundColor="{StaticResource ChipBackground}">
                                     <Label Text="🗺️"

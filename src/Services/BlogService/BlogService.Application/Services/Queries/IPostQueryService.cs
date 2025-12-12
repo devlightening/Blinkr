@@ -75,4 +75,14 @@ public interface IPostQueryService
     /// Debug method to check posts with location data
     /// </summary>
     Task<int> DebugCheckLocationPostsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// DEBUG: Update all posts without location to specified coordinates
+    /// </summary>
+    Task<int> UpdatePostLocationsAsync(double latitude, double longitude, string locationName, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// DEBUG: Update all posts with default author name
+    /// </summary>
+    Task<int> UpdateAuthorNamesAsync(CancellationToken cancellationToken = default);
 }

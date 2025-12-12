@@ -6,7 +6,7 @@ namespace BlogService.Application.DTOs.PostDtos;
 /// <param name="Lat">Latitude coordinate (-90 to 90)</param>
 /// <param name="Lon">Longitude coordinate (-180 to 180)</param>
 /// <param name="RadiusMeters">Search radius in meters (50 to 50,000)</param>
-/// <param name="SinceMinutes">Only posts created within last N minutes (0 = all time, max 1440 = 24h)</param>
+/// <param name="SinceMinutes">Only posts created within last N minutes (0 = all time, max 10080 = 7 days)</param>
 /// <param name="Category">Optional category filter</param>
 /// <param name="AfterId">Cursor for keyset pagination</param>
 /// <param name="Page">Page number (1-based)</param>
@@ -29,7 +29,7 @@ public readonly record struct NearbyQuery(
         Lat,
         Lon,
         Math.Clamp(RadiusMeters, 50, 500_000),   // 50 m – 500 km (for testing)
-        Math.Clamp(SinceMinutes, 0, 1440),       // Max 24 hours
+        Math.Clamp(SinceMinutes, 0, 10080),      // Max 7 days (10080 minutes)
         Category,
         AfterId,
         Math.Max(1, Page),

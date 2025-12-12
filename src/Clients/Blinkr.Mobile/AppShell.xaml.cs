@@ -1,4 +1,5 @@
 ﻿using Blinkr.Mobile.Features;
+using Blinkr.Mobile.Pages;
 
 namespace Blinkr.Mobile;
 
@@ -20,13 +21,12 @@ public partial class AppShell : Shell
 
 	private void RegisterRoutes()
 	{
-		// Register routes for navigation
 		Routing.RegisterRoute("login", typeof(Pages.LoginPage));
-		Routing.RegisterRoute(nameof(FeedPage), typeof(FeedPage));
-		Routing.RegisterRoute(nameof(MapPage), typeof(MapPage));
+		Routing.RegisterRoute(nameof(Features.FeedPage), typeof(Features.FeedPage));
+		Routing.RegisterRoute(nameof(Features.MapPage), typeof(Features.MapPage));         
 		Routing.RegisterRoute(nameof(CreatePage), typeof(CreatePage));
-		Routing.RegisterRoute(nameof(NotificationsPage), typeof(NotificationsPage));
-		Routing.RegisterRoute(nameof(ProfilePage), typeof(ProfilePage));
+		Routing.RegisterRoute(nameof(Features.NotificationsPage), typeof(Features.NotificationsPage));
+		Routing.RegisterRoute(nameof(Features.ProfilePage), typeof(Features.ProfilePage));  
 		Routing.RegisterRoute(nameof(SettingsPage), typeof(SettingsPage));
 	}
 
@@ -51,7 +51,7 @@ public partial class AppShell : Shell
 			{
 				new ShellContent
 				{
-					Content = _serviceProvider.GetRequiredService<FeedPage>(),
+					Content = _serviceProvider.GetRequiredService<Features.FeedPage>(),
 					Route = "feed"
 				}
 			}
@@ -66,7 +66,7 @@ public partial class AppShell : Shell
 			{
 				new ShellContent
 				{
-					Content = _serviceProvider.GetRequiredService<MapPage>(),
+					Content = _serviceProvider.GetRequiredService<Features.MapPage>(),
 					Route = "map"
 				}
 			}
@@ -81,7 +81,7 @@ public partial class AppShell : Shell
 			{
 				new ShellContent
 				{
-					Content = _serviceProvider.GetRequiredService<CreatePage>(),
+					Content = new CreatePage(),
 					Route = "create"
 				}
 			}
@@ -96,7 +96,7 @@ public partial class AppShell : Shell
 			{
 				new ShellContent
 				{
-					Content = _serviceProvider.GetRequiredService<NotificationsPage>(),
+					Content = _serviceProvider.GetRequiredService<Features.NotificationsPage>(),
 					Route = "notifications"
 				}
 			}
@@ -111,7 +111,7 @@ public partial class AppShell : Shell
 			{
 				new ShellContent
 				{
-					Content = _serviceProvider.GetRequiredService<ProfilePage>(),
+					Content = _serviceProvider.GetRequiredService<Features.ProfilePage>(),   // Features.ProfilePage
 					Route = "profile"
 				}
 			}

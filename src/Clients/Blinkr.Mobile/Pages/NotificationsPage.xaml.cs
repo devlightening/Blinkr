@@ -1,15 +1,12 @@
-namespace Blinkr.Mobile.Pages;
+namespace Blinkr.Mobile.Pages.Old;
 
-public partial class NotificationsPage : ContentPage
+// DEPRECATED: Use Blinkr.Mobile.Features.NotificationsPage instead
+// This file is kept for reference only
+public partial class NotificationsPageOld : ContentPage
 {
-    public NotificationsPage()
+    public NotificationsPageOld()
     {
         InitializeComponent();
-        NotifList.ItemsSource = new[]
-        {
-            new { Title="Kullanıcı Adı gönderini beğendi.", Body="", Ago="2s" },
-            new { Title="Yeni bir yorum var", Body="Harika!", Ago="5s" }
-        };
     }
 }
 

@@ -1,29 +1,12 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<ContentPage x:Class="Blinkr.Mobile.Pages.FeedPage"
+<ContentPage x:Class="Blinkr.Mobile.Pages.Old.FeedPageOld"
              xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              Title="Akış">
-  <CollectionView x:Name="FeedList" 
-                  ItemsLayout="VerticalList" 
-                  ItemSizingStrategy="MeasureFirstItem"
-                  Margin="0,8">
-    <CollectionView.ItemTemplate>
-      <DataTemplate>
-        <Border Style="{StaticResource Card}">
-          <Grid ColumnDefinitions="*,Auto">
-            <VerticalStackLayout>
-              <Label Text="{Binding Title}" Style="{StaticResource H1}" />
-              <Label Text="{Binding Subtitle}" Style="{StaticResource Body}" />
-              <HorizontalStackLayout Spacing="6">
-                <Image Source="ic_heart.png" WidthRequest="16"/>
-                <Label Text="{Binding LikeCount}" Style="{StaticResource Body}"/>
-              </HorizontalStackLayout>
-            </VerticalStackLayout>
-            <Label Grid.Column="1" Text="{Binding Distance}" Style="{StaticResource Body}" VerticalOptions="Start"/>
-          </Grid>
-        </Border>
-      </DataTemplate>
-    </CollectionView.ItemTemplate>
-  </CollectionView>
+  <VerticalStackLayout Padding="20" Spacing="10" VerticalOptions="Center" HorizontalOptions="Center">
+    <Label Text="⚠️ Eski FeedPage" FontSize="24" FontAttributes="Bold" TextColor="Red" HorizontalTextAlignment="Center" />
+    <Label Text="Bu sayfa artık kullanılmıyor." FontSize="16" TextColor="Gray" HorizontalTextAlignment="Center" />
+    <Label Text="Lütfen Features/FeedPage.xaml kullanın." FontSize="14" TextColor="Gray" HorizontalTextAlignment="Center" />
+  </VerticalStackLayout>
 </ContentPage>
 

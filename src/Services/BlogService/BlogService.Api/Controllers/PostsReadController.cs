@@ -302,4 +302,42 @@ public class PostsReadController : ControllerBase
             return StatusCode(500, $"Test failed: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// DEBUG: Update all posts without location to Ankara coordinates
+    /// </summary>
+    [HttpPost("debug/update-locations")]
+    [AllowAnonymous]
+    public async Task<IActionResult> UpdatePostLocations(CancellationToken ct = default)
+    {
+        try
+        {
+            var result = await _queryService.UpdatePostLocationsAsync(39.9334, 32.8597, "Ankara", ct);
+            return Ok(new { message = "Posts updated", updatedCount = result });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating post locations");
+            return StatusCode(500, $"Error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// DEBUG: Update all posts with default author name
+    /// </summary>
+    [HttpPost("debug/update-author-names")]
+    [AllowAnonymous]
+    public async Task<IActionResult> UpdateAuthorNames(CancellationToken ct = default)
+    {
+        try
+        {
+            var result = await _queryService.UpdateAuthorNamesAsync(ct);
+            return Ok(new { message = "Author names updated", updatedCount = result });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating author names");
+            return StatusCode(500, $"Error: {ex.Message}");
+        }
+    }
 }

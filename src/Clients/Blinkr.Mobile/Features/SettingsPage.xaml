@@ -50,6 +50,13 @@
                   Margin="0,8,0,0" />
         </VerticalStackLayout>
       </Border>
+            <!-- Logout -->
+      <Border Style="{StaticResource GlassCard}">
+        <Button Text="Çıkış yap"
+                Style="{StaticResource PrimaryButton}"
+                Command="{Binding LogoutCommand}"
+                Margin="0,4,0,0" />
+      </Border>
 
     </VerticalStackLayout>
   </ScrollView>

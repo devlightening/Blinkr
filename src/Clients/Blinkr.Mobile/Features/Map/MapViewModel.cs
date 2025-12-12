@@ -11,6 +11,35 @@ using Android.Util;
 
 namespace Blinkr.Mobile.Features.Map;
 
+public class MapPostDto
+{
+    public Guid Id { get; set; }
+    public string Title { get; set; } = "";
+    public string Content { get; set; } = "";
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public string AuthorName { get; set; } = "";
+    public int LikeCount { get; set; }
+    public int CommentCount { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public string? Gender { get; set; } // "Male" / "Female" / null
+}
+
+public class MapPostItem
+{
+    public Guid PostId { get; set; }
+    public string UserName { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string Summary { get; set; } = "";
+    public double DistanceKm { get; set; }
+    public int Likes { get; set; }
+    public int Comments { get; set; }
+    public int Shares { get; set; }
+    public bool IsLikedByCurrentUser { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+}
+
 public partial class MapViewModel : ObservableObject
 {
     private readonly IBlinkrApiClient _apiClient;
@@ -26,6 +55,10 @@ public partial class MapViewModel : ObservableObject
     [ObservableProperty] private bool isBottomSheetVisible = false; // Start closed
     [ObservableProperty] private bool isLoadingDetail;
     [ObservableProperty] private int unreadNotificationsCount;
+    
+    // Modern UI properties
+    [ObservableProperty] private ObservableCollection<MapPostItem> modernNearbyPosts = new();
+    [ObservableProperty] private MapPostItem? modernSelectedPost;
     
     // Markers for WebView (no MAUI Maps dependency)
     public ObservableCollection<MapMarker> Markers { get; } = new();
@@ -169,6 +202,12 @@ public partial class MapViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    public async Task LoadNearby()
+    {
+        await ScanAsync(null);
+    }
+
     public void OnPinTapped(PostLocationDto post)
     {
         SelectedPost = post;
@@ -286,10 +325,10 @@ public partial class MapViewModel : ObservableObject
             }
             else
             {
-                // Default to Istanbul center
-                lat = 41.015137;
-                lng = 28.979530;
-                radiusKm = 5.0;
+                // Default to Turkey center (for scanning all posts)
+                lat = 39.0;
+                lng = 35.0;
+                radiusKm = 500.0; // 500km radius to cover entire Turkey
             }
 
             // Call API on background thread
@@ -299,38 +338,61 @@ public partial class MapViewModel : ObservableObject
             Console.WriteLine($"[MapViewModel] Calling API: lat={lat:F4}, lng={lng:F4}, radius={radiusKm:F2}km");
 #endif
             
-            var result = await Task.Run(async () =>
-                await _apiClient.GetNearbyPosts(
-                    lat: lat, 
-                    lon: lng, 
-                    radius: (int)(radiusKm * 1000), // Convert km to meters
-                    sinceMinutes: 180)); // NOW feed: last 3 hours
-                    
-            var posts = result.Items.ToList();
+            List<PostLocationDto> posts = new();
             
-#if ANDROID
-            Log.Info("Blinkr", $"[MapViewModel] API returned {posts.Count} posts");
-#else
-            Console.WriteLine($"[MapViewModel] API returned {posts.Count} posts");
-#endif
-
-            // If no posts found, add seed data for Istanbul (for testing)
-            if (posts.Count == 0)
+            try
             {
-                System.Diagnostics.Debug.WriteLine("🏭 [C#] No posts from API, generating test data...");
-                posts = GenerateIstanbulTestData();
-                System.Diagnostics.Debug.WriteLine($"✅ [C#] Generated {posts.Count} test posts for Istanbul");
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                var result = await Task.Run(async () =>
+                    await _apiClient.GetNearbyPosts(
+                        lat: lat, 
+                        lon: lng, 
+                        radius: (int)(radiusKm * 1000), // Convert km to meters
+                        sinceMinutes: 10080), // Get all posts (last 7 days)
+                    cts.Token);
+                        
+                posts = result.Items.ToList();
+                
+#if ANDROID
+                Log.Info("Blinkr", $"[MapViewModel] API returned {posts.Count} posts");
+#else
+                Console.WriteLine($"[MapViewModel] API returned {posts.Count} posts");
+#endif
             }
+            catch (OperationCanceledException)
+            {
+#if ANDROID
+                Log.Warn("Blinkr", "[MapViewModel] API call timeout, using test data");
+#else
+                Console.WriteLine("[MapViewModel] API call timeout, using test data");
+#endif
+                posts = new();
+            }
+            catch (Exception apiEx)
+            {
+#if ANDROID
+                Log.Warn("Blinkr", $"[MapViewModel] API call failed: {apiEx.Message}, using test data");
+#else
+                Console.WriteLine($"[MapViewModel] API call failed: {apiEx.Message}, using test data");
+#endif
+                posts = new();
+            }
+
+            // Don't generate test data - use only API results
+            // If API returns 0 posts, that's valid (no posts in this area)
 
             // Update UI on main thread
             System.Diagnostics.Debug.WriteLine($"📝 [C#] Updating UI with {posts.Count} posts...");
             
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                // Close bottom sheet if open (prevent auto-opening)
-                IsBottomSheetVisible = false;
-                SelectedPost = null;
-                SelectedPostDetail = null;
+                // Don't close bottom sheet if it's already open (user clicked a pin)
+                // Only clear if bottom sheet is not visible
+                if (!IsBottomSheetVisible)
+                {
+                    SelectedPost = null;
+                    SelectedPostDetail = null;
+                }
                 
                 NearbyPosts.Clear();
                 Markers.Clear();
@@ -345,7 +407,8 @@ public partial class MapViewModel : ObservableObject
                             Title: GetFreshnessTitle(post),
                             Lat: post.Latitude.Value,
                             Lng: post.Longitude.Value,
-                            Address: GetFreshnessText(post)
+                            Address: GetFreshnessText(post),
+                            Gender: post.Gender
                         ));
                     }
                 }
@@ -422,6 +485,7 @@ public partial class MapViewModel : ObservableObject
         
         // Generate posts for each location
         var postTypes = new[] { "🍔 Restoran", "☕ Kafe", "🏛️ Müze", "🎉 Etkinlik", "📸 Manzara", "🛒 Alışveriş" };
+        var genders = new[] { "Male", "Female", "Other" };
         
         foreach (var (name, lat, lng) in locations)
         {
@@ -451,7 +515,9 @@ public partial class MapViewModel : ObservableObject
                     CreatedAtUtc: createdAt,
                     FreshnessSec: freshnessSec,
                     IsLive: isLive,
-                    MediaUrl: null
+                    MediaUrl: null,
+                    DistanceMeters: null,
+                    Gender: genders[random.Next(genders.Length)]
                 ));
             }
         }
@@ -472,20 +538,44 @@ public partial class MapViewModel : ObservableObject
             IsLoadingDetail = true;
             System.Diagnostics.Debug.WriteLine($"[MapViewModel] Loading post detail: {postId}");
             
-            // Add timeout to prevent ANR
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            // Find post from nearby posts first (for quick display)
+            var post = NearbyPosts.FirstOrDefault(p => p.Id == postId);
+            if (post != null)
+            {
+                SelectedPost = post;
+                System.Diagnostics.Debug.WriteLine($"[MapViewModel] Found local post: {post.Title}");
+            }
             
-            var detail = await _apiClient.GetPostById(postId);
-            
-            System.Diagnostics.Debug.WriteLine($"[MapViewModel] Post detail loaded: {detail?.Title}");
+            // Always load full detail from API on background thread
+            PostDetailDto? detail = null;
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                detail = await Task.Run(async () =>
+                    await _apiClient.GetPostById(postId), cts.Token);
+                
+                System.Diagnostics.Debug.WriteLine($"[MapViewModel] Post detail loaded: {detail?.Title}");
+            }
+            catch (OperationCanceledException)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MapViewModel] LoadPostDetail timeout");
+                StatusMessage = "Post yükleme zaman aşımı";
+                IsBottomSheetVisible = false;
+            }
+            catch (Exception detailEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MapViewModel] LoadPostDetail error: {detailEx.Message}");
+                StatusMessage = $"Post yükleme hatası: {detailEx.Message}";
+                IsBottomSheetVisible = false;
+            }
             
             if (detail != null)
             {
                 SelectedPostDetail = detail;
                 IsBottomSheetVisible = true;
-                System.Diagnostics.Debug.WriteLine($"[MapViewModel] Bottom sheet opened");
+                System.Diagnostics.Debug.WriteLine($"[MapViewModel] Bottom sheet opened with API post - LikeCount: {detail.LikeCount}, CommentCount: {detail.CommentCount}");
             }
-            else
+            else if (IsBottomSheetVisible == false)
             {
                 StatusMessage = "Post bulunamadı";
                 System.Diagnostics.Debug.WriteLine($"[MapViewModel] Post not found");
@@ -495,11 +585,13 @@ public partial class MapViewModel : ObservableObject
         {
             StatusMessage = "Zaman aşımı";
             System.Diagnostics.Debug.WriteLine($"[MapViewModel] LoadPostDetail timeout");
+            IsBottomSheetVisible = false;
         }
         catch (Exception ex)
         {
             StatusMessage = $"Hata: {ex.Message}";
             System.Diagnostics.Debug.WriteLine($"[MapViewModel] LoadPostDetail error: {ex}");
+            IsBottomSheetVisible = false;
         }
         finally
         {
@@ -557,6 +649,158 @@ public partial class MapViewModel : ObservableObject
             await _badgeService.RefreshUnreadCountAsync();
         }
     }
+
+    // Modern UI Commands for WS-09D
+    [RelayCommand]
+    public async Task RefreshModernAsync()
+    {
+        await LoadModernDummyAsync();
+    }
+
+    [RelayCommand]
+    public void CenterOnUser()
+    {
+        // Platform-specific implementation later
+    }
+
+    [RelayCommand]
+    public void ToggleLike()
+    {
+        if (ModernSelectedPost == null) return;
+        ModernSelectedPost.Likes += ModernSelectedPost.IsLikedByCurrentUser ? -1 : 1;
+        ModernSelectedPost.IsLikedByCurrentUser = !ModernSelectedPost.IsLikedByCurrentUser;
+        OnPropertyChanged(nameof(ModernSelectedPost));
+    }
+
+    [RelayCommand]
+    public async Task OpenComments()
+    {
+        if (ModernSelectedPost == null) return;
+        await Shell.Current.DisplayAlert("Yorum", $"Post: {ModernSelectedPost.Title}", "Kapat");
+    }
+
+    [RelayCommand]
+    public async Task OpenDirections()
+    {
+        if (ModernSelectedPost == null) return;
+        var uri = $"https://www.google.com/maps/?q={ModernSelectedPost.Latitude},{ModernSelectedPost.Longitude}";
+        await Launcher.OpenAsync(uri);
+    }
+
+    public async Task InitializeModernAsync()
+    {
+        if (ModernNearbyPosts.Count == 0)
+            await LoadModernDummyAsync();
+    }
+
+    private async Task LoadModernDummyAsync()
+    {
+        IsBusy = true;
+
+        try
+        {
+            await Task.Delay(500); // simulate network delay
+            
+            ModernNearbyPosts.Clear();
+            
+            // Dummy data
+            ModernNearbyPosts.Add(new MapPostItem
+            {
+                PostId = Guid.NewGuid(),
+                UserName = "testuser@blinkr.com",
+                Title = "Moda Sahil'de gün batımı",
+                Summary = "Kahvemi alıp sahilde oturuyorum. Hava mükemmel.",
+                DistanceKm = 0.4,
+                Likes = 12,
+                Comments = 3,
+                Latitude = 40.979,
+                Longitude = 29.024
+            });
+
+            ModernNearbyPosts.Add(new MapPostItem
+            {
+                PostId = Guid.NewGuid(),
+                UserName = "admin@blinkr.com",
+                Title = "Kadıköy'de kahve molası",
+                Summary = "Yeni açılan bir kafedeyim, ortam çok iyi.",
+                DistanceKm = 1.2,
+                Likes = 5,
+                Comments = 1,
+                Latitude = 40.987,
+                Longitude = 29.030
+            });
+
+            ModernNearbyPosts.Add(new MapPostItem
+            {
+                PostId = Guid.NewGuid(),
+                UserName = "user123@blinkr.com",
+                Title = "Beşiktaş'ta yeni mekan keşfi",
+                Summary = "Harika bir restoran buldum, tavsiye ederim!",
+                DistanceKm = 2.1,
+                Likes = 28,
+                Comments = 7,
+                Latitude = 41.047,
+                Longitude = 29.000
+            });
+
+            ModernSelectedPost = ModernNearbyPosts.FirstOrDefault();
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    // API-based commands for WS-09D
+    [RelayCommand]
+    public async Task LoadNearbyPostsAsync()
+    {
+        if (IsBusy) return;
+        IsBusy = true;
+
+        try
+        {
+            // TODO: Backend endpoint'ini çağır
+            // var result = await _apiClient.GetNearbyPostsAsync(lat, lng, radius);
+            // ModernNearbyPosts = new ObservableCollection<MapPostItem>(result);
+            // ModernSelectedPost = ModernNearbyPosts.FirstOrDefault();
+
+            // Şimdilik dummy data
+            await LoadModernDummyAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"❌ Error loading nearby posts: {ex.Message}");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    public Task LikePostAsync(MapPostItem? post)
+    {
+        if (post == null) return Task.CompletedTask;
+
+        try
+        {
+            // TODO: Backend endpoint'ini çağır
+            // await _apiClient.LikePostAsync(post.PostId);
+            
+            // Optimistic update
+            post.Likes += post.IsLikedByCurrentUser ? -1 : 1;
+            post.IsLikedByCurrentUser = !post.IsLikedByCurrentUser;
+            OnPropertyChanged(nameof(ModernSelectedPost));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"❌ Error liking post: {ex.Message}");
+        }
+
+        return Task.CompletedTask;
+    }
+
 }
 
 

@@ -4,6 +4,7 @@ using Blinkr.Mobile.Core.Auth;
 using Blinkr.Mobile.Core.Services;
 using Blinkr.Mobile.Features;
 using Blinkr.Mobile.Features.Map;
+using Blinkr.Mobile.Pages;
 using Refit;
 using System.Net.Http;
 
@@ -52,8 +53,8 @@ public static class MauiProgram
             : "http://localhost:5212";
             
         var identityServiceUrl = DeviceInfo.Platform == DevicePlatform.Android
-            ? "http://10.0.2.2:5001" // IdentityService port (assumed)
-            : "http://localhost:5001";
+            ? "http://10.0.2.2:5188" // IdentityService HTTP port
+            : "http://localhost:5188";
 
         // Create HttpClient handler factory
         System.Func<HttpMessageHandler> createHandler = () =>
@@ -150,21 +151,23 @@ public static class MauiProgram
     private static void ConfigurePages(IServiceCollection services)
     {
         // Register ViewModels
+        services.AddTransient<FeedViewModel>();
         services.AddTransient<MapViewModel>();
         services.AddTransient<SettingsViewModel>();
+        services.AddTransient<NotificationsViewModel>();
 
         // Register all pages as transient
-        services.AddTransient<Pages.LoginPage>();
-        services.AddTransient<FeedPage>();
-        services.AddTransient<MapPage>();
+        services.AddTransient<Pages.LoginPage>();              // Login şimdilik Pages altında
+        services.AddTransient<Features.FeedPage>();
+        services.AddTransient<Features.MapPage>();              // yeni MapPage
         services.AddTransient<CreatePage>(sp =>
         {
             var apiClient = sp.GetService<IApiClient>();
             var geolocation = sp.GetRequiredService<IGeolocation>();
             return new CreatePage(apiClient, geolocation);
         });
-        services.AddTransient<NotificationsPage>();
-        services.AddTransient<ProfilePage>();
+        services.AddTransient<Features.NotificationsPage>();
+        services.AddTransient<Features.ProfilePage>();          // yeni ProfilePage
         services.AddTransient<SettingsPage>();
     }
 }

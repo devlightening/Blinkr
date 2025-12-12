@@ -1,45 +1,176 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:map="clr-namespace:Blinkr.Mobile.Features.Map"
              xmlns:vm="clr-namespace:Blinkr.Mobile.Features.Map"
              x:Class="Blinkr.Mobile.Features.MapPage"
              x:DataType="vm:MapViewModel"
              Title="Harita"
-             BackgroundColor="{StaticResource Background}">
+             BackgroundColor="{StaticResource AppBackgroundDark}"
+             Padding="0">
 
-  <Grid>
-    <!-- Leaflet Harita (WebView) -->
-    <WebView x:Name="MapWebView"
-             VerticalOptions="FillAndExpand"
-             HorizontalOptions="FillAndExpand"
-             Navigating="OnWebViewNavigating"
-             Navigated="OnWebViewNavigated" />
+    <Grid RowDefinitions="Auto,*,Auto">
 
-    <!-- Status Message -->
-    <Border Background="{StaticResource GlassBackground}"
-            Stroke="{StaticResource GlassBorder}"
-            StrokeThickness="1"
-            Padding="16,12"
-            Margin="16"
-            VerticalOptions="End"
-            HorizontalOptions="Center"
-            IsVisible="{Binding IsBusy}">
-      <Border.StrokeShape>
-        <RoundRectangle CornerRadius="24" />
-      </Border.StrokeShape>
-      <Label Text="{Binding StatusMessage}"
-             TextColor="{StaticResource TextPrimary}"
-             FontSize="14" />
-    </Border>
+        <!-- HEADER -->
+        <Border Grid.Row="0" BackgroundColor="{StaticResource AppBackgroundDark}" StrokeThickness="0" Padding="0">
+            <VerticalStackLayout Padding="20,12,20,12" Spacing="2">
+                <Label Text="Harita" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource NeonYellow}" />
+                <Label Text="Yakınındaki paylaşımları keşfet" FontSize="12" TextColor="{StaticResource TextSecondary}" />
+            </VerticalStackLayout>
+        </Border>
 
-    <!-- Bottom Sheet - Max height to leave map buttons accessible (FAB buttons are at bottom right) -->
-    <map:PostBottomSheet x:Name="BottomSheet"
-                         Post="{Binding SelectedPostDetail}"
-                         VerticalOptions="End"
-                         TranslationY="500"
-                         ZIndex="1"
-                         MaximumHeightRequest="400"
-                         IsVisible="{Binding IsBottomSheetVisible}" />
-  </Grid>
+        <!-- MAP CONTAINER -->
+        <Grid Grid.Row="1">
+            <WebView x:Name="MapWebView"
+                     Navigating="OnWebViewNavigating"
+                     Navigated="OnWebViewNavigated"
+                     Margin="0" />
+
+            <!-- Floating Action Buttons (Right side) -->
+            <VerticalStackLayout HorizontalOptions="End"
+                                 VerticalOptions="Center"
+                                 Spacing="12"
+                                 Margin="0,0,16,0">
+                <!-- Refresh Button -->
+                <Button Text="⟳"
+                        BackgroundColor="{StaticResource NeonYellow}"
+                        TextColor="{StaticResource TextInverse}"
+                        FontSize="20"
+                        CornerRadius="24"
+                        WidthRequest="48"
+                        HeightRequest="48"
+                        Padding="0"
+                        Command="{Binding LoadNearbyCommand}" />
+
+                <!-- My Location Button -->
+                <Button Text="📍"
+                        BackgroundColor="{StaticResource CardDark}"
+                        TextColor="{StaticResource NeonYellow}"
+                        FontSize="20"
+                        CornerRadius="24"
+                        WidthRequest="48"
+                        HeightRequest="48"
+                        Padding="0"
+                        BorderColor="{StaticResource NeonYellow}"
+                        BorderWidth="1" />
+            </VerticalStackLayout>
+        </Grid>
+
+        <!-- BOTTOM SHEET CARD - Sayfanın en altında, scrollable -->
+        <Border Grid.Row="2"
+                BackgroundColor="{StaticResource CardDark}"
+                StrokeThickness="1"
+                Stroke="{StaticResource NeonYellow}"
+                Margin="0"
+                Padding="0"
+                IsVisible="{Binding IsBottomSheetVisible}">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="20,20,0,0" />
+            </Border.StrokeShape>
+            <Border.Shadow>
+                <Shadow Brush="{StaticResource NeonYellow}" Radius="12" Opacity="0.3" Offset="0,-4"/>
+            </Border.Shadow>
+
+            <ScrollView>
+                <VerticalStackLayout Spacing="12" Padding="16,16,16,20">
+
+                    <!-- Drag Handle -->
+                    <BoxView WidthRequest="40" HeightRequest="4"
+                             BackgroundColor="{StaticResource DividerColor}"
+                             CornerRadius="2"
+                             HorizontalOptions="Center"
+                             Margin="0,8,0,8" />
+
+                    <!-- User Info Section -->
+                    <HorizontalStackLayout Spacing="12">
+                        <!-- Avatar -->
+                        <Border WidthRequest="48" HeightRequest="48"
+                                BackgroundColor="{StaticResource CardBackground}"
+                                StrokeThickness="2"
+                                Stroke="{StaticResource NeonYellow}"
+                                Padding="0">
+                            <Border.StrokeShape>
+                                <Ellipse />
+                            </Border.StrokeShape>
+                            <Label Text="👤"
+                                   FontSize="24"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center" />
+                        </Border>
+
+                        <!-- User Details -->
+                        <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+                            <Label Text="{Binding SelectedPostDetail.AuthorName, StringFormat='{0}'}"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource TextPrimary}" />
+                            <Label Text="{Binding SelectedPost.Title}"
+                                   FontSize="12"
+                                   TextColor="{StaticResource TextSecondary}" />
+                        </VerticalStackLayout>
+                    </HorizontalStackLayout>
+
+                    <!-- Post Description -->
+                    <Label Text="{Binding SelectedPostDetail.Content}"
+                           FontSize="13"
+                           TextColor="{StaticResource TextSecondary}"
+                           LineBreakMode="WordWrap" />
+
+                    <!-- Stats Row -->
+                    <HorizontalStackLayout Spacing="16">
+                        <HorizontalStackLayout Spacing="4">
+                            <Label Text="❤️" FontSize="14" />
+                            <Label Text="{Binding SelectedPostDetail.LikeCount, StringFormat='{0}'}"
+                                   FontSize="12"
+                                   TextColor="{StaticResource TextSecondary}" />
+                        </HorizontalStackLayout>
+
+                        <HorizontalStackLayout Spacing="4">
+                            <Label Text="💬" FontSize="14" />
+                            <Label Text="{Binding SelectedPostDetail.CommentCount, StringFormat='{0}'}"
+                                   FontSize="12"
+                                   TextColor="{StaticResource TextSecondary}" />
+                        </HorizontalStackLayout>
+                    </HorizontalStackLayout>
+
+                    <!-- Action Buttons -->
+                    <HorizontalStackLayout Spacing="8">
+                        <Button Text="📞"
+                                BackgroundColor="{StaticResource CardBackground}"
+                                TextColor="{StaticResource TextPrimary}"
+                                FontSize="16"
+                                CornerRadius="10"
+                                Padding="8,6"
+                                HorizontalOptions="FillAndExpand" />
+
+                        <Button Text="💬"
+                                BackgroundColor="{StaticResource CardBackground}"
+                                TextColor="{StaticResource TextPrimary}"
+                                FontSize="16"
+                                CornerRadius="10"
+                                Padding="8,6"
+                                HorizontalOptions="FillAndExpand" />
+
+                        <Button Text="ℹ️"
+                                BackgroundColor="{StaticResource CardBackground}"
+                                TextColor="{StaticResource TextPrimary}"
+                                FontSize="16"
+                                CornerRadius="10"
+                                Padding="8,6"
+                                HorizontalOptions="FillAndExpand" />
+                    </HorizontalStackLayout>
+
+                    <!-- Directions Button -->
+                    <Button Text="🗺️ Yol Tarifi"
+                            BackgroundColor="{StaticResource NeonYellow}"
+                            TextColor="{StaticResource TextInverse}"
+                            FontSize="15"
+                            FontAttributes="Bold"
+                            CornerRadius="12"
+                            Padding="16,10" />
+
+                </VerticalStackLayout>
+            </ScrollView>
+        </Border>
+
+    </Grid>
 </ContentPage>

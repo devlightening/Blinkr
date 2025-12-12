@@ -16,7 +16,7 @@
              Margin="0,0,0,32" />
       
       <!-- Email Entry -->
-      <Border Style="{StaticResource GlassCard}">
+      <Border Style="{StaticResource RoundedBorder}">
         <Entry x:Name="EmailEntry"
                Placeholder="E-posta"
                Keyboard="Email"
@@ -25,7 +25,7 @@
       </Border>
       
       <!-- Password Entry -->
-      <Border Style="{StaticResource GlassCard}">
+      <Border Style="{StaticResource RoundedBorder}">
         <Entry x:Name="PasswordEntry"
                Placeholder="Şifre"
                IsPassword="True"

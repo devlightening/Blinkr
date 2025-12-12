@@ -1,4 +1,5 @@
 using System.Linq;
+using Blinkr.Mobile.Core.Auth;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -9,6 +10,8 @@ namespace Blinkr.Mobile.Features;
 
 public sealed partial class SettingsViewModel : ObservableObject
 {
+    private readonly IAuthService _authService;
+
     // Tema anahtarı
     [ObservableProperty] private bool isDark = true;
 
@@ -16,8 +19,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string oldPassword = string.Empty;
     [ObservableProperty] private string newPassword = string.Empty;
 
-    public SettingsViewModel()
+    public SettingsViewModel(IAuthService authService)
     {
+        _authService = authService;
         // Initialize theme from current app theme
         IsDark = Application.Current?.RequestedTheme == AppTheme.Dark;
     }
@@ -80,6 +84,35 @@ public sealed partial class SettingsViewModel : ObservableObject
         catch (Exception ex)
         {
             await ShowAlertAsync("Hata", $"Şifre güncellenemedi.\n{ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    public async Task LogoutAsync()
+    {
+        try
+        {
+            // 1) Tokenleri temizle
+            await _authService.LogoutAsync();
+
+            // 2) Kullanıcıya bilgi ver
+            await ShowAlertAsync("Çıkış yapıldı", "Hesabınızdan çıkış yaptınız.");
+
+            // 3) Ana sayfayı LoginPage yap
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                var sp = Application.Current?.Handler?.MauiContext?.Services;
+                if (sp is null)
+                    return;
+
+    #pragma warning disable CS0618
+                Application.Current!.MainPage = sp.GetRequiredService<Blinkr.Mobile.Pages.LoginPage>();
+    #pragma warning restore CS0618
+            });
+        }
+        catch (Exception ex)
+        {
+            await ShowAlertAsync("Hata", $"Çıkış yapılamadı.\n{ex.Message}");
         }
     }
 }

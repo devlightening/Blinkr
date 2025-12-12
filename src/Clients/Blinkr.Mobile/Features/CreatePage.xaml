@@ -2,6 +2,7 @@
 <ContentPage x:Class="Blinkr.Mobile.Features.CreatePage"
              xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             BackgroundColor="{StaticResource AppBackgroundDark}"
              Title="Oluştur">
 
     <Grid RowDefinitions="Auto,*">
@@ -25,117 +26,53 @@
         </Grid>
         
         <ScrollView Grid.Row="1">
-            <StackLayout Spacing="0" Padding="0">
+            <VerticalStackLayout Padding="20" Spacing="20">
                 
-                <!-- Photo/Video Section -->
-                <Border BackgroundColor="{StaticResource Surface}"
-                        StrokeThickness="0"
-                        Margin="16,8">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="16" />
-                    </Border.StrokeShape>
-                    <Grid RowDefinitions="200,Auto" Padding="16">
-                        <!-- Photo Preview Area -->
-                        <Border Grid.Row="0"
-                                BackgroundColor="{StaticResource ChipBackground}"
-                                StrokeThickness="0"
-                                HeightRequest="200">
-                            <Border.StrokeShape>
-                                <RoundRectangle CornerRadius="12" />
-                            </Border.StrokeShape>
-                            <Grid>
-                                <Image x:Name="PhotoPreview"
-                                       Aspect="AspectFill"
-                                       IsVisible="False" />
-                                <Border BackgroundColor="{StaticResource TextPrimary}"
-                                        WidthRequest="50"
-                                        HeightRequest="50"
-                                        StrokeThickness="0"
-                                        HorizontalOptions="Center"
-                                        VerticalOptions="Center">
-                                    <Border.StrokeShape>
-                                        <Ellipse />
-                                    </Border.StrokeShape>
-                                    <Label Text="📷"
-                                           FontSize="24"
-                                           HorizontalOptions="Center"
-                                           VerticalOptions="Center" />
-                                    <Border.GestureRecognizers>
-                                        <TapGestureRecognizer Tapped="OnSelectMediaClicked" />
-                                    </Border.GestureRecognizers>
-                                </Border>
-                            </Grid>
-                        </Border>
-                    </Grid>
+                <Label Text="Oluştur" TextColor="White" FontSize="24" FontAttributes="Bold" Margin="0,10"/>
+
+                <Border Stroke="{StaticResource NeonYellow}" 
+                        StrokeShape="RoundRectangle 20"
+                        HeightRequest="180"
+                        BackgroundColor="{StaticResource CardDark}"
+                        StrokeThickness="1.5">
+                    <Border.Shadow>
+                         <Shadow Brush="{StaticResource NeonYellow}" Radius="10" Opacity="0.3"/>
+                    </Border.Shadow>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnSelectMediaClicked"/>
+                    </Border.GestureRecognizers>
+                    
+                    <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="10">
+                        <Label Text="📷" FontSize="40" HorizontalOptions="Center" TextColor="{StaticResource NeonYellow}"/>
+                        <Label Text="Fotoğraf Ekle" TextColor="Gray" FontSize="12" HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
                 </Border>
 
-                <!-- Title & Description Section -->
-                <Border BackgroundColor="{StaticResource Surface}"
-                        StrokeThickness="0"
-                        Margin="16,8">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="16" />
-                    </Border.StrokeShape>
-                    <StackLayout Spacing="12" Padding="16">
-                        <Entry x:Name="TitleEntry"
-                               Placeholder="Başlıl"
-                               FontSize="16"
-                               TextColor="{StaticResource TextPrimary}"
-                               PlaceholderColor="{StaticResource TextTertiary}" />
-                        
-                        <Border BackgroundColor="{StaticResource ChipBackground}"
-                                StrokeThickness="0"
-                                Padding="12,8">
-                            <Border.StrokeShape>
-                                <RoundRectangle CornerRadius="8" />
-                            </Border.StrokeShape>
-                            <Editor x:Name="ContentEditor"
-                                    Placeholder="Açıklama"
-                                    HeightRequest="100"
-                                    FontSize="14"
-                                    BackgroundColor="Transparent"
-                                    TextColor="{StaticResource TextPrimary}"
-                                    PlaceholderColor="{StaticResource TextTertiary}" />
-                        </Border>
-                    </StackLayout>
-                </Border>
+                <VerticalStackLayout Spacing="5">
+                    <Label Text="Başlık" TextColor="Gray" FontSize="12" Margin="5,0"/>
+                    <Border Style="{StaticResource NeonInputBorder}">
+                        <Entry x:Name="TitleEntry" Placeholder="Başlık girin..." PlaceholderColor="#666" TextColor="White" HeightRequest="50"/>
+                    </Border>
+                </VerticalStackLayout>
 
-                <!-- Location Section -->
-                <Border BackgroundColor="{StaticResource Surface}"
-                        StrokeThickness="0"
-                        Margin="16,8">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="16" />
-                    </Border.StrokeShape>
-                    <StackLayout Spacing="12" Padding="16">
-                        <Label Text="Konum"
-                               FontSize="16"
-                               FontAttributes="Bold"
-                               TextColor="{StaticResource TextPrimary}" />
-                        
-                        <Grid ColumnDefinitions="*,Auto">
-                            <Label Grid.Column="0"
-                                   x:Name="LocationLabel"
-                                   Text="Kesin (~1.2 km)"
-                                   FontSize="14"
-                                   TextColor="{StaticResource TextSecondary}"
-                                   VerticalOptions="Center" />
-                            
-                            <Switch Grid.Column="1"
-                                    x:Name="LocationSwitch"
-                                    IsToggled="True"
-                                    OnColor="{StaticResource Primary}" />
-                        </Grid>
-                    </StackLayout>
-                </Border>
+                <VerticalStackLayout Spacing="5">
+                    <Label Text="Açıklama" TextColor="Gray" FontSize="12" Margin="5,0"/>
+                    <Border Style="{StaticResource NeonInputBorder}" HeightRequest="120">
+                        <Editor x:Name="ContentEditor" Placeholder="Açıklamayı girin..." PlaceholderColor="#666" TextColor="White" AutoSize="TextChanges"/>
+                    </Border>
+                </VerticalStackLayout>
 
-                <!-- Submit Button -->
-                <Button Text="Gönder"
-                        Style="{StaticResource PrimaryButton}"
-                        Margin="16,16,16,32"
-                        Clicked="OnPostClicked" />
+                <Grid ColumnDefinitions="*, Auto" Margin="0,10">
+                    <Label Text="Lokasyon Paylaş" TextColor="White" VerticalOptions="Center" FontSize="16"/>
+                    <Switch x:Name="LocationSwitch" OnColor="{StaticResource NeonYellow}" ThumbColor="White"/>
+                </Grid>
 
-            </StackLayout>
+                <Button Text="Gönder" 
+                        Style="{StaticResource NeonButtonStyle}" 
+                        Clicked="OnPostClicked"
+                        Margin="0,20,0,0"/>
+
+            </VerticalStackLayout>
         </ScrollView>
         
     </Grid>

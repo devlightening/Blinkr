@@ -581,6 +581,7 @@ public class PostQueryService : IPostQueryService
             Id = post.Id,
             Title = post.Title,
             Content = post.Content,
+            AuthorName = post.AuthorName,
             AuthorId = post.AuthorId,
             CreatedAtUtc = post.CreatedAtUtc,
             UpdatedAtUtc = post.UpdatedAtUtc,
@@ -836,6 +837,67 @@ public class PostQueryService : IPostQueryService
             var errorMessage = $"❌ Test exception: {ex.Message}";
             _logger.LogError(ex, "🧪 Nearby query test failed: {Error}", errorMessage);
             return (false, errorMessage, 0, 0, 0, false, false, null);
+        }
+    }
+
+    /// <summary>
+    /// DEBUG: Update all posts without location to specified coordinates
+    /// </summary>
+    public async Task<int> UpdatePostLocationsAsync(double latitude, double longitude, string locationName, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var filter = Builders<PostDocument>.Filter.Eq(p => p.Location, null);
+            
+            var update = Builders<PostDocument>.Update
+                .Set(p => p.Location, new LocationEntity
+                {
+                    Type = "Point",
+                    Coordinates = new[] { longitude, latitude },
+                    Name = locationName,
+                    CreatedAtUtc = DateTime.UtcNow
+                })
+                .Set(p => p.LocationName, locationName);
+
+            var result = await _postsCollection.UpdateManyAsync(filter, update, cancellationToken: cancellationToken);
+            
+            _logger.LogInformation("📍 Updated {Count} posts with location: lat={Lat}, lon={Lon}, name={Name}", 
+                result.ModifiedCount, latitude, longitude, locationName);
+
+            return (int)result.ModifiedCount;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ Error updating post locations");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// DEBUG: Update all posts with empty author name to default
+    /// </summary>
+    public async Task<int> UpdateAuthorNamesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var filter = Builders<PostDocument>.Filter.Or(
+                Builders<PostDocument>.Filter.Eq(p => p.AuthorName, null),
+                Builders<PostDocument>.Filter.Eq(p => p.AuthorName, "")
+            );
+            
+            var update = Builders<PostDocument>.Update
+                .Set(p => p.AuthorName, "Blinkr User");
+
+            var result = await _postsCollection.UpdateManyAsync(filter, update, cancellationToken: cancellationToken);
+            
+            _logger.LogInformation("👤 Updated {Count} posts with author name", result.ModifiedCount);
+
+            return (int)result.ModifiedCount;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ Error updating author names");
+            throw;
         }
     }
 }

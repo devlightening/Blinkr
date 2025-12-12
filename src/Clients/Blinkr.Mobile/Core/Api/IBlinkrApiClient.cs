@@ -46,7 +46,7 @@ public interface INotificationsApiClient
     /// Get paginated notifications list
     /// </summary>
     [Get("/api/notifications")]
-    Task<PagedResult<NotificationDto>> GetNotificationsAsync(
+    Task<NotificationsResponse> GetNotificationsAsync(
         [Query] int page = 1,
         [Query] int pageSize = 20,
         CancellationToken ct = default);
@@ -55,7 +55,7 @@ public interface INotificationsApiClient
     /// Mark notifications as read
     /// </summary>
     [Post("/api/notifications/mark-read")]
-    Task MarkReadAsync([Body] MarkReadRequest request, CancellationToken ct = default);
+    Task MarkReadAsync([Body] MarkReadRequest? request = null, CancellationToken ct = default);
 }
 
 // DTOs
@@ -71,7 +71,8 @@ public record PostLocationDto(
     int? FreshnessSec = null,
     bool IsLive = false,
     string? MediaUrl = null,
-    double? DistanceMeters = null);
+    double? DistanceMeters = null,
+    string? Gender = null);
 
 /// <summary>
 /// Full post detail DTO - matches backend PostResponseDto
@@ -108,25 +109,39 @@ public record DeviceTokenRequest(
     string Platform);
 
 /// <summary>
+/// Notifications response with items and pagination
+/// </summary>
+public record NotificationsResponse(
+    List<NotificationDto> Items,
+    string? NextCursor = null,
+    int Page = 1,
+    int PageSize = 20,
+    int Total = 0);
+
+/// <summary>
 /// Unread notifications count response
 /// </summary>
 public record UnreadCountDto(
-    int Count);
+    int unreadCount);
 
 /// <summary>
 /// Notification item DTO
 /// </summary>
 public record NotificationDto(
     string Id,
-    string Type,
     string Title,
     string Body,
     string? DeepLink,
+    string? ImageUrl,
+    string Type,
     DateTime CreatedAtUtc,
-    bool IsRead);
+    bool IsRead,
+    Guid? PostId = null,
+    Guid? ActorUserId = null,
+    string? ActorUserName = null);
 
 /// <summary>
 /// Mark notifications as read request
 /// </summary>
 public record MarkReadRequest(
-    IEnumerable<string> NotificationIds);
+    IEnumerable<string>? NotificationIds = null);

@@ -161,7 +161,7 @@ public class NotificationsBadgeService : INotificationsBadgeService
         try
         {
             var result = await _notificationsApi.GetUnreadCountAsync(ct);
-            SetUnreadCount(result.Count);
+            SetUnreadCount(result.unreadCount);
         }
         catch (Exception ex)
         {
