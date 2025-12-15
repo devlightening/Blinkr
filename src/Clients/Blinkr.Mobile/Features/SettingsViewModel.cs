@@ -98,16 +98,14 @@ public sealed partial class SettingsViewModel : ObservableObject
             // 2) Kullanıcıya bilgi ver
             await ShowAlertAsync("Çıkış yapıldı", "Hesabınızdan çıkış yaptınız.");
 
-            // 3) Ana sayfayı LoginPage yap
+            // 3) Ana sayfayı AppShell yap
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 var sp = Application.Current?.Handler?.MauiContext?.Services;
                 if (sp is null)
                     return;
 
-    #pragma warning disable CS0618
-                Application.Current!.MainPage = sp.GetRequiredService<Blinkr.Mobile.Pages.LoginPage>();
-    #pragma warning restore CS0618
+                Application.Current!.MainPage = sp.GetRequiredService<AppShell>();
             });
         }
         catch (Exception ex)

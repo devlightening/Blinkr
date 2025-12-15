@@ -6,12 +6,13 @@ using BlogService.Application.Services.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using BlogService.Api.Auth; // User.GetUserId() extension metodu için
+using BlogService.Api.Auth;
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommentCommands;
 using BlogService.Application.Features.Mediatr.Comamnds.PostLikeCommands;
 using BlogService.Api.Extensions;
 using BlogService.Application.DTOs.PostCommentDtos;
 using BlogService.Infrastructure.Services;
+using BlogService.Infrastructure.Services.Queries;
 
 namespace BlogService.Api.Controllers;
 
@@ -23,14 +24,12 @@ public class PostsController : ControllerBase
     private readonly IMediator _mediator;
     private readonly IMapper _mapper;
     private readonly IPostQueryService _postQueryService;
-    private readonly PostQueryService _postQueryServiceConcrete;
 
-    public PostsController(IMediator mediator, IMapper mapper, IPostQueryService postQueryService, PostQueryService postQueryServiceConcrete)
+    public PostsController(IMediator mediator, IMapper mapper, IPostQueryService postQueryService)
     {
         _mediator = mediator;
         _mapper = mapper;
         _postQueryService = postQueryService;
-        _postQueryServiceConcrete = postQueryServiceConcrete;
     }
 
     [HttpPost]
@@ -40,7 +39,16 @@ public class PostsController : ControllerBase
         // Get authenticated user ID - will be used by handler via ICurrentUserService
         var authorId = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated");
         
-        // Create command with location (AuthorId handled by ICurrentUserService in handler)
+        // Get author name from JWT claims (required)
+        var authorName = User.FindFirst("preferred_username")?.Value 
+                      ?? User.FindFirst("name")?.Value 
+                      ?? User.Identity?.Name 
+                      ?? throw new UnauthorizedAccessException("User name not found in JWT claims");
+        
+        // Get author gender from JWT claims (for map pin color)
+        var authorGender = User.FindFirst("gender")?.Value;
+        
+        // Create command with location, author name, and gender
         var command = new CreatePostCommand(
             dto.Title, 
             dto.Content, 
@@ -48,7 +56,9 @@ public class PostsController : ControllerBase
             dto.Latitude,
             dto.Longitude,
             dto.AccuracyMeters,
-            dto.LocationName);
+            dto.LocationName,
+            authorName,
+            authorGender);
         var postId = await _mediator.Send(command);
         return CreatedAtAction(nameof(GetById), new { id = postId }, new { PostId = postId });
     }
@@ -107,16 +117,6 @@ public class PostsController : ControllerBase
     {
         var post = await _mediator.Send(new GetPostByIdQuery(id));
         return post is null ? NotFound() : Ok(post);
-    }
-    
-    /// <summary>
-    /// Debug endpoint to check posts with location data
-    /// </summary>
-    [HttpGet("debug/location-posts")]
-    public async Task<ActionResult<object>> DebugLocationPosts()
-    {
-        var count = await _postQueryServiceConcrete.DebugCheckLocationPostsAsync();
-        return Ok(new { PostsWithLocation = count, Message = "Check logs for detailed information" });
     }
 
     /// <summary>

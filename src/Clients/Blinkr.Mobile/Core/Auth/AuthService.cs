@@ -30,6 +30,11 @@ public sealed class AuthService : IAuthService
         return !string.IsNullOrEmpty(token);
     }
 
+    public async Task SaveTokenAsync(string accessToken, string refreshToken)
+    {
+        await _tokenStore.SaveTokensAsync(accessToken, refreshToken);
+    }
+
     public async Task<(bool IsSuccess, string? ErrorMessage)> RefreshTokenAsync(CancellationToken ct = default)
     {
         // This method is kept for backward compatibility

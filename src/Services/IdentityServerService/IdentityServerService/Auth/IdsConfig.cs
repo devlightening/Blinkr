@@ -23,7 +23,7 @@ public static class IdsConfig
         new ApiResource("blinkr.api", "Blinkr Microservices")
         {
             Scopes = { "blinkr_api", "blinkr.api.read", "blinkr.api.write" },
-            UserClaims = { "role", "name", "email" }
+            UserClaims = { "role", "name", "email", "preferred_username", "gender" }
         }
     };
 

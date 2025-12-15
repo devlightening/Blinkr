@@ -3,8 +3,9 @@ using Blinkr.Mobile.Core.Api;
 using Blinkr.Mobile.Core.Auth;
 using Blinkr.Mobile.Core.Services;
 using Blinkr.Mobile.Features;
+using Blinkr.Mobile.Features.Auth;
 using Blinkr.Mobile.Features.Map;
-using Blinkr.Mobile.Pages;
+using Blinkr.Mobile.Features.Services;
 using Refit;
 using System.Net.Http;
 
@@ -150,24 +151,31 @@ public static class MauiProgram
 
     private static void ConfigurePages(IServiceCollection services)
     {
+        // Register Services
+        services.AddTransient<IFeedFilterService, FeedFilterService>();
+        services.AddTransient<IPostMapper, PostMapper>();
+
         // Register ViewModels
         services.AddTransient<FeedViewModel>();
         services.AddTransient<MapViewModel>();
         services.AddTransient<SettingsViewModel>();
         services.AddTransient<NotificationsViewModel>();
+        services.AddTransient<ProfileViewModel>();
 
         // Register all pages as transient
-        services.AddTransient<Pages.LoginPage>();              // Login şimdilik Pages altında
-        services.AddTransient<Features.FeedPage>();
-        services.AddTransient<Features.MapPage>();              // yeni MapPage
+        services.AddTransient<FeedPage>();
+        services.AddTransient<MapPage>();
         services.AddTransient<CreatePage>(sp =>
         {
             var apiClient = sp.GetService<IApiClient>();
             var geolocation = sp.GetRequiredService<IGeolocation>();
             return new CreatePage(apiClient, geolocation);
         });
-        services.AddTransient<Features.NotificationsPage>();
-        services.AddTransient<Features.ProfilePage>();          // yeni ProfilePage
+        services.AddTransient<NotificationsPage>();
+        services.AddTransient<ProfilePage>();
         services.AddTransient<SettingsPage>();
+        
+        // Register Auth pages
+        services.AddTransient<LoginPage>();
     }
 }

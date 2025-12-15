@@ -18,6 +18,9 @@ namespace Blinkr.Projections.Worker.Documents
         
         [BsonIgnoreIfNull]
         public string? AuthorName { get; set; }
+        
+        [BsonIgnoreIfNull]
+        public string? AuthorGender { get; set; }
 
         public string Title { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;

@@ -99,11 +99,11 @@
 
                         <!-- User Details -->
                         <VerticalStackLayout Spacing="2" VerticalOptions="Center">
-                            <Label Text="{Binding SelectedPostDetail.AuthorName, StringFormat='{0}'}"
+                            <Label Text="{Binding SelectedPostDetail.AuthorName, FallbackValue='Blinkr User'}"
                                    FontSize="14"
                                    FontAttributes="Bold"
                                    TextColor="{StaticResource TextPrimary}" />
-                            <Label Text="{Binding SelectedPost.Title}"
+                            <Label Text="{Binding SelectedPostDetail.Title, FallbackValue='Post'}"
                                    FontSize="12"
                                    TextColor="{StaticResource TextSecondary}" />
                         </VerticalStackLayout>

@@ -36,7 +36,9 @@ namespace BlogService.Domain.Entities
             double? latitude = null,
             double? longitude = null,
             double? accuracyMeters = null,
-            string? locationName = null)
+            string? locationName = null,
+            string? authorName = null,
+            string? authorGender = null)
         {
             var post = new PostAggregate();
             post.ApplyNewEvent(new PostCreatedEvent(
@@ -48,7 +50,9 @@ namespace BlogService.Domain.Entities
                 latitude,
                 longitude,
                 accuracyMeters,
-                locationName));
+                locationName,
+                authorName,
+                authorGender));
             return post;
         }
 

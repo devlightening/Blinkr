@@ -269,7 +269,7 @@ namespace BlogService.Api
                 switch (domainEvent)
                 {
                     case PostCreatedEvent e:
-                        _log.LogInformation("Publish PostCreated PostId={PostId} Location={HasLocation}", e.PostId, e.Latitude.HasValue && e.Longitude.HasValue);
+                        _log.LogInformation("Publish PostCreated PostId={PostId} Location={HasLocation} AuthorName={AuthorName} Gender={Gender}", e.PostId, e.Latitude.HasValue && e.Longitude.HasValue, e.AuthorName, e.AuthorGender);
                         await _bus.Publish<IPostCreatedIntegrationEvent>(new
                         {
                             e.PostId,
@@ -277,6 +277,8 @@ namespace BlogService.Api
                             e.Title,
                             e.Content,
                             e.OccurredOn,
+                            e.AuthorName,
+                            e.AuthorGender,
                             e.Latitude,
                             e.Longitude,
                             e.AccuracyMeters,

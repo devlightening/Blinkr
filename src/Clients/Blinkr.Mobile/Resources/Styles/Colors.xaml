@@ -66,6 +66,13 @@
     <Color x:Key="CardDark">#1C1E26</Color>
     <Color x:Key="AppBackgroundDark">#0F1115</Color>
 
+    <!-- Material Design 3 Aliases -->
+    <Color x:Key="Background">#05070B</Color>
+    <Color x:Key="OnBackground">#FFFFFF</Color>
+    <Color x:Key="OnSurface">#FFFFFF</Color>
+    <Color x:Key="OnSurfaceVariant">#9CA3AF</Color>
+    <Color x:Key="OnPrimary">#000000</Color>
+
     <!-- Legacy Aliases for Compatibility -->
     <Color x:Key="BlinkrBackground">#05070B</Color>
     <Color x:Key="BlinkrBackgroundElevated">#0F1419</Color>

@@ -1,8 +1,11 @@
 using BlogService.Api;
 using BlogService.Api.Auth;
+using BlogService.Application.Services;
 using BlogService.Application.Services.Queries;
 using BlogService.Infrastructure.Services;
+using BlogService.Infrastructure.Services.Queries;
 using BlogService.Infrastructure.Services.Indexes;
+using S3Storage = BlogService.Infrastructure.Services.S3Storage;
 using BlogService.Api.RateLimiting;
 using BlogService.Application.Common.Behaviors;
 using BlogService.Application.Common.Interfaces;
@@ -42,7 +45,7 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using OpenTelemetry.Metrics;
 using Amazon.S3;
-using BlogService.Api.Services;
+using Amazon.S3.Model;
 using System.Diagnostics;
 using BlogService.Api.Middlewares;
 
@@ -200,7 +203,7 @@ builder.Services.AddSingleton<EventStoreClient>(sp =>
     {
         try
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             await client.ReadAllAsync(Direction.Forwards, Position.Start, 1, cancellationToken: cts.Token)
                         .FirstOrDefaultAsync(cts.Token);
             Serilog.Log.Information("✅ EventStore connectivity check OK");
@@ -300,15 +303,17 @@ builder.Services.AddScoped<IEventStoreRepository>(sp =>
 });
 builder.Services.AddScoped<IPostReadRepository, PostReadRepository>();
 
-// Query service with caching
-builder.Services.AddScoped<BlogService.Infrastructure.Services.PostQueryService>();
-builder.Services.AddScoped<BlogService.Application.Services.Queries.IPostQueryService>(sp =>
-{
-    var inner = sp.GetRequiredService<BlogService.Infrastructure.Services.PostQueryService>();
-    var cache = sp.GetRequiredService<IDistributedCache>();
-    var logger = sp.GetRequiredService<ILogger<BlogService.Infrastructure.Services.CachedPostQueryService>>();
-    return new BlogService.Infrastructure.Services.CachedPostQueryService(inner, cache, logger);
-});
+// Query services (SOLID: each service handles one concern)
+builder.Services.AddScoped<PostFeedQueryService>();
+builder.Services.AddScoped<PostSearchQueryService>();
+builder.Services.AddScoped<PostNearbyQueryService>();
+
+// Register CachedPostQueryService as IPostQueryService
+builder.Services.AddScoped<IPostQueryService, CachedPostQueryService>();
+
+// Maintenance service for read model sync
+builder.Services.AddScoped<IPostMaintenanceService, PostMaintenanceService>();
+builder.Services.AddScoped<IPostReadModelSyncService, PostReadModelSyncService>();
 
 // MongoDB Index Service
 builder.Services.AddScoped<BlogService.Infrastructure.Services.Indexes.MongoIndexService>();
@@ -505,13 +510,12 @@ builder.Services.AddSingleton<IAmazonS3>(sp =>
     return new AmazonS3Client(config);
 });
 
-// S3Storage registration (temporary in API layer)
-// TODO: Move to Infrastructure layer for proper Onion Architecture
+// S3Storage registration (Infrastructure layer)
 builder.Services.AddScoped<IObjectStorage>(sp =>
 {
     var s3 = sp.GetRequiredService<IAmazonS3>();
     var bucket = builder.Configuration["AWS:S3Bucket"] ?? "blinkr-media";
-    var logger = sp.GetRequiredService<ILogger<S3Storage>>();
+    var logger = sp.GetRequiredService<ILogger<BlogService.Infrastructure.Services.S3Storage>>();
     return new S3Storage(s3, bucket, logger);
 });
 
@@ -532,18 +536,18 @@ var app = builder.Build();
 // MongoDB index ensure
 using (var scope = app.Services.CreateScope())
 {
+    var indexService = scope.ServiceProvider.GetRequiredService<BlogService.Infrastructure.Services.Indexes.MongoIndexService>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
     try
     {
-        var indexService = scope.ServiceProvider.GetRequiredService<BlogService.Infrastructure.Services.Indexes.MongoIndexService>();
         await indexService.EnsureIndexesAsync();
-
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         logger.LogInformation("🗺️ MongoDB indexes initialized successfully");
     }
     catch (Exception ex)
     {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         logger.LogError(ex, "❌ Failed to initialize MongoDB indexes");
+        throw;
     }
 }
 

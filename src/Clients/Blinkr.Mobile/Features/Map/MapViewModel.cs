@@ -575,7 +575,13 @@ public partial class MapViewModel : ObservableObject
                 IsBottomSheetVisible = true;
                 System.Diagnostics.Debug.WriteLine($"[MapViewModel] Bottom sheet opened with API post - LikeCount: {detail.LikeCount}, CommentCount: {detail.CommentCount}");
             }
-            else if (IsBottomSheetVisible == false)
+            else if (SelectedPost != null)
+            {
+                // API failed but we have local post - show it anyway
+                IsBottomSheetVisible = true;
+                System.Diagnostics.Debug.WriteLine($"[MapViewModel] Bottom sheet opened with local post (API failed)");
+            }
+            else
             {
                 StatusMessage = "Post bulunamadı";
                 System.Diagnostics.Debug.WriteLine($"[MapViewModel] Post not found");

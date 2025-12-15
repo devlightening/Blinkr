@@ -11,7 +11,9 @@ namespace BlogService.Application.Features.Mediatr.Comamnds.PostCommands
       double? Latitude = null,
       double? Longitude = null,
       double? AccuracyMeters = null,
-      string? LocationName = null
+      string? LocationName = null,
+      string? AuthorName = null,
+      string? AuthorGender = null
   ) : IRequest<Guid>;
 
 }

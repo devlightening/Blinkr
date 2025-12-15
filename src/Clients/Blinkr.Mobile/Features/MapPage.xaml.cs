@@ -17,6 +17,9 @@ public partial class MapPage : ContentPage
         BindingContext = _viewModel;
 
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        
+        // Handle app:// scheme from JavaScript
+        MapWebView.Navigating += OnMapWebViewNavigating;
     }
 
     protected override async void OnAppearing()
@@ -167,12 +170,16 @@ public partial class MapPage : ContentPage
                         fillOpacity: 0.8
                     }).addTo(map);
                     
+                    // Store ID in marker for closure
+                    marker.markerId = markerData.id;
+                    
                     // Pin tıklaması event'i
                     marker.on('click', function(e) {
                         e.stopPropagation();
-                        console.log('Pin clicked: ' + markerData.id);
+                        const id = this.markerId;
+                        console.log('Pin clicked: ' + id);
                         // Navigate to pin detail
-                        window.location.href = 'app://pin?id=' + markerData.id;
+                        window.location.href = 'app://pin?id=' + id;
                     });
                     
                     markers[markerData.id] = marker;
@@ -523,5 +530,26 @@ public partial class MapPage : ContentPage
                 System.Diagnostics.Debug.WriteLine($"JS eval error: {ex.Message}\nScript: {script}");
             }
         });
+    }
+
+    private void OnMapWebViewNavigating(object? sender, WebNavigatingEventArgs e)
+    {
+        if (e.Url.StartsWith("app://pin"))
+        {
+            e.Cancel = true;
+            
+            // Extract post ID from URL: app://pin?id=<guid>
+            var uri = new Uri(e.Url);
+            var query = uri.Query;
+            
+            if (query.StartsWith("?id="))
+            {
+                var postId = query.Substring(4);
+                System.Diagnostics.Debug.WriteLine($"🔗 [C#] Pin clicked: {postId}");
+                
+                // Load post detail in ViewModel
+                _ = _viewModel.LoadPostDetailAsync(Guid.Parse(postId));
+            }
+        }
     }
 }

@@ -34,7 +34,7 @@ public static class ServiceCollectionExtensions
      
 
         services.AddScoped<INotificationRepository, MongoNotificationRepository>();
-        services.AddScoped<IDeviceTokenRepository, MongoNotificationRepository>();
+        services.AddScoped<IDeviceTokenRepository, MongoDeviceTokenRepository>();
 
         services.AddScoped<IPushSender>(sp =>
         {

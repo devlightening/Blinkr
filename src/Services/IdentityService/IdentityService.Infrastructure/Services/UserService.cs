@@ -114,7 +114,8 @@ namespace IdentityService.Infrastructure.Services
                     new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
                     new Claim(JwtRegisteredClaimNames.Email, user.Email),
                     new Claim(ClaimTypes.Role, user.Role),
-                    new Claim("username", user.UserName)
+                    new Claim("username", user.UserName),
+                    new Claim("preferred_username", user.UserName)
                 }),
                 Expires = DateTime.UtcNow.AddHours(2),
                 SigningCredentials = new SigningCredentials(

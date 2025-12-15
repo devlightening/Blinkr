@@ -54,6 +54,9 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
 
         // Get authenticated user ID - authentication is required
         var authorId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User authentication required");
+        var authorName = request.AuthorName ?? throw new ArgumentException("Author name is required");
+        var authorGender = request.AuthorGender;
+        
         var postAggregate = PostAggregate.Create(
             Guid.NewGuid(), 
             authorId, 
@@ -62,7 +65,9 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
             request.Latitude,
             request.Longitude,
             request.AccuracyMeters,
-            request.LocationName);
+            request.LocationName,
+            authorName,
+            authorGender);
 
         if (request.Media is not null)
         {
@@ -75,8 +80,24 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
             }
         }
 
-      
-        await _eventStoreRepo.SaveAsync(postAggregate, ct);
+        try
+        {
+            // Increase timeout for EventStore operations (60 seconds)
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(60));
+            
+            await _eventStoreRepo.SaveAsync(postAggregate, cts.Token);
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogError(ex, "WS-06: EventStore operation timeout for PostId={PostId}", postAggregate.Id);
+            throw new InvalidOperationException("Post creation timed out. EventStore is not responding. Please try again.", ex);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "WS-06: EventStore error for PostId={PostId}", postAggregate.Id);
+            throw;
+        }
 
         _logger.LogInformation("WS-06: PostCreated | PostId={PostId} | AuthorId={AuthorId} | TitleLength={TitleLength}",
             postAggregate.Id, authorId, request.Title.Length);

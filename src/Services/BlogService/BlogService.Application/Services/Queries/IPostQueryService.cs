@@ -85,4 +85,9 @@ public interface IPostQueryService
     /// DEBUG: Update all posts with default author name
     /// </summary>
     Task<int> UpdateAuthorNamesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// DEBUG: Sync PostgreSQL posts to MongoDB
+    /// </summary>
+    Task<int> SyncPostgresPostsToMongoAsync(CancellationToken cancellationToken = default);
 }

@@ -11,5 +11,10 @@ namespace BlogService.Domain.Events
         double? Latitude = null,
         double? Longitude = null,
         double? AccuracyMeters = null,
-        string? LocationName = null) : IDomainEvent;
+        string? LocationName = null,
+        string? AuthorName = null,
+        string? AuthorGender = null,
+        ICollection<PostMediaInfo>? Media = null) : IDomainEvent;
+
+    public record PostMediaInfo(string Url, string MediaType);
 }

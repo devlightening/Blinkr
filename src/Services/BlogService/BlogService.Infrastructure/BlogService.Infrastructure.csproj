@@ -14,12 +14,13 @@
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
 		<PackageReference Include="MongoDB.Bson" />
 		<PackageReference Include="MongoDB.Driver" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
 		<PackageReference Include="MassTransit.RabbitMQ" />
 		<PackageReference Include="MassTransit.EntityFrameworkCore" />
-		<PackageReference Include="EventStore.Client.Grpc.Streams" />
+		<PackageReference Include="EventStore.Client.Grpc.Streams" />		<PackageReference Include="AWSSDK.S3" />
 	</ItemGroup>
 
 	<ItemGroup>

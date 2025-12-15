@@ -90,13 +90,28 @@ public class EventStorePublishingDecorator : IEventStoreRepository
                     _log.LogError(ex, "WS-07-LIKE-TOGGLE-CLEAN-ARCH: Failed to persist Post to Postgres");
                 }
                 
+                // Get media from aggregate if available
+                var postAggregate = aggregate as PostAggregate;
+                var mediaList = postAggregate?.Media?.Select(m => new PostMediaDto 
+                { 
+                    Url = m.Url, 
+                    MediaType = m.Type.ToString() 
+                }).ToList();
+                
                 await _bus.Publish<IPostCreatedIntegrationEvent>(new
                 {
                     e.PostId,
                     e.AuthorId,
                     e.Title,
                     e.Content,
-                    e.OccurredOn
+                    e.OccurredOn,
+                    e.AuthorName,
+                    e.AuthorGender,
+                    e.Latitude,
+                    e.Longitude,
+                    e.AccuracyMeters,
+                    e.LocationName,
+                    Media = mediaList
                 }, ct);
                 break;
             }

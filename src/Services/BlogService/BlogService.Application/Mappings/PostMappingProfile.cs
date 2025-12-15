@@ -19,7 +19,9 @@ public class PostMappingProfile : Profile
                 src.Latitude,
                 src.Longitude,
                 src.AccuracyMeters,
-                src.LocationName
+                src.LocationName,
+                null,  // AuthorName will be set from JWT claim in controller
+                null   // AuthorGender will be set from JWT claim in controller
             ));
         CreateMap<CreatePostMediaDto, MediaItem>();
         CreateMap<Post, PostListItemDto>();

@@ -1,4 +1,5 @@
 using Blinkr.Projections.Worker.Documents;
+using Blinkr.Projections.Worker.Entities;
 using MassTransit;
 using MongoDB.Driver;
 using MongoDB.Driver.GeoJsonObjectModel;
@@ -55,16 +56,35 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
                     message.Latitude, message.Longitude);
             }
 
+            var mediaList = new List<Media>();
+            if (message.Media != null)
+            {
+                foreach (var m in message.Media)
+                {
+                    if (!string.IsNullOrWhiteSpace(m.Url))
+                    {
+                        mediaList.Add(new Media 
+                        { 
+                            Url = m.Url, 
+                            Type = m.MediaType ?? "image" 
+                        });
+                    }
+                }
+            }
+
             var newPost = new PostDocument
             {
                 Id = message.PostId,
                 AuthorId = message.AuthorId,
+                AuthorName = message.AuthorName ?? "Blinkr User",
+                AuthorGender = message.AuthorGender,
                 Title = message.Title ?? string.Empty,
                 Content = message.Content ?? string.Empty,
                 CreatedAtUtc = message.OccurredOn,
                 LikeCount = 0,
                 Location = location,
-                LocationName = message.LocationName
+                LocationName = message.LocationName,
+                Media = mediaList
             };
 
             _logger.LogInformation("📝 Post data: Title={Title}, Content={Content}, AuthorId={AuthorId}, Location={Location}", 

@@ -1,5 +1,8 @@
 using BlogService.Application.DTOs.PostDtos;
 using BlogService.Application.Services.Queries;
+using BlogService.Infrastructure.ReadModels;
+using MongoDB.Driver;
+using MongoDB.Driver.GeoJsonObjectModel;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -11,7 +14,7 @@ namespace BlogService.Infrastructure.Services;
 /// </summary>
 public class CachedPostQueryService : IPostQueryService
 {
-    private readonly IPostQueryService _inner;
+    private readonly IMongoDatabase _mongoDb;
     private readonly IDistributedCache _cache;
     private readonly ILogger<CachedPostQueryService> _logger;
 
@@ -26,13 +29,13 @@ public class CachedPostQueryService : IPostQueryService
     };
 
     public CachedPostQueryService(
-        IPostQueryService inner, 
-        IDistributedCache cache, 
-        ILogger<CachedPostQueryService> logger)
+         IMongoDatabase mongoDb,
+         IDistributedCache cache,
+         ILogger<CachedPostQueryService> logger)
     {
-        _inner = inner;
-        _cache = cache;
-        _logger = logger;
+        _mongoDb = mongoDb ?? throw new ArgumentNullException(nameof(mongoDb));
+        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public async Task<PostReadDto?> GetPostByIdAsync(Guid postId, CancellationToken cancellationToken = default)
@@ -61,10 +64,12 @@ public class CachedPostQueryService : IPostQueryService
             _logger.LogDebug("Cache MISS for post detail: {PostId}", postId);
 
             // Get from database
-            var post = await _inner.GetByIdAsync(postId, cancellationToken);
+            var collection = _mongoDb.GetCollection<PostDocument>("posts");
+            var doc = await collection.Find(p => p.Id == postId).FirstOrDefaultAsync(cancellationToken);
             
-            if (post != null)
+            if (doc != null)
             {
+                var post = MapToReadDto(doc);
                 // Cache the result
                 var serialized = JsonSerializer.Serialize(post, JsonOptions);
                 var cacheOptions = new DistributedCacheEntryOptions
@@ -74,14 +79,17 @@ public class CachedPostQueryService : IPostQueryService
                 
                 await _cache.SetStringAsync(cacheKey, serialized, cacheOptions, cancellationToken);
                 _logger.LogDebug("Cached post detail: {PostId} for {Duration}", postId, PostDetailCacheDuration);
+                return post;
             }
 
-            return post;
+            return null;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Cache error for post {PostId}, falling back to database", postId);
-            return await _inner.GetByIdAsync(postId, cancellationToken);
+            var collection = _mongoDb.GetCollection<PostDocument>("posts");
+            var doc = await collection.Find(p => p.Id == postId).FirstOrDefaultAsync(cancellationToken);
+            return doc != null ? MapToReadDto(doc) : null;
         }
     }
 
@@ -97,7 +105,7 @@ public class CachedPostQueryService : IPostQueryService
         if (!shouldCache)
         {
             _logger.LogDebug("Skipping cache for complex query: {@Query}", query);
-            return await _inner.QueryPostsAsync(query, cancellationToken);
+            return await QueryPostsDirectAsync(query, cancellationToken);
         }
 
         var cacheKey = $"posts:feed:page:{query.Page}:size:{query.PageSize}:sort:{query.Sort}";
@@ -119,7 +127,7 @@ public class CachedPostQueryService : IPostQueryService
             _logger.LogDebug("Cache MISS for posts feed: {CacheKey}", cacheKey);
 
             // Get from database
-            var result = await _inner.QueryPostsAsync(query, cancellationToken);
+            var result = await QueryPostsDirectAsync(query, cancellationToken);
             
             // Cache the result
             var serialized = JsonSerializer.Serialize(result, JsonOptions);
@@ -136,19 +144,41 @@ public class CachedPostQueryService : IPostQueryService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Cache error for posts query, falling back to database: {@Query}", query);
-            return await _inner.QueryPostsAsync(query, cancellationToken);
+            return await QueryPostsDirectAsync(query, cancellationToken);
         }
     }
 
-    // Delegate other methods to inner service (no caching for now)
-    public Task<PaginatedResult<PostReadDto>> GetFeedAsync(int page, int pageSize, CancellationToken cancellationToken = default)
-        => _inner.GetFeedAsync(page, pageSize, cancellationToken);
+    // Delegate other methods to direct MongoDB queries (no caching for now)
+    public async Task<PaginatedResult<PostReadDto>> GetFeedAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var collection = _mongoDb.GetCollection<PostDocument>("posts");
+        var total = (int)await collection.CountDocumentsAsync(FilterDefinition<PostDocument>.Empty, cancellationToken: cancellationToken);
+        var items = await collection.Find(FilterDefinition<PostDocument>.Empty)
+            .SortByDescending(p => p.CreatedAtUtc)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync(cancellationToken);
+        return new PaginatedResult<PostReadDto> { Items = items.Select(MapToReadDto).ToList(), TotalCount = total, Page = page, PageSize = pageSize };
+    }
 
-    public Task<PaginatedResult<PostReadDto>> GetUserPostsAsync(Guid authorId, int page, int pageSize, CancellationToken cancellationToken = default)
-        => _inner.GetUserPostsAsync(authorId, page, pageSize, cancellationToken);
+    public async Task<PaginatedResult<PostReadDto>> GetUserPostsAsync(Guid authorId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var collection = _mongoDb.GetCollection<PostDocument>("posts");
+        var filter = Builders<PostDocument>.Filter.Eq(p => p.AuthorId, authorId);
+        var total = (int)await collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
+        var items = await collection.Find(filter)
+            .SortByDescending(p => p.CreatedAtUtc)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync(cancellationToken);
+        return new PaginatedResult<PostReadDto> { Items = items.Select(MapToReadDto).ToList(), TotalCount = total, Page = page, PageSize = pageSize };
+    }
 
-    public Task<bool> PostExistsAsync(Guid postId, CancellationToken cancellationToken = default)
-        => _inner.PostExistsAsync(postId, cancellationToken);
+    public async Task<bool> PostExistsAsync(Guid postId, CancellationToken cancellationToken = default)
+    {
+        var collection = _mongoDb.GetCollection<PostDocument>("posts");
+        return await collection.Find(p => p.Id == postId).AnyAsync(cancellationToken);
+    }
 
     /// <summary>
     /// Invalidate cache for a specific post (call this when post is updated)
@@ -193,9 +223,9 @@ public class CachedPostQueryService : IPostQueryService
                 return cached;
             }
 
-            // Cache miss - fetch from inner service
+            // Cache miss - fetch from database
             _logger.LogDebug("📍 Cache MISS for nearby query: {Key}", key);
-            var result = await _inner.GetNearbyAsync(q, cancellationToken);
+            var result = await GetNearbyDirectAsync(q, cancellationToken);
             
             // Cache for 60 seconds (short TTL for location data)
             await SetCacheAsync(key, result, TimeSpan.FromSeconds(60), cancellationToken);
@@ -205,7 +235,7 @@ public class CachedPostQueryService : IPostQueryService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Cache error for nearby query, falling back to direct call");
-            return await _inner.GetNearbyAsync(q, cancellationToken);
+            return await GetNearbyDirectAsync(q, cancellationToken);
         }
     }
 
@@ -224,7 +254,7 @@ public class CachedPostQueryService : IPostQueryService
             }
 
             _logger.LogDebug("Cache MISS for nearby posts feed: {CacheKey}", cacheKey);
-            var result = await _inner.GetNearbyPostsAsync(lat, lon, radiusMeters, page, pageSize, cancellationToken);
+            var result = await GetNearbyPostsDirectAsync(lat, lon, radiusMeters, page, pageSize, cancellationToken);
             
             // Cache for 2 minutes
             await SetCacheAsync(cacheKey, result, TimeSpan.FromMinutes(2), cancellationToken);
@@ -234,7 +264,7 @@ public class CachedPostQueryService : IPostQueryService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Cache error for nearby posts feed, falling back to database");
-            return await _inner.GetNearbyPostsAsync(lat, lon, radiusMeters, page, pageSize, cancellationToken);
+            return await GetNearbyPostsDirectAsync(lat, lon, radiusMeters, page, pageSize, cancellationToken);
         }
     }
 
@@ -252,7 +282,7 @@ public class CachedPostQueryService : IPostQueryService
             }
 
             _logger.LogDebug("Cache MISS for nearby posts count: {CacheKey}", cacheKey);
-            var result = await _inner.GetNearbyPostsCountAsync(lat, lon, radiusMeters, cancellationToken);
+            var result = await GetNearbyPostsCountDirectAsync(lat, lon, radiusMeters, cancellationToken);
             
             // Cache for 5 minutes
             await _cache.SetStringAsync(cacheKey, result.ToString(), new DistributedCacheEntryOptions
@@ -265,7 +295,7 @@ public class CachedPostQueryService : IPostQueryService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Cache error for nearby posts count, falling back to database");
-            return await _inner.GetNearbyPostsCountAsync(lat, lon, radiusMeters, cancellationToken);
+            return await GetNearbyPostsCountDirectAsync(lat, lon, radiusMeters, cancellationToken);
         }
     }
 
@@ -283,7 +313,7 @@ public class CachedPostQueryService : IPostQueryService
             }
 
             _logger.LogDebug("Cache MISS for popular posts feed: {CacheKey}", cacheKey);
-            var result = await _inner.GetPopularPostsAsync(page, pageSize, timeWindow, cancellationToken);
+            var result = await GetPopularPostsDirectAsync(page, pageSize, timeWindow, cancellationToken);
             
             // Cache for 10 minutes
             await SetCacheAsync(cacheKey, result, TimeSpan.FromMinutes(10), cancellationToken);
@@ -293,7 +323,7 @@ public class CachedPostQueryService : IPostQueryService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Cache error for popular posts feed, falling back to database");
-            return await _inner.GetPopularPostsAsync(page, pageSize, timeWindow, cancellationToken);
+            return await GetPopularPostsDirectAsync(page, pageSize, timeWindow, cancellationToken);
         }
     }
 
@@ -311,7 +341,7 @@ public class CachedPostQueryService : IPostQueryService
             }
 
             _logger.LogDebug("Cache MISS for latest posts feed: {CacheKey}", cacheKey);
-            var result = await _inner.GetLatestPostsAsync(page, pageSize, cancellationToken);
+            var result = await GetLatestPostsDirectAsync(page, pageSize, cancellationToken);
             
             // Cache for 5 minutes
             await SetCacheAsync(cacheKey, result, TimeSpan.FromMinutes(5), cancellationToken);
@@ -321,7 +351,7 @@ public class CachedPostQueryService : IPostQueryService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Cache error for latest posts feed, falling back to database");
-            return await _inner.GetLatestPostsAsync(page, pageSize, cancellationToken);
+            return await GetLatestPostsDirectAsync(page, pageSize, cancellationToken);
         }
     }
 
@@ -339,7 +369,7 @@ public class CachedPostQueryService : IPostQueryService
             }
 
             _logger.LogDebug("Cache MISS for total posts count");
-            var result = await _inner.GetTotalPostsCountAsync(cancellationToken);
+            var result = await GetTotalPostsCountDirectAsync(cancellationToken);
             
             // Cache for 30 minutes
             await _cache.SetStringAsync(cacheKey, result.ToString(), new DistributedCacheEntryOptions
@@ -352,7 +382,7 @@ public class CachedPostQueryService : IPostQueryService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Cache error for total posts count, falling back to database");
-            return await _inner.GetTotalPostsCountAsync(cancellationToken);
+            return await GetTotalPostsCountDirectAsync(cancellationToken);
         }
     }
 
@@ -396,25 +426,228 @@ public class CachedPostQueryService : IPostQueryService
     /// </summary>
     public async Task<int> DebugCheckLocationPostsAsync(CancellationToken cancellationToken = default)
     {
-        // Debug methods should not be cached
-        return await _inner.DebugCheckLocationPostsAsync(cancellationToken);
+        var collection = _mongoDb.GetCollection<PostDocument>("posts");
+        var filter = Builders<PostDocument>.Filter.Ne(p => p.Location, null);
+        return (int)await collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
     }
 
-    /// <summary>
-    /// DEBUG: Update all posts without location to specified coordinates (no caching for debug)
-    /// </summary>
     public async Task<int> UpdatePostLocationsAsync(double latitude, double longitude, string locationName, CancellationToken cancellationToken = default)
     {
-        // Debug methods should not be cached
-        return await _inner.UpdatePostLocationsAsync(latitude, longitude, locationName, cancellationToken);
+        var collection = _mongoDb.GetCollection<PostDocument>("posts");
+        var filter = Builders<PostDocument>.Filter.Eq(p => p.Location, null);
+        var location = new LocationEntity 
+        { 
+            Coordinates = new[] { longitude, latitude },
+            Name = locationName,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        var update = Builders<PostDocument>.Update
+            .Set(p => p.Location, location)
+            .Set(p => p.LocationName, locationName);
+        var result = await collection.UpdateManyAsync(filter, update, cancellationToken: cancellationToken);
+        return (int)result.ModifiedCount;
     }
 
-    /// <summary>
-    /// DEBUG: Update all posts with default author name (no caching for debug)
-    /// </summary>
     public async Task<int> UpdateAuthorNamesAsync(CancellationToken cancellationToken = default)
     {
-        // Debug methods should not be cached
-        return await _inner.UpdateAuthorNamesAsync(cancellationToken);
+        var collection = _mongoDb.GetCollection<PostDocument>("posts");
+        var filter = Builders<PostDocument>.Filter.Eq(p => p.AuthorName, null);
+        var update = Builders<PostDocument>.Update.Set(p => p.AuthorName, "Unknown");
+        var result = await collection.UpdateManyAsync(filter, update, cancellationToken: cancellationToken);
+        return (int)result.ModifiedCount;
+    }
+
+    public async Task<int> SyncPostgresPostsToMongoAsync(CancellationToken cancellationToken = default)
+    {
+        // This would require access to PostgreSQL context, which is not available in this service
+        _logger.LogWarning("SyncPostgresPostsToMongoAsync not implemented in CachedPostQueryService");
+        return 0;
+    }
+
+    // Direct query methods (no caching)
+    private async Task<PagedResult<PostListDto>> QueryPostsDirectAsync(PostQuery query, CancellationToken cancellationToken)
+    {
+        var collection = _mongoDb.GetCollection<PostDocument>("posts");
+        var filterBuilder = Builders<PostDocument>.Filter;
+        var filter = filterBuilder.Empty;
+
+        if (!string.IsNullOrEmpty(query.Search))
+        {
+            filter = filterBuilder.And(filter, filterBuilder.Regex(p => p.Content, query.Search));
+        }
+
+        if (!string.IsNullOrEmpty(query.AuthorId) && Guid.TryParse(query.AuthorId, out var authorId))
+        {
+            filter = filterBuilder.And(filter, filterBuilder.Eq(p => p.AuthorId, authorId));
+        }
+
+        var total = (int)await collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
+        var items = await collection.Find(filter)
+            .SortByDescending(p => p.CreatedAtUtc)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Limit(query.PageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<PostListDto>(
+            items.Select(MapToListDto),
+            total,
+            query.Page,
+            query.PageSize
+        );
+    }
+
+    private async Task<PagedResult<PostListDto>> GetNearbyDirectAsync(NearbyQuery query, CancellationToken cancellationToken)
+    {
+        var collection = _mongoDb.GetCollection<PostDocument>("posts");
+        var q = query.Clamp();
+        
+        // Use $geoWithin with $centerSphere for geospatial queries
+        var filter = Builders<PostDocument>.Filter.GeoWithinCenterSphere(
+            p => p.Location,
+            q.Lon,
+            q.Lat,
+            q.RadiusMeters / 6371000.0  // Convert meters to radians (Earth radius = 6371km)
+        );
+
+        var total = (int)await collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
+        var items = await collection.Find(filter)
+            .Skip((q.Page - 1) * q.PageSize)
+            .Limit(q.PageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<PostListDto>(
+            items.Select(MapToListDto),
+            total,
+            q.Page,
+            q.PageSize
+        );
+    }
+
+    private async Task<IEnumerable<PostListDto>> GetNearbyPostsDirectAsync(double lat, double lon, int radiusMeters, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        var collection = _mongoDb.GetCollection<PostDocument>("posts");
+        
+        var filter = Builders<PostDocument>.Filter.GeoWithinCenterSphere(
+            p => p.Location,
+            lon,
+            lat,
+            radiusMeters / 6371000.0
+        );
+
+        var items = await collection.Find(filter)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync(cancellationToken);
+        
+        return items.Select(MapToListDto);
+    }
+
+    private async Task<int> GetNearbyPostsCountDirectAsync(double lat, double lon, int radiusMeters, CancellationToken cancellationToken)
+    {
+        var collection = _mongoDb.GetCollection<PostDocument>("posts");
+        
+        var filter = Builders<PostDocument>.Filter.GeoWithinCenterSphere(
+            p => p.Location,
+            lon,
+            lat,
+            radiusMeters / 6371000.0
+        );
+
+        return (int)await collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
+    }
+
+    private async Task<IEnumerable<PostListDto>> GetPopularPostsDirectAsync(int page, int pageSize, TimeSpan timeWindow, CancellationToken cancellationToken)
+    {
+        var collection = _mongoDb.GetCollection<PostDocument>("posts");
+        var cutoffDate = DateTime.UtcNow.Subtract(timeWindow);
+        var filter = Builders<PostDocument>.Filter.Gte(p => p.CreatedAtUtc, cutoffDate);
+
+        var items = await collection.Find(filter)
+            .SortByDescending(p => p.LikeCount)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync(cancellationToken);
+        
+        return items.Select(MapToListDto);
+    }
+
+    private async Task<IEnumerable<PostListDto>> GetLatestPostsDirectAsync(int page, int pageSize, CancellationToken cancellationToken)
+    {
+        var collection = _mongoDb.GetCollection<PostDocument>("posts");
+        var items = await collection.Find(FilterDefinition<PostDocument>.Empty)
+            .SortByDescending(p => p.CreatedAtUtc)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync(cancellationToken);
+        
+        return items.Select(MapToListDto);
+    }
+
+    private async Task<int> GetTotalPostsCountDirectAsync(CancellationToken cancellationToken)
+    {
+        var collection = _mongoDb.GetCollection<PostDocument>("posts");
+        return (int)await collection.CountDocumentsAsync(FilterDefinition<PostDocument>.Empty, cancellationToken: cancellationToken);
+    }
+
+    private static PostReadDto MapToReadDto(PostDocument doc)
+    {
+        var (latitude, longitude) = ExtractCoordinates(doc.Location);
+        
+        return new PostReadDto
+        {
+            Id = doc.Id,
+            Title = doc.Title,
+            Content = doc.Content,
+            AuthorId = doc.AuthorId,
+            AuthorName = doc.AuthorName ?? string.Empty,
+            CreatedAtUtc = doc.CreatedAtUtc,
+            UpdatedAtUtc = doc.UpdatedAtUtc,
+            Latitude = latitude,
+            Longitude = longitude,
+            LocationName = doc.LocationName,
+            LikeCount = doc.LikeCount,
+            CommentCount = doc.CommentCount,
+            IsLikedByCurrentUser = false,
+            Comments = new(),
+            Media = new()
+        };
+    }
+
+    private static PostListDto MapToListDto(PostDocument doc)
+    {
+        var (latitude, longitude) = ExtractCoordinates(doc.Location);
+        var freshnessSec = (int)(DateTime.UtcNow - doc.CreatedAtUtc).TotalSeconds;
+        
+        return new PostListDto
+        {
+            Id = doc.Id,
+            Title = doc.Title,
+            Content = doc.Content,
+            AuthorId = doc.AuthorId,
+            AuthorName = doc.AuthorName ?? string.Empty,
+            AuthorGender = doc.AuthorGender,
+            CreatedAt = doc.CreatedAtUtc,
+            CreatedAtUtc = doc.CreatedAtUtc,
+            UpdatedAtUtc = doc.UpdatedAtUtc,
+            Latitude = latitude,
+            Longitude = longitude,
+            LocationName = doc.LocationName,
+            LikeCount = doc.LikeCount,
+            CommentCount = doc.CommentCount,
+            MediaUrls = doc.Media?.Select(m => m.Url).ToList() ?? new(),
+            Location = doc.Location,
+            FreshnessSec = freshnessSec,
+            IsLive = freshnessSec < 3600 // Less than 1 hour old
+        };
+    }
+
+    private static (double? latitude, double? longitude) ExtractCoordinates(LocationEntity? location)
+    {
+        if (location?.Coordinates?.Length == 2)
+        {
+            // GeoJSON format: [longitude, latitude]
+            return (location.Coordinates[1], location.Coordinates[0]);
+        }
+        return (null, null);
     }
 }

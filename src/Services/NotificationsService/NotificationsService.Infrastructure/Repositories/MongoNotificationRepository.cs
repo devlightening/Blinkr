@@ -5,42 +5,28 @@ using NotificationsService.Domain.Interfaces;
 
 namespace NotificationsService.Infrastructure.Repositories;
 
-public class MongoNotificationRepository : INotificationRepository, IDeviceTokenRepository
+public class MongoNotificationRepository : INotificationRepository
 {
     private readonly IMongoCollection<Notification> _notifs;
-    private readonly IMongoCollection<DeviceToken> _tokens;
     private readonly IMongoDatabase _db;
 
     public MongoNotificationRepository(IMongoDatabase db)
     {
         _db = db;
         _notifs = db.GetCollection<Notification>("notifications");
-        _tokens = db.GetCollection<DeviceToken>("device_tokens");
-
-        // Ensure indexes
         EnsureIndexes();
     }
 
     private void EnsureIndexes()
     {
-        // Notifications index: UserId + CreatedAtUtc for listing
         _notifs.Indexes.CreateOne(
             new CreateIndexModel<Notification>(
                 Builders<Notification>.IndexKeys.Descending(x => x.UserId).Descending(x => x.CreatedAtUtc)));
 
-        // Unread notifications index: UserId + ReadAtUtc for unread count queries
         _notifs.Indexes.CreateOne(
             new CreateIndexModel<Notification>(
                 Builders<Notification>.IndexKeys.Ascending(x => x.UserId).Ascending(x => x.ReadAtUtc)));
 
-
-        // Device tokens index
-        _tokens.Indexes.CreateOne(
-            new CreateIndexModel<DeviceToken>(
-                Builders<DeviceToken>.IndexKeys.Ascending(x => x.UserId).Ascending(x => x.Token),
-                new CreateIndexOptions { Unique = true }));
-
-        // User locations 2dsphere index for proximity queries
         var userLocations = _db.GetCollection<UserLocation>("user_locations");
         try
         {
@@ -49,7 +35,6 @@ public class MongoNotificationRepository : INotificationRepository, IDeviceToken
                     Builders<UserLocation>.IndexKeys.Geo2DSphere(x => x.Location),
                     new CreateIndexOptions { Name = "ix_user_locations_2dsphere", Background = true }));
 
-            // TTL index for old locations (48 hours)
             userLocations.Indexes.CreateOne(
                 new CreateIndexModel<UserLocation>(
                     Builders<UserLocation>.IndexKeys.Ascending(x => x.UpdatedAtUtc),
@@ -62,11 +47,9 @@ public class MongoNotificationRepository : INotificationRepository, IDeviceToken
         }
         catch (MongoCommandException)
         {
-            // Index already exists, ignore
         }
         catch (Exception ex)
         {
-            // Log but don't fail on index creation errors
             System.Diagnostics.Debug.WriteLine($"Warning: Failed to create indexes: {ex.Message}");
         }
     }
@@ -81,13 +64,11 @@ public class MongoNotificationRepository : INotificationRepository, IDeviceToken
         
         if (idList.Count == 0)
         {
-            // Empty list means mark all notifications as read for the user
             filter = Builders<Notification>.Filter.Eq(x => x.UserId, userId) &
-                     Builders<Notification>.Filter.Eq(x => x.ReadAtUtc, null); // Only unread ones
+                     Builders<Notification>.Filter.Eq(x => x.ReadAtUtc, null);
         }
         else
         {
-            // Mark specific notifications as read
             var objIds = idList.Select(ObjectId.Parse).ToList();
             filter = Builders<Notification>.Filter.In("_id", objIds) &
                      Builders<Notification>.Filter.Eq(x => x.UserId, userId);
@@ -114,18 +95,4 @@ public class MongoNotificationRepository : INotificationRepository, IDeviceToken
 
     public Task<long> UnreadCountAsync(Guid userId, CancellationToken ct) =>
         _notifs.CountDocumentsAsync(x => x.UserId == userId && x.ReadAtUtc == null, cancellationToken: ct);
-
-    public async Task UpsertAsync(DeviceToken token, CancellationToken ct)
-    {
-        var filter = Builders<DeviceToken>.Filter.Eq(x => x.UserId, token.UserId) &
-                     Builders<DeviceToken>.Filter.Eq(x => x.Token, token.Token);
-        await _tokens.ReplaceOneAsync(filter, token, new ReplaceOptions{ IsUpsert = true }, ct);
-    }
-
-    public async Task<IReadOnlyList<DeviceToken>> GetByUserIdsAsync(IEnumerable<Guid> userIds, CancellationToken ct)
-    {
-        var arr = userIds.ToArray();
-        var list = await _tokens.Find(x => arr.Contains(x.UserId)).ToListAsync(ct);
-        return list;
-    }
 }

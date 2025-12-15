@@ -1,5 +1,6 @@
 ﻿using Blinkr.Mobile.Features;
-using Blinkr.Mobile.Pages;
+using Blinkr.Mobile.Features.Auth;
+using Blinkr.Mobile.Core.Auth;
 
 namespace Blinkr.Mobile;
 
@@ -16,32 +17,71 @@ public partial class AppShell : Shell
 	{
 		_serviceProvider = serviceProvider;
 		RegisterRoutes();
-		BuildTabs();
+		CheckAuthenticationAndBuild();
 	}
 
 	private void RegisterRoutes()
 	{
-		Routing.RegisterRoute("login", typeof(Pages.LoginPage));
-		Routing.RegisterRoute(nameof(Features.FeedPage), typeof(Features.FeedPage));
-		Routing.RegisterRoute(nameof(Features.MapPage), typeof(Features.MapPage));         
+		Routing.RegisterRoute(nameof(FeedPage), typeof(FeedPage));
+		Routing.RegisterRoute(nameof(MapPage), typeof(MapPage));         
 		Routing.RegisterRoute(nameof(CreatePage), typeof(CreatePage));
-		Routing.RegisterRoute(nameof(Features.NotificationsPage), typeof(Features.NotificationsPage));
-		Routing.RegisterRoute(nameof(Features.ProfilePage), typeof(Features.ProfilePage));  
+		Routing.RegisterRoute(nameof(NotificationsPage), typeof(NotificationsPage));
+		Routing.RegisterRoute(nameof(ProfilePage), typeof(ProfilePage));  
 		Routing.RegisterRoute(nameof(SettingsPage), typeof(SettingsPage));
+		Routing.RegisterRoute(nameof(LoginPage), typeof(LoginPage));
+	}
+
+	private async void CheckAuthenticationAndBuild()
+	{
+		if (_serviceProvider == null)
+		{
+			return;
+		}
+
+		// Check if user is authenticated
+		var authService = _serviceProvider.GetRequiredService<IAuthService>();
+		var isAuthenticated = await authService.IsAuthenticatedAsync();
+
+		if (isAuthenticated)
+		{
+			// User is logged in - show main app tabs
+			BuildTabs();
+		}
+		else
+		{
+			// User is not logged in - show login page
+			ShowLoginPage();
+		}
+	}
+
+	private void ShowLoginPage()
+	{
+		Items.Clear();
+		
+		if (_serviceProvider == null)
+		{
+			return;
+		}
+
+		var loginPage = _serviceProvider.GetRequiredService<LoginPage>();
+		var loginContent = new ShellContent
+		{
+			Content = loginPage,
+			Route = "login"
+		};
+
+		Items.Add(loginContent);
 	}
 
 	private void BuildTabs()
 	{
 		if (_serviceProvider == null)
 		{
-			// Fallback: Use XAML-defined tabs if DI is not available
 			return;
 		}
 
-		// Clear existing items from XAML
 		Items.Clear();
 
-		// Create tabs with DI-resolved pages
 		var feedTab = new Tab
 		{
 			Title = "Akış",
@@ -51,7 +91,7 @@ public partial class AppShell : Shell
 			{
 				new ShellContent
 				{
-					Content = _serviceProvider.GetRequiredService<Features.FeedPage>(),
+					Content = _serviceProvider.GetRequiredService<FeedPage>(),
 					Route = "feed"
 				}
 			}
@@ -66,7 +106,7 @@ public partial class AppShell : Shell
 			{
 				new ShellContent
 				{
-					Content = _serviceProvider.GetRequiredService<Features.MapPage>(),
+					Content = _serviceProvider.GetRequiredService<MapPage>(),
 					Route = "map"
 				}
 			}
@@ -96,7 +136,7 @@ public partial class AppShell : Shell
 			{
 				new ShellContent
 				{
-					Content = _serviceProvider.GetRequiredService<Features.NotificationsPage>(),
+					Content = _serviceProvider.GetRequiredService<NotificationsPage>(),
 					Route = "notifications"
 				}
 			}
@@ -111,7 +151,7 @@ public partial class AppShell : Shell
 			{
 				new ShellContent
 				{
-					Content = _serviceProvider.GetRequiredService<Features.ProfilePage>(),   // Features.ProfilePage
+					Content = _serviceProvider.GetRequiredService<ProfilePage>(),
 					Route = "profile"
 				}
 			}
@@ -125,5 +165,10 @@ public partial class AppShell : Shell
 		tabBar.Items.Add(profileTab);
 
 		Items.Add(tabBar);
+	}
+
+	public void RebuildUI()
+	{
+		CheckAuthenticationAndBuild();
 	}
 }

@@ -21,7 +21,7 @@ public interface IBlinkrApiClient
     /// <summary>
     /// Get full post detail by ID
     /// </summary>
-    [Get("/api/posts/{id}")]
+    [Get("/api/query/posts/{id}")]
     Task<PostDetailDto?> GetPostById(Guid id);
 }
 
