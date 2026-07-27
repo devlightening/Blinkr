@@ -25,11 +25,19 @@ public class MongoIndexManager
             .Ascending(p => p.AuthorId)
             .Descending(p => p.CreatedAtUtc);
         var userPostsIndexModel = new CreateIndexModel<PostDocument>(userPostsIndexKeys);
+
+        var visibilityIndexKeys = Builders<PostDocument>.IndexKeys
+            .Ascending(p => p.AudienceType)
+            .Ascending(p => p.ExpiresAt)
+            .Descending(p => p.CreatedAtUtc);
+        var visibilityIndexModel = new CreateIndexModel<PostDocument>(
+            visibilityIndexKeys,
+            new CreateIndexOptions { Name = "ix_posts_public_freshness" });
         
         // Note: Geospatial indexing is handled by BlogService MongoIndexService
         // which creates compound index "ix_posts_location_time" for optimal NOW feed performance
         
         await postsCollection.Indexes.CreateManyAsync(
-            new[] { feedIndexModel, userPostsIndexModel });
+            new[] { feedIndexModel, userPostsIndexModel, visibilityIndexModel });
     }
 }

@@ -19,12 +19,25 @@ public class ExceptionMiddleware
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception. TraceId: {TraceId}", context.TraceIdentifier);
-            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+            if (context.Response.HasStarted) throw;
+
+            var dependencyUnavailable = ex is Grpc.Core.RpcException
+            {
+                StatusCode: Grpc.Core.StatusCode.DeadlineExceeded or Grpc.Core.StatusCode.Unavailable
+            };
+            var statusCode = dependencyUnavailable
+                ? HttpStatusCode.ServiceUnavailable
+                : HttpStatusCode.InternalServerError;
+
+            context.Response.Clear();
+            context.Response.StatusCode = (int)statusCode;
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsync(JsonSerializer.Serialize(new
             {
-                message = "An unexpected error occurred.",
-                detail = ex.Message,
+                code = dependencyUnavailable ? "signal_service_unavailable" : "unexpected_error",
+                message = dependencyUnavailable
+                    ? "Sinyal servisine şu anda ulaşılamıyor. Lütfen kısa bir süre sonra tekrar dene."
+                    : "İşlem tamamlanamadı. Lütfen tekrar dene.",
                 traceId = context.TraceIdentifier
             }));
         }

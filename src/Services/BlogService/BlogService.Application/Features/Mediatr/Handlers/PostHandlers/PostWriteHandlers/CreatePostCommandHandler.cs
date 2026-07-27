@@ -29,30 +29,37 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
 
     public async Task<Guid> Handle(CreatePostCommand request, CancellationToken ct)
     {
+        var isQuickSignal = !string.Equals(request.SignalType, "GeneralObservation", StringComparison.Ordinal)
+            && !string.IsNullOrWhiteSpace(request.SignalValue);
+        var title = string.IsNullOrWhiteSpace(request.Title)
+            ? $"{request.SignalType}: {request.SignalValue}"
+            : request.Title.Trim();
+        var content = request.Content?.Trim() ?? string.Empty;
+
         // Validate input
-        if (string.IsNullOrWhiteSpace(request.Title))
+        if (string.IsNullOrWhiteSpace(title))
         {
             _logger.LogWarning("WS-06: CreatePost validation failed - Title is empty");
             throw new ArgumentException("Title is required and cannot be empty.");
         }
 
-        if (request.Title.Length > MaxTitleLength)
+        if (title.Length > MaxTitleLength)
         {
             _logger.LogWarning("WS-06: CreatePost validation failed - Title too long (Length={Length}, Max={Max})", 
-                request.Title.Length, MaxTitleLength);
+                title.Length, MaxTitleLength);
             throw new ArgumentException($"Title must not exceed {MaxTitleLength} characters.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.Content))
+        if (!isQuickSignal && string.IsNullOrWhiteSpace(content))
         {
             _logger.LogWarning("WS-06: CreatePost validation failed - Content is empty");
             throw new ArgumentException("Content is required and cannot be empty.");
         }
 
-        if (request.Content.Length > MaxContentLength)
+        if (content.Length > MaxContentLength)
         {
             _logger.LogWarning("WS-06: CreatePost validation failed - Content too long (Length={Length}, Max={Max})", 
-                request.Content.Length, MaxContentLength);
+                content.Length, MaxContentLength);
             throw new ArgumentException($"Content must not exceed {MaxContentLength} characters.");
         }
 
@@ -86,17 +93,34 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
             }
         }
         
+        var expiresAt = request.ExpiresAt ?? GetDefaultExpiry(request.SignalType);
+        var latitude = request.Latitude;
+        var longitude = request.Longitude;
+        if (!string.Equals(request.LocationPrecision, "PlaceCenter", StringComparison.Ordinal))
+        {
+            latitude = latitude.HasValue ? Math.Round(latitude.Value, 3, MidpointRounding.AwayFromZero) : null;
+            longitude = longitude.HasValue ? Math.Round(longitude.Value, 3, MidpointRounding.AwayFromZero) : null;
+        }
+
         var postAggregate = PostAggregate.Create(
             Guid.NewGuid(), 
             authorId, 
-            request.Title, 
-            request.Content,
-            request.Latitude,
-            request.Longitude,
+            title,
+            content,
+            latitude,
+            longitude,
             request.AccuracyMeters,
             locationName,
             authorName,
-            authorGender);
+            authorGender,
+            request.PlaceId,
+            request.SignalType,
+            request.SignalValue,
+            request.AudienceType,
+            request.IdentityDisclosure,
+            request.LocationPrecision,
+            "Community",
+            expiresAt);
 
         if (request.Media is not null)
         {
@@ -129,9 +153,19 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
         }
 
         _logger.LogInformation("WS-06: PostCreated | PostId={PostId} | AuthorId={AuthorId} | TitleLength={TitleLength}",
-            postAggregate.Id, authorId, request.Title.Length);
+            postAggregate.Id, authorId, title.Length);
 
         return postAggregate.Id;
     }
+
+    private static DateTime GetDefaultExpiry(string signalType) =>
+        DateTime.UtcNow.Add(signalType switch
+        {
+            "Crowd" or "Queue" => TimeSpan.FromHours(1),
+            "TemporaryStatus" => TimeSpan.FromHours(3),
+            "Event" or "Offer" => TimeSpan.FromHours(24),
+            "NewOpening" => TimeSpan.FromDays(7),
+            _ => TimeSpan.FromHours(24)
+        });
 }
 

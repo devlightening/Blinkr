@@ -58,7 +58,14 @@ public class PostsController : ControllerBase
             dto.AccuracyMeters,
             dto.LocationName,
             authorName,
-            authorGender);
+            authorGender,
+            dto.PlaceId,
+            dto.SignalType,
+            dto.SignalValue,
+            dto.AudienceType,
+            dto.IdentityDisclosure,
+            dto.LocationPrecision,
+            dto.ExpiresAt);
         var postId = await _mediator.Send(command);
         return CreatedAtAction(nameof(GetById), new { id = postId }, new { PostId = postId });
     }
@@ -251,4 +258,3 @@ public class PostsController : ControllerBase
         return post.Longitude ?? 0;
     }
 }
-

@@ -156,6 +156,12 @@ public class BlogDbContext : DbContext
             entity.HasKey(p => p.Id);
             entity.Property(p => p.Title).IsRequired().HasMaxLength(200);
             entity.Property(p => p.Content).HasMaxLength(2000);
+            entity.Property(p => p.SignalType).HasMaxLength(50);
+            entity.Property(p => p.SignalValue).HasMaxLength(80);
+            entity.Property(p => p.AudienceType).HasMaxLength(30);
+            entity.Property(p => p.IdentityDisclosure).HasMaxLength(30);
+            entity.Property(p => p.LocationPrecision).HasMaxLength(30);
+            entity.Property(p => p.SourceType).HasMaxLength(30);
             entity.Property(p => p.AuthorId).IsRequired();
 
             entity.HasMany(p => p.Media)

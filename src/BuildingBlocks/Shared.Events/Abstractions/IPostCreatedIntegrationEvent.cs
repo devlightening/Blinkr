@@ -23,6 +23,14 @@ namespace Shared.Events.Abstractions
         double? Longitude { get; }
         double? AccuracyMeters { get; }
         string? LocationName { get; }
+        Guid? PlaceId { get; }
+        string? SignalType { get; }
+        string? SignalValue { get; }
+        string? AudienceType { get; }
+        string? IdentityDisclosure { get; }
+        string? LocationPrecision { get; }
+        string? SourceType { get; }
+        DateTime? ExpiresAt { get; }
         
         // Media
         ICollection<PostMediaInfo>? Media { get; }

@@ -20,7 +20,6 @@
     <PackageReference Include="AspNetCore.HealthChecks.RabbitMQ" />
     <PackageReference Include="AutoMapper" />
     <PackageReference Include="AWSSDK.S3" />
-    <PackageReference Include="EventStore.Client" />
     <PackageReference Include="FluentValidation.AspNetCore" />
     <PackageReference Include="MassTransit" />
     <PackageReference Include="MassTransit.EntityFrameworkCore" />

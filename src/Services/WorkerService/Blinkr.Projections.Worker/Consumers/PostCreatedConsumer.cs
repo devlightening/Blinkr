@@ -84,6 +84,14 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
                 LikeCount = 0,
                 Location = location,
                 LocationName = message.LocationName,
+                PlaceId = message.PlaceId,
+                SignalType = message.SignalType ?? "GeneralObservation",
+                SignalValue = message.SignalValue,
+                AudienceType = message.AudienceType ?? "Public",
+                IdentityDisclosure = message.IdentityDisclosure ?? "LimitedProfile",
+                LocationPrecision = message.LocationPrecision ?? "ApproximateArea",
+                SourceType = message.SourceType ?? "Community",
+                ExpiresAt = message.ExpiresAt,
                 Media = mediaList
             };
 

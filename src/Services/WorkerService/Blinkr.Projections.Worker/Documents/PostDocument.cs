@@ -40,5 +40,18 @@ namespace Blinkr.Projections.Worker.Documents
         // Location support - GeoJSON Point for 2dsphere indexing
         public GeoJsonPoint<GeoJson2DGeographicCoordinates>? Location { get; set; }
         public string? LocationName { get; set; }
+
+        [BsonIgnoreIfNull]
+        [BsonRepresentation(BsonType.String)]
+        public Guid? PlaceId { get; set; }
+        public string SignalType { get; set; } = "GeneralObservation";
+        [BsonIgnoreIfNull]
+        public string? SignalValue { get; set; }
+        public string AudienceType { get; set; } = "Public";
+        public string IdentityDisclosure { get; set; } = "LimitedProfile";
+        public string LocationPrecision { get; set; } = "ApproximateArea";
+        public string SourceType { get; set; } = "Community";
+        [BsonIgnoreIfNull]
+        public DateTime? ExpiresAt { get; set; }
     }
 }

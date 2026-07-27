@@ -560,6 +560,7 @@ using (var scope = app.Services.CreateScope())
 
 // Pipeline
 app.UseSerilogRequestLogging();
+app.UseGlobalException();
 
 // Request-Id middleware
 app.Use(async (ctx, next) =>

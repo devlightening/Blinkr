@@ -26,6 +26,14 @@
         public string? LocationName { get; set; }
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
+        public Guid? PlaceId { get; set; }
+        public string SignalType { get; set; } = "GeneralObservation";
+        public string? SignalValue { get; set; }
+        public string AudienceType { get; set; } = "Public";
+        public string IdentityDisclosure { get; set; } = "LimitedProfile";
+        public string LocationPrecision { get; set; } = "ApproximateArea";
+        public string SourceType { get; set; } = "Community";
+        public DateTime? ExpiresAt { get; set; }
         
         // Media
         public List<PostMediaDto> Media { get; set; } = new();

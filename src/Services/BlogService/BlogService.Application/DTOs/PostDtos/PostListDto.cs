@@ -19,6 +19,14 @@ public record PostListDto
     public List<string> MediaUrls { get; init; } = new();
     public string? LocationName { get; init; }
     public object? Location { get; init; }
+    public Guid? PlaceId { get; init; }
+    public string SignalType { get; init; } = "GeneralObservation";
+    public string? SignalValue { get; init; }
+    public string AudienceType { get; init; } = "Public";
+    public string IdentityDisclosure { get; init; } = "LimitedProfile";
+    public string LocationPrecision { get; init; } = "ApproximateArea";
+    public string SourceType { get; init; } = "Community";
+    public DateTime? ExpiresAt { get; init; }
     
     /// <summary>
     /// Latitude (extracted from Location GeoJSON)

@@ -282,7 +282,15 @@ namespace BlogService.Api
                             e.Latitude,
                             e.Longitude,
                             e.AccuracyMeters,
-                            e.LocationName
+                            e.LocationName,
+                            e.PlaceId,
+                            e.SignalType,
+                            e.SignalValue,
+                            e.AudienceType,
+                            e.IdentityDisclosure,
+                            e.LocationPrecision,
+                            e.SourceType,
+                            e.ExpiresAt
                         }, ct).ConfigureAwait(false);
                         break;
 

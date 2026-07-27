@@ -44,6 +44,7 @@ services:
   eventstore.db:
     image: eventstore/eventstore:24.2.0-bookworm-slim
     container_name: blinkr_eventstore
+    restart: always
     environment:
       - EVENTSTORE_INSECURE=True
       - EVENTSTORE_RUN_PROJECTIONS=All
@@ -53,7 +54,6 @@ services:
       - EVENTSTORE_CLUSTER_SIZE=1
       - EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP=True
       - EVENTSTORE_GOSSIP_ON_SINGLE_NODE=True
-      - EVENTSTORE_MEM_DB=True
     ports:
       - "2113:2113"
     volumes:

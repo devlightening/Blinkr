@@ -23,4 +23,12 @@ public record PostReadDto
     public string? LocationName { get; init; }
     public double? Latitude { get; init; }
     public double? Longitude { get; init; }
+    public Guid? PlaceId { get; init; }
+    public string SignalType { get; init; } = "GeneralObservation";
+    public string? SignalValue { get; init; }
+    public string AudienceType { get; init; } = "Public";
+    public string IdentityDisclosure { get; init; } = "LimitedProfile";
+    public string LocationPrecision { get; init; } = "ApproximateArea";
+    public string SourceType { get; init; } = "Community";
+    public DateTime? ExpiresAt { get; init; }
 }

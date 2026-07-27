@@ -44,6 +44,14 @@ public class PostDocument
     /// Location name (legacy field from Worker projections)
     /// </summary>
     public string? LocationName { get; set; }
+    public Guid? PlaceId { get; set; }
+    public string? SignalType { get; set; }
+    public string? SignalValue { get; set; }
+    public string? AudienceType { get; set; }
+    public string? IdentityDisclosure { get; set; }
+    public string? LocationPrecision { get; set; }
+    public string? SourceType { get; set; }
+    public DateTime? ExpiresAt { get; set; }
 
     /// <summary>
     /// Computed property for comment count

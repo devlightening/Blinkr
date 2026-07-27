@@ -83,6 +83,14 @@ public class EventStorePublishingDecorator : IEventStoreRepository
                         Longitude = e.Longitude,
                         AccuracyMeters = e.AccuracyMeters,
                         LocationName = e.LocationName,
+                        PlaceId = e.PlaceId,
+                        SignalType = e.SignalType,
+                        SignalValue = e.SignalValue,
+                        AudienceType = e.AudienceType,
+                        IdentityDisclosure = e.IdentityDisclosure,
+                        LocationPrecision = e.LocationPrecision,
+                        SourceType = e.SourceType,
+                        ExpiresAt = e.ExpiresAt,
                         CreatedAt = e.OccurredOn,
                         CreatedBy = e.AuthorId
                     };
@@ -115,6 +123,14 @@ public class EventStorePublishingDecorator : IEventStoreRepository
                     e.Longitude,
                     e.AccuracyMeters,
                     e.LocationName,
+                    e.PlaceId,
+                    e.SignalType,
+                    e.SignalValue,
+                    e.AudienceType,
+                    e.IdentityDisclosure,
+                    e.LocationPrecision,
+                    e.SourceType,
+                    e.ExpiresAt,
                     Media = mediaList
                 }, ct);
                 break;

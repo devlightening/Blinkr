@@ -24,6 +24,11 @@ public class GetPostByIdHandler : IRequestHandler<GetPostByIdQuery, PostResponse
         var postDocument = await (await _postsCollection.FindAsync(p => p.Id == request.PostId, cancellationToken: ct)).FirstOrDefaultAsync(ct);
 
         if (postDocument is null) return null;
+        if ((!string.IsNullOrWhiteSpace(postDocument.AudienceType) && postDocument.AudienceType != "Public") ||
+            (postDocument.ExpiresAt.HasValue && postDocument.ExpiresAt <= DateTime.UtcNow))
+        {
+            return null;
+        }
 
         // Extract Lat/Lng from GeoJsonPoint
         double? latitude = null;
@@ -33,15 +38,22 @@ public class GetPostByIdHandler : IRequestHandler<GetPostByIdQuery, PostResponse
         {
             longitude = postDocument.Location.Coordinates.Longitude;
             latitude = postDocument.Location.Coordinates.Latitude;
+            if (postDocument.LocationPrecision != "PlaceCenter" || !postDocument.PlaceId.HasValue)
+            {
+                longitude = Math.Round(longitude.Value, 3, MidpointRounding.AwayFromZero);
+                latitude = Math.Round(latitude.Value, 3, MidpointRounding.AwayFromZero);
+            }
         }
+
+        var anonymous = postDocument.IdentityDisclosure == "AnonymousMap";
 
         return new PostResponseDto
         {
             Id = postDocument.Id,
             Title = postDocument.Title,
             Content = postDocument.Content,
-            AuthorId = postDocument.AuthorId,
-            AuthorName = postDocument.AuthorName ?? "Unknown",
+            AuthorId = anonymous ? Guid.Empty : postDocument.AuthorId,
+            AuthorName = anonymous ? "Topluluk üyesi" : postDocument.AuthorName ?? "Unknown",
             CreatedAt = postDocument.CreatedAtUtc,
             UpdatedAt = postDocument.UpdatedAtUtc,
             LikeCount = postDocument.LikeCount,
@@ -49,6 +61,14 @@ public class GetPostByIdHandler : IRequestHandler<GetPostByIdQuery, PostResponse
             LocationName = postDocument.LocationName,
             Latitude = latitude,
             Longitude = longitude,
+            PlaceId = postDocument.PlaceId,
+            SignalType = postDocument.SignalType,
+            SignalValue = postDocument.SignalValue,
+            AudienceType = postDocument.AudienceType,
+            IdentityDisclosure = postDocument.IdentityDisclosure,
+            LocationPrecision = postDocument.LocationPrecision,
+            SourceType = postDocument.SourceType,
+            ExpiresAt = postDocument.ExpiresAt,
             Media = postDocument.Media?.Select(m => new PostMediaDto
             {
                 Id = m.Id,

@@ -564,7 +564,14 @@ public class CachedPostQueryService : IPostQueryService
                     new BsonArray { q.MaxLon, q.MaxLat }
                 }))));
 
-        var filter = geoFilter as FilterDefinition<PostDocument>;
+        var now = DateTime.UtcNow;
+        var audienceFilter = Builders<PostDocument>.Filter.Or(
+            Builders<PostDocument>.Filter.Eq(p => p.AudienceType, null),
+            Builders<PostDocument>.Filter.Eq(p => p.AudienceType, "Public"));
+        var expiryFilter = Builders<PostDocument>.Filter.Or(
+            Builders<PostDocument>.Filter.Eq(p => p.ExpiresAt, null),
+            Builders<PostDocument>.Filter.Gt(p => p.ExpiresAt, now));
+        var filter = Builders<PostDocument>.Filter.And(geoFilter, audienceFilter, expiryFilter);
         if (q.SinceMinutes > 0)
         {
             var cutoff = DateTime.UtcNow.AddMinutes(-q.SinceMinutes);
@@ -656,20 +663,29 @@ public class CachedPostQueryService : IPostQueryService
 
     private static PostReadDto MapToReadDto(PostDocument doc)
     {
-        var (latitude, longitude) = ExtractCoordinates(doc.Location);
+        var (latitude, longitude) = ExtractPublicCoordinates(doc);
+        var anonymous = string.Equals(doc.IdentityDisclosure, "AnonymousMap", StringComparison.Ordinal);
         
         return new PostReadDto
         {
             Id = doc.Id,
             Title = doc.Title,
             Content = doc.Content,
-            AuthorId = doc.AuthorId,
-            AuthorName = doc.AuthorName ?? string.Empty,
+            AuthorId = anonymous ? Guid.Empty : doc.AuthorId,
+            AuthorName = anonymous ? "Topluluk üyesi" : doc.AuthorName ?? string.Empty,
             CreatedAtUtc = doc.CreatedAtUtc,
             UpdatedAtUtc = doc.UpdatedAtUtc,
             Latitude = latitude,
             Longitude = longitude,
             LocationName = doc.LocationName,
+            PlaceId = doc.PlaceId,
+            SignalType = doc.SignalType ?? "GeneralObservation",
+            SignalValue = doc.SignalValue,
+            AudienceType = doc.AudienceType ?? "Public",
+            IdentityDisclosure = doc.IdentityDisclosure ?? "LimitedProfile",
+            LocationPrecision = doc.LocationPrecision ?? "ApproximateArea",
+            SourceType = doc.SourceType ?? "Community",
+            ExpiresAt = doc.ExpiresAt,
             LikeCount = doc.LikeCount,
             CommentCount = doc.CommentCount,
             IsLikedByCurrentUser = false,
@@ -680,30 +696,58 @@ public class CachedPostQueryService : IPostQueryService
 
     private static PostListDto MapToListDto(PostDocument doc)
     {
-        var (latitude, longitude) = ExtractCoordinates(doc.Location);
+        var (latitude, longitude) = ExtractPublicCoordinates(doc);
         var freshnessSec = (int)(DateTime.UtcNow - doc.CreatedAtUtc).TotalSeconds;
+        var anonymous = string.Equals(doc.IdentityDisclosure, "AnonymousMap", StringComparison.Ordinal);
+        var expiresAt = doc.ExpiresAt ?? doc.CreatedAtUtc.AddHours(3);
         
         return new PostListDto
         {
             Id = doc.Id,
             Title = doc.Title,
             Content = doc.Content,
-            AuthorId = doc.AuthorId,
-            AuthorName = doc.AuthorName ?? string.Empty,
-            AuthorGender = doc.AuthorGender,
+            AuthorId = anonymous ? Guid.Empty : doc.AuthorId,
+            AuthorName = anonymous ? "Topluluk üyesi" : doc.AuthorName ?? string.Empty,
+            AuthorGender = null,
             CreatedAt = doc.CreatedAtUtc,
             CreatedAtUtc = doc.CreatedAtUtc,
             UpdatedAtUtc = doc.UpdatedAtUtc,
             Latitude = latitude,
             Longitude = longitude,
             LocationName = doc.LocationName,
+            PlaceId = doc.PlaceId,
+            SignalType = doc.SignalType ?? "GeneralObservation",
+            SignalValue = doc.SignalValue,
+            AudienceType = doc.AudienceType ?? "Public",
+            IdentityDisclosure = doc.IdentityDisclosure ?? "LimitedProfile",
+            LocationPrecision = doc.LocationPrecision ?? "ApproximateArea",
+            SourceType = doc.SourceType ?? "Community",
+            ExpiresAt = expiresAt,
             LikeCount = doc.LikeCount,
             CommentCount = doc.CommentCount,
             MediaUrls = doc.Media?.Select(m => m.Url).ToList() ?? new(),
-            Location = doc.Location,
+            Location = null,
             FreshnessSec = freshnessSec,
-            IsLive = freshnessSec < 3600 // Less than 1 hour old
+            IsLive = expiresAt > DateTime.UtcNow
         };
+    }
+
+    private static (double? latitude, double? longitude) ExtractPublicCoordinates(PostDocument doc)
+    {
+        var (latitude, longitude) = ExtractCoordinates(doc.Location);
+        if (!latitude.HasValue || !longitude.HasValue)
+        {
+            return (null, null);
+        }
+
+        if (string.Equals(doc.LocationPrecision, "PlaceCenter", StringComparison.Ordinal) && doc.PlaceId.HasValue)
+        {
+            return (latitude, longitude);
+        }
+
+        return (
+            Math.Round(latitude.Value, 3, MidpointRounding.AwayFromZero),
+            Math.Round(longitude.Value, 3, MidpointRounding.AwayFromZero));
     }
 
     private static (double? latitude, double? longitude) ExtractCoordinates(LocationEntity? location)

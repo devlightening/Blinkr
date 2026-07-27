@@ -13,7 +13,14 @@ namespace BlogService.Application.Features.Mediatr.Comamnds.PostCommands
       double? AccuracyMeters = null,
       string? LocationName = null,
       string? AuthorName = null,
-      string? AuthorGender = null
+      string? AuthorGender = null,
+      Guid? PlaceId = null,
+      string SignalType = "GeneralObservation",
+      string? SignalValue = null,
+      string AudienceType = "Public",
+      string IdentityDisclosure = "LimitedProfile",
+      string LocationPrecision = "ApproximateArea",
+      DateTime? ExpiresAt = null
   ) : IRequest<Guid>;
 
 }

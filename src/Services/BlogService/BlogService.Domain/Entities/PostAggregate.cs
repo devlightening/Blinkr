@@ -19,6 +19,14 @@ namespace BlogService.Domain.Entities
         public double? Longitude { get; private set; }
         public double? AccuracyMeters { get; private set; }
         public string? LocationName { get; private set; }
+        public Guid? PlaceId { get; private set; }
+        public string SignalType { get; private set; } = "GeneralObservation";
+        public string? SignalValue { get; private set; }
+        public string AudienceType { get; private set; } = "Public";
+        public string IdentityDisclosure { get; private set; } = "LimitedProfile";
+        public string LocationPrecision { get; private set; } = "ApproximateArea";
+        public string SourceType { get; private set; } = "Community";
+        public DateTime? ExpiresAt { get; private set; }
         
         public ICollection<PostMedia> Media { get; private set; } = new List<PostMedia>();
         public ICollection<PostComment> Comments { get; private set; } = new List<PostComment>();
@@ -38,7 +46,15 @@ namespace BlogService.Domain.Entities
             double? accuracyMeters = null,
             string? locationName = null,
             string? authorName = null,
-            string? authorGender = null)
+            string? authorGender = null,
+            Guid? placeId = null,
+            string signalType = "GeneralObservation",
+            string? signalValue = null,
+            string audienceType = "Public",
+            string identityDisclosure = "LimitedProfile",
+            string locationPrecision = "ApproximateArea",
+            string sourceType = "Community",
+            DateTime? expiresAt = null)
         {
             var post = new PostAggregate();
             post.ApplyNewEvent(new PostCreatedEvent(
@@ -52,7 +68,15 @@ namespace BlogService.Domain.Entities
                 accuracyMeters,
                 locationName,
                 authorName,
-                authorGender));
+                authorGender,
+                placeId,
+                signalType,
+                signalValue,
+                audienceType,
+                identityDisclosure,
+                locationPrecision,
+                sourceType,
+                expiresAt));
             return post;
         }
 
@@ -137,6 +161,14 @@ namespace BlogService.Domain.Entities
             Longitude = e.Longitude;
             AccuracyMeters = e.AccuracyMeters;
             LocationName = e.LocationName;
+            PlaceId = e.PlaceId;
+            SignalType = e.SignalType;
+            SignalValue = e.SignalValue;
+            AudienceType = e.AudienceType;
+            IdentityDisclosure = e.IdentityDisclosure;
+            LocationPrecision = e.LocationPrecision;
+            SourceType = e.SourceType;
+            ExpiresAt = e.ExpiresAt;
         }
 
         private void Apply(PostContentUpdatedEvent e)

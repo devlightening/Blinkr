@@ -11,6 +11,14 @@ public class Post : BaseEntity
     public double? Longitude { get; set; }
     public double? AccuracyMeters { get; set; }
     public string? LocationName { get; set; }
+    public Guid? PlaceId { get; set; }
+    public string SignalType { get; set; } = "GeneralObservation";
+    public string? SignalValue { get; set; }
+    public string AudienceType { get; set; } = "Public";
+    public string IdentityDisclosure { get; set; } = "LimitedProfile";
+    public string LocationPrecision { get; set; } = "ApproximateArea";
+    public string SourceType { get; set; } = "Community";
+    public DateTime? ExpiresAt { get; set; }
     
     public ICollection<PostMedia> Media { get; set; } = new List<PostMedia>();
     public ICollection<PostComment> Comments { get; set; } = new List<PostComment>();

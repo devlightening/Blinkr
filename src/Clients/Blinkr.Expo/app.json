@@ -1,15 +1,22 @@
 {
   "expo": {
-    "name": "Blinkr.Expo",
-    "slug": "Blinkr.Expo",
+    "name": "Blinkr",
+    "slug": "blinkr-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/blinkr-icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Blinkr, çevrendeki taze sinyalleri göstermek ve seçtiğinde konumlu sinyal yayınlamak için konumunu kullanır."
+      }
     },
     "android": {
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

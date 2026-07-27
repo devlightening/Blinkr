@@ -8,12 +8,43 @@ public class CreatePostDtoValidator : AbstractValidator<CreatePostDto>
     public CreatePostDtoValidator()
     {
         RuleFor(x => x.Title)
-            .NotEmpty().WithMessage("Title is required")
+            .NotEmpty().When(x => x.SignalType == "GeneralObservation")
+            .WithMessage("Title is required for detailed signals")
             .MaximumLength(200).WithMessage("Title cannot exceed 200 characters");
 
         RuleFor(x => x.Content)
-            .NotEmpty().WithMessage("Content is required")
-            .MinimumLength(5).WithMessage("Content must be at least 5 characters");
+            .NotEmpty().When(x => x.SignalType == "GeneralObservation")
+            .WithMessage("Content is required for detailed signals");
+
+        RuleFor(x => x.Content)
+            .MinimumLength(5).When(x => !string.IsNullOrWhiteSpace(x.Content))
+            .WithMessage("Content must be at least 5 characters");
+
+        RuleFor(x => x.SignalType)
+            .Must(value => new[] { "GeneralObservation", "Crowd", "Queue", "Event", "Offer", "NewOpening", "TemporaryStatus" }.Contains(value))
+            .WithMessage("Unsupported signal type");
+
+        RuleFor(x => x.SignalValue)
+            .NotEmpty().When(x => x.SignalType != "GeneralObservation")
+            .WithMessage("A structured signal value is required");
+
+        RuleFor(x => x.AudienceType)
+            .Must(value => new[] { "Public", "Followers", "Friends", "CloseFriends", "Private" }.Contains(value))
+            .WithMessage("Unsupported audience type");
+
+        RuleFor(x => x.IdentityDisclosure)
+            .Must(value => new[] { "FullProfile", "LimitedProfile", "AnonymousMap" }.Contains(value))
+            .WithMessage("Unsupported identity disclosure");
+
+        RuleFor(x => x.LocationPrecision)
+            .Must(value => new[] { "PlaceCenter", "ApproximateArea", "Delayed" }.Contains(value))
+            .WithMessage("Unsupported location precision");
+
+        RuleFor(x => x.ExpiresAt)
+            .GreaterThan(DateTime.UtcNow).When(x => x.ExpiresAt.HasValue)
+            .WithMessage("Expiry must be in the future")
+            .LessThanOrEqualTo(DateTime.UtcNow.AddDays(30)).When(x => x.ExpiresAt.HasValue)
+            .WithMessage("Expiry cannot be more than 30 days away");
 
         // Location is mandatory for all posts
         RuleFor(x => x.Latitude)
