@@ -44,6 +44,11 @@ public interface IPostQueryService
     /// </summary>
     Task<PagedResult<PostListDto>> GetNearbyAsync(NearbyQuery query, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Get posts inside the currently visible map bounds.
+    /// </summary>
+    Task<PagedResult<PostListDto>> GetBoundsAsync(BoundsQuery query, CancellationToken cancellationToken = default);
+
     // FEED API METHODS
     
     /// <summary>

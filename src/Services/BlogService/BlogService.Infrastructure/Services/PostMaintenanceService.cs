@@ -12,6 +12,7 @@ namespace BlogService.Infrastructure.Services;
 public interface IPostMaintenanceService
 {
     Task<int> SyncAuthorNamesAsync(CancellationToken cancellationToken = default);
+    Task<int> MarkPostsWithoutLocationAsDeletedAsync(CancellationToken cancellationToken = default);
 }
 
 public class PostMaintenanceService : IPostMaintenanceService
@@ -93,6 +94,56 @@ public class PostMaintenanceService : IPostMaintenanceService
 
         _logger.LogInformation("WS-10B: AuthorName sync completed. Updated {Count} posts", updatedCount);
         return updatedCount;
+    }
+
+    /// <summary>
+    /// Mark posts without location data as deleted
+    /// This cleans up old test posts that don't have Latitude/Longitude
+    /// </summary>
+    public async Task<int> MarkPostsWithoutLocationAsDeletedAsync(CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Starting cleanup: marking posts without location as deleted");
+
+        var postsCollection = _mongoDb.GetCollection<PostDocument>("posts");
+
+        // Find all posts with null Latitude or Longitude
+        var filter = Builders<PostDocument>.Filter.Or(
+            Builders<PostDocument>.Filter.Eq(x => x.Location, null),
+            Builders<PostDocument>.Filter.Eq(x => x.LocationName, null),
+            Builders<PostDocument>.Filter.Eq(x => x.LocationName, "")
+        );
+
+        var postsToDelete = await postsCollection
+            .Find(filter)
+            .ToListAsync(cancellationToken);
+
+        _logger.LogInformation("Found {Count} posts without location data", postsToDelete.Count);
+
+        int deletedCount = 0;
+
+        foreach (var post in postsToDelete)
+        {
+            try
+            {
+                // Delete the post document from MongoDB
+                var deleteResult = await postsCollection.DeleteOneAsync(
+                    Builders<PostDocument>.Filter.Eq(x => x.Id, post.Id),
+                    cancellationToken);
+
+                if (deleteResult.DeletedCount > 0)
+                {
+                    deletedCount++;
+                    _logger.LogDebug("Deleted post {PostId} - no location data", post.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting post {PostId}", post.Id);
+            }
+        }
+
+        _logger.LogInformation("Cleanup completed. Deleted {Count} posts without location", deletedCount);
+        return deletedCount;
     }
 
     private async Task<string?> GetUserNameAsync(Guid userId, CancellationToken cancellationToken)

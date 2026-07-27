@@ -158,25 +158,23 @@ public partial class MapViewModel : ObservableObject
             // Update UI on main thread
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                // Update posts
+                // Update posts - only add posts with valid coordinates
                 NearbyPosts.Clear();
-                foreach (var post in posts)
-                {
-                    NearbyPosts.Add(post);
-                }
-
-                // Create markers for WebView
                 Markers.Clear();
+                
                 foreach (var post in posts)
                 {
+                    // Only add posts that have both latitude and longitude
                     if (post.Latitude.HasValue && post.Longitude.HasValue)
                     {
+                        NearbyPosts.Add(post);
                         Markers.Add(new MapMarker(
                             Id: post.Id,
                             Title: GetFreshnessTitle(post),
                             Lat: post.Latitude.Value,
                             Lng: post.Longitude.Value,
-                            Address: GetFreshnessText(post)
+                            Address: GetFreshnessText(post),
+                            Gender: post.Gender
                         ));
                     }
                 }
@@ -397,11 +395,13 @@ public partial class MapViewModel : ObservableObject
                 NearbyPosts.Clear();
                 Markers.Clear();
                 
+                // Filter posts: only show posts with valid coordinates
                 foreach (var post in posts)
                 {
-                    NearbyPosts.Add(post);
+                    // Only add posts that have both latitude and longitude
                     if (post.Latitude.HasValue && post.Longitude.HasValue)
                     {
+                        NearbyPosts.Add(post);
                         Markers.Add(new MapMarker(
                             Id: post.Id,
                             Title: GetFreshnessTitle(post),

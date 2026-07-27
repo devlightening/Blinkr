@@ -121,7 +121,7 @@ public partial class AppShell : Shell
 			{
 				new ShellContent
 				{
-					Content = new CreatePage(),
+					Content = _serviceProvider.GetRequiredService<CreatePage>(),
 					Route = "create"
 				}
 			}

@@ -107,4 +107,43 @@ public class ReadModelsController : ControllerBase
             });
         }
     }
+
+    /// <summary>
+    /// Clean up old test posts without location data
+    /// Marks posts with null Latitude/Longitude as deleted
+    /// Only available in development environment
+    /// </summary>
+    [HttpPost("cleanup-posts-without-location")]
+    public async Task<IActionResult> CleanupPostsWithoutLocation(CancellationToken cancellationToken)
+    {
+        // Only allow in development
+        if (!_environment.IsDevelopment())
+        {
+            _logger.LogWarning("Attempt to cleanup posts in non-development environment");
+            return Forbid("This operation is only available in development environment");
+        }
+
+        _logger.LogInformation("Admin initiated cleanup of posts without location data");
+
+        try
+        {
+            var cleanedCount = await _postMaintenanceService.MarkPostsWithoutLocationAsDeletedAsync(cancellationToken);
+            return Ok(new 
+            { 
+                success = true,
+                message = "Cleanup completed - posts without location marked as deleted",
+                cleanedCount = cleanedCount
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during cleanup operation");
+            return StatusCode(500, new 
+            { 
+                success = false,
+                message = "Error during cleanup operation",
+                error = ex.Message
+            });
+        }
+    }
 }

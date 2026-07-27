@@ -54,12 +54,13 @@ public static class ServiceCollectionExtensions
     {
         services.AddStackExchangeRedisCache(options =>
         {
-            options.Configuration = "localhost:6379";
+            options.Configuration = Environment.GetEnvironmentVariable("Redis__ConnectionString") ?? "localhost:6379";
             options.InstanceName = "Blinkr";
         });
 
+        var redisConnection = Environment.GetEnvironmentVariable("Redis__ConnectionString") ?? "localhost:6379";
         services.AddHealthChecks()
-            .AddRedis("localhost:6379", name: "redis");
+            .AddRedis(redisConnection, name: "redis");
 
         return services;
     }

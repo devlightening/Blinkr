@@ -3,166 +3,125 @@
              xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              Title="Akış"
-             BackgroundColor="{StaticResource AppBackgroundDark}">
+             BackgroundColor="{StaticResource BlinkrBackground}">
 
-    <Grid RowDefinitions="Auto,Auto,*" Padding="0">
+    <Grid RowDefinitions="Auto,*" Padding="0">
         
-        <!-- Header Section -->
-        <VerticalStackLayout Grid.Row="0" Padding="20,24,20,16" Spacing="8" BackgroundColor="{StaticResource AppBackgroundDark}">
-            <Label Text="Blinkr"
-                   Style="{StaticResource H1}"
-                   TextColor="{StaticResource NeonYellow}" />
-            <Label Text="Çevrendeki anlık paylaşımları keşfet"
-                   Style="{StaticResource Body2}"
-                   TextColor="{StaticResource TextSecondary}" />
-        </VerticalStackLayout>
+        <!-- Header with Search & Notifications -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Padding="24,24,24,16" RowSpacing="12" BackgroundColor="{StaticResource BlinkrBackground}">
+            <VerticalStackLayout Grid.Column="0" Grid.ColumnSpan="3" Spacing="4">
+                <Label Text="Akış"
+                       Style="{StaticResource H1}"
+                       TextColor="{StaticResource BlinkrAccent}" />
+                <Label Text="Çevrendeki anlık paylaşımları keşfet"
+                       Style="{StaticResource Body2}"
+                       TextColor="{StaticResource TextSecondary}" />
+            </VerticalStackLayout>
+            
+            <!-- Search Icon -->
+            <Button Grid.Column="1" 
+                    Text="🔍" 
+                    Style="{StaticResource IconButton}"
+                    Margin="0,0,8,0" />
+            
+            <!-- Notifications Icon -->
+            <Button Grid.Column="2" 
+                    Text="🔔" 
+                    Style="{StaticResource IconButton}" />
+        </Grid>
         
-        <!-- Filter Tabs (Sırala) -->
-        <Border Grid.Row="1"
-                BackgroundColor="{StaticResource AppBackgroundDark}"
-                StrokeThickness="0"
-                Margin="0">
-            <HorizontalStackLayout Spacing="8" Padding="16,12" HorizontalOptions="Start">
-                <Label Text="Sırala:" 
-                       FontSize="12" 
-                       TextColor="{StaticResource TextTertiary}"
-                       VerticalOptions="Center"
-                       Margin="4,0,8,0" />
-                <Button x:Name="BtnYakin"
-                        Text="Yakın"
-                        Style="{StaticResource TabButtonActive}"
-                        Clicked="OnFilterClicked" />
-                <Button x:Name="BtnPopuler"
-                        Text="Popüler"
-                        Style="{StaticResource TabButton}"
-                        Clicked="OnFilterClicked" />
-                <Button x:Name="BtnYeni"
-                        Text="Yeni"
-                        Style="{StaticResource TabButton}"
-                        Clicked="OnFilterClicked" />
-            </HorizontalStackLayout>
-        </Border>
-
         <!-- Posts List -->
-        <CollectionView Grid.Row="2"
+        <CollectionView Grid.Row="1"
                         x:Name="PostsCollectionView"
                         ItemsSource="{Binding Posts}"
                         SelectionMode="None"
-                        Margin="12,12,12,20">
+                        Margin="16,0,16,20">
             
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <Border Style="{StaticResource Card}">
-                        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="*">
+                    <Border Style="{StaticResource CardContainer}" Margin="0,8">
+                        <VerticalStackLayout Spacing="12">
                             
-                            <!-- Post Header with Map Thumbnail -->
-                            <Grid Grid.Row="0" ColumnDefinitions="60,*,Auto">
-                                <!-- Map Thumbnail -->
+                            <!-- Post Header: Avatar + Author Info -->
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                <!-- Avatar -->
                                 <Border Grid.Column="0"
-                                        WidthRequest="50"
-                                        HeightRequest="50"
-                                        StrokeThickness="1"
-                                        Stroke="{StaticResource BorderColor}"
-                                        StrokeShape="RoundRectangle 8"
-                                        BackgroundColor="{StaticResource ChipBackground}">
-                                    <Label Text="🗺️"
-                                           FontSize="24"
+                                        WidthRequest="40"
+                                        HeightRequest="40"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 20"
+                                        BackgroundColor="{StaticResource BlinkrCardBackground}">
+                                    <Label Text="👤"
+                                           FontSize="20"
                                            HorizontalOptions="Center"
                                            VerticalOptions="Center" />
                                 </Border>
                                 
-                                <!-- Location & Distance -->
-                                <StackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
-                                    <Label Text="{Binding LocationName}"
-                                           FontSize="14"
-                                           FontAttributes="Bold"
+                                <!-- Author Name & Meta -->
+                                <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                    <Label Text="{Binding AuthorName}"
+                                           Style="{StaticResource Body1Bold}"
                                            TextColor="{StaticResource TextPrimary}" />
-                                    <Label Text="{Binding Distance}"
-                                           FontSize="12"
+                                    <Label Text="{Binding CreatedAtUtc, StringFormat='{0:g}'}"
+                                           Style="{StaticResource Body2}"
                                            TextColor="{StaticResource TextSecondary}" />
-                                </StackLayout>
+                                </VerticalStackLayout>
                                 
                                 <!-- More Options -->
                                 <Label Grid.Column="2"
                                        Text="⋮"
-                                       FontSize="20"
+                                       FontSize="18"
                                        TextColor="{StaticResource TextTertiary}"
-                                       VerticalOptions="Start" />
+                                       VerticalOptions="Center" />
                             </Grid>
-
+                            
                             <!-- Post Title -->
-                            <Label Grid.Row="1"
-                                   Text="{Binding Title}"
-                                   Style="{StaticResource CardTitle}"
-                                   Margin="0,12,0,4" />
+                            <Label Text="{Binding Title}"
+                                   Style="{StaticResource Body1Bold}"
+                                   TextColor="{StaticResource TextPrimary}"
+                                   LineBreakMode="TailTruncation" />
                             
-                            <!-- Post Content -->
-                            <Label Grid.Row="2"
-                                   Text="{Binding Content}"
-                                   Style="{StaticResource Body}"
-                                   Margin="0,0,0,12" />
-
-                            <!-- Action Buttons -->
-                            <Grid Grid.Row="3" ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto">
-                                <!-- Like Button -->
-                                <Border Grid.Column="0"
-                                        Style="{StaticResource Avatar}"
-                                        WidthRequest="32"
-                                        HeightRequest="32"
-                                        BackgroundColor="Transparent">
-                                    <Label Text="❤️"
-                                           FontSize="16"
-                                           HorizontalOptions="Center"
-                                           VerticalOptions="Center" />
-                                </Border>
-                                
-                                <Label Grid.Column="1"
-                                       Text="{Binding LikeText}"
-                                       FontSize="14"
-                                       TextColor="{StaticResource TextSecondary}"
-                                       VerticalOptions="Center"
-                                       Margin="4,0,16,0" />
-                                
-                                <!-- Comment Button -->
-                                <Border Grid.Column="2"
-                                        Style="{StaticResource Avatar}"
-                                        WidthRequest="32"
-                                        HeightRequest="32"
-                                        BackgroundColor="Transparent">
-                                    <Label Text="💬"
-                                           FontSize="16"
-                                           HorizontalOptions="Center"
-                                           VerticalOptions="Center" />
-                                </Border>
-                                
-                                <Label Grid.Column="3"
-                                       Text="{Binding CommentText}"
-                                       FontSize="14"
-                                       TextColor="{StaticResource TextSecondary}"
-                                       VerticalOptions="Center"
-                                       Margin="4,0,0,0" />
-                                
-                                <!-- Share Button -->
-                                <Border Grid.Column="5"
-                                        Style="{StaticResource Avatar}"
-                                        WidthRequest="32"
-                                        HeightRequest="32"
-                                        BackgroundColor="Transparent">
-                                    <Label Text="↗️"
-                                           FontSize="16"
-                                           HorizontalOptions="Center"
-                                           VerticalOptions="Center" />
-                                </Border>
-                                
-                                <Label Grid.Column="6"
-                                       Text="{Binding ShareText}"
-                                       FontSize="14"
-                                       TextColor="{StaticResource TextSecondary}"
-                                       VerticalOptions="Center"
-                                       Margin="4,0,0,0" />
-                            </Grid>
+                            <!-- Post Content (max 3 lines) -->
+                            <Label Text="{Binding Content}"
+                                   Style="{StaticResource Body1}"
+                                   TextColor="{StaticResource TextSecondary}"
+                                   LineBreakMode="TailTruncation"
+                                   MaxLines="3" />
                             
-                        </Grid>
+                            <!-- Location Info -->
+                            <HorizontalStackLayout Spacing="6">
+                                <Label Text="📍"
+                                       FontSize="14"
+                                       VerticalOptions="Center" />
+                                <Label Text="{Binding LocationName}"
+                                       Style="{StaticResource Body2}"
+                                       TextColor="{StaticResource TextSecondary}"
+                                       VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                            
+                            <!-- Action Bar: Like + Comment + Share -->
+                            <HorizontalStackLayout Spacing="16" Margin="0,4,0,0">
+                                <!-- Like -->
+                                <HorizontalStackLayout Spacing="4">
+                                    <Label Text="❤️" FontSize="14" VerticalOptions="Center" />
+                                    <Label Text="{Binding LikeCount}"
+                                           Style="{StaticResource Body2}"
+                                           TextColor="{StaticResource TextSecondary}" />
+                                </HorizontalStackLayout>
+                                
+                                <!-- Comment -->
+                                <HorizontalStackLayout Spacing="4">
+                                    <Label Text="💬" FontSize="14" VerticalOptions="Center" />
+                                    <Label Text="{Binding CommentCount}"
+                                           Style="{StaticResource Body2}"
+                                           TextColor="{StaticResource TextSecondary}" />
+                                </HorizontalStackLayout>
+                                
+                                <!-- Share -->
+                                <Label Text="↗" FontSize="14" HorizontalOptions="EndAndExpand" />
+                            </HorizontalStackLayout>
+                            
+                        </VerticalStackLayout>
                     </Border>
                 </DataTemplate>
             </CollectionView.ItemTemplate>

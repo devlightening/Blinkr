@@ -2,75 +2,91 @@
 <ContentPage x:Class="Blinkr.Mobile.Features.CreatePage"
              xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             BackgroundColor="{StaticResource AppBackgroundDark}"
+             BackgroundColor="{StaticResource BlinkrBackground}"
              Title="Oluştur">
 
     <Grid RowDefinitions="Auto,*">
         
-        <!-- Page Title with Back Button -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Padding="16,16,16,8">
-            <Label Grid.Column="0"
-                   Text="←"
-                   FontSize="24"
-                   TextColor="{StaticResource TextPrimary}"
-                   VerticalOptions="Center"
-                   Margin="0,0,16,0">
-                <Label.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnCancelClicked" />
-                </Label.GestureRecognizers>
-            </Label>
+        <!-- Header with Back Button -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Padding="24,24,24,16">
+            <Button Grid.Column="0"
+                    Text="←"
+                    Style="{StaticResource IconButton}"
+                    Clicked="OnCancelClicked"
+                    Margin="0,0,12,0" />
             <Label Grid.Column="1"
                    Text="Oluştur"
-                   Style="{StaticResource PageTitle}"
-                   Margin="0" />
+                   Style="{StaticResource H1}"
+                   TextColor="{StaticResource BlinkrAccent}"
+                   VerticalOptions="Center" />
         </Grid>
         
         <ScrollView Grid.Row="1">
-            <VerticalStackLayout Padding="20" Spacing="20">
+            <VerticalStackLayout Padding="24" Spacing="20">
                 
-                <Label Text="Oluştur" TextColor="White" FontSize="24" FontAttributes="Bold" Margin="0,10"/>
-
-                <Border Stroke="{StaticResource NeonYellow}" 
-                        StrokeShape="RoundRectangle 20"
-                        HeightRequest="180"
-                        BackgroundColor="{StaticResource CardDark}"
-                        StrokeThickness="1.5">
-                    <Border.Shadow>
-                         <Shadow Brush="{StaticResource NeonYellow}" Radius="10" Opacity="0.3"/>
-                    </Border.Shadow>
+                <!-- Media Picker Card -->
+                <Border Style="{StaticResource CardContainer}" 
+                        HeightRequest="180">
                     <Border.GestureRecognizers>
                         <TapGestureRecognizer Tapped="OnSelectMediaClicked"/>
                     </Border.GestureRecognizers>
                     
-                    <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="10">
-                        <Label Text="📷" FontSize="40" HorizontalOptions="Center" TextColor="{StaticResource NeonYellow}"/>
-                        <Label Text="Fotoğraf Ekle" TextColor="Gray" FontSize="12" HorizontalOptions="Center"/>
+                    <VerticalStackLayout VerticalOptions="Center" 
+                                        HorizontalOptions="Center" 
+                                        Spacing="8">
+                        <Label Text="📷" 
+                               FontSize="32" 
+                               HorizontalOptions="Center" />
+                        <Label Text="Fotoğraf veya video ekle"
+                               Style="{StaticResource Body2}"
+                               TextColor="{StaticResource TextSecondary}"
+                               HorizontalOptions="Center"/>
                     </VerticalStackLayout>
                 </Border>
 
-                <VerticalStackLayout Spacing="5">
-                    <Label Text="Başlık" TextColor="Gray" FontSize="12" Margin="5,0"/>
-                    <Border Style="{StaticResource NeonInputBorder}">
-                        <Entry x:Name="TitleEntry" Placeholder="Başlık girin..." PlaceholderColor="#666" TextColor="White" HeightRequest="50"/>
-                    </Border>
+                <!-- Title Entry -->
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Başlık"
+                           Style="{StaticResource BodySmall}"
+                           TextColor="{StaticResource TextSecondary}" />
+                    <Entry x:Name="TitleEntry" 
+                           Placeholder="Başlık girin..."
+                           Style="{StaticResource ModernEntry}" />
                 </VerticalStackLayout>
 
-                <VerticalStackLayout Spacing="5">
-                    <Label Text="Açıklama" TextColor="Gray" FontSize="12" Margin="5,0"/>
-                    <Border Style="{StaticResource NeonInputBorder}" HeightRequest="120">
-                        <Editor x:Name="ContentEditor" Placeholder="Açıklamayı girin..." PlaceholderColor="#666" TextColor="White" AutoSize="TextChanges"/>
-                    </Border>
+                <!-- Content Editor -->
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="İçerik"
+                           Style="{StaticResource BodySmall}"
+                           TextColor="{StaticResource TextSecondary}" />
+                    <Editor x:Name="ContentEditor" 
+                            Placeholder="Neler oluyor?"
+                            BackgroundColor="{StaticResource BlinkrCardBackground}"
+                            TextColor="{StaticResource TextPrimary}"
+                            PlaceholderColor="{StaticResource TextTertiary}"
+                            FontSize="14"
+                            HeightRequest="100"
+                            AutoSize="TextChanges"/>
                 </VerticalStackLayout>
 
-                <Grid ColumnDefinitions="*, Auto" Margin="0,10">
-                    <Label Text="Lokasyon Paylaş" TextColor="White" VerticalOptions="Center" FontSize="16"/>
-                    <Switch x:Name="LocationSwitch" OnColor="{StaticResource NeonYellow}" ThumbColor="White"/>
-                </Grid>
+                <!-- Location Indicator Card -->
+                <Border Style="{StaticResource CardContainer}" Padding="16,12">
+                    <HorizontalStackLayout Spacing="8">
+                        <Label Text="📍" 
+                               FontSize="18" 
+                               VerticalOptions="Center" />
+                        <Label Text="{Binding CurrentLocationName, FallbackValue='Konum alınamadı'}"
+                               Style="{StaticResource Body2}"
+                               TextColor="{StaticResource TextSecondary}"
+                               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </Border>
 
+                <!-- Send Button -->
                 <Button Text="Gönder" 
-                        Style="{StaticResource NeonButtonStyle}" 
+                        Style="{StaticResource PrimaryButton}" 
                         Clicked="OnPostClicked"
-                        Margin="0,20,0,0"/>
+                        Margin="0,12,0,0"/>
 
             </VerticalStackLayout>
         </ScrollView>

@@ -533,6 +533,13 @@ builder.Services.AddOpenTelemetry()
 
 var app = builder.Build();
 
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<BlogDbContext>();
+    await db.Database.MigrateAsync();
+}
+
 // MongoDB index ensure
 using (var scope = app.Services.CreateScope())
 {

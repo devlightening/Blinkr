@@ -82,13 +82,6 @@ public partial class FeedPage : ContentPage
     private async void OnFilterClicked(object sender, EventArgs e)
     {
         if (sender is not Button button || _viewModel == null) return;
-
-        BtnYakin.Style = Resources["TabButton"] as Style;
-        BtnPopuler.Style = Resources["TabButton"] as Style;
-        BtnYeni.Style = Resources["TabButton"] as Style;
-
-        button.Style = Resources["TabButtonActive"] as Style;
-
         await _viewModel.OnFilterClickedAsync(button.Text);
     }
 }

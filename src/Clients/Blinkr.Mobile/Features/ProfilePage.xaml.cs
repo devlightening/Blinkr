@@ -23,7 +23,7 @@ public class ProfileViewModel
             CurrentUser = new UserProfile
             {
                 Id = Guid.NewGuid(),
-                Name = "Jaram Sabatt",
+                UserName = "Jaram Sabatt",
                 Email = "user@example.com",
                 PostCount = 124,
                 FollowerCount = 2500,
@@ -75,7 +75,7 @@ public class ProfileViewModel
 public class UserProfile
 {
     public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public int PostCount { get; set; }
     public int FollowerCount { get; set; }

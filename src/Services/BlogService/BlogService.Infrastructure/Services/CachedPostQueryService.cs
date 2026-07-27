@@ -1,6 +1,7 @@
 using BlogService.Application.DTOs.PostDtos;
 using BlogService.Application.Services.Queries;
 using BlogService.Infrastructure.ReadModels;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoDB.Driver.GeoJsonObjectModel;
 using Microsoft.Extensions.Caching.Distributed;
@@ -236,6 +237,33 @@ public class CachedPostQueryService : IPostQueryService
         {
             _logger.LogWarning(ex, "Cache error for nearby query, falling back to direct call");
             return await GetNearbyDirectAsync(q, cancellationToken);
+        }
+    }
+
+    public async Task<PagedResult<PostListDto>> GetBoundsAsync(BoundsQuery query, CancellationToken cancellationToken = default)
+    {
+        static double Round(double value) => Math.Round(value, 4, MidpointRounding.AwayFromZero);
+
+        var q = query.Clamp();
+        var key = $"bounds:{Round(q.MinLat)}:{Round(q.MinLon)}:{Round(q.MaxLat)}:{Round(q.MaxLon)}:{q.Zoom}:{q.SinceMinutes}:{q.Page}:{q.PageSize}";
+
+        try
+        {
+            var cached = await GetFromCacheAsync<PagedResult<PostListDto>>(key, cancellationToken);
+            if (cached is not null)
+            {
+                _logger.LogDebug("Cache HIT for map bounds query: {Key}", key);
+                return cached;
+            }
+
+            var result = await GetBoundsDirectAsync(q, cancellationToken);
+            await SetCacheAsync(key, result, TimeSpan.FromSeconds(30), cancellationToken);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Cache error for map bounds query, falling back to direct call");
+            return await GetBoundsDirectAsync(q, cancellationToken);
         }
     }
 
@@ -511,6 +539,43 @@ public class CachedPostQueryService : IPostQueryService
 
         var total = (int)await collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
         var items = await collection.Find(filter)
+            .Skip((q.Page - 1) * q.PageSize)
+            .Limit(q.PageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<PostListDto>(
+            items.Select(MapToListDto),
+            total,
+            q.Page,
+            q.PageSize
+        );
+    }
+
+    private async Task<PagedResult<PostListDto>> GetBoundsDirectAsync(BoundsQuery query, CancellationToken cancellationToken)
+    {
+        var collection = _mongoDb.GetCollection<PostDocument>("posts");
+        var q = query.Clamp();
+
+        var geoFilter = new BsonDocumentFilterDefinition<PostDocument>(
+            new BsonDocument("Location", new BsonDocument("$geoWithin",
+                new BsonDocument("$box", new BsonArray
+                {
+                    new BsonArray { q.MinLon, q.MinLat },
+                    new BsonArray { q.MaxLon, q.MaxLat }
+                }))));
+
+        var filter = geoFilter as FilterDefinition<PostDocument>;
+        if (q.SinceMinutes > 0)
+        {
+            var cutoff = DateTime.UtcNow.AddMinutes(-q.SinceMinutes);
+            filter = Builders<PostDocument>.Filter.And(
+                filter,
+                Builders<PostDocument>.Filter.Gte(p => p.CreatedAtUtc, cutoff));
+        }
+
+        var total = (int)await collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
+        var items = await collection.Find(filter)
+            .SortByDescending(p => p.CreatedAtUtc)
             .Skip((q.Page - 1) * q.PageSize)
             .Limit(q.PageSize)
             .ToListAsync(cancellationToken);

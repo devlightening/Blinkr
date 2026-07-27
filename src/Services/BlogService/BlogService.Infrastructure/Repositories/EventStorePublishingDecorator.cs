@@ -79,6 +79,10 @@ public class EventStorePublishingDecorator : IEventStoreRepository
                         AuthorId = e.AuthorId,
                         Title = e.Title,
                         Content = e.Content,
+                        Latitude = e.Latitude,
+                        Longitude = e.Longitude,
+                        AccuracyMeters = e.AccuracyMeters,
+                        LocationName = e.LocationName,
                         CreatedAt = e.OccurredOn,
                         CreatedBy = e.AuthorId
                     };

@@ -2,75 +2,110 @@
 <ContentPage x:Class="Blinkr.Mobile.Features.ProfilePage"
              xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             BackgroundColor="{StaticResource AppBackgroundDark}"
+             BackgroundColor="{StaticResource BlinkrBackground}"
              Title="Profil">
 
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="20">
+        <VerticalStackLayout Padding="24" Spacing="24">
 
-            <VerticalStackLayout Spacing="15" HorizontalOptions="Center" Margin="0,20,0,0">
-                <Border Stroke="{StaticResource NeonYellow}"
-                        StrokeThickness="2"
-                        StrokeShape="RoundRectangle 60"
-                        HeightRequest="120"
-                        WidthRequest="120"
+            <!-- Hero Header: Avatar + Username -->
+            <VerticalStackLayout Spacing="12" HorizontalOptions="Center">
+                <!-- Avatar with Yellow Border -->
+                <Border StrokeThickness="3"
+                        Stroke="{StaticResource BlinkrAccent}"
+                        StrokeShape="RoundRectangle 48"
+                        HeightRequest="96"
+                        WidthRequest="96"
                         HorizontalOptions="Center"
-                        BackgroundColor="{StaticResource CardDark}">
-                    <Border.Shadow>
-                        <Shadow Brush="{StaticResource NeonYellow}" Radius="25" Opacity="0.5" Offset="0,0"/>
-                    </Border.Shadow>
-                    <Label Text="👤" FontSize="60" HorizontalOptions="Center" VerticalOptions="Center"/>
+                        BackgroundColor="{StaticResource BlinkrCardBackground}">
+                    <Label Text="👤" 
+                           FontSize="48" 
+                           HorizontalOptions="Center" 
+                           VerticalOptions="Center"/>
                 </Border>
 
-                <Label Text="Jaram Sabatt" 
-                       TextColor="White" 
-                       FontSize="22" 
-                       FontAttributes="Bold"
+                <!-- Username -->
+                <Label Text="{Binding UserName}" 
+                       Style="{StaticResource HeadlineMedium}"
+                       TextColor="{StaticResource TextPrimary}"
+                       HorizontalOptions="Center"/>
+                
+                <!-- Email/Handle -->
+                <Label Text="{Binding Email}" 
+                       Style="{StaticResource BodySmall}"
+                       TextColor="{StaticResource TextSecondary}"
                        HorizontalOptions="Center"/>
             </VerticalStackLayout>
 
-            <Grid ColumnDefinitions="*,*,*" Margin="0,10">
-                <VerticalStackLayout Grid.Column="0" Spacing="2">
-                    <Label Text="124" TextColor="{StaticResource NeonYellow}" FontSize="20" FontAttributes="Bold" HorizontalOptions="Center"/>
-                    <Label Text="gönderi" TextColor="Gray" FontSize="12" HorizontalOptions="Center"/>
-                </VerticalStackLayout>
+            <!-- Stats Bar -->
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                <!-- Posts Count -->
+                <Border Grid.Column="0" Style="{StaticResource CardContainer}" Padding="16,12">
+                    <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                        <Label Text="{Binding PostCount, StringFormat='{0}'}" 
+                               Style="{StaticResource TitleMedium}"
+                               TextColor="{StaticResource BlinkrAccent}"
+                               HorizontalOptions="Center"/>
+                        <Label Text="Gönderi" 
+                               Style="{StaticResource BodySmall}"
+                               TextColor="{StaticResource TextSecondary}"
+                               HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                </Border>
                 
-                <VerticalStackLayout Grid.Column="1" Spacing="2">
-                    <Label Text="2.5K" TextColor="White" FontSize="20" FontAttributes="Bold" HorizontalOptions="Center"/>
-                    <Label Text="takipçi" TextColor="Gray" FontSize="12" HorizontalOptions="Center"/>
-                </VerticalStackLayout>
+                <!-- Followers Count -->
+                <Border Grid.Column="1" Style="{StaticResource CardContainer}" Padding="16,12">
+                    <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                        <Label Text="0" 
+                               Style="{StaticResource TitleMedium}"
+                               TextColor="{StaticResource TextPrimary}"
+                               HorizontalOptions="Center"/>
+                        <Label Text="Takipçi" 
+                               Style="{StaticResource BodySmall}"
+                               TextColor="{StaticResource TextSecondary}"
+                               HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                </Border>
                 
-                <VerticalStackLayout Grid.Column="2" Spacing="2">
-                    <Label Text="890" TextColor="{StaticResource NeonYellow}" FontSize="20" FontAttributes="Bold" HorizontalOptions="Center"/>
-                    <Label Text="takip edilen" TextColor="Gray" FontSize="12" HorizontalOptions="Center"/>
-                </VerticalStackLayout>
+                <!-- Following Count -->
+                <Border Grid.Column="2" Style="{StaticResource CardContainer}" Padding="16,12">
+                    <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                        <Label Text="0" 
+                               Style="{StaticResource TitleMedium}"
+                               TextColor="{StaticResource TextPrimary}"
+                               HorizontalOptions="Center"/>
+                        <Label Text="Takip Edilen" 
+                               Style="{StaticResource BodySmall}"
+                               TextColor="{StaticResource TextSecondary}"
+                               HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                </Border>
             </Grid>
 
+            <!-- Settings Button -->
             <Button Text="Ayarlar" 
-                    Style="{StaticResource NeonButtonStyle}"
-                    HorizontalOptions="Center"
-                    WidthRequest="200"/>
+                    Style="{StaticResource PrimaryButton}"
+                    Margin="0,8,0,0" />
 
-            <Label Text="Mini işi haritası" 
-                   TextColor="White" 
-                   FontAttributes="Bold" 
-                   FontSize="16"
-                   Margin="0,10,0,0"/>
-
-            <Grid RowDefinitions="110, 110" ColumnDefinitions="*,*" ColumnSpacing="15" RowSpacing="15">
-                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource DarkCardBox}">
-                    <Label Text="📍" VerticalOptions="Center" HorizontalOptions="Center" FontSize="30"/>
-                </Border>
-                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource DarkCardBox}">
-                     <Label Text="💬" VerticalOptions="Center" HorizontalOptions="Center" FontSize="30" TextColor="#42A5F5"/>
-                </Border>
-                 <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource DarkCardBox}">
-                     <Label Text="🌲" VerticalOptions="Center" HorizontalOptions="Center" FontSize="30"/>
-                </Border>
-                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource DarkCardBox}">
-                     <Label Text="⚙️" VerticalOptions="Center" HorizontalOptions="Center" FontSize="30" TextColor="Gray"/>
-                </Border>
-            </Grid>
+            <!-- Mini Map Card -->
+            <Border Style="{StaticResource CardContainer}">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Son Konumlar" 
+                           Style="{StaticResource TitleMedium}"
+                           TextColor="{StaticResource TextPrimary}"/>
+                    
+                    <Border HeightRequest="120"
+                            BackgroundColor="{StaticResource BlinkrCardBackground}"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 16">
+                        <Label Text="🗺️ Mini Harita"
+                               FontSize="18"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center"
+                               TextColor="{StaticResource TextSecondary}" />
+                    </Border>
+                </VerticalStackLayout>
+            </Border>
 
         </VerticalStackLayout>
     </ScrollView>

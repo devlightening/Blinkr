@@ -2,6 +2,42 @@ using Blinkr.Mobile.Core.Api;
 
 namespace Blinkr.Mobile.Features;
 
+public class CreatePageViewModel
+{
+    private readonly IApiClient? _apiClient;
+    private readonly IGeolocation _geolocation;
+    
+    public string CurrentLocationName { get; set; } = "Konum alınamadı";
+
+    public CreatePageViewModel(IApiClient? apiClient = null, IGeolocation? geolocation = null)
+    {
+        _apiClient = apiClient;
+        _geolocation = geolocation ?? Geolocation.Default;
+    }
+
+    public async Task UpdateLocationAsync()
+    {
+        try
+        {
+            var request = new GeolocationRequest
+            {
+                DesiredAccuracy = GeolocationAccuracy.Medium,
+                Timeout = TimeSpan.FromSeconds(10)
+            };
+            
+            var location = await _geolocation.GetLocationAsync(request);
+            if (location != null)
+            {
+                CurrentLocationName = $"{location.Latitude:F2}, {location.Longitude:F2}";
+            }
+        }
+        catch
+        {
+            CurrentLocationName = "Konum alınamadı";
+        }
+    }
+}
+
 public partial class CreatePage : ContentPage
 {
     private readonly IApiClient? _apiClient;
@@ -12,6 +48,7 @@ public partial class CreatePage : ContentPage
         InitializeComponent();
         _apiClient = apiClient;
         _geolocation = geolocation ?? Geolocation.Default;
+        BindingContext = new CreatePageViewModel(apiClient, geolocation);
     }
 
     private async void OnSelectMediaClicked(object sender, EventArgs e)

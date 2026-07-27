@@ -26,7 +26,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
     ports:
-      - "5050:80"
+      - "5051:80"
     depends_on:
       postgres:
         condition: service_healthy
@@ -115,6 +115,7 @@ services:
       RabbitMq__Host: rabbitmq
       RabbitMq__User: ${RABBITMQ_DEFAULT_USER}
       RabbitMq__Pass: ${RABBITMQ_DEFAULT_PASS}
+      Redis__ConnectionString: redis:6379
     depends_on:
       mongodb:
         condition: service_started

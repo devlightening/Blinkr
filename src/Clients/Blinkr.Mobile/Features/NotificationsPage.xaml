@@ -8,13 +8,17 @@
     <Grid RowDefinitions="Auto,*">
 
         <!-- HEADER -->
-        <Grid Padding="24,24,24,12" ColumnDefinitions="*,Auto">
-            <Label Text="Bildirimler"
-                   Style="{StaticResource H1}"
-                   VerticalOptions="Center" />
-            <Button Text="Tümünü Oku"
-                    Style="{StaticResource PrimaryButton}"
-                    Padding="16,8"
+        <Grid Padding="24,24,24,16" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <VerticalStackLayout Grid.Column="0" Spacing="4">
+                <Label Text="Bildirimler"
+                       Style="{StaticResource H1}"
+                       TextColor="{StaticResource BlinkrAccent}" />
+            </VerticalStackLayout>
+            <Button Grid.Column="1"
+                    Text="Tümünü Oku"
+                    Style="{StaticResource SecondaryButton}"
+                    Padding="12,8"
+                    VerticalOptions="Center"
                     Command="{Binding MarkAllAsReadCommand}" />
         </Grid>
 

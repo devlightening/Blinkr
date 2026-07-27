@@ -16,13 +16,14 @@
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
+        <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
     
     <Style TargetType="TabBar">
-      <Setter Property="Shell.TabBarBackgroundColor" Value="{StaticResource Surface}" />
-      <Setter Property="Shell.TabBarForegroundColor" Value="{StaticResource Primary}" />
-      <Setter Property="Shell.TabBarUnselectedColor" Value="{StaticResource TabInactive}" />
+      <Setter Property="Shell.TabBarBackgroundColor" Value="{StaticResource NavBarBackground}" />
+      <Setter Property="Shell.TabBarForegroundColor" Value="{StaticResource NavBarItemActive}" />
+      <Setter Property="Shell.TabBarUnselectedColor" Value="{StaticResource NavBarItemInactive}" />
     </Style>
   </Shell.Resources>
   

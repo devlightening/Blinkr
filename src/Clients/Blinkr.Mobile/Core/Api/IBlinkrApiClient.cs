@@ -72,7 +72,8 @@ public record PostLocationDto(
     bool IsLive = false,
     string? MediaUrl = null,
     double? DistanceMeters = null,
-    string? Gender = null);
+    string? Gender = null,
+    string? LocationName = null);
 
 /// <summary>
 /// Full post detail DTO - matches backend PostResponseDto

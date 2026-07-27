@@ -5,18 +5,23 @@
              x:Class="Blinkr.Mobile.Features.MapPage"
              x:DataType="vm:MapViewModel"
              Title="Harita"
-             BackgroundColor="{StaticResource AppBackgroundDark}"
+             BackgroundColor="{StaticResource BlinkrBackground}"
              Padding="0">
 
     <Grid RowDefinitions="Auto,*,Auto">
 
         <!-- HEADER -->
-        <Border Grid.Row="0" BackgroundColor="{StaticResource AppBackgroundDark}" StrokeThickness="0" Padding="0">
-            <VerticalStackLayout Padding="20,12,20,12" Spacing="2">
-                <Label Text="Harita" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource NeonYellow}" />
-                <Label Text="Yakınındaki paylaşımları keşfet" FontSize="12" TextColor="{StaticResource TextSecondary}" />
-            </VerticalStackLayout>
-        </Border>
+        <VerticalStackLayout Grid.Row="0" 
+                            Padding="24,24,24,12" 
+                            Spacing="4"
+                            BackgroundColor="{StaticResource BlinkrBackground}">
+            <Label Text="Harita" 
+                   Style="{StaticResource H1}"
+                   TextColor="{StaticResource BlinkrAccent}" />
+            <Label Text="Yakınındaki paylaşımları keşfet" 
+                   Style="{StaticResource Body2}"
+                   TextColor="{StaticResource TextSecondary}" />
+        </VerticalStackLayout>
 
         <!-- MAP CONTAINER -->
         <Grid Grid.Row="1">
@@ -32,65 +37,51 @@
                                  Margin="0,0,16,0">
                 <!-- Refresh Button -->
                 <Button Text="⟳"
-                        BackgroundColor="{StaticResource NeonYellow}"
+                        Style="{StaticResource IconButton}"
+                        BackgroundColor="{StaticResource BlinkrAccent}"
                         TextColor="{StaticResource TextInverse}"
                         FontSize="20"
-                        CornerRadius="24"
-                        WidthRequest="48"
-                        HeightRequest="48"
-                        Padding="0"
                         Command="{Binding LoadNearbyCommand}" />
 
                 <!-- My Location Button -->
                 <Button Text="📍"
-                        BackgroundColor="{StaticResource CardDark}"
-                        TextColor="{StaticResource NeonYellow}"
+                        Style="{StaticResource IconButton}"
+                        BackgroundColor="{StaticResource BlinkrCardBackground}"
+                        TextColor="{StaticResource BlinkrAccent}"
                         FontSize="20"
-                        CornerRadius="24"
-                        WidthRequest="48"
-                        HeightRequest="48"
-                        Padding="0"
-                        BorderColor="{StaticResource NeonYellow}"
+                        BorderColor="{StaticResource BlinkrAccent}"
                         BorderWidth="1" />
             </VerticalStackLayout>
         </Grid>
 
-        <!-- BOTTOM SHEET CARD - Sayfanın en altında, scrollable -->
+        <!-- BOTTOM SHEET CARD -->
         <Border Grid.Row="2"
-                BackgroundColor="{StaticResource CardDark}"
-                StrokeThickness="1"
-                Stroke="{StaticResource NeonYellow}"
+                Style="{StaticResource BottomSheet}"
                 Margin="0"
                 Padding="0"
                 IsVisible="{Binding IsBottomSheetVisible}">
-            <Border.StrokeShape>
-                <RoundRectangle CornerRadius="20,20,0,0" />
-            </Border.StrokeShape>
-            <Border.Shadow>
-                <Shadow Brush="{StaticResource NeonYellow}" Radius="12" Opacity="0.3" Offset="0,-4"/>
-            </Border.Shadow>
 
             <ScrollView>
-                <VerticalStackLayout Spacing="12" Padding="16,16,16,20">
+                <VerticalStackLayout Spacing="12" Padding="20,16,20,20">
 
                     <!-- Drag Handle -->
-                    <BoxView WidthRequest="40" HeightRequest="4"
+                    <BoxView WidthRequest="40" 
+                             HeightRequest="4"
                              BackgroundColor="{StaticResource DividerColor}"
                              CornerRadius="2"
                              HorizontalOptions="Center"
-                             Margin="0,8,0,8" />
+                             Margin="0,4,0,8" />
 
                     <!-- User Info Section -->
                     <HorizontalStackLayout Spacing="12">
                         <!-- Avatar -->
-                        <Border WidthRequest="48" HeightRequest="48"
-                                BackgroundColor="{StaticResource CardBackground}"
+                        <Border WidthRequest="48" 
+                                HeightRequest="48"
+                                BackgroundColor="{StaticResource BlinkrCardBackground}"
                                 StrokeThickness="2"
-                                Stroke="{StaticResource NeonYellow}"
-                                Padding="0">
-                            <Border.StrokeShape>
-                                <Ellipse />
-                            </Border.StrokeShape>
+                                Stroke="{StaticResource BlinkrAccent}"
+                                Padding="0"
+                                StrokeShape="RoundRectangle 24">
                             <Label Text="👤"
                                    FontSize="24"
                                    HorizontalOptions="Center"
@@ -100,34 +91,39 @@
                         <!-- User Details -->
                         <VerticalStackLayout Spacing="2" VerticalOptions="Center">
                             <Label Text="{Binding SelectedPostDetail.AuthorName, FallbackValue='Blinkr User'}"
-                                   FontSize="14"
-                                   FontAttributes="Bold"
+                                   Style="{StaticResource Body1Bold}"
                                    TextColor="{StaticResource TextPrimary}" />
-                            <Label Text="{Binding SelectedPostDetail.Title, FallbackValue='Post'}"
-                                   FontSize="12"
+                            <Label Text="{Binding SelectedPostDetail.LocationName, FallbackValue='Konum'}"
+                                   Style="{StaticResource Body2}"
                                    TextColor="{StaticResource TextSecondary}" />
                         </VerticalStackLayout>
                     </HorizontalStackLayout>
 
+                    <!-- Post Title -->
+                    <Label Text="{Binding SelectedPostDetail.Title, FallbackValue='Post'}"
+                           Style="{StaticResource Body1Bold}"
+                           TextColor="{StaticResource TextPrimary}" />
+
                     <!-- Post Description -->
                     <Label Text="{Binding SelectedPostDetail.Content}"
-                           FontSize="13"
+                           Style="{StaticResource Body1}"
                            TextColor="{StaticResource TextSecondary}"
-                           LineBreakMode="WordWrap" />
+                           LineBreakMode="WordWrap"
+                           MaxLines="4" />
 
                     <!-- Stats Row -->
                     <HorizontalStackLayout Spacing="16">
                         <HorizontalStackLayout Spacing="4">
                             <Label Text="❤️" FontSize="14" />
                             <Label Text="{Binding SelectedPostDetail.LikeCount, StringFormat='{0}'}"
-                                   FontSize="12"
+                                   Style="{StaticResource Body2}"
                                    TextColor="{StaticResource TextSecondary}" />
                         </HorizontalStackLayout>
 
                         <HorizontalStackLayout Spacing="4">
                             <Label Text="💬" FontSize="14" />
                             <Label Text="{Binding SelectedPostDetail.CommentCount, StringFormat='{0}'}"
-                                   FontSize="12"
+                                   Style="{StaticResource Body2}"
                                    TextColor="{StaticResource TextSecondary}" />
                         </HorizontalStackLayout>
                     </HorizontalStackLayout>
@@ -135,38 +131,21 @@
                     <!-- Action Buttons -->
                     <HorizontalStackLayout Spacing="8">
                         <Button Text="📞"
-                                BackgroundColor="{StaticResource CardBackground}"
-                                TextColor="{StaticResource TextPrimary}"
-                                FontSize="16"
-                                CornerRadius="10"
-                                Padding="8,6"
+                                Style="{StaticResource SecondaryButton}"
                                 HorizontalOptions="FillAndExpand" />
 
                         <Button Text="💬"
-                                BackgroundColor="{StaticResource CardBackground}"
-                                TextColor="{StaticResource TextPrimary}"
-                                FontSize="16"
-                                CornerRadius="10"
-                                Padding="8,6"
+                                Style="{StaticResource SecondaryButton}"
                                 HorizontalOptions="FillAndExpand" />
 
                         <Button Text="ℹ️"
-                                BackgroundColor="{StaticResource CardBackground}"
-                                TextColor="{StaticResource TextPrimary}"
-                                FontSize="16"
-                                CornerRadius="10"
-                                Padding="8,6"
+                                Style="{StaticResource SecondaryButton}"
                                 HorizontalOptions="FillAndExpand" />
                     </HorizontalStackLayout>
 
                     <!-- Directions Button -->
                     <Button Text="🗺️ Yol Tarifi"
-                            BackgroundColor="{StaticResource NeonYellow}"
-                            TextColor="{StaticResource TextInverse}"
-                            FontSize="15"
-                            FontAttributes="Bold"
-                            CornerRadius="12"
-                            Padding="16,10" />
+                            Style="{StaticResource PrimaryButton}" />
 
                 </VerticalStackLayout>
             </ScrollView>

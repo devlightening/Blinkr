@@ -1,5 +1,6 @@
 using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommands;
+using BlogService.Application.Services;
 using BlogService.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -11,15 +12,18 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
 
     private readonly IEventStoreRepository _eventStoreRepo;
     private readonly ICurrentUserService _currentUser;
+    private readonly IGeocodingService _geocodingService;
     private readonly ILogger<CreatePostCommandHandler> _logger;
 
     public CreatePostCommandHandler(
         IEventStoreRepository eventStoreRepo,
         ICurrentUserService currentUser,
+        IGeocodingService geocodingService,
         ILogger<CreatePostCommandHandler> logger)
     {
         _eventStoreRepo = eventStoreRepo;
         _currentUser = currentUser;
+        _geocodingService = geocodingService;
         _logger = logger;
     }
 
@@ -57,6 +61,31 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
         var authorName = request.AuthorName ?? throw new ArgumentException("Author name is required");
         var authorGender = request.AuthorGender;
         
+        // Auto-fill location name via reverse geocoding if not provided and coordinates are available
+        var locationName = request.LocationName;
+        if (string.IsNullOrWhiteSpace(locationName) && request.Latitude.HasValue && request.Longitude.HasValue)
+        {
+            try
+            {
+                _logger.LogDebug("🌍 Auto-geocoding location for lat={Lat}, lon={Lon}", request.Latitude.Value, request.Longitude.Value);
+                locationName = await _geocodingService.TryReverseAsync(request.Latitude.Value, request.Longitude.Value, ct);
+                if (!string.IsNullOrWhiteSpace(locationName))
+                {
+                    _logger.LogInformation("🌍 Geocoding success: {LocationName}", locationName);
+                }
+                else
+                {
+                    _logger.LogWarning("🌍 Geocoding returned empty result for lat={Lat}, lon={Lon}", request.Latitude.Value, request.Longitude.Value);
+                }
+            }
+            catch (Exception geocodingEx)
+            {
+                _logger.LogWarning(geocodingEx, "🌍 Geocoding failed for lat={Lat}, lon={Lon}, continuing without location name", 
+                    request.Latitude.Value, request.Longitude.Value);
+                // Continue without location name - don't fail post creation
+            }
+        }
+        
         var postAggregate = PostAggregate.Create(
             Guid.NewGuid(), 
             authorId, 
@@ -65,7 +94,7 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
             request.Latitude,
             request.Longitude,
             request.AccuracyMeters,
-            request.LocationName,
+            locationName,
             authorName,
             authorGender);
 

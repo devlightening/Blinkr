@@ -203,6 +203,59 @@ public class PostsReadController : ControllerBase
     }
 
     /// <summary>
+    /// Get posts inside the currently visible map bounds.
+    /// </summary>
+    [HttpGet("bounds")]
+    [AllowAnonymous]
+    [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "minLat", "minLon", "minLng", "maxLat", "maxLon", "maxLng", "zoom", "sinceMinutes", "page", "pageSize" })]
+    [ProducesResponseType(typeof(PagedResult<PostListDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PagedResult<PostListDto>>> GetBounds(
+        [FromQuery] double minLat,
+        [FromQuery] double? minLon,
+        [FromQuery] double? minLng,
+        [FromQuery] double maxLat,
+        [FromQuery] double? maxLon,
+        [FromQuery] double? maxLng,
+        [FromQuery] int zoom = 12,
+        [FromQuery] int sinceMinutes = 180,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 100,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var effectiveMinLon = minLon ?? minLng;
+            var effectiveMaxLon = maxLon ?? maxLng;
+
+            if (effectiveMinLon is null || effectiveMaxLon is null)
+            {
+                return BadRequest("Invalid bounds. Provide longitude bounds as minLon/maxLon or minLng/maxLng.");
+            }
+
+            if (minLat is < -90 or > 90 || maxLat is < -90 or > 90 ||
+                effectiveMinLon is < -180 or > 180 || effectiveMaxLon is < -180 or > 180)
+            {
+                return BadRequest("Invalid bounds. Latitude must be between -90 and 90, longitude between -180 and 180.");
+            }
+
+            var query = new BoundsQuery(minLat, effectiveMinLon.Value, maxLat, effectiveMaxLon.Value, zoom, sinceMinutes, page, pageSize);
+            var result = await _queryService.GetBoundsAsync(query, ct);
+
+            _logger.LogInformation(
+                "Map bounds posts retrieved: minLat={MinLat}, minLon={MinLon}, maxLat={MaxLat}, maxLon={MaxLon}, zoom={Zoom}, hits={Hits}",
+                minLat, effectiveMinLon, maxLat, effectiveMaxLon, zoom, result.Items.Count());
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving posts for map bounds");
+            return StatusCode(500, "An error occurred while retrieving posts for map bounds");
+        }
+    }
+
+    /// <summary>
     /// Get posts by author
     /// </summary>
     /// <param name="authorId">Author ID</param>
