@@ -12,6 +12,7 @@ using NotificationsService.Infrastructure.Repositories;
 using NotificationsService.Infrastructure.Config;
 using NotificationsService.Infrastructure.Messaging;
 using NotificationsService.Infrastructure.Push;
+using Shared.Auth;
 
 namespace NotificationsService.Api.Extensions;
 
@@ -99,17 +100,9 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddNotificationsAuthentication(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddNotificationsAuthentication(this IServiceCollection services, IConfiguration configuration, string environmentName)
     {
-        var jwtSection = configuration.GetSection("Jwt");
-        var jwtIssuer = jwtSection["Issuer"];
-        var jwtAudience = jwtSection["Audience"];
-        var jwtKey = jwtSection["Key"];
-
-        if (string.IsNullOrWhiteSpace(jwtKey))
-        {
-            throw new InvalidOperationException("Jwt:Key is not configured. Check appsettings.Development.json.");
-        }
+        var jwtOptions = BlinkrJwtOptions.FromConfiguration(configuration, environmentName);
 
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -119,22 +112,26 @@ public static class ServiceCollectionExtensions
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
-                    ValidIssuer = jwtIssuer,
+                    ValidIssuer = jwtOptions.Issuer,
                     ValidateAudience = true,
-                    ValidAudience = jwtAudience,
+                    ValidAudience = jwtOptions.Audience,
                     ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.FromMinutes(1),
-                    NameClaimType = "sub",
-                    RoleClaimType = "role"
+                    ClockSkew = jwtOptions.ClockSkew,
+                    NameClaimType = BlinkrJwtOptions.CanonicalUserIdClaim,
+                    RoleClaimType = BlinkrJwtOptions.RoleClaimType,
+                    AlgorithmValidator = (algorithm, _, _, _) =>
+                        algorithm == SecurityAlgorithms.HmacSha256 ||
+                        algorithm == SecurityAlgorithms.HmacSha256Signature
                 };
 
                 options.Events = new JwtBearerEvents
                 {
                     OnAuthenticationFailed = ctx =>
                     {
-                        Console.WriteLine($"[JWT FAILED] {ctx.Exception.Message}");
+                        var logger = ctx.HttpContext.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("JwtBearer");
+                        logger?.LogWarning("JWT authentication failed: {ExceptionType}", ctx.Exception.GetType().Name);
                         return Task.CompletedTask;
                     },
                     OnChallenge = context =>

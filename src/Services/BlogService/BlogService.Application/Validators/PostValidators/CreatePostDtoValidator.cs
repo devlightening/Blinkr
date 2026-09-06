@@ -7,14 +7,12 @@ public class CreatePostDtoValidator : AbstractValidator<CreatePostDto>
 {
     public CreatePostDtoValidator()
     {
-        RuleFor(x => x.Title)
-            .NotEmpty().When(x => x.SignalType == "GeneralObservation")
-            .WithMessage("Title is required for detailed signals")
-            .MaximumLength(200).WithMessage("Title cannot exceed 200 characters");
+        RuleFor(x => x)
+            .Must(x => HasSignal(x) || HasText(x) || HasMedia(x))
+            .WithMessage("Post must contain signal, text, or media");
 
-        RuleFor(x => x.Content)
-            .NotEmpty().When(x => x.SignalType == "GeneralObservation")
-            .WithMessage("Content is required for detailed signals");
+        RuleFor(x => x.Title)
+            .MaximumLength(200).WithMessage("Title cannot exceed 200 characters");
 
         RuleFor(x => x.Content)
             .MinimumLength(5).When(x => !string.IsNullOrWhiteSpace(x.Content))
@@ -64,4 +62,14 @@ public class CreatePostDtoValidator : AbstractValidator<CreatePostDto>
             .NotEmpty().WithMessage("Location name is required")
             .MaximumLength(500).WithMessage("Location name cannot exceed 500 characters");
     }
+
+    private static bool HasSignal(CreatePostDto dto) =>
+        !string.Equals(dto.SignalType, "GeneralObservation", StringComparison.Ordinal)
+        && !string.IsNullOrWhiteSpace(dto.SignalValue);
+
+    private static bool HasText(CreatePostDto dto) =>
+        !string.IsNullOrWhiteSpace(dto.Title) || !string.IsNullOrWhiteSpace(dto.Content);
+
+    private static bool HasMedia(CreatePostDto dto) =>
+        dto.Media?.Any(m => m.MediaId.HasValue) == true;
 }

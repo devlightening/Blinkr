@@ -54,7 +54,8 @@ namespace BlogService.Domain.Entities
             string identityDisclosure = "LimitedProfile",
             string locationPrecision = "ApproximateArea",
             string sourceType = "Community",
-            DateTime? expiresAt = null)
+            DateTime? expiresAt = null,
+            ICollection<PostMediaInfo>? media = null)
         {
             var post = new PostAggregate();
             post.ApplyNewEvent(new PostCreatedEvent(
@@ -76,7 +77,8 @@ namespace BlogService.Domain.Entities
                 identityDisclosure,
                 locationPrecision,
                 sourceType,
-                expiresAt));
+                expiresAt,
+                media));
             return post;
         }
 
@@ -169,6 +171,20 @@ namespace BlogService.Domain.Entities
             LocationPrecision = e.LocationPrecision;
             SourceType = e.SourceType;
             ExpiresAt = e.ExpiresAt;
+            if (e.Media is not null)
+            {
+                foreach (var media in e.Media)
+                {
+                    Enum.TryParse<MediaType>(media.MediaType, true, out var mediaTypeEnum);
+                    Media.Add(new PostMedia
+                    {
+                        Id = media.MediaId ?? Guid.NewGuid(),
+                        PostId = e.PostId,
+                        Url = media.Url,
+                        Type = mediaTypeEnum
+                    });
+                }
+            }
         }
 
         private void Apply(PostContentUpdatedEvent e)

@@ -20,7 +20,10 @@ namespace BlogService.Application.Features.Mediatr.Comamnds.PostCommands
       string AudienceType = "Public",
       string IdentityDisclosure = "LimitedProfile",
       string LocationPrecision = "ApproximateArea",
-      DateTime? ExpiresAt = null
+      DateTime? ExpiresAt = null,
+      double? ObservationLatitude = null,
+      double? ObservationLongitude = null,
+      double? ObservationAccuracyMeters = null
   ) : IRequest<Guid>;
 
 }

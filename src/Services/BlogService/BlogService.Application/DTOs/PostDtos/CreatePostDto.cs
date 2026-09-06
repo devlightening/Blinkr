@@ -17,6 +17,9 @@ namespace BlogService.Application.DTOs.PostDtos
         
         [JsonPropertyName("accuracyMeters")]
         public double? AccuracyMeters { get; set; }
+        public double? ObservationLatitude { get; set; }
+        public double? ObservationLongitude { get; set; }
+        public double? ObservationAccuracyMeters { get; set; }
         
         [JsonPropertyName("locationName")]
         public string? LocationName { get; set; }

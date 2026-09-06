@@ -5,6 +5,7 @@ namespace BlogService.Application.DTOs.PostDtos
 {
     public class CreatePostMediaDto
     {
+        public Guid? MediaId { get; set; }
         public string? Url { get; set; }
         
         [JsonPropertyName("mediaType")]

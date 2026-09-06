@@ -2,10 +2,14 @@ using HealthChecks.UI.Client;
 using IdentityService.Application.Interfaces;
 using IdentityService.Infrastructure.Data;
 using IdentityService.Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using Shared.Auth;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,13 +55,39 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // DI: Application <-> Infrastructure
 builder.Services.AddScoped<IUserService, UserService>();
 
-// Authentication & Authorization
-builder.Services.AddAuthentication("Bearer")
-    .AddJwtBearer("Bearer", options =>
+// Authentication & Authorization: IdentityService is the sole JWT authority for the MVP.
+var jwtOptions = BlinkrJwtOptions.FromConfiguration(builder.Configuration, builder.Environment.EnvironmentName);
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        options.Authority = "https://localhost:7122"; // IdentityServer URL
-        options.RequireHttpsMetadata = true;
-        options.Audience = "blinkr.api"; // token'daki "aud"
+        options.RequireHttpsMetadata = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
+            ValidateLifetime = true,
+            ClockSkew = jwtOptions.ClockSkew,
+            NameClaimType = BlinkrJwtOptions.CanonicalUserIdClaim,
+            RoleClaimType = BlinkrJwtOptions.RoleClaimType,
+            AlgorithmValidator = (algorithm, _, _, _) =>
+                algorithm == SecurityAlgorithms.HmacSha256 ||
+                algorithm == SecurityAlgorithms.HmacSha256Signature
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = context =>
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+                return context.Response.WriteAsync("{\"error\":\"Unauthorized\"}");
+            }
+        };
     });
 
 builder.Services.AddAuthorization();

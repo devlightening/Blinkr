@@ -1,23 +1,26 @@
+import { ResizeMode, Video } from 'expo-av';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import {
   AlertCircle,
+  Camera,
   Check,
-  ChevronLeft,
-  Clock3,
   Crosshair,
-  FileText,
-  Gauge,
+  Image as ImageIcon,
   MapPin,
   Navigation,
+  Search,
   Send,
   Settings,
   ShieldCheck,
-  Sparkles,
+  Store,
+  Trash2,
   X,
 } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -30,185 +33,211 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { uploadMedia } from '../api';
 import { colors, shadow } from '../theme';
 import type {
+  AuthResponse,
+  BlinkrPlace,
   ComposerArea,
   CreateSignalInput,
   IdentityDisclosure,
   LocationReadiness,
+  MediaKind,
   SignalType,
+  UploadState,
 } from '../types';
 
 type ComposerInput = Omit<CreateSignalInput, 'latitude' | 'longitude' | 'accuracyMeters' | 'locationName'>;
-type Mode = 'quick' | 'detailed';
 
 type Props = {
   area: ComposerArea | null;
+  auth: AuthResponse;
   canAskLocationAgain: boolean;
   error: string | null;
   isSubmitting: boolean;
   locationReadiness: LocationReadiness;
+  nearbyPlaces: BlinkrPlace[];
+  onAuthChange: (auth: AuthResponse) => void;
   onClearError: () => void;
   onClose: () => void;
   onOpenSettings: () => void;
-  onSelectArea: (source: 'device' | 'map') => Promise<void>;
+  onSelectArea: (source: 'device' | 'map', place?: BlinkrPlace | null) => Promise<void>;
+  onSessionExpired: () => void;
   onSubmit: (input: ComposerInput) => Promise<void>;
   visible: boolean;
 };
 
-const signalTypes: Array<{ type: SignalType; label: string; description: string; quick: boolean }> = [
-  { type: 'Crowd', label: 'Doluluk', description: 'Mekân ne kadar yoğun?', quick: true },
-  { type: 'Queue', label: 'Sıra ve bekleme', description: 'Tahmini bekleme süresi', quick: true },
-  { type: 'TemporaryStatus', label: 'Geçici durum', description: 'Kapalı veya erişilemiyor', quick: true },
-  { type: 'Event', label: 'Etkinlik', description: 'Başlayan güncel bir etkinlik', quick: true },
-  { type: 'Offer', label: 'Fırsat', description: 'Gördüğün kampanya veya indirim', quick: true },
-  { type: 'NewOpening', label: 'Yeni açılış', description: 'Yeni açılan bir yer', quick: true },
-  { type: 'GeneralObservation', label: 'Genel gözlem', description: 'Detaylı ve güncel bir not', quick: false },
-];
-
-const valuesByType: Partial<Record<SignalType, Array<{ value: string; label: string }>>> = {
-  Crowd: [
-    { value: 'Calm', label: 'Sakin' },
-    { value: 'Moderate', label: 'Orta' },
-    { value: 'Busy', label: 'Yoğun' },
-    { value: 'VeryBusy', label: 'Çok yoğun' },
-  ],
-  Queue: [
-    { value: 'Under5', label: '5 dk altı' },
-    { value: '5To15', label: '5-15 dk' },
-    { value: '15To30', label: '15-30 dk' },
-    { value: 'Over30', label: '30 dk üzeri' },
-  ],
-  TemporaryStatus: [
-    { value: 'Closed', label: 'Kapalı' },
-    { value: 'Inaccessible', label: 'Erişilemiyor' },
-  ],
-  Event: [{ value: 'Started', label: 'Etkinlik başladı' }],
-  Offer: [{ value: 'Available', label: 'Fırsat var' }],
-  NewOpening: [{ value: 'Opened', label: 'Yeni açıldı' }],
+type MediaDraft = {
+  id: string;
+  mediaId?: string;
+  mediaType: MediaKind;
+  name: string;
+  previewUri: string;
+  status: UploadState;
+  error?: string;
 };
 
-const defaultHours: Record<SignalType, number> = {
-  Crowd: 1,
-  Queue: 1,
-  TemporaryStatus: 3,
-  GeneralObservation: 24,
-  Event: 24,
-  Offer: 24,
-  NewOpening: 168,
-};
-
-const durationOptions = [
-  { hours: 1, label: '1 saat' },
-  { hours: 3, label: '3 saat' },
-  { hours: 24, label: '24 saat' },
-  { hours: 168, label: '7 gün' },
+const signalTypes: Array<{ type: SignalType; label: string; value?: string }> = [
+  { type: 'Crowd', label: 'Doluluk', value: 'Busy' },
+  { type: 'Queue', label: 'Sıra', value: '5To15' },
+  { type: 'TemporaryStatus', label: 'Geçici durum', value: 'Closed' },
+  { type: 'Event', label: 'Etkinlik', value: 'Started' },
+  { type: 'Offer', label: 'Fırsat', value: 'Available' },
+  { type: 'GeneralObservation', label: 'Gözlem' },
 ];
 
-const getTypeLabel = (type: SignalType | null) =>
-  signalTypes.find((item) => item.type === type)?.label ?? 'Sinyal';
+const PRIMARY_NEARBY_RADIUS_METERS = 350;
+const PRIMARY_NEARBY_LIMIT = 4;
+
+const formatDistance = (meters?: number) => {
+  if (meters == null) return '';
+  if (meters < 1000) return `~${Math.round(meters)} m`;
+  return `~${(meters / 1000).toFixed(1)} km`;
+};
+
+const categoryLabels: Record<string, string> = {
+  BAR: 'Bar',
+  CAFE: 'Kafe',
+  EDUCATION: 'Eğitim',
+  ENTERTAINMENT: 'Eğlence',
+  FAST_FOOD: 'Fast Food',
+  FUEL: 'Akaryakıt',
+  HEALTH: 'Sağlık',
+  OTHER: 'Diğer',
+  PARK: 'Park',
+  PLAYGROUND: 'Oyun alanı',
+  PUBLIC: 'Kamusal yer',
+  RESTAURANT: 'Restoran',
+  SHOP: 'Mağaza',
+  SPORT: 'Spor',
+  SUPERMARKET: 'Market',
+  TOURISM: 'Gezilecek yer',
+  TRANSPORT: 'Ulaşım',
+};
+
+const formatCategory = (category?: string | null) => categoryLabels[(category ?? '').toUpperCase()] ?? 'Yer';
+const isRealtimeSignal = (type: SignalType) => ['GeneralObservation', 'Crowd', 'Queue', 'TemporaryStatus'].includes(type);
 
 export function SignalComposer({
   area,
+  auth,
   canAskLocationAgain,
   error,
   isSubmitting,
   locationReadiness,
+  nearbyPlaces,
+  onAuthChange,
   onClearError,
   onClose,
   onOpenSettings,
   onSelectArea,
+  onSessionExpired,
   onSubmit,
   visible,
 }: Props) {
   const insets = useSafeAreaInsets();
-  const [step, setStep] = useState(0);
-  const [mode, setMode] = useState<Mode | null>(null);
-  const [signalType, setSignalType] = useState<SignalType | null>(null);
+  const [signalType, setSignalType] = useState<SignalType>('GeneralObservation');
   const [signalValue, setSignalValue] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [expiryHours, setExpiryHours] = useState(3);
   const [identityDisclosure, setIdentityDisclosure] = useState<IdentityDisclosure>('LimitedProfile');
   const [isSelectingArea, setIsSelectingArea] = useState(false);
+  const [showExtendedPlaces, setShowExtendedPlaces] = useState(false);
+  const [media, setMedia] = useState<MediaDraft[]>([]);
+  const [mediaError, setMediaError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) {
-      setStep(0);
-      setMode(null);
-      setSignalType(null);
+      setSignalType('GeneralObservation');
       setSignalValue(null);
       setTitle('');
       setContent('');
-      setExpiryHours(3);
       setIdentityDisclosure('LimitedProfile');
+      setShowExtendedPlaces(false);
+      setMedia([]);
+      setMediaError(null);
     }
   }, [visible]);
 
-  const values = signalType ? valuesByType[signalType] ?? [] : [];
-  const selectedValueLabel = values.find((item) => item.value === signalValue)?.label;
-  const generatedTitle = signalType
-    ? selectedValueLabel ? `${getTypeLabel(signalType)}: ${selectedValueLabel}` : getTypeLabel(signalType)
-    : '';
-  const contentIsValid = mode === 'quick'
-    ? true
-    : title.trim().length > 0 && content.trim().length >= 5;
-  const typeIsValid = Boolean(signalType && (signalType === 'GeneralObservation' || signalValue));
-  const expiryLabel = useMemo(
-    () => durationOptions.find((item) => item.hours === expiryHours)?.label ?? `${expiryHours} saat`,
-    [expiryHours],
-  );
+  const selectedType = signalTypes.find((item) => item.type === signalType);
+  const readyMedia = media.filter((item) => item.status === 'ready' && item.mediaId);
+  const isMediaBusy = media.some((item) => item.status === 'preparing' || item.status === 'uploading');
+  const hasPayload = title.trim().length > 0 || content.trim().length >= 3 || readyMedia.length > 0 || signalType !== 'GeneralObservation';
+  const isRealtimePlaceBlocked = Boolean(area?.place && isRealtimeSignal(signalType) && area.proximity && !area.proximity.allowed);
+  const canPublish = Boolean(area && hasPayload && !isRealtimePlaceBlocked && !isSubmitting && !isMediaBusy && media.every((item) => item.status === 'ready'));
+  const placeName = useMemo(() => area?.place?.name ?? area?.name ?? 'Yaklaşık konum', [area]);
+  const primaryPlaces = nearbyPlaces
+    .filter((place) => (place.distanceMeters ?? Number.POSITIVE_INFINITY) <= PRIMARY_NEARBY_RADIUS_METERS)
+    .slice(0, PRIMARY_NEARBY_LIMIT);
+  const extendedPlaces = nearbyPlaces.filter((place) => !primaryPlaces.some((primary) => primary.id === place.id));
+  const visibleNearbyPlaces = showExtendedPlaces ? [...primaryPlaces, ...extendedPlaces].slice(0, 10) : primaryPlaces;
 
-  const chooseMode = (nextMode: Mode) => {
-    setMode(nextMode);
-    setSignalType(nextMode === 'detailed' ? 'GeneralObservation' : null);
-    setSignalValue(null);
-    setStep(1);
-    Haptics.selectionAsync();
-  };
-
-  const chooseType = (type: SignalType) => {
-    setSignalType(type);
-    const typeValues = valuesByType[type] ?? [];
-    setSignalValue(typeValues.length === 1 ? typeValues[0].value : null);
-    setExpiryHours(defaultHours[type]);
-    Haptics.selectionAsync();
-  };
-
-  const selectArea = async (source: 'device' | 'map') => {
+  const selectArea = async (source: 'device' | 'map', place?: BlinkrPlace | null) => {
     setIsSelectingArea(true);
     onClearError();
     try {
-      await onSelectArea(source);
+      await onSelectArea(source, place);
     } finally {
       setIsSelectingArea(false);
     }
   };
 
+  const pickMedia = async (source: 'camera' | 'library') => {
+    setMediaError(null);
+    const permission = source === 'camera'
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permission.status !== 'granted') {
+      setMediaError(source === 'camera' ? 'Kamera izni gerekiyor.' : 'Fotoğraf arşivi izni gerekiyor.');
+      return;
+    }
+
+    const result = source === 'camera'
+      ? await ImagePicker.launchCameraAsync({ allowsEditing: false, mediaTypes: ImagePicker.MediaTypeOptions.All, quality: 0.84, videoMaxDuration: 45 })
+      : await ImagePicker.launchImageLibraryAsync({ allowsEditing: false, mediaTypes: ImagePicker.MediaTypeOptions.All, quality: 0.84, videoMaxDuration: 45 });
+
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    const localId = `${Date.now()}-${asset.uri}`;
+    const draft: MediaDraft = {
+      id: localId,
+      mediaType: asset.type === 'video' ? 'Video' : 'Image',
+      name: asset.fileName || (asset.type === 'video' ? 'Video sinyali' : 'Fotoğraf sinyali'),
+      previewUri: asset.uri,
+      status: 'preparing',
+    };
+    setMedia((current) => [...current, draft]);
+
+    try {
+      setMedia((current) => current.map((item) => item.id === localId ? { ...item, status: 'uploading' } : item));
+      const uploaded = await uploadMedia(auth, asset, onAuthChange, onSessionExpired);
+      setMedia((current) => current.map((item) => item.id === localId
+        ? { ...item, mediaId: uploaded.mediaId, mediaType: uploaded.mediaType, status: 'ready' }
+        : item));
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      setMedia((current) => current.map((item) => item.id === localId
+        ? { ...item, error: err instanceof Error ? err.message : 'Medya yüklenemedi.', status: 'failed' }
+        : item));
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  };
+
   const publish = async () => {
-    if (!area || !signalType || !contentIsValid || !typeIsValid || isSubmitting) return;
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (!canPublish) return;
     await onSubmit({
-      title: mode === 'quick' ? generatedTitle : title.trim(),
-      content: content.trim(),
-      placeId: null,
-      signalType,
-      signalValue,
       audienceType: 'Public',
+      content: content.trim(),
+      expiresAt: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
       identityDisclosure,
-      locationPrecision: 'ApproximateArea',
-      expiresAt: new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString(),
+      locationPrecision: area?.place ? 'PlaceCenter' : 'ApproximateArea',
+      media: readyMedia.map((item) => ({ mediaId: item.mediaId as string, mediaType: item.mediaType })),
+      placeId: area?.place?.id ?? null,
+      signalType,
+      signalValue: selectedType?.value ?? signalValue,
+      title: title.trim() || selectedType?.label || 'Yeni sinyal',
     });
   };
-
-  const next = () => {
-    onClearError();
-    if (step === 1 && !typeIsValid) return;
-    if (step === 2 && !contentIsValid) return;
-    setStep((current) => Math.min(3, current + 1));
-  };
-
-  const stepTitle = ['Bir yer seç', 'Ne oluyor?', 'Sinyali tamamla', 'Yayınlamadan önce'][step];
 
   return (
     <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
@@ -217,219 +246,186 @@ export function SignalComposer({
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           <View style={styles.handle} />
           <View style={styles.header}>
-            <Pressable
-              accessibilityLabel={step > 0 ? 'Geri' : 'Kapat'}
-              onPress={step > 0 ? () => setStep((current) => current - 1) : onClose}
-              style={styles.iconButton}
-            >
-              {step > 0 ? <ChevronLeft color={colors.ink} size={22} /> : <X color={colors.ink} size={22} />}
-            </Pressable>
-            <View style={styles.headerCopy}>
-              <Text style={styles.eyebrow}>TAZE SİNYAL · {step + 1}/4</Text>
-              <Text style={styles.heading}>{stepTitle}</Text>
+            <View>
+              <Text style={styles.eyebrow}>TAZE SİNYAL</Text>
+              <Text style={styles.heading}>Burada ne oluyor?</Text>
             </View>
             <Pressable accessibilityLabel="Kapat" onPress={onClose} style={styles.iconButton}>
               <X color={colors.ink} size={22} />
             </Pressable>
           </View>
 
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressValue, { width: `${(step + 1) * 25}%` }]} />
-          </View>
-
           <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            {error && (
+            {(error || mediaError) && (
               <View accessibilityRole="alert" style={styles.errorBox}>
                 <AlertCircle color={colors.error} size={18} />
-                <View style={styles.flex}>
-                  <Text style={styles.errorTitle}>İşlem tamamlanamadı</Text>
-                  <Text numberOfLines={3} style={styles.errorText}>{error}</Text>
-                </View>
+                <Text style={styles.errorText}>{error || mediaError}</Text>
               </View>
             )}
 
-            {step === 0 && (
+            <Text style={styles.locationTitle}>Neredesin?</Text>
+
+            {area?.place ? (
+              <View style={styles.selectedPlaceCard}>
+                <View style={styles.selectedPlaceIcon}><Store color={colors.greenDark} size={21} /></View>
+                <View style={styles.flex}>
+                  <Text numberOfLines={1} style={styles.areaName}>{area.place.name}</Text>
+                  <Text style={styles.areaMeta}>{formatCategory(area.place.category)} {formatDistance(area.place.distanceMeters) ? `• ${formatDistance(area.place.distanceMeters)}` : ''}</Text>
+                  {area.proximity && (
+                    <Text style={[styles.proximityText, !area.proximity.allowed && styles.proximityBlocked]}>
+                      {area.proximity.allowed
+                        ? 'Anlık sinyal için yeterince yakınsın.'
+                        : 'Bu yer için anlık sinyal bırakmak için yakına gelmelisin.'}
+                    </Text>
+                  )}
+                  <Text style={styles.selectedText}>Seçildi</Text>
+                </View>
+                <Pressable onPress={() => { setShowExtendedPlaces(false); area && selectArea(area.source === 'map' ? 'map' : 'device'); }} style={styles.changeButton}>
+                  <Text style={styles.changeButtonText}>Değiştir</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.areaSummary}>
+                <MapPin color={colors.greenDark} size={22} />
+                <View style={styles.flex}>
+                  <Text style={styles.summaryLabel}>YAKLAŞIK KONUM</Text>
+                  <Text numberOfLines={1} style={styles.areaName}>{placeName}</Text>
+                  <Text style={styles.areaMeta}>Place seçmeden koordinat sinyali olarak yayınlanır</Text>
+                </View>
+                {area && <Check color={colors.green} size={20} />}
+              </View>
+            )}
+
+            <View style={styles.areaActions}>
+              <Pressable disabled={isSelectingArea} onPress={() => selectArea('device')} style={styles.secondaryButton}>
+                {isSelectingArea ? <ActivityIndicator color={colors.green} size="small" /> : <Navigation color={colors.green} size={18} />}
+                <Text style={styles.secondaryButtonText}>Yakınımdaki yerler</Text>
+              </Pressable>
+              <Pressable disabled={isSelectingArea} onPress={() => selectArea('map')} style={styles.secondaryButton}>
+                <Crosshair color={colors.green} size={18} />
+                <Text style={styles.secondaryButtonText}>Haritadaki nokta</Text>
+              </Pressable>
+            </View>
+
+            {locationReadiness === 'permission-required' && (
+              <Pressable onPress={canAskLocationAgain ? () => selectArea('device') : onOpenSettings} style={styles.settingsLink}>
+                <Settings color={colors.warning} size={16} />
+                <Text style={styles.settingsText}>{canAskLocationAgain ? 'Konum izni ver' : 'Konum ayarlarını aç'}</Text>
+              </Pressable>
+            )}
+
+            {!area?.place && (
               <>
-                {area ? (
-                  <View style={styles.areaSummary}>
-                    <View style={styles.areaIcon}><MapPin color={colors.greenDark} size={21} /></View>
-                    <View style={styles.flex}>
-                      <Text style={styles.summaryLabel}>SEÇİLEN ALAN</Text>
-                      <Text numberOfLines={1} style={styles.areaName}>{area.name}</Text>
-                      <Text style={styles.areaMeta}>{area.source === 'device' ? 'Yakınındaki yaklaşık alan' : 'Haritada seçtiğin alan'}</Text>
-                    </View>
-                    <Check color={colors.green} size={20} />
-                  </View>
+                <Text style={styles.sectionLabel}>YAKININDA</Text>
+                {isSelectingArea ? (
+                  <View style={styles.nearbyState}><ActivityIndicator color={colors.green} /><Text style={styles.nearbyStateText}>Yakındaki yerler aranıyor</Text></View>
+                ) : visibleNearbyPlaces.length === 0 ? (
+                  <View style={styles.nearbyState}><Search color={colors.muted} size={18} /><Text style={styles.nearbyStateText}>Yakınında uygun bir yer bulamadık. Daha uzaktaki yerleri açabilir veya bu konumda paylaşabilirsin.</Text></View>
                 ) : (
-                  <View style={styles.locationWarning}>
-                    <AlertCircle color={colors.warning} size={19} />
-                    <Text style={styles.locationWarningText}>Sinyali yerleştirmek için bir alan seç.</Text>
+                  <View style={styles.nearbyList}>
+                    {visibleNearbyPlaces.map((place, index) => (
+                      <Pressable
+                        accessibilityLabel={`${place.name} yerini seç`}
+                        key={place.id}
+                        onPress={() => selectArea('map', place)}
+                        style={styles.nearbyItem}
+                      >
+                        <View style={[styles.placeRank, index === 0 && styles.placeRankPrimary]}>
+                          <Store color={index === 0 ? colors.white : colors.greenDark} size={17} />
+                        </View>
+                        <View style={styles.flex}>
+                          <Text numberOfLines={1} style={styles.nearbyName}>{place.name}</Text>
+                          <Text numberOfLines={1} style={styles.nearbyMeta}>{formatCategory(place.category)} {formatDistance(place.distanceMeters) ? `• ${formatDistance(place.distanceMeters)}` : ''}</Text>
+                        </View>
+                        <Text style={styles.pickText}>Seç</Text>
+                      </Pressable>
+                    ))}
                   </View>
                 )}
-
-                <View style={styles.areaActions}>
-                  <Pressable disabled={isSelectingArea} onPress={() => selectArea('device')} style={styles.secondaryButton}>
-                    {isSelectingArea ? <ActivityIndicator color={colors.green} size="small" /> : <Navigation color={colors.green} size={18} />}
-                    <Text style={styles.secondaryButtonText}>Yakınımdaki alan</Text>
-                  </Pressable>
-                  <Pressable disabled={isSelectingArea} onPress={() => selectArea('map')} style={styles.secondaryButton}>
-                    <Crosshair color={colors.green} size={18} />
-                    <Text style={styles.secondaryButtonText}>Harita merkezi</Text>
-                  </Pressable>
-                </View>
-
-                {locationReadiness === 'permission-required' && (
-                  <Pressable onPress={canAskLocationAgain ? () => selectArea('device') : onOpenSettings} style={styles.settingsLink}>
-                    <Settings color={colors.warning} size={16} />
-                    <Text style={styles.settingsText}>{canAskLocationAgain ? 'Konum izni ver' : 'Konum ayarlarını aç'}</Text>
-                  </Pressable>
-                )}
-
-                <Text style={styles.sectionLabel}>PAYLAŞIM BİÇİMİ</Text>
-                <Pressable disabled={!area} onPress={() => chooseMode('quick')} style={[styles.modeItem, !area && styles.disabled]}>
-                  <View style={styles.modeIcon}><Gauge color={colors.greenDark} size={23} /></View>
-                  <View style={styles.flex}>
-                    <Text style={styles.modeTitle}>Hızlı sinyal</Text>
-                    <Text style={styles.modeDescription}>Birkaç dokunuşla güncel durumu paylaş</Text>
-                  </View>
-                  <ChevronLeft color={colors.muted} size={20} style={styles.forwardIcon} />
+                <Pressable accessibilityLabel="Bu konumda paylaş" onPress={() => area && selectArea(area.source === 'map' ? 'map' : 'device')} style={styles.coordinateAction}>
+                  <MapPin color={colors.greenDark} size={18} />
+                  <Text style={styles.coordinateActionText}>Bu konumda paylaş</Text>
                 </Pressable>
-                <Pressable disabled={!area} onPress={() => chooseMode('detailed')} style={[styles.modeItem, !area && styles.disabled]}>
-                  <View style={[styles.modeIcon, styles.detailModeIcon]}><FileText color={colors.coral} size={23} /></View>
-                  <View style={styles.flex}>
-                    <Text style={styles.modeTitle}>Detaylı paylaşım</Text>
-                    <Text style={styles.modeDescription}>Gördüğünü başlık ve açıklamayla anlat</Text>
-                  </View>
-                  <ChevronLeft color={colors.muted} size={20} style={styles.forwardIcon} />
+                {extendedPlaces.length > 0 && (
+                  <Pressable accessibilityLabel="Daha fazla yer" onPress={() => setShowExtendedPlaces((value) => !value)} style={styles.morePlacesButton}>
+                    <Text style={styles.morePlacesText}>{showExtendedPlaces ? 'Yakın listeye dön' : `Daha fazla yer (${extendedPlaces.length})`}</Text>
+                  </Pressable>
+                )}
+              </>
+            )}
+
+            {isRealtimePlaceBlocked && (
+              <View style={styles.proximityWarning}>
+                <AlertCircle color={colors.error} size={18} />
+                <Text style={styles.proximityWarningText}>Seçili yer için anlık sinyal yayınlamak üzere mekana daha yakın olmalısın. İstersen “Bu konumda paylaş” ile koordinat sinyali bırakabilirsin.</Text>
+              </View>
+            )}
+
+            <Text style={styles.sectionLabel}>SİNYAL TÜRÜ</Text>
+            <View style={styles.optionGrid}>
+              {signalTypes.map((item) => (
+                <Pressable key={item.type} onPress={() => { setSignalType(item.type); setSignalValue(item.value ?? null); }} style={[styles.typeOption, signalType === item.type && styles.selectedOption]}>
+                  <Text style={[styles.typeLabel, signalType === item.type && styles.typeLabelActive]}>{item.label}</Text>
                 </Pressable>
-              </>
-            )}
+              ))}
+            </View>
 
-            {step === 1 && (
-              <>
-                <Text style={styles.prompt}>{mode === 'quick' ? 'Sinyal türünü seç' : 'Paylaşımının bağlamını seç'}</Text>
-                <View style={styles.optionGrid}>
-                  {signalTypes.filter((item) => mode === 'detailed' || item.quick).map((item) => (
-                    <Pressable
-                      key={item.type}
-                      onPress={() => chooseType(item.type)}
-                      style={[styles.typeOption, signalType === item.type && styles.selectedOption]}
-                    >
-                      <View style={[styles.selectionDot, signalType === item.type && styles.selectionDotActive]} />
-                      <Text style={styles.typeLabel}>{item.label}</Text>
-                      <Text style={styles.typeDescription}>{item.description}</Text>
-                    </Pressable>
-                  ))}
-                </View>
+            <Text style={styles.inputLabel}>Kısa başlık</Text>
+            <TextInput maxLength={80} onChangeText={setTitle} placeholder="Örn. Bekleme süresi 10 dakika" placeholderTextColor="#929A95" style={styles.input} value={title} />
+            <Text style={styles.inputLabel}>Gördüğün şey</Text>
+            <TextInput maxLength={500} multiline onChangeText={setContent} placeholder="Karar vermeyi kolaylaştıracak güncel ve somut bir bilgi yaz." placeholderTextColor="#929A95" style={[styles.input, styles.textArea]} textAlignVertical="top" value={content} />
+            <Text style={styles.counter}>{content.length}/500</Text>
 
-                {signalType && values.length > 0 && (
-                  <>
-                    <Text style={styles.sectionLabel}>DURUM</Text>
-                    <View style={styles.chipRow}>
-                      {values.map((item) => (
-                        <Pressable
-                          key={item.value}
-                          onPress={() => setSignalValue(item.value)}
-                          style={[styles.choiceChip, signalValue === item.value && styles.choiceChipActive]}
-                        >
-                          <Text style={[styles.choiceChipText, signalValue === item.value && styles.choiceChipTextActive]}>{item.label}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </>
-                )}
-              </>
-            )}
+            <Text style={styles.sectionLabel}>KANIT MEDYASI</Text>
+            <View style={styles.areaActions}>
+              <Pressable onPress={() => pickMedia('camera')} style={styles.secondaryButton}>
+                <Camera color={colors.green} size={18} />
+                <Text style={styles.secondaryButtonText}>Kamera</Text>
+              </Pressable>
+              <Pressable onPress={() => pickMedia('library')} style={styles.secondaryButton}>
+                <ImageIcon color={colors.green} size={18} />
+                <Text style={styles.secondaryButtonText}>Galeri</Text>
+              </Pressable>
+            </View>
 
-            {step === 2 && (
-              <>
-                <View style={styles.signalSummary}>
-                  <Sparkles color={colors.green} size={18} />
-                  <Text style={styles.signalSummaryText}>{generatedTitle}</Text>
+            {media.map((item) => (
+              <View key={item.id} style={styles.mediaDraft}>
+                {item.mediaType === 'Video'
+                  ? <Video resizeMode={ResizeMode.COVER} source={{ uri: item.previewUri }} style={styles.mediaThumb} useNativeControls />
+                  : <Image source={{ uri: item.previewUri }} style={styles.mediaThumb} />}
+                <View style={styles.flex}>
+                  <Text numberOfLines={1} style={styles.mediaName}>{item.name}</Text>
+                  <Text style={[styles.mediaStatus, item.status === 'failed' && styles.mediaFailed]}>
+                    {item.status === 'ready' ? 'Hazır' : item.status === 'failed' ? item.error : item.status === 'uploading' ? 'Yükleniyor' : 'Hazırlanıyor'}
+                  </Text>
                 </View>
-                {mode === 'detailed' && (
-                  <>
-                    <Text style={styles.inputLabel}>Kısa özet</Text>
-                    <TextInput
-                      autoFocus
-                      maxLength={80}
-                      onChangeText={setTitle}
-                      placeholder="Örn. Şu an 20 dakika sıra var"
-                      placeholderTextColor="#929A95"
-                      style={styles.input}
-                      value={title}
-                    />
-                  </>
-                )}
-                <Text style={styles.inputLabel}>{mode === 'quick' ? 'Kısa not (isteğe bağlı)' : 'Detay ekle'}</Text>
-                <TextInput
-                  maxLength={500}
-                  multiline
-                  onChangeText={setContent}
-                  placeholder="Karar vermeyi kolaylaştıracak somut bir bilgi ekle."
-                  placeholderTextColor="#929A95"
-                  style={[styles.input, styles.textArea]}
-                  textAlignVertical="top"
-                  value={content}
-                />
-                <Text style={styles.counter}>{content.length}/500</Text>
-              </>
-            )}
+                {(item.status === 'uploading' || item.status === 'preparing') && <ActivityIndicator color={colors.green} />}
+                <Pressable onPress={() => setMedia((current) => current.filter((draft) => draft.id !== item.id))} style={styles.deleteButton}>
+                  <Trash2 color={colors.muted} size={17} />
+                </Pressable>
+              </View>
+            ))}
 
-            {step === 3 && area && signalType && (
-              <>
-                <View style={styles.previewBand}>
-                  <View style={styles.previewPin}><MapPin color={colors.white} fill={colors.white} size={20} /></View>
-                  <View style={styles.flex}>
-                    <Text style={styles.previewPlace}>{area.name}</Text>
-                    <Text style={styles.previewSignal}>{mode === 'quick' ? generatedTitle : title}</Text>
-                  </View>
-                </View>
+            <Text style={styles.sectionLabel}>GÖRÜNÜRLÜK</Text>
+            <View style={styles.segmented}>
+              <Pressable onPress={() => setIdentityDisclosure('LimitedProfile')} style={[styles.segment, identityDisclosure === 'LimitedProfile' && styles.segmentActive]}>
+                <Text style={[styles.segmentText, identityDisclosure === 'LimitedProfile' && styles.segmentTextActive]}>Sınırlı profil</Text>
+              </Pressable>
+              <Pressable onPress={() => setIdentityDisclosure('AnonymousMap')} style={[styles.segment, identityDisclosure === 'AnonymousMap' && styles.segmentActive]}>
+                <Text style={[styles.segmentText, identityDisclosure === 'AnonymousMap' && styles.segmentTextActive]}>Anonim</Text>
+              </Pressable>
+            </View>
 
-                <Text style={styles.sectionLabel}>HARİTADA KALMA SÜRESİ</Text>
-                <View style={styles.chipRow}>
-                  {durationOptions.map((item) => (
-                    <Pressable key={item.hours} onPress={() => setExpiryHours(item.hours)} style={[styles.choiceChip, expiryHours === item.hours && styles.choiceChipActive]}>
-                      <Text style={[styles.choiceChipText, expiryHours === item.hours && styles.choiceChipTextActive]}>{item.label}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-
-                <Text style={styles.sectionLabel}>PROFİL GÖRÜNÜMÜ</Text>
-                <View style={styles.segmented}>
-                  <Pressable onPress={() => setIdentityDisclosure('LimitedProfile')} style={[styles.segment, identityDisclosure === 'LimitedProfile' && styles.segmentActive]}>
-                    <Text style={[styles.segmentText, identityDisclosure === 'LimitedProfile' && styles.segmentTextActive]}>Sınırlı profil</Text>
-                  </Pressable>
-                  <Pressable onPress={() => setIdentityDisclosure('AnonymousMap')} style={[styles.segment, identityDisclosure === 'AnonymousMap' && styles.segmentActive]}>
-                    <Text style={[styles.segmentText, identityDisclosure === 'AnonymousMap' && styles.segmentTextActive]}>Haritada anonim</Text>
-                  </Pressable>
-                </View>
-
-                <View style={styles.policySummary}>
-                  <ShieldCheck color={colors.greenDark} size={19} />
-                  <View style={styles.flex}>
-                    <Text style={styles.policyTitle}>Güvenli yayın özeti</Text>
-                    <Text style={styles.policyText}>Herkese açık · {identityDisclosure === 'AnonymousMap' ? 'Anonim profil' : 'Sınırlı profil'} · Yaklaşık alan · {expiryLabel}</Text>
-                  </View>
-                </View>
-                <View style={styles.sourceRow}>
-                  <Clock3 color={colors.muted} size={16} />
-                  <Text style={styles.sourceText}>Topluluk kaynağı olarak yayınlanacak</Text>
-                </View>
-              </>
-            )}
+            <View style={styles.policySummary}>
+              <ShieldCheck color={colors.greenDark} size={19} />
+              <Text style={styles.policyText}>Konum ve medya, yalnız bu yer sinyalini doğru bağlama yerleştirmek için kullanılır.</Text>
+            </View>
           </ScrollView>
 
-          {step > 0 && (
-            <Pressable
-              disabled={isSubmitting || (step === 1 && !typeIsValid) || (step === 2 && !contentIsValid)}
-              onPress={step === 3 ? publish : next}
-              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, (isSubmitting || (step === 1 && !typeIsValid) || (step === 2 && !contentIsValid)) && styles.disabledButton]}
-            >
-              {isSubmitting ? <ActivityIndicator color={colors.white} /> : step === 3 ? <Send color={colors.white} size={19} /> : null}
-              <Text style={styles.primaryButtonText}>{step === 3 ? 'Sinyali yayınla' : 'Devam et'}</Text>
-            </Pressable>
-          )}
+          <Pressable disabled={!canPublish} onPress={publish} style={[styles.primaryButton, !canPublish && styles.disabledButton]}>
+            {isSubmitting ? <ActivityIndicator color={colors.white} /> : <Send color={colors.white} size={19} />}
+            <Text style={styles.primaryButtonText}>{isMediaBusy ? 'Medya hazırlanıyor' : 'Sinyali yayınla'}</Text>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -441,73 +437,75 @@ const styles = StyleSheet.create({
   scrim: { backgroundColor: colors.scrim, bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 8, borderTopRightRadius: 8, height: '92%', paddingHorizontal: 18, paddingTop: 9, ...shadow },
   handle: { alignSelf: 'center', backgroundColor: colors.line, borderRadius: 2, height: 4, marginBottom: 12, width: 38 },
-  header: { alignItems: 'center', flexDirection: 'row' },
-  headerCopy: { alignItems: 'center', flex: 1, paddingHorizontal: 8 },
+  header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   eyebrow: { color: colors.green, fontSize: 10, fontWeight: '900' },
-  heading: { color: colors.ink, fontSize: 19, fontWeight: '900', marginTop: 2 },
+  heading: { color: colors.ink, fontSize: 20, fontWeight: '900', marginTop: 2 },
   iconButton: { alignItems: 'center', backgroundColor: colors.surfaceSoft, borderRadius: 8, height: 40, justifyContent: 'center', width: 40 },
-  progressTrack: { backgroundColor: colors.line, height: 3, marginHorizontal: -18, marginTop: 12 },
-  progressValue: { backgroundColor: colors.lime, height: 3 },
   scrollContent: { paddingBottom: 18, paddingTop: 18 },
   flex: { flex: 1 },
   errorBox: { alignItems: 'flex-start', backgroundColor: colors.errorSoft, borderRadius: 8, flexDirection: 'row', gap: 9, marginBottom: 14, padding: 12 },
-  errorTitle: { color: colors.error, fontSize: 12, fontWeight: '900' },
-  errorText: { color: colors.error, fontSize: 11, lineHeight: 16, marginTop: 3 },
+  errorText: { color: colors.error, flex: 1, fontSize: 11, fontWeight: '800', lineHeight: 16 },
+  locationTitle: { color: colors.ink, fontSize: 16, fontWeight: '900', marginBottom: 10 },
   areaSummary: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: 8, flexDirection: 'row', gap: 11, padding: 13 },
-  areaIcon: { alignItems: 'center', backgroundColor: colors.white, borderRadius: 8, height: 40, justifyContent: 'center', width: 40 },
+  selectedPlaceCard: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.green, borderRadius: 8, borderWidth: 1.5, flexDirection: 'row', gap: 11, padding: 13, ...shadow },
+  selectedPlaceIcon: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: 8, height: 42, justifyContent: 'center', width: 42 },
   summaryLabel: { color: colors.green, fontSize: 9, fontWeight: '900' },
   areaName: { color: colors.ink, fontSize: 14, fontWeight: '900', marginTop: 2 },
   areaMeta: { color: colors.muted, fontSize: 10, marginTop: 2 },
-  locationWarning: { alignItems: 'center', backgroundColor: '#FFF2EA', borderRadius: 8, flexDirection: 'row', gap: 9, padding: 13 },
-  locationWarningText: { color: colors.warning, flex: 1, fontSize: 12, fontWeight: '800' },
+  selectedText: { color: colors.greenDark, fontSize: 10, fontWeight: '900', marginTop: 4 },
+  proximityText: { color: colors.greenDark, fontSize: 10, fontWeight: '800', lineHeight: 15, marginTop: 4 },
+  proximityBlocked: { color: colors.error },
+  changeButton: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: 8, justifyContent: 'center', minHeight: 34, paddingHorizontal: 10 },
+  changeButtonText: { color: colors.greenDark, fontSize: 10, fontWeight: '900' },
   areaActions: { flexDirection: 'row', gap: 9, marginTop: 10 },
   secondaryButton: { alignItems: 'center', borderColor: colors.line, borderRadius: 8, borderWidth: 1, flex: 1, flexDirection: 'row', gap: 7, justifyContent: 'center', minHeight: 44, paddingHorizontal: 8 },
   secondaryButtonText: { color: colors.greenDark, fontSize: 11, fontWeight: '900' },
   settingsLink: { alignItems: 'center', alignSelf: 'flex-start', flexDirection: 'row', gap: 6, marginTop: 10 },
   settingsText: { color: colors.warning, fontSize: 11, fontWeight: '900' },
   sectionLabel: { color: colors.muted, fontSize: 10, fontWeight: '900', marginBottom: 9, marginTop: 22 },
-  modeItem: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: 'row', gap: 12, minHeight: 76, paddingVertical: 10 },
-  modeIcon: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: 8, height: 46, justifyContent: 'center', width: 46 },
-  detailModeIcon: { backgroundColor: '#FFF2EC' },
-  modeTitle: { color: colors.ink, fontSize: 15, fontWeight: '900' },
-  modeDescription: { color: colors.muted, fontSize: 11, marginTop: 3 },
-  forwardIcon: { transform: [{ rotate: '180deg' }] },
-  disabled: { opacity: 0.42 },
-  prompt: { color: colors.ink, fontSize: 15, fontWeight: '900', marginBottom: 12 },
-  optionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
-  typeOption: { borderColor: colors.line, borderRadius: 8, borderWidth: 1, minHeight: 92, padding: 11, width: '48.5%' },
-  selectedOption: { backgroundColor: colors.greenSoft, borderColor: colors.green },
-  selectionDot: { borderColor: colors.line, borderRadius: 6, borderWidth: 2, height: 12, marginBottom: 8, width: 12 },
-  selectionDotActive: { backgroundColor: colors.green, borderColor: colors.green },
-  typeLabel: { color: colors.ink, fontSize: 12, fontWeight: '900' },
-  typeDescription: { color: colors.muted, fontSize: 10, lineHeight: 14, marginTop: 3 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  choiceChip: { borderColor: colors.line, borderRadius: 8, borderWidth: 1, minHeight: 38, justifyContent: 'center', paddingHorizontal: 12 },
-  choiceChipActive: { backgroundColor: colors.greenDark, borderColor: colors.greenDark },
-  choiceChipText: { color: colors.ink, fontSize: 11, fontWeight: '800' },
-  choiceChipTextActive: { color: colors.white },
-  signalSummary: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: 8, flexDirection: 'row', gap: 9, padding: 12 },
-  signalSummaryText: { color: colors.greenDark, flex: 1, fontSize: 13, fontWeight: '900' },
+  nearbyState: { alignItems: 'center', backgroundColor: colors.surfaceSoft, borderColor: colors.line, borderRadius: 8, borderWidth: 1, flexDirection: 'row', gap: 9, padding: 12 },
+  nearbyStateText: { color: colors.muted, flex: 1, fontSize: 11, fontWeight: '800', lineHeight: 16 },
+  nearbyList: { borderColor: colors.line, borderRadius: 8, borderWidth: 1, overflow: 'hidden' },
+  nearbyItem: { alignItems: 'center', backgroundColor: colors.surface, borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: 'row', gap: 10, minHeight: 58, paddingHorizontal: 11 },
+  placeRank: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: 8, height: 34, justifyContent: 'center', width: 34 },
+  placeRankPrimary: { backgroundColor: colors.greenDark },
+  nearbyName: { color: colors.ink, fontSize: 13, fontWeight: '900' },
+  nearbyMeta: { color: colors.muted, fontSize: 10, marginTop: 3 },
+  pickText: { color: colors.greenDark, fontSize: 11, fontWeight: '900' },
+  coordinateAction: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: 8, flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 10, minHeight: 44 },
+  coordinateActionText: { color: colors.greenDark, fontSize: 12, fontWeight: '900' },
+  morePlacesButton: { alignItems: 'center', minHeight: 40, justifyContent: 'center', marginTop: 6 },
+  morePlacesText: { color: colors.greenDark, fontSize: 12, fontWeight: '900' },
+  proximityWarning: { alignItems: 'flex-start', backgroundColor: colors.errorSoft, borderRadius: 8, flexDirection: 'row', gap: 9, marginTop: 14, padding: 12 },
+  proximityWarningText: { color: colors.error, flex: 1, fontSize: 11, fontWeight: '800', lineHeight: 16 },
+  placeRow: { flexDirection: 'row', gap: 8 },
+  placeChip: { borderColor: colors.line, borderRadius: 8, borderWidth: 1, maxWidth: 170, minHeight: 36, justifyContent: 'center', paddingHorizontal: 11 },
+  placeChipActive: { backgroundColor: colors.greenDark, borderColor: colors.greenDark },
+  placeChipText: { color: colors.ink, fontSize: 11, fontWeight: '800' },
+  placeChipTextActive: { color: colors.white },
+  optionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  typeOption: { borderColor: colors.line, borderRadius: 8, borderWidth: 1, minHeight: 40, justifyContent: 'center', paddingHorizontal: 12 },
+  selectedOption: { backgroundColor: colors.greenDark, borderColor: colors.greenDark },
+  typeLabel: { color: colors.ink, fontSize: 11, fontWeight: '900' },
+  typeLabelActive: { color: colors.white },
   inputLabel: { color: colors.ink, fontSize: 13, fontWeight: '900', marginBottom: 8, marginTop: 18 },
   input: { backgroundColor: colors.surfaceSoft, borderColor: colors.line, borderRadius: 8, borderWidth: 1, color: colors.ink, fontSize: 14, minHeight: 50, paddingHorizontal: 13, paddingVertical: 11 },
   textArea: { minHeight: 128 },
   counter: { color: colors.muted, fontSize: 10, marginTop: 5, textAlign: 'right' },
-  previewBand: { alignItems: 'center', backgroundColor: colors.surfaceSoft, borderColor: colors.line, borderRadius: 8, borderWidth: 1, flexDirection: 'row', gap: 12, padding: 13 },
-  previewPin: { alignItems: 'center', backgroundColor: colors.green, borderRadius: 8, height: 44, justifyContent: 'center', width: 44 },
-  previewPlace: { color: colors.ink, fontSize: 14, fontWeight: '900' },
-  previewSignal: { color: colors.muted, fontSize: 11, marginTop: 3 },
+  mediaDraft: { alignItems: 'center', borderColor: colors.line, borderRadius: 8, borderWidth: 1, flexDirection: 'row', gap: 10, marginTop: 10, padding: 8 },
+  mediaThumb: { backgroundColor: colors.surfaceSoft, borderRadius: 8, height: 58, width: 58 },
+  mediaName: { color: colors.ink, fontSize: 12, fontWeight: '900' },
+  mediaStatus: { color: colors.muted, fontSize: 10, marginTop: 3 },
+  mediaFailed: { color: colors.error },
+  deleteButton: { alignItems: 'center', height: 34, justifyContent: 'center', width: 34 },
   segmented: { backgroundColor: colors.surfaceSoft, borderRadius: 8, flexDirection: 'row', padding: 3 },
   segment: { alignItems: 'center', borderRadius: 6, flex: 1, minHeight: 40, justifyContent: 'center', paddingHorizontal: 8 },
   segmentActive: { backgroundColor: colors.white, ...shadow },
   segmentText: { color: colors.muted, fontSize: 11, fontWeight: '800' },
   segmentTextActive: { color: colors.greenDark },
-  policySummary: { alignItems: 'flex-start', backgroundColor: colors.greenSoft, borderRadius: 8, flexDirection: 'row', gap: 10, marginTop: 20, padding: 13 },
-  policyTitle: { color: colors.greenDark, fontSize: 12, fontWeight: '900' },
-  policyText: { color: colors.greenDark, fontSize: 10, lineHeight: 15, marginTop: 3 },
-  sourceRow: { alignItems: 'center', flexDirection: 'row', gap: 7, marginTop: 12, paddingHorizontal: 2 },
-  sourceText: { color: colors.muted, fontSize: 10, fontWeight: '700' },
+  policySummary: { alignItems: 'flex-start', backgroundColor: colors.greenSoft, borderRadius: 8, flexDirection: 'row', gap: 10, marginTop: 16, padding: 13 },
+  policyText: { color: colors.greenDark, flex: 1, fontSize: 10, fontWeight: '800', lineHeight: 15 },
   primaryButton: { alignItems: 'center', backgroundColor: colors.green, borderRadius: 8, flexDirection: 'row', gap: 9, justifyContent: 'center', minHeight: 52 },
   primaryButtonText: { color: colors.white, fontSize: 14, fontWeight: '900' },
   disabledButton: { opacity: 0.42 },
-  pressed: { opacity: 0.88 },
 });

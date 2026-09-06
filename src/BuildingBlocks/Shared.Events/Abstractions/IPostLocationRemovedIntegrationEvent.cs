@@ -5,6 +5,7 @@ namespace Shared.Events.Abstractions;
 /// </summary>
 public interface IPostLocationRemovedIntegrationEvent
 {
+    Guid Id { get; }
     Guid PostId { get; }
     DateTime OccurredOn { get; }
 }

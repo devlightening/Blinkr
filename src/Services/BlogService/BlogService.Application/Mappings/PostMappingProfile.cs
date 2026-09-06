@@ -28,7 +28,10 @@ public class PostMappingProfile : Profile
                 src.AudienceType,
                 src.IdentityDisclosure,
                 src.LocationPrecision,
-                src.ExpiresAt
+                src.ExpiresAt,
+                src.ObservationLatitude,
+                src.ObservationLongitude,
+                src.ObservationAccuracyMeters
             ));
         CreateMap<CreatePostMediaDto, MediaItem>();
         CreateMap<Post, PostListItemDto>();

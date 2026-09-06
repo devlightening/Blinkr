@@ -1,92 +1,103 @@
-using BlogService.Api.Services;
+using BlogService.Api.Extensions;
+using BlogService.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using MongoDB.Driver;
 
 namespace BlogService.Api.Controllers;
 
 [ApiController]
 [ApiVersion("1.0")]
-[Route("api/v{version:apiVersion}/[controller]")]
-[Authorize(Policy = "api.write")]
+[Route("api/v{version:apiVersion}/media")]
 public class MediaController : ControllerBase
 {
-    private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "image/jpeg",
-        "image/png", 
-        "image/webp",
-        "video/mp4",
-        "video/quicktime"
-    };
+    private readonly IMediaAttachmentService _media;
+    private readonly IMongoDatabase _database;
+    private readonly IWebHostEnvironment _env;
 
-    private readonly IObjectStorage _objectStorage;
-    private readonly ILogger<MediaController> _logger;
-
-    public MediaController(IObjectStorage objectStorage, ILogger<MediaController> logger)
+    public MediaController(IMediaAttachmentService media, IMongoDatabase database, IWebHostEnvironment env)
     {
-        _objectStorage = objectStorage;
-        _logger = logger;
+        _media = media;
+        _database = database;
+        _env = env;
     }
 
-    public record PresignRequest(string ContentType, long MaxBytes);
-
-    /// <summary>
-    /// Get presigned URL for media upload
-    /// </summary>
-    /// <param name="request">Upload request with content type and max bytes</param>
-    /// <returns>Presigned upload information</returns>
     [HttpPost("presign")]
-    [EnableRateLimiting("feed")] // Use same rate limiting as feed
-    public async Task<IActionResult> Presign([FromBody] PresignRequest request)
+    [Authorize(Policy = "api.write")]
+    [EnableRateLimiting("feed")]
+    public async Task<IActionResult> Presign([FromBody] CreateMediaUploadRequest request, CancellationToken ct)
     {
         try
         {
-            // Validate content type
-            if (!AllowedContentTypes.Contains(request.ContentType))
-            {
-                return BadRequest(new { 
-                    error = "Unsupported content type",
-                    message = "Desteklenmeyen dosya türü",
-                    allowedTypes = AllowedContentTypes.ToArray()
-                });
-            }
-
-            // Validate file size (8MB max)
-            if (request.MaxBytes is < 1 or > 8_000_000)
-            {
-                return BadRequest(new { 
-                    error = "Size out of range",
-                    message = "Dosya boyutu 1 byte ile 8MB arasında olmalı",
-                    minBytes = 1,
-                    maxBytes = 8_000_000
-                });
-            }
-
-            var userId = User.FindFirst("sub")?.Value ?? "anon";
-            var key = $"u/{userId}/p/{Guid.NewGuid():N}";
-            
-            var presigned = await _objectStorage.GetPresignedPutAsync(
-                key, 
-                request.ContentType, 
-                request.MaxBytes, 
-                TimeSpan.FromMinutes(10)
-            );
-
-            // Prevent caching of presigned URLs
+            var userId = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated.");
+            var authorization = await _media.CreateUploadAsync(userId, request, ct);
             Response.Headers.Append("Cache-Control", "no-store");
-            
-            _logger.LogInformation("Generated presigned URL for user: {UserId}, key: {Key}", userId, key);
-
-            return Ok(presigned);
+            return Ok(authorization);
         }
-        catch (Exception ex)
+        catch (ArgumentOutOfRangeException ex)
         {
-            _logger.LogError(ex, "Error generating presigned URL for user: {UserId}", User.FindFirst("sub")?.Value);
-            return StatusCode(500, new { 
-                error = "Internal server error",
-                message = "Presigned URL oluşturulurken hata oluştu"
-            });
+            return StatusCode(StatusCodes.Status413PayloadTooLarge, new { error = "media_limit_exceeded", message = ex.Message });
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = "invalid_media_request", message = ex.Message });
+        }
+    }
+
+    [HttpPut("uploads/{mediaId:guid}/content")]
+    [Authorize(Policy = "api.write")]
+    [DisableRequestSizeLimit]
+    public async Task<IActionResult> Upload(Guid mediaId, CancellationToken ct)
+    {
+        try
+        {
+            var userId = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated.");
+            var contentType = Request.ContentType?.Split(';')[0].Trim() ?? string.Empty;
+            await _media.MarkUploadedAsync(userId, mediaId, Request.Body, contentType, ct);
+            return Ok(new { mediaId, status = "Uploaded" });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = "media_not_found", message = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "forbidden" });
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            return StatusCode(StatusCodes.Status413PayloadTooLarge, new { error = "media_limit_exceeded", message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = "invalid_media_upload", message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = "invalid_media_state", message = ex.Message });
+        }
+    }
+
+    [HttpGet("uploads/{mediaId:guid}")]
+    [Authorize(Policy = "api.write")]
+    public async Task<IActionResult> GetUpload(Guid mediaId, CancellationToken ct)
+    {
+        var userId = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated.");
+        var upload = await _media.GetUploadAsync(userId, mediaId, ct);
+        return upload is null ? NotFound(new { error = "media_not_found" }) : Ok(upload);
+    }
+
+    [HttpGet("public/{mediaId:guid}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Public(Guid mediaId, CancellationToken ct)
+    {
+        var uploads = _database.GetCollection<BlogService.Api.Services.MediaUploadDocument>("media_uploads");
+        var doc = await uploads.Find(x => x.Id == mediaId && x.Status == "ATTACHED").FirstOrDefaultAsync(ct);
+        if (doc is null) return NotFound();
+
+        var path = Path.GetFullPath(Path.Combine(_env.ContentRootPath, "artifacts/media", doc.ObjectKey.Replace('/', Path.DirectorySeparatorChar)));
+        if (!System.IO.File.Exists(path)) return NotFound();
+        return PhysicalFile(path, doc.ContentType, enableRangeProcessing: true);
     }
 }

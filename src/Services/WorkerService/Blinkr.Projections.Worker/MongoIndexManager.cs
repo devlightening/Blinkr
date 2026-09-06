@@ -33,11 +33,32 @@ public class MongoIndexManager
         var visibilityIndexModel = new CreateIndexModel<PostDocument>(
             visibilityIndexKeys,
             new CreateIndexOptions { Name = "ix_posts_public_freshness" });
+        var processedCollection = _database.GetCollection<MongoDB.Bson.BsonDocument>("processed_messages");
+        var processedMessageIndexes = new[]
+        {
+            new CreateIndexModel<MongoDB.Bson.BsonDocument>(
+                Builders<MongoDB.Bson.BsonDocument>.IndexKeys.Ascending("processedAt"),
+                new CreateIndexOptions
+                {
+                    Name = "ix_processed_messages_ttl",
+                    ExpireAfter = TimeSpan.FromDays(30),
+                    Background = true
+                }),
+            new CreateIndexModel<MongoDB.Bson.BsonDocument>(
+                Builders<MongoDB.Bson.BsonDocument>.IndexKeys.Ascending("eventId").Ascending("consumer"),
+                new CreateIndexOptions
+                {
+                    Name = "ix_processed_messages_event_consumer",
+                    Unique = true,
+                    Background = true
+                })
+        };
         
         // Note: Geospatial indexing is handled by BlogService MongoIndexService
         // which creates compound index "ix_posts_location_time" for optimal NOW feed performance
         
         await postsCollection.Indexes.CreateManyAsync(
             new[] { feedIndexModel, userPostsIndexModel, visibilityIndexModel });
+        await processedCollection.Indexes.CreateManyAsync(processedMessageIndexes);
     }
 }

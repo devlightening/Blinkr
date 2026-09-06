@@ -67,7 +67,7 @@ public class CreatePostLikeCommandHandler : IRequestHandler<CreatePostLikeComman
         }
 
         // Persist to EventStore
-        // EventStorePublishingDecorator will publish PostLikedIntegrationEvent or PostUnlikedIntegrationEvent
+        // EventStoreToRabbitMqPublisher publishes the integration event after the domain event is persisted.
         await _eventStoreRepo.SaveAsync(postAggregate, cancellationToken);
 
         return Unit.Value;

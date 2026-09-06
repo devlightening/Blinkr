@@ -8,6 +8,7 @@ namespace Shared.Events.Abstractions
 {
     public interface IPostCreatedIntegrationEvent
     {
+        Guid Id { get; }
         Guid PostId { get; }
         Guid AuthorId { get; }
         string Title { get; }
@@ -38,7 +39,14 @@ namespace Shared.Events.Abstractions
 
     public class PostMediaInfo
     {
+        public Guid? MediaId { get; set; }
         public string? Url { get; set; }
         public string? MediaType { get; set; }
+        public string? ContentType { get; set; }
+        public long? SizeBytes { get; set; }
+        public int? Width { get; set; }
+        public int? Height { get; set; }
+        public double? DurationSeconds { get; set; }
+        public string? ThumbnailUrl { get; set; }
     }
 }

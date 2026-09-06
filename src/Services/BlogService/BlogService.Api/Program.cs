@@ -31,6 +31,7 @@ using Microsoft.OpenApi.Models;
 using MongoDB.Driver;
 using MongoDB.Bson;
 using Serilog;
+using Shared.Auth;
 using System.Reflection;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -196,6 +197,7 @@ builder.Services.AddSingleton<EventStoreClient>(sp =>
     Serilog.Log.Information("📡 EventStore connection string: {ConnectionString}", connectionString);
     
     var settings = EventStoreClientSettings.Create(connectionString);
+    settings.DefaultDeadline = TimeSpan.FromSeconds(builder.Configuration.GetValue("EventStore:DefaultDeadlineSeconds", 15));
     var client = new EventStoreClient(settings);
     
     // Quick connectivity test (fire & forget)
@@ -292,15 +294,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 builder.Services.AddSingleton<ICheckpointStore, MongoCheckpointStore>();
 
 // Repository registrations
-builder.Services.AddScoped<EventStoreDbRepository>();
-builder.Services.AddScoped<IEventStoreRepository>(sp =>
-{
-    var inner = sp.GetRequiredService<EventStoreDbRepository>();
-    var bus = sp.GetRequiredService<IBus>();
-    var dbContext = sp.GetRequiredService<BlogDbContext>();
-    var logger = sp.GetRequiredService<ILogger<EventStorePublishingDecorator>>();
-    return new EventStorePublishingDecorator(inner, bus, dbContext, logger);
-});
+// BLK-INFRA-01: authoritative writes go only to EventStoreDB. Integration events
+// are published by EventStoreToRabbitMqPublisher after durable checkpointing.
+builder.Services.AddScoped<IEventStoreRepository, EventStoreDbRepository>();
 builder.Services.AddScoped<IPostReadRepository, PostReadRepository>();
 
 // Query services (SOLID: each service handles one concern)
@@ -359,9 +355,14 @@ builder.Services.AddScoped<BlogService.Application.Services.IGeocodingService>(s
     return new BlogService.Infrastructure.Geocoding.CachingGeocodingService(
         cache, constrained, cachingLogger, TimeSpan.FromHours(ttlHours));
 });
+builder.Services.AddHttpClient<IPlaceLookupService, BlogService.Api.Services.HttpPlaceLookupService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["PlaceService:BaseUrl"] ?? "http://localhost:5225");
+    client.Timeout = TimeSpan.FromSeconds(3);
+});
 
 // EventStore subscription
-var enableSubscription = builder.Configuration.GetValue<bool>("EventStore:EnableSubscription");
+var enableSubscription = builder.Configuration.GetValue("EventStore:EnableSubscription", true);
 if (enableSubscription)
 {
     builder.Services.AddHostedService<EventStoreToRabbitMqPublisher>();
@@ -394,15 +395,7 @@ builder.Services.AddMediatR(cfg =>
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
 // === JWT AUTH: IdentityService HS256 token doğrulama ===
-var jwtSection = builder.Configuration.GetSection("Jwt");
-var jwtIssuer = jwtSection["Issuer"] ?? "https://localhost:7297";
-var jwtAudience = jwtSection["Audience"] ?? "blinkr.api";
-var jwtKey = jwtSection["Key"];
-
-if (string.IsNullOrWhiteSpace(jwtKey))
-{
-    throw new InvalidOperationException("Jwt:Key is not configured. Check appsettings.Development.json.");
-}
+var jwtOptions = BlinkrJwtOptions.FromConfiguration(builder.Configuration, builder.Environment.EnvironmentName);
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -413,26 +406,29 @@ builder.Services
         o.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidIssuer = jwtIssuer,
+            ValidIssuer = jwtOptions.Issuer,
 
             ValidateAudience = true,
-            ValidAudience = jwtAudience,
+            ValidAudience = jwtOptions.Audience,
 
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
 
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromMinutes(1),
+            ClockSkew = jwtOptions.ClockSkew,
 
-            NameClaimType = "sub",
-            RoleClaimType = "role"
+            NameClaimType = BlinkrJwtOptions.CanonicalUserIdClaim,
+            RoleClaimType = BlinkrJwtOptions.RoleClaimType,
+            AlgorithmValidator = (algorithm, _, _, _) =>
+                algorithm == SecurityAlgorithms.HmacSha256 ||
+                algorithm == SecurityAlgorithms.HmacSha256Signature
         };
 
         o.Events = new JwtBearerEvents
         {
             OnAuthenticationFailed = ctx =>
             {
-                Console.WriteLine($"[JWT FAILED] {ctx.Exception.Message}");
+                Serilog.Log.Warning("JWT authentication failed: {ExceptionType}", ctx.Exception.GetType().Name);
                 return Task.CompletedTask;
             },
             OnChallenge = context =>
@@ -498,6 +494,14 @@ builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
     options.Level = CompressionLevel.Optimal;
 });
 
+builder.Services.Configure<BlogService.Api.Services.MediaOptions>(
+    builder.Configuration.GetSection("Media"));
+builder.Services.Configure<BlogService.Application.Services.PlaceProximityOptions>(
+    builder.Configuration.GetSection("PlaceProximity"));
+builder.Services.AddSingleton<BlogService.Application.Services.IPlaceProximityPolicy, BlogService.Application.Services.PlaceProximityPolicy>();
+builder.Services.AddScoped<BlogService.Application.Services.IMediaAttachmentService, BlogService.Api.Services.MediaAttachmentService>();
+builder.Services.AddHostedService<BlogService.Api.Services.MediaCleanupService>();
+
 // Object Storage (S3)
 builder.Services.AddSingleton<IAmazonS3>(sp =>
 {
@@ -511,7 +515,7 @@ builder.Services.AddSingleton<IAmazonS3>(sp =>
 });
 
 // S3Storage registration (Infrastructure layer)
-builder.Services.AddScoped<IObjectStorage>(sp =>
+builder.Services.AddScoped<BlogService.Application.Services.IObjectStorage>(sp =>
 {
     var s3 = sp.GetRequiredService<IAmazonS3>();
     var bucket = builder.Configuration["AWS:S3Bucket"] ?? "blinkr-media";

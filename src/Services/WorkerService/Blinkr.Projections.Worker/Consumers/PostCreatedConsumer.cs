@@ -1,5 +1,6 @@
 using Blinkr.Projections.Worker.Documents;
 using Blinkr.Projections.Worker.Entities;
+using Blinkr.Projections.Worker.Infra;
 using MassTransit;
 using MongoDB.Driver;
 using MongoDB.Driver.GeoJsonObjectModel;
@@ -15,16 +16,24 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
     private readonly IMongoCollection<PostDocument> _postsCollection;
     private readonly ILogger<PostCreatedConsumer> _logger;
     private readonly IDistributedCache _cache;
+    private readonly ProjectionInbox _inbox;
 
-    public PostCreatedConsumer(IMongoDatabase database, ILogger<PostCreatedConsumer> logger, IDistributedCache cache)
+    public PostCreatedConsumer(IMongoDatabase database, ILogger<PostCreatedConsumer> logger, IDistributedCache cache, ProjectionInbox inbox)
     {
         _postsCollection = database.GetCollection<PostDocument>("posts");
         _logger = logger;
         _cache = cache;
+        _inbox = inbox;
     }
 
     public async Task Consume(ConsumeContext<IPostCreatedIntegrationEvent> context)
     {
+        const string consumerName = nameof(PostCreatedConsumer);
+        if (!await _inbox.TryBeginAsync(context, consumerName))
+        {
+            return;
+        }
+
         var message = context.Message;
         var hasLocation = message.Latitude.HasValue && message.Longitude.HasValue;
         _logger.LogInformation("📥 Received PostCreatedIntegrationEvent for PostId: {PostId} HasLocation: {HasLocation}", 
@@ -65,8 +74,15 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
                     {
                         mediaList.Add(new Media 
                         { 
+                            Id = m.MediaId ?? Guid.NewGuid(),
                             Url = m.Url, 
-                            Type = m.MediaType ?? "image" 
+                            Type = m.MediaType ?? "image",
+                            ContentType = m.ContentType,
+                            SizeBytes = m.SizeBytes,
+                            Width = m.Width,
+                            Height = m.Height,
+                            DurationSeconds = m.DurationSeconds,
+                            ThumbnailUrl = m.ThumbnailUrl
                         });
                     }
                 }
@@ -113,6 +129,7 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
 
             // Invalidate cache after successful DB write
             await CacheInvalidationHelper.InvalidatePostCache(_cache, message.PostId);
+            await _inbox.MarkProcessedAsync(context, consumerName);
         }
         catch (MongoDB.Bson.BsonSerializationException bsx)
         {
@@ -122,17 +139,20 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
 
             // -> Rethrow to allow MassTransit to apply retry policies and eventually move the message to the error queue.
             // Eğer bu hataları anında swallow etmek istersen, burada 'return;' yap.
+            await _inbox.ReleaseAsync(context, consumerName);
             throw;
         }
         catch (OperationCanceledException)
         {
             _logger.LogWarning("Consume canceled by token for PostId: {PostId}", message.PostId);
+            await _inbox.ReleaseAsync(context, consumerName);
             throw;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "❌ Error projecting PostDocument to MongoDB. PostId: {PostId}", message.PostId);
             // Re-throw so MassTransit retry/error behavior can handle it
+            await _inbox.ReleaseAsync(context, consumerName);
             throw;
         }
     }

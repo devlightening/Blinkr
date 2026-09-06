@@ -8,7 +8,7 @@ builder.Services
     .AddNotificationsMediatR()
     .AddNotificationsRepositories()
     .AddNotificationsMessaging(builder.Configuration)
-    .AddNotificationsAuthentication(builder.Configuration)
+    .AddNotificationsAuthentication(builder.Configuration, builder.Environment.EnvironmentName)
     .AddNotificationsSwagger()
     .AddNotificationsMongoDB(builder.Configuration)
     .AddNotificationsHealthChecks();

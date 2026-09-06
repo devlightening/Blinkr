@@ -106,6 +106,7 @@ public class EventStorePublishingDecorator : IEventStoreRepository
                 var postAggregate = aggregate as PostAggregate;
                 var mediaList = postAggregate?.Media?.Select(m => new PostMediaDto 
                 { 
+                    MediaId = m.Id,
                     Url = m.Url, 
                     MediaType = m.Type.ToString() 
                 }).ToList();

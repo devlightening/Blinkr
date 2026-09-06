@@ -1,4 +1,5 @@
 using Blinkr.Projections.Worker.Consumers;
+using Blinkr.Projections.Worker.Infra;
 using MassTransit;
 using MongoDB.Driver;
 using MongoDB.Bson;
@@ -39,6 +40,9 @@ public static class ServiceCollectionExtensions
             Log.Information("📝 MongoDB connection pool: Max={Max}, Min={Min}", settings.MaxConnectionPoolSize, settings.MinConnectionPoolSize);
             return new MongoClient(settings);
         });
+
+        services.AddSingleton<ProjectionInbox>();
+        services.AddSingleton<MongoIndexManager>();
 
         services.AddSingleton<IMongoDatabase>(sp =>
         {
@@ -138,6 +142,27 @@ public static class ServiceCollectionExtensions
             e.PrefetchCount = 32;
             e.ConfigureConsumer<PostCommentAddedConsumer>(ctx);
             Log.Information("✅ Configured endpoint post-comment-added for PostCommentAddedConsumer");
+        });
+
+        cfg.ReceiveEndpoint("post-location-added", e =>
+        {
+            e.PrefetchCount = 32;
+            e.ConfigureConsumer<PostLocationAddedConsumer>(ctx);
+            Log.Information("✅ Configured endpoint post-location-added for PostLocationAddedConsumer");
+        });
+
+        cfg.ReceiveEndpoint("post-location-updated", e =>
+        {
+            e.PrefetchCount = 32;
+            e.ConfigureConsumer<PostLocationUpdatedConsumer>(ctx);
+            Log.Information("✅ Configured endpoint post-location-updated for PostLocationUpdatedConsumer");
+        });
+
+        cfg.ReceiveEndpoint("post-location-removed", e =>
+        {
+            e.PrefetchCount = 32;
+            e.ConfigureConsumer<PostLocationRemovedConsumer>(ctx);
+            Log.Information("✅ Configured endpoint post-location-removed for PostLocationRemovedConsumer");
         });
     }
 }

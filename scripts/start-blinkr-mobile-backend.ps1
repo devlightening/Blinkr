@@ -75,27 +75,42 @@ try {
     Write-Host "`n[1/4] Starting Blinkr infrastructure..." -ForegroundColor Cyan
     $composeArgs = @("compose", "up", "-d")
     if (-not $SkipDockerBuild) { $composeArgs += "--build" }
-    $composeArgs += @("postgres", "redis", "eventstore.db", "rabbitmq", "mongodb", "projections-worker")
+    $composeArgs += @("postgres", "redis", "eventstore.db", "rabbitmq", "mongodb")
     & docker @composeArgs
     if ($LASTEXITCODE -ne 0) { throw "docker compose failed." }
 
     Write-Host "`n[2/4] Waiting for stateful services..." -ForegroundColor Cyan
     Wait-ContainerHealthy -Container "blinkr_postgres"
     Wait-ContainerHealthy -Container "blinkr_eventstore"
+    Wait-ContainerHealthy -Container "blinkr_mongodb"
+    Wait-ContainerHealthy -Container "blinkr_rabbitmq"
+
+    $workerComposeArgs = @("compose", "up", "-d")
+    if (-not $SkipDockerBuild) { $workerComposeArgs += "--build" }
+    $workerComposeArgs += "projections-worker"
+    & docker @workerComposeArgs
+    if ($LASTEXITCODE -ne 0) { throw "docker compose projections-worker failed." }
     Wait-ContainerHealthy -Container "blinkr_projections_worker" -TimeoutSeconds 140
 
     Write-Host "`n[3/4] Starting application services..." -ForegroundColor Cyan
+    $env:ASPNETCORE_ENVIRONMENT = "Development"
     $identityProject = Join-Path $repoRoot "src\Services\IdentityService\IdentityService.Api\IdentityService.Api.csproj"
     $blogProject = Join-Path $repoRoot "src\Services\BlogService\BlogService.Api\BlogService.Api.csproj"
+    $notificationsProject = Join-Path $repoRoot "src\Services\NotificationsService\NotificationsService.Api\NotificationsService.Api.csproj"
+    $placeProject = Join-Path $repoRoot "src\Services\PlaceService\PlaceService.Api\PlaceService.Api.csproj"
     $gatewayProject = Join-Path $repoRoot "src\Gateway\ApiGateway\ApiGateway.csproj"
 
     Start-DotnetService -Name "identity" -Project $identityProject -Port 5188
     Start-DotnetService -Name "blog" -Project $blogProject -Port 5215
+    Start-DotnetService -Name "notifications" -Project $notificationsProject -Port 5290
+    Start-DotnetService -Name "places" -Project $placeProject -Port 5225
     Start-DotnetService -Name "gateway" -Project $gatewayProject -Port 5080
 
     Write-Host "`n[4/4] Verifying HTTP health..." -ForegroundColor Cyan
     Wait-HttpHealthy -Name "Identity" -Url "http://localhost:5188/health"
     Wait-HttpHealthy -Name "Blog API" -Url "http://localhost:5215/health/liveness"
+    Wait-HttpHealthy -Name "Notifications" -Url "http://localhost:5290/health"
+    Wait-HttpHealthy -Name "Places" -Url "http://localhost:5225/health"
     Wait-HttpHealthy -Name "Gateway" -Url "http://localhost:5080/health"
 
     $lanAddress = Get-NetIPAddress -AddressFamily IPv4 |

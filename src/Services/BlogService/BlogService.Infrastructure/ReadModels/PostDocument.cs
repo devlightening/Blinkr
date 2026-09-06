@@ -74,11 +74,17 @@ public class CommentEntity
 public class MediaEntity
 {
     [BsonId]
-    [BsonGuidRepresentation(MongoDB.Bson.GuidRepresentation.Standard)]
+    [BsonRepresentation(MongoDB.Bson.BsonType.String)]
     public Guid Id { get; set; }
     
     public string Url { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;
+    public string? ContentType { get; set; }
+    public long? SizeBytes { get; set; }
+    public int? Width { get; set; }
+    public int? Height { get; set; }
+    public double? DurationSeconds { get; set; }
+    public string? ThumbnailUrl { get; set; }
 }
 
 /// <summary>

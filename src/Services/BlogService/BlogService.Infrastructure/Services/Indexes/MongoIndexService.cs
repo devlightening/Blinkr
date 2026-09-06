@@ -14,11 +14,13 @@ public class MongoIndexService
     private readonly ILogger<MongoIndexService> _logger;
 
     private readonly IMongoCollection<BsonDocument> _processedMessagesCollection;
+    private readonly IMongoCollection<BsonDocument> _mediaUploadsCollection;
 
     public MongoIndexService(IMongoDatabase database, ILogger<MongoIndexService> logger)
     {
         _postsCollection = database.GetCollection<PostDocument>("posts");
         _processedMessagesCollection = database.GetCollection<BsonDocument>("processed_messages");
+        _mediaUploadsCollection = database.GetCollection<BsonDocument>("media_uploads");
         _logger = logger;
     }
 
@@ -39,6 +41,7 @@ public class MongoIndexService
             
             // Ensure ProcessedMessages TTL index
             await EnsureProcessedMessagesTTLIndexAsync();
+            await EnsureMediaUploadsIndexesAsync();
             
             _logger.LogInformation("✅ All MongoDB indexes ensured successfully");
         }
@@ -46,6 +49,25 @@ public class MongoIndexService
         {
             _logger.LogError(ex, "❌ Failed to ensure MongoDB indexes");
             throw;
+        }
+    }
+
+    private async Task EnsureMediaUploadsIndexesAsync()
+    {
+        var indexes = await _mediaUploadsCollection.Indexes.ListAsync();
+        var indexList = await indexes.ToListAsync();
+        if (!indexList.Any(idx => idx.GetValue("name", "").AsString == "ix_media_owner_status"))
+        {
+            await _mediaUploadsCollection.Indexes.CreateOneAsync(new CreateIndexModel<BsonDocument>(
+                Builders<BsonDocument>.IndexKeys.Ascending("OwnerUserId").Ascending("Status").Descending("CreatedAtUtc"),
+                new CreateIndexOptions { Name = "ix_media_owner_status", Background = true }));
+        }
+
+        if (!indexList.Any(idx => idx.GetValue("name", "").AsString == "ix_media_orphan_cleanup"))
+        {
+            await _mediaUploadsCollection.Indexes.CreateOneAsync(new CreateIndexModel<BsonDocument>(
+                Builders<BsonDocument>.IndexKeys.Ascending("PostId").Ascending("CreatedAtUtc").Ascending("Status"),
+                new CreateIndexOptions { Name = "ix_media_orphan_cleanup", Background = true }));
         }
     }
 

@@ -60,7 +60,7 @@ public class CreatePostCommentCommandHandler : IRequestHandler<CreatePostComment
         }
 
         // Persist to EventStore
-        // EventStorePublishingDecorator will publish PostCommentAddedIntegrationEvent
+        // EventStoreToRabbitMqPublisher publishes the integration event after the domain event is persisted.
         await _eventStoreRepo.SaveAsync(postAggregate, ct);
 
         _logger.LogInformation(

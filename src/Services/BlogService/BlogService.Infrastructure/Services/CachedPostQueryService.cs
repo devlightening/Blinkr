@@ -690,7 +690,18 @@ public class CachedPostQueryService : IPostQueryService
             CommentCount = doc.CommentCount,
             IsLikedByCurrentUser = false,
             Comments = new(),
-            Media = new()
+            Media = doc.Media?.Select(m => new MediaDto
+            {
+                Id = m.Id,
+                Url = m.Url,
+                MediaType = m.Type,
+                ContentType = m.ContentType,
+                SizeBytes = m.SizeBytes,
+                Width = m.Width,
+                Height = m.Height,
+                DurationSeconds = m.DurationSeconds,
+                ThumbnailUrl = m.ThumbnailUrl
+            }).ToList() ?? new()
         };
     }
 

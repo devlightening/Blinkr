@@ -5,6 +5,7 @@ namespace Shared.Events.Abstractions;
 /// </summary>
 public interface IPostLocationUpdatedIntegrationEvent
 {
+    Guid Id { get; }
     Guid PostId { get; }
     double Lat { get; }
     double Lon { get; }

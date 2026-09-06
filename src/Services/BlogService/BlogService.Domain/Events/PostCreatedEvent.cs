@@ -24,5 +24,14 @@ namespace BlogService.Domain.Events
         DateTime? ExpiresAt = null,
         ICollection<PostMediaInfo>? Media = null) : IDomainEvent;
 
-    public record PostMediaInfo(string Url, string MediaType);
+    public record PostMediaInfo(
+        string Url,
+        string MediaType,
+        Guid? MediaId = null,
+        string? ContentType = null,
+        long? SizeBytes = null,
+        int? Width = null,
+        int? Height = null,
+        double? DurationSeconds = null,
+        string? ThumbnailUrl = null);
 }

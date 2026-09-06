@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using BlogService.Api.Auth;
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommentCommands;
 using BlogService.Application.Features.Mediatr.Comamnds.PostLikeCommands;
+using BlogService.Application.Services;
 using BlogService.Api.Extensions;
 using BlogService.Application.DTOs.PostCommentDtos;
 using BlogService.Infrastructure.Services;
@@ -65,9 +66,44 @@ public class PostsController : ControllerBase
             dto.AudienceType,
             dto.IdentityDisclosure,
             dto.LocationPrecision,
-            dto.ExpiresAt);
-        var postId = await _mediator.Send(command);
-        return CreatedAtAction(nameof(GetById), new { id = postId }, new { PostId = postId });
+            dto.ExpiresAt,
+            dto.ObservationLatitude,
+            dto.ObservationLongitude,
+            dto.ObservationAccuracyMeters);
+        try
+        {
+            var postId = await _mediator.Send(command);
+            var anchorType = dto.PlaceId.HasValue ? "PLACE" : "COORDINATE";
+            return CreatedAtAction(nameof(GetById), new { id = postId }, new
+            {
+                PostId = postId,
+                AnchorType = anchorType,
+                dto.PlaceId,
+                DisplayLatitude = anchorType == "COORDINATE" && dto.Latitude.HasValue ? Math.Round(dto.Latitude.Value, 3, MidpointRounding.AwayFromZero) : (double?)null,
+                DisplayLongitude = anchorType == "COORDINATE" && dto.Longitude.HasValue ? Math.Round(dto.Longitude.Value, 3, MidpointRounding.AwayFromZero) : (double?)null,
+                State = "accepted"
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = "not_found", message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "forbidden", message = ex.Message });
+        }
+        catch (PlaceProximityException ex)
+        {
+            return UnprocessableEntity(new { error = "PLACE_PROXIMITY_REQUIRED", message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = "invalid_content_request", message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = "invalid_content_state", message = ex.Message });
+        }
     }
 
     [HttpPut("{id:guid}")]

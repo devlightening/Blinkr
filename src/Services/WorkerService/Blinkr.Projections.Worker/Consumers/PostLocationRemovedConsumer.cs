@@ -2,6 +2,7 @@ using MassTransit;
 using MongoDB.Driver;
 using Shared.Events.Abstractions;
 using Blinkr.Projections.Worker.Documents;
+using Blinkr.Projections.Worker.Infra;
 
 namespace Blinkr.Projections.Worker.Consumers;
 
@@ -12,15 +13,23 @@ public class PostLocationRemovedConsumer : IConsumer<IPostLocationRemovedIntegra
 {
     private readonly IMongoCollection<PostDocument> _collection;
     private readonly ILogger<PostLocationRemovedConsumer> _logger;
+    private readonly ProjectionInbox _inbox;
 
-    public PostLocationRemovedConsumer(IMongoDatabase database, ILogger<PostLocationRemovedConsumer> logger)
+    public PostLocationRemovedConsumer(IMongoDatabase database, ILogger<PostLocationRemovedConsumer> logger, ProjectionInbox inbox)
     {
         _collection = database.GetCollection<PostDocument>("posts");
         _logger = logger;
+        _inbox = inbox;
     }
 
     public async Task Consume(ConsumeContext<IPostLocationRemovedIntegrationEvent> context)
     {
+        const string consumerName = nameof(PostLocationRemovedConsumer);
+        if (!await _inbox.TryBeginAsync(context, consumerName))
+        {
+            return;
+        }
+
         var message = context.Message;
         
         try
@@ -36,11 +45,13 @@ public class PostLocationRemovedConsumer : IConsumer<IPostLocationRemovedIntegra
             _logger.LogInformation(
                 "📍 LocationRemoved projected. PostId={PostId}, Matched={Matched}, Modified={Modified}",
                 message.PostId, result.MatchedCount, result.ModifiedCount);
+            await _inbox.MarkProcessedAsync(context, consumerName);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, 
                 "❌ Failed to project LocationRemoved. PostId={PostId}", message.PostId);
+            await _inbox.ReleaseAsync(context, consumerName);
             throw;
         }
     }

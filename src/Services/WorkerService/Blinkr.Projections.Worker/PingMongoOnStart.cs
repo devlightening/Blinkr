@@ -4,10 +4,11 @@ using MongoDB.Driver;
 public class PingMongoOnStart : IHostedService
 {
     private readonly IMongoDatabase _db;
+    private readonly Blinkr.Projections.Worker.MongoIndexManager _indexManager;
     private readonly ILogger<PingMongoOnStart> _log;
 
-    public PingMongoOnStart(IMongoDatabase db, ILogger<PingMongoOnStart> log)
-    { _db = db; _log = log; }
+    public PingMongoOnStart(IMongoDatabase db, Blinkr.Projections.Worker.MongoIndexManager indexManager, ILogger<PingMongoOnStart> log)
+    { _db = db; _indexManager = indexManager; _log = log; }
 
     public async Task StartAsync(CancellationToken ct)
     {
@@ -24,6 +25,8 @@ public class PingMongoOnStart : IHostedService
                 ct);
 
             _log.LogInformation("✅ Mongo connectivity check passed (ping + write)");
+            await _indexManager.CreateIndexesAsync();
+            _log.LogInformation("✅ Mongo indexes ensured");
         }
         catch (Exception ex)
         {

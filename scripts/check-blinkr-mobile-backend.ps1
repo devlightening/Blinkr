@@ -4,6 +4,8 @@ $checks = @(
     @{ Name = "Gateway"; Url = "http://localhost:5080/health" },
     @{ Name = "Identity"; Url = "http://localhost:5188/health" },
     @{ Name = "Blog API"; Url = "http://localhost:5215/health/liveness" },
+    @{ Name = "Notifications"; Url = "http://localhost:5290/health" },
+    @{ Name = "Places"; Url = "http://localhost:5225/health" },
     @{ Name = "Projection worker"; Url = "http://localhost:8082/health" }
 )
 
@@ -19,4 +21,3 @@ foreach ($check in $checks) {
 
 Write-Host "`nDocker services"
 docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
-

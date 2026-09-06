@@ -2,6 +2,7 @@ using BlogService.Application.Common.Interfaces;
 using BlogService.Application.Features.Mediatr.Comamnds.PostCommands;
 using BlogService.Application.Services;
 using BlogService.Domain.Entities;
+using BlogService.Domain.Events;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -13,17 +14,26 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
     private readonly IEventStoreRepository _eventStoreRepo;
     private readonly ICurrentUserService _currentUser;
     private readonly IGeocodingService _geocodingService;
+    private readonly IPlaceLookupService _placeLookupService;
+    private readonly IPlaceProximityPolicy _placeProximityPolicy;
+    private readonly IMediaAttachmentService _mediaAttachmentService;
     private readonly ILogger<CreatePostCommandHandler> _logger;
 
     public CreatePostCommandHandler(
         IEventStoreRepository eventStoreRepo,
         ICurrentUserService currentUser,
         IGeocodingService geocodingService,
+        IPlaceLookupService placeLookupService,
+        IPlaceProximityPolicy placeProximityPolicy,
+        IMediaAttachmentService mediaAttachmentService,
         ILogger<CreatePostCommandHandler> logger)
     {
         _eventStoreRepo = eventStoreRepo;
         _currentUser = currentUser;
         _geocodingService = geocodingService;
+        _placeLookupService = placeLookupService;
+        _placeProximityPolicy = placeProximityPolicy;
+        _mediaAttachmentService = mediaAttachmentService;
         _logger = logger;
     }
 
@@ -32,15 +42,22 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
         var isQuickSignal = !string.Equals(request.SignalType, "GeneralObservation", StringComparison.Ordinal)
             && !string.IsNullOrWhiteSpace(request.SignalValue);
         var title = string.IsNullOrWhiteSpace(request.Title)
-            ? $"{request.SignalType}: {request.SignalValue}"
+            ? (isQuickSignal ? $"{request.SignalType}: {request.SignalValue}" : "Taze içerik")
             : request.Title.Trim();
         var content = request.Content?.Trim() ?? string.Empty;
+        var requestedMediaIds = request.Media?
+            .Where(m => m.MediaId.HasValue)
+            .Select(m => m.MediaId!.Value)
+            .ToArray() ?? Array.Empty<Guid>();
+        var hasSignal = isQuickSignal;
+        var hasText = !string.IsNullOrWhiteSpace(request.Title) || !string.IsNullOrWhiteSpace(content);
+        var hasMedia = requestedMediaIds.Length > 0;
 
         // Validate input
-        if (string.IsNullOrWhiteSpace(title))
+        if (!hasSignal && !hasText && !hasMedia)
         {
-            _logger.LogWarning("WS-06: CreatePost validation failed - Title is empty");
-            throw new ArgumentException("Title is required and cannot be empty.");
+            _logger.LogWarning("WS-06: CreatePost validation failed - empty payload");
+            throw new ArgumentException("Post must contain signal, text, or media.");
         }
 
         if (title.Length > MaxTitleLength)
@@ -50,12 +67,6 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
             throw new ArgumentException($"Title must not exceed {MaxTitleLength} characters.");
         }
 
-        if (!isQuickSignal && string.IsNullOrWhiteSpace(content))
-        {
-            _logger.LogWarning("WS-06: CreatePost validation failed - Content is empty");
-            throw new ArgumentException("Content is required and cannot be empty.");
-        }
-
         if (content.Length > MaxContentLength)
         {
             _logger.LogWarning("WS-06: CreatePost validation failed - Content too long (Length={Length}, Max={Max})", 
@@ -63,10 +74,42 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
             throw new ArgumentException($"Content must not exceed {MaxContentLength} characters.");
         }
 
+        if (request.Media?.Any(m => !m.MediaId.HasValue) == true)
+        {
+            throw new ArgumentException("Media attachments must reference a prepared mediaId.");
+        }
+
         // Get authenticated user ID - authentication is required
         var authorId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User authentication required");
         var authorName = request.AuthorName ?? throw new ArgumentException("Author name is required");
         var authorGender = request.AuthorGender;
+
+        PlaceLookupResult? place = null;
+        if (request.PlaceId.HasValue)
+        {
+            place = await _placeLookupService.GetAsync(request.PlaceId.Value, ct);
+            if (place is null)
+            {
+                throw new ArgumentException("PlaceId does not reference an active place.");
+            }
+
+            var proximity = _placeProximityPolicy.Evaluate(new PlaceProximityRequest(
+                request.SignalType,
+                place.Latitude,
+                place.Longitude,
+                request.ObservationLatitude,
+                request.ObservationLongitude,
+                request.ObservationAccuracyMeters));
+            _logger.LogInformation(
+                "[Blinkr Publish] anchorType=PLACE placeId={PlaceId} distanceMeters={DistanceMeters} proximityAllowed={ProximityAllowed}",
+                request.PlaceId,
+                proximity.DistanceMeters.HasValue ? Math.Round(proximity.DistanceMeters.Value) : null,
+                proximity.IsAllowed);
+            if (!proximity.IsAllowed)
+            {
+                throw new PlaceProximityException("Bu yer için anlık sinyal bırakmak için mekana daha yakın olmalısın.");
+            }
+        }
         
         // Auto-fill location name via reverse geocoding if not provided and coordinates are available
         var locationName = request.LocationName;
@@ -96,14 +139,26 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
         var expiresAt = request.ExpiresAt ?? GetDefaultExpiry(request.SignalType);
         var latitude = request.Latitude;
         var longitude = request.Longitude;
-        if (!string.Equals(request.LocationPrecision, "PlaceCenter", StringComparison.Ordinal))
+        if (place is not null && string.Equals(request.LocationPrecision, "PlaceCenter", StringComparison.Ordinal))
+        {
+            latitude = place.Latitude;
+            longitude = place.Longitude;
+            locationName = string.IsNullOrWhiteSpace(locationName) ? place.Name : locationName;
+        }
+        else if (!string.Equals(request.LocationPrecision, "PlaceCenter", StringComparison.Ordinal))
         {
             latitude = latitude.HasValue ? Math.Round(latitude.Value, 3, MidpointRounding.AwayFromZero) : null;
             longitude = longitude.HasValue ? Math.Round(longitude.Value, 3, MidpointRounding.AwayFromZero) : null;
         }
 
+        var postId = Guid.NewGuid();
+        var attachedMedia = await _mediaAttachmentService.ClaimForPostAsync(authorId, postId, requestedMediaIds, ct);
+        var eventMedia = attachedMedia
+            .Select(m => new PostMediaInfo(m.Url, m.MediaType.ToString(), m.MediaId, m.ContentType, m.SizeBytes, m.Width, m.Height, m.DurationSeconds, m.ThumbnailUrl))
+            .ToList();
+
         var postAggregate = PostAggregate.Create(
-            Guid.NewGuid(), 
+            postId, 
             authorId, 
             title,
             content,
@@ -120,18 +175,8 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
             request.IdentityDisclosure,
             request.LocationPrecision,
             "Community",
-            expiresAt);
-
-        if (request.Media is not null)
-        {
-            foreach (var m in request.Media)
-            {
-                if (m.Url is not null)
-                {
-                    postAggregate.AddMedia(m.Url, m.MediaType.ToString());
-                }
-            }
-        }
+            expiresAt,
+            eventMedia);
 
         try
         {

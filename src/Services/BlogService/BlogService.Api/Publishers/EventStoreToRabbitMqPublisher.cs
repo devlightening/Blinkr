@@ -1,481 +1,396 @@
-using System;
-using System.Collections.Generic;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
+using BlogService.Domain.Events;
+using BlogService.Infrastructure;
 using EventStore.Client;
 using MassTransit;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using BlogService.Domain.Events;
+using MongoDB.Bson;
+using MongoDB.Driver;
 using Shared.Events.Abstractions;
 using Shared.Events.Events.Blog;
-using ResolvedEvent = EventStore.Client.ResolvedEvent;
-using BlogService.Infrastructure;
-using static EventStore.Client.StreamSubscription;
 
-namespace BlogService.Api
+namespace BlogService.Api;
+
+public sealed class EventStoreToRabbitMqPublisher : BackgroundService
 {
-    public sealed class EventStoreToRabbitMqPublisher : BackgroundService
+    private const string AggregateStreamPrefix = "PostAggregate-";
+    private const string CheckpointKey = "publisher-posts";
+
+    private static readonly JsonSerializerOptions JsonOpts = new()
     {
-        private const string AggregateStreamPrefix = "PostAggregate-";
-        private const string CheckpointKey = "publisher-posts";
+        PropertyNameCaseInsensitive = true
+    };
 
-        // checkpointInterval (ms) -- test için 30s, prod'da ihtiyaca göre ayarla
-        private const int CheckpointIntervalMs = 30_000;
-
-        private readonly EventStoreClient _es;
-        private readonly IBus _bus;
-        private readonly ICheckpointStore _checkpointStore;
-        private readonly ILogger<EventStoreToRabbitMqPublisher> _log;
-
-        // Son persist edilmiş checkpoint (guard için)
-        private EventStore.Client.Position? _lastPersistedCheckpoint = null;
-        private readonly object _checkpointLock = new();
-
-        private static readonly JsonSerializerOptions JsonOpts = new()
+    private static readonly Dictionary<string, Type> DomainTypesByName =
+        new(StringComparer.OrdinalIgnoreCase)
         {
-            PropertyNameCaseInsensitive = true
+            [nameof(PostCreatedEvent)] = typeof(PostCreatedEvent),
+            [nameof(PostContentUpdatedEvent)] = typeof(PostContentUpdatedEvent),
+            [nameof(PostDeletedEvent)] = typeof(PostDeletedEvent),
+            [nameof(PostLikedEvent)] = typeof(PostLikedEvent),
+            [nameof(PostUnlikedEvent)] = typeof(PostUnlikedEvent),
+            [nameof(PostCommentAddedEvent)] = typeof(PostCommentAddedEvent),
+            [nameof(PostLocationAddedEvent)] = typeof(PostLocationAddedEvent),
+            [nameof(PostLocationUpdatedEvent)] = typeof(PostLocationUpdatedEvent),
+            [nameof(PostLocationRemovedEvent)] = typeof(PostLocationRemovedEvent),
         };
 
-        private static readonly Dictionary<string, Type> DomainTypesByName =
-            new(StringComparer.OrdinalIgnoreCase)
-            {
-                [nameof(PostCreatedEvent)] = typeof(PostCreatedEvent),
-                [nameof(PostContentUpdatedEvent)] = typeof(PostContentUpdatedEvent),
-                [nameof(PostDeletedEvent)] = typeof(PostDeletedEvent),
-                [nameof(PostLikedEvent)] = typeof(PostLikedEvent),
-                [nameof(PostCommentAddedEvent)] = typeof(PostCommentAddedEvent),
-            };
+    private readonly EventStoreClient _es;
+    private readonly IBus _bus;
+    private readonly ICheckpointStore _checkpointStore;
+    private readonly IMongoCollection<BsonDocument> _statusCollection;
+    private readonly IMongoCollection<BsonDocument> _failureCollection;
+    private readonly ILogger<EventStoreToRabbitMqPublisher> _log;
 
-        public EventStoreToRabbitMqPublisher(
-            EventStoreClient es,
-            IBus bus,
-            ICheckpointStore checkpointStore,
-            ILogger<EventStoreToRabbitMqPublisher> log)
+    public EventStoreToRabbitMqPublisher(
+        EventStoreClient es,
+        IBus bus,
+        ICheckpointStore checkpointStore,
+        IMongoDatabase mongoDatabase,
+        ILogger<EventStoreToRabbitMqPublisher> log)
+    {
+        _es = es;
+        _bus = bus;
+        _checkpointStore = checkpointStore;
+        _statusCollection = mongoDatabase.GetCollection<BsonDocument>("publisher_status");
+        _failureCollection = mongoDatabase.GetCollection<BsonDocument>("publisher_failures");
+        _log = log;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _log.LogInformation("BLK-INFRA-01 EventStore publisher starting");
+
+        var backoff = TimeSpan.FromSeconds(1);
+        var maxBackoff = TimeSpan.FromSeconds(30);
+
+        while (!stoppingToken.IsCancellationRequested)
         {
-            _es = es ?? throw new ArgumentNullException(nameof(es));
-            _bus = bus ?? throw new ArgumentNullException(nameof(bus));
-            _checkpointStore = checkpointStore ?? throw new ArgumentNullException(nameof(checkpointStore));
-            _log = log ?? throw new ArgumentNullException(nameof(log));
-        }
-
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-        {
-            _log.LogInformation("🚀 EventStoreDB Publisher starting...");
-
-            // Exponential backoff configuration
-            var backoff = TimeSpan.FromSeconds(1);
-            var maxBackoff = TimeSpan.FromSeconds(30);
-            var consecutiveRestarts = 0;
-            const int MaxConsecutiveRestartsForAlert = 5;
-
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                try
-                {
-                    var last = await _checkpointStore.GetAsync(CheckpointKey, stoppingToken);
-
-                    // Eğer checkpoint veritabanından alınmışsa onu _lastPersistedCheckpoint olarak başlat
-                    if (last.HasValue)
-                    {
-                        lock (_checkpointLock)
-                        {
-                            _lastPersistedCheckpoint = last.Value;
-                        }
-                    }
-
-                    // Start from checkpoint if available, otherwise from End for live subscription
-                    var start = last.HasValue ? FromAll.After(last.Value) : FromAll.End;
-
-                    var filter = new SubscriptionFilterOptions(
-                        StreamFilter.Prefix(AggregateStreamPrefix),
-                        checkpointInterval: CheckpointIntervalMs,
-                        checkpointReached: async (sub, pos, ct) =>
-                        {
-                            try
-                            {
-                                // sadece gerçek değişiklikse persist et
-                                var shouldPersist = false;
-                                lock (_checkpointLock)
-                                {
-                                    if (!_lastPersistedCheckpoint.HasValue ||
-                                        _lastPersistedCheckpoint.Value.CommitPosition != pos.CommitPosition ||
-                                        _lastPersistedCheckpoint.Value.PreparePosition != pos.PreparePosition)
-                                    {
-                                        _lastPersistedCheckpoint = pos;
-                                        shouldPersist = true;
-                                    }
-                                }
-
-                                if (shouldPersist)
-                                {
-                                    await _checkpointStore.StoreAsync(CheckpointKey, pos, ct).ConfigureAwait(false);
-                                    _log.LogDebug("Checkpoint (interval) stored: {Commit}/{Prepare}", pos.CommitPosition, pos.PreparePosition);
-                                }
-                                else
-                                {
-                                    _log.LogDebug("Checkpoint (interval) unchanged: {Commit}/{Prepare}", pos.CommitPosition, pos.PreparePosition);
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                _log.LogError(ex, "Failed to store checkpoint in checkpointReached callback");
-                            }
-                        });
-
-                    _log.LogInformation("📡 Subscription starting (prefix={Prefix}, start={Start})", 
-                        AggregateStreamPrefix, start == FromAll.End ? "End" : last.HasValue ? "Checkpoint" : "Start");
-                    
-                    // AWAIT subscription - bloklanır, sadece drop olduğunda devam eder
-                    await _es.SubscribeToAllAsync(
-                        start: start,
-                        eventAppeared: async (sub, resolved, ct) => await HandleEventAsync(resolved, ct).ConfigureAwait(false),
-                        resolveLinkTos: false,
-                        subscriptionDropped: (sub, reason, ex) =>
-                        {
-                            // SADECE logla - exception throw etme! Outer loop restart yapar.
-                            if (reason == SubscriptionDroppedReason.Disposed)
-                            {
-                                _log.LogInformation("🛑 Subscription disposed (normal shutdown)");
-                            }
-                            else if (ex is not null)
-                            {
-                                _log.LogWarning(ex, "💔 Subscription dropped. Reason={Reason}", reason);
-                            }
-                            else
-                            {
-                                _log.LogWarning("💔 Subscription dropped. Reason={Reason}", reason);
-                            }
-                        },
-                        filterOptions: filter,
-                        cancellationToken: stoppingToken
-                    ).ConfigureAwait(false);
-
-                    // Subscription ended - this should NOT happen for live subscriptions
-                    // Only restart if cancellation NOT requested
-                    if (!stoppingToken.IsCancellationRequested)
-                    {
-                        consecutiveRestarts++;
-                        _log.LogWarning("⚠️ Subscription ended unexpectedly. Backing off {Backoff}s (restart #{Count})", 
-                            backoff.TotalSeconds, consecutiveRestarts);
-                        
-                        if (consecutiveRestarts >= MaxConsecutiveRestartsForAlert)
-                        {
-                            _log.LogError("🚨 ALERT: Too many consecutive subscription restarts ({Count}) - possible EventStore issue!", consecutiveRestarts);
-                        }
-                        
-                        // SAFETY: Minimum delay to prevent hot loops
-                        var safeDelay = TimeSpan.FromSeconds(Math.Max(5, backoff.TotalSeconds));
-                        await Task.Delay(safeDelay, stoppingToken).ConfigureAwait(false);
-                        backoff = IncreaseBackoff(backoff, maxBackoff);
-                    }
-                }
-                catch (Grpc.Core.RpcException ex) when (
-                    ex.StatusCode == Grpc.Core.StatusCode.Unavailable ||
-                    ex.StatusCode == Grpc.Core.StatusCode.DeadlineExceeded)
-                {
-                    consecutiveRestarts++;
-                    _log.LogWarning(ex, "⚠️ EventStore gRPC transient error. Backing off {Backoff}s (restart #{Count})", 
-                        backoff.TotalSeconds, consecutiveRestarts);
-                    
-                    if (consecutiveRestarts >= MaxConsecutiveRestartsForAlert)
-                    {
-                        _log.LogError("🚨 ALERT: Too many consecutive restarts ({Count}) - possible persistent failure!", consecutiveRestarts);
-                    }
-                    
-                    await Task.Delay(backoff, stoppingToken).ConfigureAwait(false);
-                    backoff = IncreaseBackoff(backoff, maxBackoff);
-                }
-                catch (System.Net.Http.HttpRequestException ex)
-                {
-                    consecutiveRestarts++;
-                    _log.LogWarning(ex, "⚠️ EventStore HTTP connection error. Backing off {Backoff}s (restart #{Count})", 
-                        backoff.TotalSeconds, consecutiveRestarts);
-                    await Task.Delay(backoff, stoppingToken).ConfigureAwait(false);
-                    backoff = IncreaseBackoff(backoff, maxBackoff);
-                }
-                catch (System.Net.Sockets.SocketException ex)
-                {
-                    consecutiveRestarts++;
-                    _log.LogWarning(ex, "⚠️ EventStore socket error. Backing off {Backoff}s (restart #{Count})", 
-                        backoff.TotalSeconds, consecutiveRestarts);
-                    await Task.Delay(backoff, stoppingToken).ConfigureAwait(false);
-                    backoff = IncreaseBackoff(backoff, maxBackoff);
-                }
-                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-                {
-                    _log.LogInformation("🛑 Publisher shutting down gracefully");
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    consecutiveRestarts++;
-                    _log.LogError(ex, "❌ Unexpected error in subscription loop. Backing off {Backoff}s (restart #{Count})", 
-                        backoff.TotalSeconds, consecutiveRestarts);
-                    
-                    if (consecutiveRestarts >= MaxConsecutiveRestartsForAlert)
-                    {
-                        _log.LogError("🚨 ALERT: Too many consecutive restarts ({Count}) - check EventStore health!", consecutiveRestarts);
-                    }
-                    
-                    await Task.Delay(backoff, stoppingToken).ConfigureAwait(false);
-                    backoff = IncreaseBackoff(backoff, maxBackoff);
-                }
-            }
-
-            _log.LogInformation("🛑 Publisher stopping.");
-        }
-
-        private static TimeSpan IncreaseBackoff(TimeSpan current, TimeSpan max)
-        {
-            var increased = TimeSpan.FromSeconds(current.TotalSeconds * 2);
-            return increased < max ? increased : max;
-        }
-
-        private async Task HandleEventAsync(ResolvedEvent resolved, CancellationToken ct)
-        {
-            if (ct.IsCancellationRequested) return;
-
             try
             {
-                var typeName = resolved.Event.EventType;
-                if (string.IsNullOrWhiteSpace(typeName))
-                {
-                    _log.LogDebug("Event without type skipped");
-                    return;
-                }
+                var checkpoint = await _checkpointStore.GetAsync(CheckpointKey, stoppingToken);
+                var start = checkpoint.HasValue ? FromAll.After(checkpoint.Value) : FromAll.Start;
 
-                if (typeName.StartsWith("$", StringComparison.Ordinal))
-                {
-                    _log.LogTrace("System event skipped: {EventType}", typeName);
-                    return;
-                }
+                await WriteStatusAsync("starting", checkpoint, null, stoppingToken);
+                _log.LogInformation(
+                    "EventStore subscription starting. Prefix={Prefix} Start={Start}",
+                    AggregateStreamPrefix,
+                    checkpoint.HasValue ? "checkpoint" : "start");
 
-                var eventType = ResolveDomainType(typeName);
-                if (eventType is null)
-                {
-                    _log.LogWarning("Unknown event type: {EventType}", typeName);
-                    return;
-                }
+                var dropped = new TaskCompletionSource<object?>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
 
-                var domainEvent = JsonSerializer.Deserialize(resolved.Event.Data.Span, eventType, JsonOpts);
-                if (domainEvent is null)
-                {
-                    _log.LogWarning("Deserialize failed for {EventType}", typeName);
-                    return;
-                }
-
-                switch (domainEvent)
-                {
-                    case PostCreatedEvent e:
-                        _log.LogInformation("Publish PostCreated PostId={PostId} Location={HasLocation} AuthorName={AuthorName} Gender={Gender}", e.PostId, e.Latitude.HasValue && e.Longitude.HasValue, e.AuthorName, e.AuthorGender);
-                        await _bus.Publish<IPostCreatedIntegrationEvent>(new
-                        {
-                            e.PostId,
-                            e.AuthorId,
-                            e.Title,
-                            e.Content,
-                            e.OccurredOn,
-                            e.AuthorName,
-                            e.AuthorGender,
-                            e.Latitude,
-                            e.Longitude,
-                            e.AccuracyMeters,
-                            e.LocationName,
-                            e.PlaceId,
-                            e.SignalType,
-                            e.SignalValue,
-                            e.AudienceType,
-                            e.IdentityDisclosure,
-                            e.LocationPrecision,
-                            e.SourceType,
-                            e.ExpiresAt
-                        }, ct).ConfigureAwait(false);
-                        break;
-
-                    case PostContentUpdatedEvent e:
-                        _log.LogInformation("Publish PostContentUpdated PostId={PostId}", e.PostId);
-                        await _bus.Publish(new PostContentUpdatedIntegrationEvent
-                        {
-                            PostId = e.PostId,
-                            NewTitle = e.NewTitle,
-                            NewContent = e.NewContent
-                        }, ct).ConfigureAwait(false);
-                        break;
-
-                    case PostDeletedEvent e:
-                        _log.LogInformation("Publish PostDeleted PostId={PostId}", e.PostId);
-                        await _bus.Publish(new PostDeletedEvent(e.PostId, e.OccurredOn), ct).ConfigureAwait(false);
-                        break;
-
-                    case PostLikedEvent e:
-                        _log.LogInformation("Publish PostLiked PostId={PostId} UserId={UserId}", e.PostId, e.UserId);
-                        // For WS-07A: We need to get PostOwnerId from the aggregate
-                        // This requires loading the aggregate, which is expensive but necessary for notifications
-                        try
-                        {
-                            var streamName = $"PostAggregate-{e.PostId}";
-                            var events = _es.ReadStreamAsync(Direction.Forwards, streamName, StreamPosition.Start, cancellationToken: ct);
-                            
-                            Guid? postOwnerId = null;
-                            await foreach (var evt in events)
-                            {
-                                if (evt.Event.EventType.EndsWith(nameof(PostCreatedEvent), StringComparison.Ordinal))
-                                {
-                                    var createdEvent = JsonSerializer.Deserialize<PostCreatedEvent>(evt.Event.Data.Span, JsonOpts);
-                                    postOwnerId = createdEvent?.AuthorId;
-                                    break;
-                                }
-                            }
-                            
-                            if (postOwnerId.HasValue && postOwnerId.Value != Guid.Empty)
-                            {
-                                _log.LogInformation("WS-07A: Resolved PostOwnerId={PostOwnerId} for PostId={PostId}", postOwnerId.Value, e.PostId);
-                                await _bus.Publish<PostLikedIntegrationEvent>(new
-                                {
-                                    PostId = e.PostId,
-                                    PostOwnerId = postOwnerId.Value,
-                                    LikerUserId = e.UserId,
-                                    LikerUserName = "Unknown", // TODO: Get from UserService
-                                    OccurredAtUtc = e.OccurredOn
-                                }, ct).ConfigureAwait(false);
-                                
-                                _log.LogInformation("👍 WS-07A: PostLiked published with PostOwnerId={PostOwnerId}", postOwnerId.Value);
-                            }
-                            else
-                            {
-                                _log.LogWarning("⚠️ WS-07A: PostOwnerId missing/empty for PostId={PostId} - falling back to legacy event", e.PostId);
-                                await _bus.Publish(new PostLikedEvent(e.PostId, e.UserId, e.OccurredOn), ct).ConfigureAwait(false);
-                            }
-                            //else
-                            //{
-                            //    _log.LogWarning("⚠️ WS-07A: Could not determine PostOwnerId for PostId={PostId}", e.PostId);
-                            //    // Fallback to old format
-                            //    await _bus.Publish(new PostLikedEvent(e.PostId, e.UserId, e.OccurredOn), ct).ConfigureAwait(false);
-                            //}
-                        }
-                        catch (Exception ex)
-                        {
-                            _log.LogError(ex, "❌ WS-07A: Error getting PostOwnerId for PostLiked event");
-                            // Fallback to old format
-                            await _bus.Publish(new PostLikedEvent(e.PostId, e.UserId, e.OccurredOn), ct).ConfigureAwait(false);
-                        }
-                        break;
-
-                    case PostCommentAddedEvent e:
-                        _log.LogInformation("Publish PostCommentAdded PostId={PostId} CommentId={CommentId}", e.PostId, e.CommentId);
-                        // WS-07A: Publish integration event with PostOwnerId for NotificationService
-                        try
-                        {
-                            var streamName = $"PostAggregate-{e.PostId}";
-                            var events = _es.ReadStreamAsync(Direction.Forwards, streamName, StreamPosition.Start, cancellationToken: ct);
-                            
-                            Guid? postOwnerId = null;
-                            await foreach (var evt in events)
-                            {
-                                if (evt.Event.EventType == nameof(PostCreatedEvent))
-                                {
-                                    var createdEvent = JsonSerializer.Deserialize<PostCreatedEvent>(evt.Event.Data.Span, JsonOpts);
-                                    postOwnerId = createdEvent?.AuthorId;
-                                    break;
-                                }
-                            }
-                            
-                            if (postOwnerId.HasValue && postOwnerId.Value != Guid.Empty)
-                            {
-                                _log.LogInformation("WS-07A: Publishing integration event comment.created PostId={PostId}, PostOwnerId={OwnerId}, AuthorId={AuthorId}", e.PostId, postOwnerId.Value, e.AuthorId);
-                                await _bus.Publish<PostCommentAddedIntegrationEvent>(new
-                                {
-                                    PostId = e.PostId,
-                                    PostOwnerId = postOwnerId.Value,
-                                    CommentId = e.CommentId,
-                                    CommentAuthorId = e.AuthorId,
-                                    CommentAuthorName = "Unknown", // TODO: enrich with user name
-                                    CommentText = e.CommentText,
-                                    OccurredAtUtc = e.OccurredOn
-                                }, ct).ConfigureAwait(false);
-                            }
-                            //else
-                            //{
-                            //    _log.LogWarning("WS-07A: Could not determine PostOwnerId for PostId={PostId} - falling back to legacy event", e.PostId);
-                            //    await _bus.Publish(new PostCommentAddedEvent(e.PostId, e.CommentId, e.AuthorId, e.CommentText, e.OccurredOn), ct).ConfigureAwait(false);
-                            //}
-                            else
-                            {
-                                _log.LogWarning("WS-07A: Could not determine PostOwnerId for PostId={PostId}", e.PostId);
-                                // Fallback: publish domain event (legacy)
-                                await _bus.Publish(new PostCommentAddedEvent(e.PostId, e.CommentId, e.AuthorId, e.CommentText, e.OccurredOn), ct).ConfigureAwait(false);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _log.LogError(ex, "WS-07A: Error preparing PostCommentAddedIntegrationEvent - falling back to legacy event");
-                            await _bus.Publish(new PostCommentAddedEvent(e.PostId, e.CommentId, e.AuthorId, e.CommentText, e.OccurredOn), ct).ConfigureAwait(false);
-                        }
-                        break;
-
-                    default:
-                        _log.LogDebug("Unmapped domain event: {EventType}", eventType.Name);
-                        break;
-                }
-
-                if (resolved.OriginalPosition is EventStore.Client.Position p)
-                {
-                    try
+                using var subscription = await _es.SubscribeToAllAsync(
+                    start: start,
+                    eventAppeared: async (_, resolved, ct) => await HandleEventAsync(resolved, ct),
+                    resolveLinkTos: false,
+                    subscriptionDropped: (_, reason, ex) =>
                     {
-                        var shouldPersist = false;
-                        lock (_checkpointLock)
+                        if (ex is null)
                         {
-                            if (!_lastPersistedCheckpoint.HasValue ||
-                                _lastPersistedCheckpoint.Value.CommitPosition != p.CommitPosition ||
-                                _lastPersistedCheckpoint.Value.PreparePosition != p.PreparePosition)
-                            {
-                                _lastPersistedCheckpoint = p;
-                                shouldPersist = true;
-                            }
-                        }
-
-                        if (shouldPersist)
-                        {
-                            await _checkpointStore.StoreAsync(CheckpointKey, p, ct).ConfigureAwait(false);
-                            _log.LogTrace("Checkpoint (event) stored: {Commit}/{Prepare}", p.CommitPosition, p.PreparePosition);
+                            _log.LogWarning("EventStore subscription dropped. Reason={Reason}", reason);
                         }
                         else
                         {
-                            _log.LogTrace("Checkpoint (event) unchanged: {Commit}/{Prepare}", p.CommitPosition, p.PreparePosition);
+                            _log.LogWarning(ex, "EventStore subscription dropped. Reason={Reason}", reason);
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        _log.LogWarning(ex, "Failed to store checkpoint after processing event Stream={Stream} Pos={Pos} Type={Type} - will retry on next event",
-                            resolved.OriginalStreamId, resolved.OriginalPosition, resolved.Event.EventType);
-                        // Don't throw - event was successfully published to RabbitMQ
-                        // Checkpoint will be retried on next event or interval checkpoint
-                    }
+
+                        dropped.TrySetResult(null);
+                    },
+                    filterOptions: new SubscriptionFilterOptions(StreamFilter.Prefix(AggregateStreamPrefix)),
+                    cancellationToken: stoppingToken);
+
+                await WriteStatusAsync("running", checkpoint, null, stoppingToken);
+                backoff = TimeSpan.FromSeconds(1);
+
+                await dropped.Task.WaitAsync(stoppingToken);
+
+                if (!stoppingToken.IsCancellationRequested)
+                {
+                    await WriteStatusAsync("dropped", checkpoint, "subscription ended", stoppingToken);
+                    await Task.Delay(backoff, stoppingToken);
+                    backoff = IncreaseBackoff(backoff, maxBackoff);
                 }
             }
-            catch (JsonException jex)
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
-                _log.LogError(jex, "JSON deserialization error processing event {EventType}", resolved.Event.EventType);
+                break;
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "❌ Error processing event. Stream={Stream} Pos={Pos} Type={Type}",
-                    resolved.OriginalStreamId, resolved.OriginalPosition, resolved.Event.EventType);
-                throw;
+                _log.LogError(ex, "EventStore publisher loop failed. Retrying after {DelaySeconds}s", backoff.TotalSeconds);
+                await WriteStatusAsync("retrying", null, ex.Message, CancellationToken.None);
+                await Task.Delay(backoff, stoppingToken);
+                backoff = IncreaseBackoff(backoff, maxBackoff);
             }
         }
 
-        private static Type? ResolveDomainType(string eventTypeName)
+        await WriteStatusAsync("stopped", null, null, CancellationToken.None);
+        _log.LogInformation("BLK-INFRA-01 EventStore publisher stopped");
+    }
+
+    private async Task HandleEventAsync(ResolvedEvent resolved, CancellationToken ct)
+    {
+        if (resolved.OriginalPosition is not Position position)
         {
-            if (string.IsNullOrWhiteSpace(eventTypeName)) return null;
-
-            var t = Type.GetType(eventTypeName, throwOnError: false, ignoreCase: true);
-            if (t is not null) return t;
-
-            var simple = eventTypeName.Contains('.') ? eventTypeName.Split('.').Last() : eventTypeName;
-            return DomainTypesByName.TryGetValue(simple, out var mapped) ? mapped : null;
+            _log.LogDebug("Skipping event without original all-stream position. Stream={Stream}", resolved.OriginalStreamId);
+            return;
         }
+
+        if (resolved.Event.EventType.StartsWith("$", StringComparison.Ordinal))
+        {
+            await StoreCheckpointAsync(position, ct);
+            return;
+        }
+
+        if (ResolveDomainType(resolved.Event.EventType) is not { } eventType)
+        {
+            await StorePoisonEventAsync(resolved, "unknown_event_type", null, ct);
+            await StoreCheckpointAsync(position, ct);
+            return;
+        }
+
+        object? domainEvent;
+        try
+        {
+            domainEvent = JsonSerializer.Deserialize(resolved.Event.Data.Span, eventType, JsonOpts);
+        }
+        catch (JsonException ex)
+        {
+            await StorePoisonEventAsync(resolved, "deserialize_failed", ex.Message, ct);
+            await StoreCheckpointAsync(position, ct);
+            return;
+        }
+
+        if (domainEvent is null)
+        {
+            await StorePoisonEventAsync(resolved, "deserialize_null", null, ct);
+            await StoreCheckpointAsync(position, ct);
+            return;
+        }
+
+        await PublishIntegrationEventAsync(domainEvent, resolved.Event.EventId.ToGuid(), ct);
+        await StoreCheckpointAsync(position, ct);
+        await WriteStatusAsync("running", position, null, ct);
+    }
+
+    private async Task PublishIntegrationEventAsync(object domainEvent, Guid eventId, CancellationToken ct)
+    {
+        switch (domainEvent)
+        {
+            case PostCreatedEvent e:
+                await _bus.Publish<IPostCreatedIntegrationEvent>(new
+                {
+                    Id = eventId,
+                    e.PostId,
+                    e.AuthorId,
+                    e.Title,
+                    e.Content,
+                    e.OccurredOn,
+                    e.AuthorName,
+                    e.AuthorGender,
+                    e.Latitude,
+                    e.Longitude,
+                    e.AccuracyMeters,
+                    e.LocationName,
+                    e.PlaceId,
+                    e.SignalType,
+                    e.SignalValue,
+                    e.AudienceType,
+                    e.IdentityDisclosure,
+                    e.LocationPrecision,
+                    e.SourceType,
+                    e.ExpiresAt,
+                    Media = e.Media?
+                        .Select(m => new Shared.Events.Abstractions.PostMediaInfo
+                        {
+                            MediaId = m.MediaId,
+                            Url = m.Url,
+                            MediaType = m.MediaType,
+                            ContentType = m.ContentType,
+                            SizeBytes = m.SizeBytes,
+                            Width = m.Width,
+                            Height = m.Height,
+                            DurationSeconds = m.DurationSeconds,
+                            ThumbnailUrl = m.ThumbnailUrl
+                        })
+                        .ToList()
+                }, ctx => ctx.MessageId = eventId, ct);
+                _log.LogInformation("Published PostCreatedIntegrationEvent EventId={EventId} PostId={PostId}", eventId, e.PostId);
+                return;
+
+            case PostContentUpdatedEvent e:
+                await _bus.Publish(new PostContentUpdatedIntegrationEvent
+                {
+                    Id = eventId,
+                    OccurredOn = e.OccurredOn,
+                    PostId = e.PostId,
+                    NewTitle = e.NewTitle,
+                    NewContent = e.NewContent
+                }, ctx => ctx.MessageId = eventId, ct);
+                _log.LogInformation("Published PostContentUpdatedIntegrationEvent EventId={EventId} PostId={PostId}", eventId, e.PostId);
+                return;
+
+            case PostDeletedEvent e:
+                await _bus.Publish(new PostDeletedIntegrationEvent
+                {
+                    Id = eventId,
+                    OccurredOn = e.OccurredOn,
+                    PostId = e.PostId
+                }, ctx => ctx.MessageId = eventId, ct);
+                _log.LogInformation("Published PostDeletedIntegrationEvent EventId={EventId} PostId={PostId}", eventId, e.PostId);
+                return;
+
+            case PostLikedEvent e:
+                await _bus.Publish(new PostLikedIntegrationEvent
+                {
+                    Id = eventId,
+                    OccurredOn = e.OccurredOn,
+                    PostId = e.PostId,
+                    LikerUserId = e.UserId,
+                    OccurredAtUtc = e.OccurredOn
+                }, ctx => ctx.MessageId = eventId, ct);
+                _log.LogInformation("Published PostLikedIntegrationEvent EventId={EventId} PostId={PostId}", eventId, e.PostId);
+                return;
+
+            case PostUnlikedEvent e:
+                await _bus.Publish(new PostUnlikedIntegrationEvent
+                {
+                    Id = eventId,
+                    OccurredOn = e.OccurredOn,
+                    PostId = e.PostId,
+                    LikerUserId = e.UserId,
+                    OccurredAtUtc = e.OccurredOn
+                }, ctx => ctx.MessageId = eventId, ct);
+                _log.LogInformation("Published PostUnlikedIntegrationEvent EventId={EventId} PostId={PostId}", eventId, e.PostId);
+                return;
+
+            case PostCommentAddedEvent e:
+                await _bus.Publish(new PostCommentAddedIntegrationEvent
+                {
+                    Id = eventId,
+                    OccurredOn = e.OccurredOn,
+                    PostId = e.PostId,
+                    CommentId = e.CommentId,
+                    CommentAuthorId = e.AuthorId,
+                    CommentText = e.CommentText,
+                    OccurredAtUtc = e.OccurredOn
+                }, ctx => ctx.MessageId = eventId, ct);
+                _log.LogInformation("Published PostCommentAddedIntegrationEvent EventId={EventId} PostId={PostId}", eventId, e.PostId);
+                return;
+
+            case PostLocationAddedEvent e:
+                await _bus.Publish<IPostLocationAddedIntegrationEvent>(new
+                {
+                    Id = eventId,
+                    e.PostId,
+                    Lat = e.Latitude,
+                    Lon = e.Longitude,
+                    Name = e.LocationName,
+                    e.OccurredOn
+                }, ctx => ctx.MessageId = eventId, ct);
+                _log.LogInformation("Published PostLocationAddedIntegrationEvent EventId={EventId} PostId={PostId}", eventId, e.PostId);
+                return;
+
+            case PostLocationUpdatedEvent e:
+                await _bus.Publish<IPostLocationUpdatedIntegrationEvent>(new
+                {
+                    Id = eventId,
+                    e.PostId,
+                    Lat = e.Latitude,
+                    Lon = e.Longitude,
+                    Name = e.LocationName,
+                    e.OccurredOn
+                }, ctx => ctx.MessageId = eventId, ct);
+                _log.LogInformation("Published PostLocationUpdatedIntegrationEvent EventId={EventId} PostId={PostId}", eventId, e.PostId);
+                return;
+
+            case PostLocationRemovedEvent e:
+                await _bus.Publish<IPostLocationRemovedIntegrationEvent>(new
+                {
+                    Id = eventId,
+                    e.PostId,
+                    e.OccurredOn
+                }, ctx => ctx.MessageId = eventId, ct);
+                _log.LogInformation("Published PostLocationRemovedIntegrationEvent EventId={EventId} PostId={PostId}", eventId, e.PostId);
+                return;
+
+            default:
+                _log.LogDebug("Domain event has no integration mapping. EventType={EventType}", domainEvent.GetType().Name);
+                return;
+        }
+    }
+
+    private async Task StoreCheckpointAsync(Position position, CancellationToken ct)
+    {
+        await _checkpointStore.StoreAsync(CheckpointKey, position, ct);
+        _log.LogDebug("Publisher checkpoint stored Commit={Commit} Prepare={Prepare}", position.CommitPosition, position.PreparePosition);
+    }
+
+    private async Task StorePoisonEventAsync(ResolvedEvent resolved, string reason, string? error, CancellationToken ct)
+    {
+        var id = $"{resolved.OriginalStreamId}:{resolved.Event.EventNumber}";
+        var doc = new BsonDocument
+        {
+            ["_id"] = id,
+            ["stream"] = resolved.OriginalStreamId,
+            ["eventType"] = resolved.Event.EventType,
+            ["reason"] = reason,
+            ["error"] = error is null ? BsonNull.Value : new BsonString(error),
+            ["seenAtUtc"] = DateTime.UtcNow
+        };
+
+        await _failureCollection.ReplaceOneAsync(
+            Builders<BsonDocument>.Filter.Eq("_id", id),
+            doc,
+            new ReplaceOptions { IsUpsert = true },
+            ct);
+
+        _log.LogError(
+            "Poison EventStore event recorded and skipped. Stream={Stream} EventType={EventType} Reason={Reason}",
+            resolved.OriginalStreamId,
+            resolved.Event.EventType,
+            reason);
+    }
+
+    private async Task WriteStatusAsync(string state, Position? checkpoint, string? lastError, CancellationToken ct)
+    {
+        BsonValue lastErrorValue = lastError is null ? BsonNull.Value : new BsonString(lastError);
+        var update = Builders<BsonDocument>.Update
+            .Set("state", state)
+            .Set("updatedAtUtc", DateTime.UtcNow)
+            .Set("lastError", lastErrorValue);
+
+        if (checkpoint.HasValue)
+        {
+            update = update
+                .Set("commit", ToBson(checkpoint.Value.CommitPosition))
+                .Set("prepare", ToBson(checkpoint.Value.PreparePosition));
+        }
+
+        await _statusCollection.UpdateOneAsync(
+            Builders<BsonDocument>.Filter.Eq("_id", CheckpointKey),
+            update,
+            new UpdateOptions { IsUpsert = true },
+            ct);
+    }
+
+    private static BsonValue ToBson(ulong value) =>
+        value <= long.MaxValue ? new BsonInt64((long)value) : new BsonString(value.ToString());
+
+    private static TimeSpan IncreaseBackoff(TimeSpan current, TimeSpan max)
+    {
+        var increased = TimeSpan.FromSeconds(current.TotalSeconds * 2);
+        return increased < max ? increased : max;
+    }
+
+    private static Type? ResolveDomainType(string eventTypeName)
+    {
+        if (string.IsNullOrWhiteSpace(eventTypeName)) return null;
+
+        var type = Type.GetType(eventTypeName, throwOnError: false, ignoreCase: true);
+        if (type is not null) return type;
+
+        var simple = eventTypeName.Contains('.') ? eventTypeName.Split('.').Last() : eventTypeName;
+        return DomainTypesByName.TryGetValue(simple, out var mapped) ? mapped : null;
     }
 }
