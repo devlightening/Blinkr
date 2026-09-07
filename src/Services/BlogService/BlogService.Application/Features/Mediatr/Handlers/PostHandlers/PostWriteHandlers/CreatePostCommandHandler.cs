@@ -107,6 +107,10 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
                 proximity.IsAllowed);
             if (!proximity.IsAllowed)
             {
+                _logger.LogWarning(
+                    "[Blinkr PlacePublishRejected] placeId={PlaceId} serverDistanceMeters={ServerDistanceMeters} reason=PLACE_PROXIMITY_REQUIRED",
+                    request.PlaceId,
+                    proximity.DistanceMeters.HasValue ? Math.Round(proximity.DistanceMeters.Value) : null);
                 throw new PlaceProximityException("Bu yer için anlık sinyal bırakmak için mekana daha yakın olmalısın.");
             }
         }

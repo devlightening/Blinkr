@@ -84,7 +84,11 @@ public sealed class PlaceRepository : IPlaceRepository
             Builders<PlaceDocument>.Filter.Eq(p => p.IsActive, true),
             Builders<PlaceDocument>.Filter.GeoWithin(p => p.Location, polygon));
 
-        return await _places.Find(filter).Limit(limit).ToListAsync(ct);
+        return await _places.Find(filter)
+            .SortByDescending(p => p.UpdatedAtUtc)
+            .ThenByDescending(p => p.CreatedAtUtc)
+            .Limit(limit)
+            .ToListAsync(ct);
     }
 
     public async Task<PlaceDocument> CreateAsync(CreatePlaceRequest request, CancellationToken ct)

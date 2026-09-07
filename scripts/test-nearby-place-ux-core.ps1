@@ -129,8 +129,9 @@ if (-not $placePostId) { $placePostId = $placePost.PostId }
 Assert-True ($placePost.anchorType -eq "PLACE" -or $placePost.AnchorType -eq "PLACE") "Place post did not return PLACE anchor."
 
 Write-Host "[C2] Verifying far PLACE realtime signal is denied..."
+$deniedTitle = "Too far place UX smoke $([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
 $denied = Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/posts" -Headers $headers -ExpectedStatus @(422) -Body @{
-    title = "Too far place UX smoke"
+    title = $deniedTitle
     content = "Should be rejected because the observer is too far from the selected place."
     latitude = $placeLat
     longitude = $placeLon
@@ -148,6 +149,26 @@ $denied = Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/posts" -Headers $he
     expiresAt = (Get-Date).ToUniversalTime().AddHours(3).ToString("o")
 }
 Assert-True ($denied.error -eq "PLACE_PROXIMITY_REQUIRED") "Far place signal did not return PLACE_PROXIMITY_REQUIRED."
+
+$deniedOffer = Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/posts" -Headers $headers -ExpectedStatus @(422) -Body @{
+    title = "Too far offer UX smoke"
+    content = "Offer from far away should also be rejected in the realtime composer."
+    latitude = $placeLat
+    longitude = $placeLon
+    accuracyMeters = 20
+    observationLatitude = $placeLat + 0.02
+    observationLongitude = $placeLon + 0.02
+    observationAccuracyMeters = 20
+    locationName = $placeName
+    placeId = $placeId
+    signalType = "Offer"
+    signalValue = "Available"
+    audienceType = "Public"
+    identityDisclosure = "LimitedProfile"
+    locationPrecision = "PlaceCenter"
+    expiresAt = (Get-Date).ToUniversalTime().AddHours(3).ToString("o")
+}
+Assert-True ($deniedOffer.error -eq "PLACE_PROXIMITY_REQUIRED") "Far offer signal did not return PLACE_PROXIMITY_REQUIRED."
 
 Write-Host "[D] Creating COORDINATE anchored signal..."
 $coordinatePost = Create-Post -Headers $headers -Body @{
@@ -181,6 +202,8 @@ $projectedPlace = @($map.places) | Where-Object { $_.id -eq $placeId } | Select-
 $projectedSignal = @($map.signals) | Where-Object { $_.postId -eq $coordinatePostId } | Select-Object -First 1
 Assert-True ($null -ne $projectedPlace) "Unified map did not return the active PLACE marker."
 Assert-True ([int]$projectedPlace.currentState.activeSignalCount -gt 0) "Active PLACE marker did not expose active signal state."
+$placeDetail = Invoke-Json -Method GET -Url "$GatewayBaseUrl/api/places/$placeId" -Headers $headers
+Assert-True ((@($placeDetail.recentSignals) | Where-Object { $_.title -eq $deniedTitle }).Count -eq 0) "Rejected far place signal appeared in place detail."
 Assert-True ($null -ne $projectedSignal) "Unified map did not return the COORDINATE signal marker."
 Assert-True (($projectedSignal.latitude -ne $lat) -or ($projectedSignal.longitude -ne $lon)) "Coordinate marker exposed exact original GPS."
 

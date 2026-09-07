@@ -21,11 +21,14 @@ builder.Services.AddScoped<IPlaceRepository, PlaceRepository>();
 builder.Services.AddSingleton<ICurrentPlaceStateCalculator, CurrentPlaceStateCalculator>();
 builder.Services.Configure<PlaceDiscoveryOptions>(builder.Configuration.GetSection("PlaceDiscovery"));
 builder.Services.AddScoped<IPlaceDiscoveryService, PlaceDiscoveryService>();
+builder.Services.AddSingleton<PlaceDiscoveryRefreshQueue>();
+builder.Services.AddSingleton<IPlaceDiscoveryRefreshQueue>(sp => sp.GetRequiredService<PlaceDiscoveryRefreshQueue>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<PlaceDiscoveryRefreshQueue>());
 builder.Services.AddHttpClient<IPlaceDiscoveryProvider, OverpassPlaceDiscoveryProvider>((sp, client) =>
 {
     var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<PlaceDiscoveryOptions>>().Value;
     client.DefaultRequestHeaders.UserAgent.ParseAdd(options.UserAgent);
-    client.Timeout = TimeSpan.FromSeconds(24);
+    client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.ProviderTimeoutSeconds + 2, 4, 25));
 });
 
 builder.Services.AddMassTransit(x =>

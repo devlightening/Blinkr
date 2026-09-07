@@ -3,6 +3,10 @@ import * as SecureStore from 'expo-secure-store';
 
 import type { AuthResponse, BlinkrPlace, Bounds, CreateSignalInput, MediaKind, UnifiedMapResponse } from './types';
 
+type NearbyPlacesResponse = Array<BlinkrPlace & { distanceMeters?: number }> & {
+  coverageState?: string | null;
+};
+
 declare const process: { env?: Record<string, string | undefined> };
 
 const configuredBaseUrl =
@@ -197,15 +201,19 @@ export const getUnifiedMapBounds = async (bounds: Bounds, signal?: AbortSignal) 
   };
 };
 
-export const getNearbyPlaces = async (latitude: number, longitude: number, radiusMeters = 350, signal?: AbortSignal) => {
+export const getNearbyPlaces = async (latitude: number, longitude: number, radiusMeters = 1500, signal?: AbortSignal) => {
   const params = new URLSearchParams({
     lat: latitude.toString(),
     lon: longitude.toString(),
     radiusMeters: radiusMeters.toString(),
     limit: '24',
   });
-  const payload = await requestJson<Array<BlinkrPlace & { distanceMeters?: number }>>(`/api/places/nearby?${params}`, { signal });
-  return payload;
+  const response = await request(`/api/places/nearby?${params}`, { signal });
+  if (!response.ok) throw new Error(await readError(response));
+  const payload = await response.json() as NearbyPlacesResponse;
+  return Object.assign(payload, {
+    coverageState: response.headers.get('x-blinkr-place-coverage'),
+  });
 };
 
 export const getPlace = async (placeId: string, signal?: AbortSignal) =>

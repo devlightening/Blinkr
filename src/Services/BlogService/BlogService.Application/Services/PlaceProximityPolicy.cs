@@ -69,7 +69,7 @@ public sealed class PlaceProximityPolicy : IPlaceProximityPolicy
     }
 
     private static bool IsRealtimeSignal(string signalType) =>
-        signalType is "GeneralObservation" or "Crowd" or "Queue" or "TemporaryStatus";
+        signalType is "GeneralObservation" or "Crowd" or "Queue" or "TemporaryStatus" or "Offer";
 
     private static bool IsValidCoordinate(double lat, double lon) =>
         lat is >= -90 and <= 90 && lon is >= -180 and <= 180;

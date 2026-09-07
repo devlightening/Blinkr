@@ -31,6 +31,13 @@ import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { createSignal, getNearbyPlaces, getPlace, getUnifiedMapBounds } from '../api';
+import {
+  NearbyRequestOwnership,
+  type NearbyOrigin,
+  type NearbyReason,
+  type NearbySource,
+  distanceMeters,
+} from '../nearbyRequestOwnership';
 import { colors, shadow } from '../theme';
 import type {
   AuthResponse,
@@ -40,6 +47,7 @@ import type {
   CoordinateSignal,
   CreateSignalInput,
   LocationReadiness,
+  NearbyStatus,
 } from '../types';
 import { ISTANBUL_REGION } from '../types';
 import { PostDetailSheet } from './PostDetailSheet';
@@ -60,22 +68,10 @@ const getBounds = (region: Region): Bounds => ({
 
 const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 const REALTIME_PLACE_THRESHOLD_METERS = 200;
-const NEARBY_PRIMARY_RADIUS_METERS = 350;
-const NEARBY_EXTENDED_RADIUS_METERS = 900;
+const NEARBY_PRIMARY_RADIUS_METERS = 600;
+const NEARBY_EXTENDED_RADIUS_METERS = 1500;
 const MAX_NEARBY_LOCATION_AGE_MS = 30_000;
 const LOCATION_TIMEOUT_MS = 8_000;
-
-type NearbySource = 'DEVICE' | 'MAP_CENTER';
-
-const distanceMeters = (a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) => {
-  const toRad = (value: number) => (value * Math.PI) / 180;
-  const dLat = toRad(b.latitude - a.latitude);
-  const dLon = toRad(b.longitude - a.longitude);
-  const lat1 = toRad(a.latitude);
-  const lat2 = toRad(b.latitude);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-  return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-};
 
 const getStateColor = (place: BlinkrPlace) => {
   const freshness = place.currentState?.freshness;
@@ -90,13 +86,16 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
   const activeRequest = useRef<AbortController | null>(null);
   const detailRequest = useRef<AbortController | null>(null);
   const nearbyRequest = useRef<AbortController | null>(null);
+  const nearbyOwner = useRef(new NearbyRequestOwnership());
+  const nearbyLoadingRequest = useRef<number | null>(null);
   const mapRequestSeq = useRef(0);
   const detailRequestSeq = useRef(0);
-  const nearbyRequestSeq = useRef(0);
   const submissionInFlight = useRef(false);
   const [region, setRegion] = useState<Region>(ISTANBUL_REGION);
   const [places, setPlaces] = useState<BlinkrPlace[]>([]);
   const [nearbyPlaces, setNearbyPlaces] = useState<BlinkrPlace[]>([]);
+  const [nearbyCoverageState, setNearbyCoverageState] = useState<string | null>(null);
+  const [nearbyStatus, setNearbyStatus] = useState<NearbyStatus>('EMPTY');
   const [signals, setSignals] = useState<CoordinateSignal[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<BlinkrPlace | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<BlinkrPlace | null>(null);
@@ -134,22 +133,34 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
   const loadNearbyPlaces = useCallback(async (
     targetRegion: Region,
     source: NearbySource,
+    reason: NearbyReason,
     quality?: { accuracyMeters?: number | null; timestamp?: number | null },
   ) => {
-    nearbyRequest.current?.abort();
+    const origin: NearbyOrigin = {
+      accuracyMeters: quality?.accuracyMeters ?? null,
+      latitude: targetRegion.latitude,
+      longitude: targetRegion.longitude,
+      source,
+      timestamp: quality?.timestamp ?? null,
+    };
+    const decision = nearbyOwner.current.begin(origin, reason);
+    if (decision.status !== 'start') return nearbyPlaces;
+
+    if (decision.shouldAbortActive) nearbyRequest.current?.abort();
     const controller = new AbortController();
-    const requestId = nearbyRequestSeq.current + 1;
-    nearbyRequestSeq.current = requestId;
+    const requestId = decision.requestId;
     nearbyRequest.current = controller;
-    setNearbyPlaces([]);
+    nearbyLoadingRequest.current = requestId;
+    setNearbyStatus('LOADING');
     console.log('[Blinkr NearbyRequest]', {
       id: requestId,
+      reason,
       source,
-      locationAgeMs: quality?.timestamp ? Math.max(0, Date.now() - quality.timestamp) : null,
       accuracyMeters: typeof quality?.accuracyMeters === 'number' ? Math.round(quality.accuracyMeters) : null,
     });
     try {
       const items = await getNearbyPlaces(targetRegion.latitude, targetRegion.longitude, NEARBY_EXTENDED_RADIUS_METERS, controller.signal);
+      const coverageState = items.coverageState;
       const ranked = items
         .filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude))
         .map((item) => ({
@@ -158,10 +169,13 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
         }))
         .filter((item) => Number.isFinite(item.distanceMeters) && (item.distanceMeters ?? -1) >= 0)
         .sort((a, b) => (a.distanceMeters ?? Number.POSITIVE_INFINITY) - (b.distanceMeters ?? Number.POSITIVE_INFINITY));
-      if (nearbyRequest.current !== controller || nearbyRequestSeq.current !== requestId) {
-        console.log('[Blinkr NearbyResult]', { id: requestId, status: 'stale-discarded' });
+      if (nearbyRequest.current !== controller || !nearbyOwner.current.isActive(requestId)) {
+        console.log('[Blinkr NearbyResult]', { id: requestId, status: 'stale-discarded', primary: 0, extended: 0, nearestMeters: null });
         return [];
       }
+      nearbyOwner.current.apply(requestId);
+      setNearbyCoverageState(coverageState);
+      setNearbyStatus(coverageState === 'not_loaded' ? 'NOT_LOADED' : ranked.length > 0 ? 'READY' : 'EMPTY');
       const nearest = ranked[0]?.distanceMeters;
       console.log('[Blinkr NearbyResult]', {
         id: requestId,
@@ -174,16 +188,23 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
       return ranked;
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
-        console.log('[Blinkr NearbyResult]', { id: requestId, status: 'stale-discarded' });
+        console.log('[Blinkr NearbyResult]', { id: requestId, status: 'stale-discarded', primary: 0, extended: 0, nearestMeters: null });
         return [];
       }
-      setNearbyPlaces([]);
+      nearbyOwner.current.fail(requestId);
+      setNearbyStatus('FAILED');
+      console.log('[Blinkr NearbyResult]', { id: requestId, status: 'failed', primary: 0, extended: 0, nearestMeters: null });
       setComposerError(err instanceof Error
         ? `Yakındaki yerler şu an yüklenemedi. ${err.message}`
         : 'Yakındaki yerler şu an yüklenemedi.');
       return [];
+    } finally {
+      if (nearbyLoadingRequest.current === requestId) {
+        nearbyLoadingRequest.current = null;
+        setNearbyStatus((current) => current === 'LOADING' ? 'EMPTY' : current);
+      }
     }
-  }, []);
+  }, [nearbyPlaces]);
 
   const loadPlaces = useCallback(async (targetRegion: Region, quiet = false) => {
     activeRequest.current?.abort();
@@ -204,9 +225,20 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
       if (err instanceof Error && err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'Yerler alınamadı.');
     } finally {
-      if (activeRequest.current === controller) setIsLoading(false);
+      if (activeRequest.current === controller) {
+        activeRequest.current = null;
+        setIsLoading(false);
+      }
     }
   }, []);
+
+  const scanVisibleArea = useCallback(async () => {
+    try {
+      await loadPlaces(region);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [loadPlaces, region]);
 
   const loadPlaceDetail = useCallback(async (place: BlinkrPlace, quiet = false) => {
     detailRequest.current?.abort();
@@ -252,6 +284,16 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
     setSelectedSignal(null);
     setIsDetailLoading(false);
   }, []);
+
+  const closeComposer = useCallback(() => {
+    if (isCreating) return;
+    nearbyRequest.current?.abort();
+    nearbyOwner.current.reset();
+    nearbyLoadingRequest.current = null;
+    setNearbyCoverageState(null);
+    setNearbyStatus('EMPTY');
+    setComposerOpen(false);
+  }, [isCreating]);
 
   const moveToDeviceLocation = useCallback(async (requestPermission = true) => {
     const permission = requestPermission
@@ -302,6 +344,8 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
       activeRequest.current?.abort();
       detailRequest.current?.abort();
       nearbyRequest.current?.abort();
+      nearbyOwner.current.reset();
+      nearbyLoadingRequest.current = null;
     };
   }, [loadPlaces, moveToDeviceLocation]);
 
@@ -332,7 +376,11 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
     }
   }, []);
 
-  const selectComposerArea = useCallback(async (source: 'device' | 'map', place?: BlinkrPlace | null) => {
+  const selectComposerArea = useCallback(async (
+    source: 'device' | 'map',
+    place?: BlinkrPlace | null,
+    reason: NearbyReason = 'MANUAL_REFRESH',
+  ) => {
     setComposerError(null);
 
     if (place) {
@@ -355,6 +403,11 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
 
       const accuracy = Math.min(observationAccuracyMeters ?? 0, 500);
       const trustedDistance = effectiveDistance == null ? null : Math.max(0, effectiveDistance - accuracy);
+      console.log('[Blinkr PlaceSelect]', {
+        placeId: place.id,
+        distanceMeters: effectiveDistance == null ? null : Math.round(effectiveDistance),
+        source: 'DEVICE',
+      });
       setComposerArea({
         accuracyMeters: 25,
         name: place.name,
@@ -394,7 +447,7 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
         source,
       });
       setLocationReadiness('ready');
-      await loadNearbyPlaces(region, 'MAP_CENTER');
+      void loadNearbyPlaces(region, 'MAP_CENTER', source === 'map' ? reason : 'SOURCE_CHANGE');
       return;
     }
 
@@ -422,14 +475,14 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
       region: target,
     };
     setComposerArea({ ...location, name: await resolveAreaName(location.region), source });
-    await loadNearbyPlaces(location.region, 'DEVICE', { accuracyMeters: position.coords.accuracy, timestamp: position.timestamp });
+    void loadNearbyPlaces(location.region, 'DEVICE', reason, { accuracyMeters: position.coords.accuracy, timestamp: position.timestamp });
   }, [getFreshDeviceLocation, loadNearbyPlaces, loadPlaces, region, resolveAreaName]);
 
   const openComposer = (place?: BlinkrPlace | null) => {
     setComposerError(null);
     setComposerOpen(true);
     if (place) {
-      selectComposerArea('map', place).catch((err) => setComposerError(err.message));
+      selectComposerArea('map', place, 'COMPOSER_OPEN').catch((err) => setComposerError(err.message));
       return;
     }
 
@@ -440,7 +493,7 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
           setLocationReadiness('permission-required');
           return;
         }
-        await selectComposerArea('device');
+        await selectComposerArea('device', null, 'COMPOSER_OPEN');
       })
       .catch(() => setLocationReadiness('unavailable'));
   };
@@ -558,7 +611,7 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
         </View>
 
         {mapDirty && (
-          <Pressable onPress={() => loadPlaces(region)} style={styles.searchAreaButton}>
+          <Pressable onPress={scanVisibleArea} style={styles.searchAreaButton}>
             {isLoading ? <ActivityIndicator color={colors.white} size="small" /> : <RefreshCw color={colors.white} size={16} />}
             <Text style={styles.searchAreaText}>Bu alanı tara</Text>
           </Pressable>
@@ -610,12 +663,12 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
         error={composerError}
         isSubmitting={isCreating}
         locationReadiness={locationReadiness}
+        nearbyCoverageState={nearbyCoverageState}
         nearbyPlaces={nearbyPlaces}
+        nearbyStatus={nearbyStatus}
         onAuthChange={onAuthChange}
         onClearError={() => setComposerError(null)}
-        onClose={() => {
-          if (!isCreating) setComposerOpen(false);
-        }}
+        onClose={closeComposer}
         onOpenSettings={() => {
           Linking.openSettings().catch(() => setComposerError('Cihaz ayarları açılamadı.'));
         }}

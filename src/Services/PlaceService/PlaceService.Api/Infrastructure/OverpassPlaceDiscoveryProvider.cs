@@ -24,11 +24,13 @@ public sealed class OverpassPlaceDiscoveryProvider : IPlaceDiscoveryProvider
     public async Task<PlaceDiscoveryResult> DiscoverAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, CancellationToken ct)
     {
         if (!_options.Enabled) return new PlaceDiscoveryResult(PlaceDiscoveryStatus.Empty, Array.Empty<DiscoveredPlace>());
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(_options.ProviderTimeoutSeconds, 2, 20)));
 
         var query = FormattableString.Invariant($"""
-        [out:json][timeout:20];
+        [out:json][timeout:{Math.Clamp(_options.ProviderTimeoutSeconds, 2, 20)}];
         (
-          nwr["name"]["amenity"~"^(restaurant|cafe|fast_food|bar|pub|pharmacy|fuel|cinema|theatre)$"]({minLat:R},{minLon:R},{maxLat:R},{maxLon:R});
+          nwr["name"]["amenity"~"^(restaurant|cafe|fast_food|bar|pub|pharmacy|fuel|cinema|theatre|school|place_of_worship)$"]({minLat:R},{minLon:R},{maxLat:R},{maxLon:R});
           nwr["name"]["shop"]({minLat:R},{minLon:R},{maxLat:R},{maxLon:R});
           nwr["name"]["leisure"~"^(park|playground|sports_centre)$"]({minLat:R},{minLon:R},{maxLat:R},{maxLon:R});
           nwr["name"]["tourism"]({minLat:R},{minLon:R},{maxLat:R},{maxLon:R});
@@ -41,15 +43,15 @@ public sealed class OverpassPlaceDiscoveryProvider : IPlaceDiscoveryProvider
             using var response = await _httpClient.PostAsync(_options.OverpassUrl, new FormUrlEncodedContent(new[]
             {
                 new KeyValuePair<string, string>("data", query)
-            }), ct);
+            }), timeout.Token);
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("[Blinkr Places] source: provider status={StatusCode}", response.StatusCode);
                 return new PlaceDiscoveryResult(PlaceDiscoveryStatus.Failure, Array.Empty<DiscoveredPlace>(), response.StatusCode.ToString());
             }
 
-            await using var stream = await response.Content.ReadAsStreamAsync(ct);
-            var payload = await JsonSerializer.DeserializeAsync<OverpassResponse>(stream, cancellationToken: ct);
+            await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token);
+            var payload = await JsonSerializer.DeserializeAsync<OverpassResponse>(stream, cancellationToken: timeout.Token);
             var places = payload?.Elements?
                 .Select(ToDiscoveredPlace)
                 .Where(p => p is not null)
@@ -92,17 +94,32 @@ public sealed class OverpassPlaceDiscoveryProvider : IPlaceDiscoveryProvider
         return new DiscoveredPlace("osm", $"{element.Type}/{element.Id}", name, NormalizeCategory(category), lat.Value, lon.Value, address);
     }
 
-    private static string ReadPrimaryCategory(IReadOnlyDictionary<string, string> tags) =>
-        tags.GetValueOrDefault("amenity")
-        ?? tags.GetValueOrDefault("shop")
-        ?? tags.GetValueOrDefault("leisure")
-        ?? tags.GetValueOrDefault("tourism")
-        ?? tags.GetValueOrDefault("building")
-        ?? "other";
+    private static string ReadPrimaryCategory(IReadOnlyDictionary<string, string> tags)
+    {
+        if (tags.TryGetValue("amenity", out var amenity))
+        {
+            if (amenity == "place_of_worship" && IsMosque(tags)) return "mosque";
+            return amenity;
+        }
+        if (tags.TryGetValue("shop", out var shop)) return $"shop:{shop}";
+        if (tags.TryGetValue("leisure", out var leisure)) return leisure;
+        if (tags.TryGetValue("tourism", out var tourism)) return tourism;
+        return "other";
+    }
+
+    private static bool IsMosque(IReadOnlyDictionary<string, string> tags) =>
+        tags.GetValueOrDefault("religion") == "muslim"
+        || tags.GetValueOrDefault("building") == "mosque"
+        || tags.GetValueOrDefault("name")?.Contains("Camii", StringComparison.OrdinalIgnoreCase) == true
+        || tags.GetValueOrDefault("name")?.Contains("Cami", StringComparison.OrdinalIgnoreCase) == true;
 
     private static string NormalizeCategory(string raw)
     {
         var key = raw.Trim().ToLowerInvariant();
+        var parts = key.Split(':', 2);
+        var source = parts.Length == 2 ? parts[0] : string.Empty;
+        key = parts.Length == 2 ? parts[1] : parts[0];
+        if (key.Contains("mosque", StringComparison.Ordinal)) return "MOSQUE";
         return key switch
         {
             "cafe" => "CAFE",
@@ -114,14 +131,16 @@ public sealed class OverpassPlaceDiscoveryProvider : IPlaceDiscoveryProvider
             "park" or "garden" => "PARK",
             "playground" => "PLAYGROUND",
             "sports_centre" or "fitness_centre" or "stadium" => "SPORT",
-            "hospital" or "clinic" or "pharmacy" or "doctors" or "dentist" => "HEALTH",
+            "pharmacy" => "PHARMACY",
+            "hospital" or "clinic" or "doctors" or "dentist" => "HEALTH",
             "school" or "university" or "college" or "kindergarten" or "library" => "EDUCATION",
             "fuel" or "charging_station" => "FUEL",
             "bus_station" or "taxi" or "parking" => "TRANSPORT",
             "museum" or "attraction" or "gallery" or "viewpoint" => "TOURISM",
             "theatre" or "cinema" => "ENTERTAINMENT",
-            "marketplace" or "community_centre" or "place_of_worship" or "townhall" or "social_facility" or "public" => "PUBLIC",
-            _ when !string.IsNullOrWhiteSpace(key) => key.StartsWith("shop", StringComparison.Ordinal) ? "SHOP" : "OTHER",
+            "place_of_worship" => "PLACE_OF_WORSHIP",
+            "marketplace" or "community_centre" or "townhall" or "social_facility" or "public" => "PUBLIC",
+            _ when source == "shop" && !string.IsNullOrWhiteSpace(key) && key != "vacant" && key != "no" => "SHOP",
             _ => "OTHER"
         };
     }

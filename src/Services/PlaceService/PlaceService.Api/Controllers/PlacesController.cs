@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using PlaceService.Api.Application;
 using PlaceService.Api.Domain;
 using PlaceService.Api.Infrastructure;
+using System.Diagnostics;
 
 namespace PlaceService.Api.Controllers;
 
@@ -13,12 +15,24 @@ public sealed class PlacesController : ControllerBase
     private readonly IPlaceRepository _repository;
     private readonly ICurrentPlaceStateCalculator _stateCalculator;
     private readonly IPlaceDiscoveryService _discoveryService;
+    private readonly IPlaceDiscoveryRefreshQueue _refreshQueue;
+    private readonly ILogger<PlacesController> _logger;
+    private readonly PlaceDiscoveryOptions _discoveryOptions;
 
-    public PlacesController(IPlaceRepository repository, ICurrentPlaceStateCalculator stateCalculator, IPlaceDiscoveryService discoveryService)
+    public PlacesController(
+        IPlaceRepository repository,
+        ICurrentPlaceStateCalculator stateCalculator,
+        IPlaceDiscoveryService discoveryService,
+        IPlaceDiscoveryRefreshQueue refreshQueue,
+        IOptions<PlaceDiscoveryOptions> discoveryOptions,
+        ILogger<PlacesController> logger)
     {
         _repository = repository;
         _stateCalculator = stateCalculator;
         _discoveryService = discoveryService;
+        _refreshQueue = refreshQueue;
+        _discoveryOptions = discoveryOptions.Value;
+        _logger = logger;
     }
 
     [HttpGet("{id:guid}")]
@@ -53,8 +67,41 @@ public sealed class PlacesController : ControllerBase
 
         limit = Math.Clamp(limit, 1, 100);
         var delta = Math.Min(0.2, Math.Max(0.002, radiusMeters / 111_000.0));
-        await _discoveryService.EnsureBoundsCoverageAsync(lat - delta, lon - delta, lat + delta, lon + delta, limit, ct);
+        var minLat = lat - delta;
+        var minLon = lon - delta;
+        var maxLat = lat + delta;
+        var maxLon = lon + delta;
+        var total = Stopwatch.StartNew();
+        var local = Stopwatch.StartNew();
         var places = await _repository.GetNearbyAsync(lat, lon, radiusMeters, limit, ct);
+        local.Stop();
+        LogNearbyCatalog(places, lat, lon);
+
+        if (places.Count > 0)
+        {
+            if (!await _discoveryService.HasFreshCoverageAsync(minLat, minLon, maxLat, maxLon, ct))
+            {
+                _refreshQueue.Enqueue(minLat, minLon, maxLat, maxLon, limit);
+                LogDiscovery(local.ElapsedMilliseconds, 0, total.ElapsedMilliseconds, "LOCAL_PLUS_REFRESH", "success");
+            }
+            else
+            {
+                LogDiscovery(local.ElapsedMilliseconds, 0, total.ElapsedMilliseconds, "LOCAL", "success");
+            }
+            return Ok(await ToNearbySummariesAsync(places, lat, lon, ct));
+        }
+
+        if (!_discoveryOptions.AllowSynchronousProviderFallback)
+        {
+            Response.Headers["X-Blinkr-Place-Coverage"] = "not_loaded";
+            LogDiscovery(local.ElapsedMilliseconds, 0, total.ElapsedMilliseconds, "LOCAL", "not_loaded");
+            return Ok(Array.Empty<NearbyPlaceDto>());
+        }
+
+        var refresh = await _discoveryService.RefreshBoundsCoverageAsync(minLat, minLon, maxLat, maxLon, limit, ct);
+        places = await _repository.GetNearbyAsync(lat, lon, radiusMeters, limit, ct);
+        LogNearbyCatalog(places, lat, lon);
+        LogDiscovery(local.ElapsedMilliseconds, refresh.ProviderMs, total.ElapsedMilliseconds, "PROVIDER", refresh.Status.ToString());
         return Ok(await ToNearbySummariesAsync(places, lat, lon, ct));
     }
 
@@ -67,9 +114,61 @@ public sealed class PlacesController : ControllerBase
         if (validation is not null) return BadRequest(validation);
 
         limit = Math.Clamp(limit, 1, 200);
-        await _discoveryService.EnsureBoundsCoverageAsync(minLat, minLon, maxLat, maxLon, limit, ct);
+        var total = Stopwatch.StartNew();
+        var local = Stopwatch.StartNew();
         var places = await _repository.GetBoundsAsync(minLat, minLon, maxLat, maxLon, limit, ct);
+        local.Stop();
+
+        if (places.Count > 0)
+        {
+            if (!await _discoveryService.HasFreshCoverageAsync(minLat, minLon, maxLat, maxLon, ct))
+            {
+                _refreshQueue.Enqueue(minLat, minLon, maxLat, maxLon, limit);
+                LogDiscovery(local.ElapsedMilliseconds, 0, total.ElapsedMilliseconds, "LOCAL_PLUS_REFRESH", "success");
+            }
+            else
+            {
+                LogDiscovery(local.ElapsedMilliseconds, 0, total.ElapsedMilliseconds, "LOCAL", "success");
+            }
+            return Ok(await ToSummariesAsync(places, ct));
+        }
+
+        if (!_discoveryOptions.AllowSynchronousProviderFallback)
+        {
+            Response.Headers["X-Blinkr-Place-Coverage"] = "not_loaded";
+            LogDiscovery(local.ElapsedMilliseconds, 0, total.ElapsedMilliseconds, "LOCAL", "not_loaded");
+            return Ok(Array.Empty<PlaceSummaryDto>());
+        }
+
+        var refresh = await _discoveryService.RefreshBoundsCoverageAsync(minLat, minLon, maxLat, maxLon, limit, ct);
+        places = await _repository.GetBoundsAsync(minLat, minLon, maxLat, maxLon, limit, ct);
+        LogDiscovery(local.ElapsedMilliseconds, refresh.ProviderMs, total.ElapsedMilliseconds, "PROVIDER", refresh.Status.ToString());
         return Ok(await ToSummariesAsync(places, ct));
+    }
+
+    private void LogDiscovery(long localMs, long providerMs, long totalMs, string source, string status)
+    {
+        _logger.LogInformation(
+            "[Blinkr PlaceDiscovery] localMs={LocalMs} providerMs={ProviderMs} totalMs={TotalMs} source={Source} status={Status}",
+            localMs,
+            providerMs,
+            totalMs,
+            source,
+            status);
+    }
+
+    private void LogNearbyCatalog(IReadOnlyList<PlaceDocument> places, double lat, double lon)
+    {
+        var distances = places.Select(p => DistanceMeters(lat, lon, p.Latitude, p.Longitude)).ToArray();
+        var catalogState = distances.Length == 0 ? "NOT_LOADED" : distances.Any(d => d <= 350) ? "LOADED" : "PARTIAL";
+        _logger.LogInformation(
+            "[Blinkr NearbyCatalog] localCandidates={LocalCandidates} within100={Within100} within200={Within200} within350={Within350} within1000={Within1000} catalogState={CatalogState}",
+            distances.Length,
+            distances.Count(d => d <= 100),
+            distances.Count(d => d <= 200),
+            distances.Count(d => d <= 350),
+            distances.Count(d => d <= 1000),
+            catalogState);
     }
 
     [HttpPost]
@@ -103,10 +202,13 @@ public sealed class PlacesController : ControllerBase
 
     private async Task<IReadOnlyList<NearbyPlaceDto>> ToNearbySummariesAsync(IReadOnlyList<PlaceDocument> places, double lat, double lon, CancellationToken ct)
     {
+        var byId = places.ToDictionary(p => p.Id);
         var summaries = await ToSummariesAsync(places, ct);
         return summaries
             .Select(p => new NearbyPlaceDto(p.Id, p.Name, p.Category, p.Latitude, p.Longitude, p.DisplayAddress,
-                DistanceMeters(lat, lon, p.Latitude, p.Longitude), p.CurrentState))
+                DistanceMeters(lat, lon, p.Latitude, p.Longitude), p.CurrentState,
+                byId[p.Id].ExternalProvider,
+                byId[p.Id].ExternalId))
             .OrderBy(p => p.DistanceMeters)
             .ToArray();
     }

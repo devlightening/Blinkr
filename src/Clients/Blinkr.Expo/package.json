@@ -30,7 +30,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:nearby": "tsc --module commonjs --target es2020 --moduleResolution node --skipLibCheck --outDir .tmp/nearby-tests scripts/nearby-request-ownership.test.ts scripts/nearby-place-tiers.test.ts src/nearbyRequestOwnership.ts src/nearbyPlaceTiers.ts && node .tmp/nearby-tests/scripts/nearby-request-ownership.test.js && node .tmp/nearby-tests/scripts/nearby-place-tiers.test.js"
   },
   "private": true
 }

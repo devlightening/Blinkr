@@ -34,6 +34,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { uploadMedia } from '../api';
+import { splitNearbyPlaces } from '../nearbyPlaceTiers';
 import { colors, shadow } from '../theme';
 import type {
   AuthResponse,
@@ -43,6 +44,7 @@ import type {
   IdentityDisclosure,
   LocationReadiness,
   MediaKind,
+  NearbyStatus,
   SignalType,
   UploadState,
 } from '../types';
@@ -56,7 +58,9 @@ type Props = {
   error: string | null;
   isSubmitting: boolean;
   locationReadiness: LocationReadiness;
+  nearbyCoverageState?: string | null;
   nearbyPlaces: BlinkrPlace[];
+  nearbyStatus: NearbyStatus;
   onAuthChange: (auth: AuthResponse) => void;
   onClearError: () => void;
   onClose: () => void;
@@ -86,9 +90,6 @@ const signalTypes: Array<{ type: SignalType; label: string; value?: string }> = 
   { type: 'GeneralObservation', label: 'Gözlem' },
 ];
 
-const PRIMARY_NEARBY_RADIUS_METERS = 350;
-const PRIMARY_NEARBY_LIMIT = 4;
-
 const formatDistance = (meters?: number) => {
   if (meters == null) return '';
   if (meters < 1000) return `~${Math.round(meters)} m`;
@@ -97,16 +98,20 @@ const formatDistance = (meters?: number) => {
 
 const categoryLabels: Record<string, string> = {
   BAR: 'Bar',
+  BAKERY: 'Fırın',
   CAFE: 'Kafe',
-  EDUCATION: 'Eğitim',
+  EDUCATION: 'Okul',
   ENTERTAINMENT: 'Eğlence',
   FAST_FOOD: 'Fast Food',
   FUEL: 'Akaryakıt',
   HEALTH: 'Sağlık',
   OTHER: 'Diğer',
   PARK: 'Park',
+  PHARMACY: 'Eczane',
   PLAYGROUND: 'Oyun alanı',
   PUBLIC: 'Kamusal yer',
+  PLACE_OF_WORSHIP: 'İbadethane',
+  MOSQUE: 'Cami',
   RESTAURANT: 'Restoran',
   SHOP: 'Mağaza',
   SPORT: 'Spor',
@@ -116,7 +121,7 @@ const categoryLabels: Record<string, string> = {
 };
 
 const formatCategory = (category?: string | null) => categoryLabels[(category ?? '').toUpperCase()] ?? 'Yer';
-const isRealtimeSignal = (type: SignalType) => ['GeneralObservation', 'Crowd', 'Queue', 'TemporaryStatus'].includes(type);
+const isRealtimeSignal = (type: SignalType) => ['GeneralObservation', 'Crowd', 'Queue', 'TemporaryStatus', 'Offer'].includes(type);
 
 export function SignalComposer({
   area,
@@ -125,7 +130,9 @@ export function SignalComposer({
   error,
   isSubmitting,
   locationReadiness,
+  nearbyCoverageState,
   nearbyPlaces,
+  nearbyStatus,
   onAuthChange,
   onClearError,
   onClose,
@@ -166,13 +173,14 @@ export function SignalComposer({
   const isRealtimePlaceBlocked = Boolean(area?.place && isRealtimeSignal(signalType) && area.proximity && !area.proximity.allowed);
   const canPublish = Boolean(area && hasPayload && !isRealtimePlaceBlocked && !isSubmitting && !isMediaBusy && media.every((item) => item.status === 'ready'));
   const placeName = useMemo(() => area?.place?.name ?? area?.name ?? 'Yaklaşık konum', [area]);
-  const primaryPlaces = nearbyPlaces
-    .filter((place) => (place.distanceMeters ?? Number.POSITIVE_INFINITY) <= PRIMARY_NEARBY_RADIUS_METERS)
-    .slice(0, PRIMARY_NEARBY_LIMIT);
-  const extendedPlaces = nearbyPlaces.filter((place) => !primaryPlaces.some((primary) => primary.id === place.id));
+  const { primary: primaryPlaces, extended: extendedPlaces } = useMemo(
+    () => splitNearbyPlaces(nearbyPlaces),
+    [nearbyPlaces],
+  );
   const visibleNearbyPlaces = showExtendedPlaces ? [...primaryPlaces, ...extendedPlaces].slice(0, 10) : primaryPlaces;
 
   const selectArea = async (source: 'device' | 'map', place?: BlinkrPlace | null) => {
+    if (isSelectingArea) return;
     setIsSelectingArea(true);
     onClearError();
     try {
@@ -317,10 +325,14 @@ export function SignalComposer({
             {!area?.place && (
               <>
                 <Text style={styles.sectionLabel}>YAKININDA</Text>
-                {isSelectingArea ? (
+                {nearbyStatus === 'LOADING' ? (
                   <View style={styles.nearbyState}><ActivityIndicator color={colors.green} /><Text style={styles.nearbyStateText}>Yakındaki yerler aranıyor</Text></View>
+                ) : nearbyStatus === 'NOT_LOADED' ? (
+                  <View style={styles.nearbyState}><Search color={colors.muted} size={18} /><Text style={styles.nearbyStateText}>Yakındaki yer verisi bu bölgede henüz hazır değil. Bu konumda paylaşabilirsin.</Text></View>
+                ) : nearbyStatus === 'FAILED' && visibleNearbyPlaces.length === 0 ? (
+                  <View style={styles.nearbyState}><Search color={colors.muted} size={18} /><Text style={styles.nearbyStateText}>Yakındaki yerler şu an yenilenemedi. Bu konumda paylaşabilirsin.</Text></View>
                 ) : visibleNearbyPlaces.length === 0 ? (
-                  <View style={styles.nearbyState}><Search color={colors.muted} size={18} /><Text style={styles.nearbyStateText}>Yakınında uygun bir yer bulamadık. Daha uzaktaki yerleri açabilir veya bu konumda paylaşabilirsin.</Text></View>
+                  <View style={styles.nearbyState}><Search color={colors.muted} size={18} /><Text style={styles.nearbyStateText}>{nearbyCoverageState === 'not_loaded' ? 'Yakındaki yer verisi bu bölgede henüz hazır değil. Bu konumda paylaşabilirsin.' : 'Yakınında uygun bir yer bulamadık. Daha uzaktaki yerleri açabilir veya bu konumda paylaşabilirsin.'}</Text></View>
                 ) : (
                   <View style={styles.nearbyList}>
                     {visibleNearbyPlaces.map((place, index) => (
@@ -342,7 +354,7 @@ export function SignalComposer({
                     ))}
                   </View>
                 )}
-                <Pressable accessibilityLabel="Bu konumda paylaş" onPress={() => area && selectArea(area.source === 'map' ? 'map' : 'device')} style={styles.coordinateAction}>
+                <Pressable accessibilityLabel="Bu konumda paylaş" onPress={() => area && selectArea(area.source === 'map' ? 'map' : 'device', null)} style={styles.coordinateAction}>
                   <MapPin color={colors.greenDark} size={18} />
                   <Text style={styles.coordinateActionText}>Bu konumda paylaş</Text>
                 </Pressable>

@@ -22,6 +22,14 @@ public sealed record PlaceDiscoveryResult(
     IReadOnlyList<DiscoveredPlace> Places,
     string? Error = null);
 
+public sealed record PlaceDiscoveryRefreshResult(
+    PlaceDiscoveryStatus Status,
+    int UpsertedCount,
+    long CoverageMs,
+    long ProviderMs,
+    long NormalizationMs,
+    long TotalMs);
+
 public sealed record NearbyPlaceDto(
     Guid Id,
     string Name,
@@ -30,7 +38,9 @@ public sealed record NearbyPlaceDto(
     double Longitude,
     string? DisplayAddress,
     double DistanceMeters,
-    CurrentPlaceStateDto CurrentState);
+    CurrentPlaceStateDto CurrentState,
+    string? ExternalProvider = null,
+    string? ExternalId = null);
 
 public sealed class PlaceDiscoveryOptions
 {
@@ -39,5 +49,7 @@ public sealed class PlaceDiscoveryOptions
     public string OverpassUrl { get; set; } = "https://overpass-api.de/api/interpreter";
     public int CoverageTtlMinutes { get; set; } = 10080;
     public int MaxViewportPlaces { get; set; } = 80;
+    public int ProviderTimeoutSeconds { get; set; } = 5;
+    public bool AllowSynchronousProviderFallback { get; set; } = false;
     public string UserAgent { get; set; } = "Blinkr beta place discovery";
 }

@@ -174,6 +174,7 @@ export type LocationReadiness =
   | 'unavailable';
 
 export type UploadState = 'idle' | 'preparing' | 'uploading' | 'ready' | 'failed';
+export type NearbyStatus = 'LOADING' | 'READY' | 'EMPTY' | 'NOT_LOADED' | 'FAILED';
 
 export const ISTANBUL_REGION: Region = {
   latitude: 41.0082,
