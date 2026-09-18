@@ -11,6 +11,7 @@
     <PackageReference Include="FluentValidation.AspNetCore" />
     <PackageReference Include="MassTransit" />
     <PackageReference Include="MediatR" />
+    <PackageReference Include="NetTopologySuite" />
   </ItemGroup>
 
   <ItemGroup>

@@ -193,6 +193,7 @@ public sealed class EventStoreToRabbitMqPublisher : BackgroundService
                     e.AccuracyMeters,
                     e.LocationName,
                     e.PlaceId,
+                    e.PublicationTrust,
                     e.SignalType,
                     e.SignalValue,
                     e.AudienceType,

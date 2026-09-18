@@ -36,6 +36,8 @@ public sealed class PostCreatedPlaceSignalConsumer : IConsumer<IPostCreatedInteg
             Text = message.Content,
             SignalType = string.IsNullOrWhiteSpace(message.SignalType) ? "GeneralObservation" : message.SignalType,
             SignalValue = message.SignalValue,
+            PublicationTrust = message.PublicationTrust,
+            AuthorName = message.IdentityDisclosure == "AnonymousMap" ? null : message.AuthorName,
             CreatedAtUtc = message.OccurredOn,
             ExpiresAtUtc = message.ExpiresAt,
             LocationName = message.LocationName,

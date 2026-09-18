@@ -201,6 +201,9 @@ try {
     Invoke-RouteSmoke -Name "Gateway map bounds" -Url "http://localhost:5080/api/map/bounds?south=39.90&west=32.80&north=39.96&east=32.90&sinceMinutes=180&limit=20" -AcceptedStatuses @(200)
     Invoke-RouteSmoke -Name "Gateway nearby places" -Url "http://localhost:5080/api/places/nearby?lat=39.9334&lon=32.8597&radiusMeters=1000&limit=10" -AcceptedStatuses @(200)
 
+    Write-Host "`n[Catalog] Checking regional Place coverage..." -ForegroundColor Cyan
+    powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "test-place-catalog-coverage.ps1") -GatewayBaseUrl "http://localhost:5080"
+
     $lanAddress = Get-LanAddress
     Write-Host "`nBlinkr backend ready." -ForegroundColor Green
     Write-Host "Gateway local: http://localhost:5080"

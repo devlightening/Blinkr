@@ -1,0 +1,21 @@
+import { canPublishAt, friendlyError, freshnessOpacity, isFresh, signalValueLabel, trustLabel } from '../src/productPresentation';
+import { formatCategory } from '../src/presentation';
+import type { ComposerArea } from '../src/types';
+function check(value: unknown, message: string) { if (!value) throw new Error(message); }
+const area: ComposerArea = { name: 'Area', source: 'device', accuracyMeters: 22, region: { latitude: 40, longitude: 32, latitudeDelta: .01, longitudeDelta: .01 } };
+const place = { id: 'branch-a', name: 'BIM', latitude: 40, longitude: 32, distanceMeters: 352 };
+check(canPublishAt(area), 'coordinate fallback must remain available');
+check(canPublishAt({ ...area, place, proximity: { allowed: true, trustLevel: 'NEARBY_PLACE_POST', thresholdMeters: 600 } }), '352m nearby selection can publish');
+check(!canPublishAt({ ...area, place, proximity: { allowed: false, trustLevel: 'OUT_OF_RANGE', thresholdMeters: 600 } }), 'server denied presence cannot publish');
+check(!canPublishAt({ ...area, place }), 'unresolved server presence cannot publish');
+check(trustLabel('VERIFIED_LIVE') === 'Konum doğrulandı', 'verified label');
+check(trustLabel('NEARBY_PLACE_POST') === 'Yakındaki yer paylaşımı', 'nearby label');
+check(formatCategory('MOSQUE') === 'Cami' && formatCategory('PARK') === 'Park', 'category labels');
+check(signalValueLabel('Crowd', 'BUSY') === 'Kalabalık', 'legacy uppercase signal label');
+check(friendlyError(new Error('HTTP 502 Network request timed out')).indexOf('502') < 0, 'no raw network error');
+const now = Date.now();
+check(isFresh(new Date(now - 60000).toISOString(), null, now), 'fresh marker remains');
+check(!isFresh(new Date(now - 4 * 3600000).toISOString(), null, now), 'expired marker removed');
+check(!isFresh(new Date(now - 60000).toISOString(), new Date(now - 1000).toISOString(), now), 'explicit expiry removed');
+check(freshnessOpacity(new Date(now - 2 * 3600000).toISOString(), now) < 1, 'older marker fades');
+console.log('product presentation tests passed');

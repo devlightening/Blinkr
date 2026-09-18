@@ -14,6 +14,8 @@ public sealed class PlaceSignalDocument
     public string? Text { get; set; }
     public string SignalType { get; set; } = "GeneralObservation";
     public string? SignalValue { get; set; }
+    public string? PublicationTrust { get; set; }
+    public string? AuthorName { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? ExpiresAtUtc { get; set; }
     public string? LocationName { get; set; }

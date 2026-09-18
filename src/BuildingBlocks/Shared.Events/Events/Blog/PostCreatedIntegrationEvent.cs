@@ -17,6 +17,7 @@ namespace Shared.Events.Events.Blog
         public double? AccuracyMeters { get; set; }
         public string? LocationName { get; set; }
         public Guid? PlaceId { get; set; }
+        public string? PublicationTrust { get; set; }
         public string? SignalType { get; set; }
         public string? SignalValue { get; set; }
         public string? AudienceType { get; set; }

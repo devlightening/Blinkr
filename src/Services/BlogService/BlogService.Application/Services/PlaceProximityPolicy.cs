@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Options;
+using NetTopologySuite.Geometries;
+using NetTopologySuite.IO;
 
 namespace BlogService.Application.Services;
 
@@ -10,7 +12,9 @@ public interface IPlaceProximityPolicy
 public sealed class PlaceProximityOptions
 {
     public int MaxRealtimePlaceDistanceMeters { get; set; } = 200;
-    public int MaxAcceptedAccuracyMeters { get; set; } = 500;
+    public int MaxAcceptedAccuracyMeters { get; set; } = 150;
+    public int MaxAccuracyAllowanceMeters { get; set; } = 50;
+    public int MaxNearbyPlaceDistanceMeters { get; set; } = 600;
 }
 
 public sealed record PlaceProximityRequest(
@@ -19,9 +23,13 @@ public sealed record PlaceProximityRequest(
     double PlaceLongitude,
     double? ObservationLatitude,
     double? ObservationLongitude,
-    double? ObservationAccuracyMeters);
+    double? ObservationAccuracyMeters,
+    string? GeometryWkt = null);
 
-public sealed record PlaceProximityDecision(bool IsRealtime, bool IsAllowed, double? DistanceMeters, double? EffectiveDistanceMeters);
+public sealed record PlaceProximityDecision(bool IsRealtime, bool IsAllowed, double? DistanceMeters, double? EffectiveDistanceMeters)
+{
+    public string TrustLevel { get; init; } = "UNVERIFIED";
+}
 
 public sealed class PlaceProximityException : Exception
 {
@@ -42,7 +50,6 @@ public sealed class PlaceProximityPolicy : IPlaceProximityPolicy
     public PlaceProximityDecision Evaluate(PlaceProximityRequest request)
     {
         var isRealtime = IsRealtimeSignal(request.SignalType);
-        if (!isRealtime) return new PlaceProximityDecision(false, true, null, null);
 
         if (!request.ObservationLatitude.HasValue || !request.ObservationLongitude.HasValue)
         {
@@ -54,18 +61,56 @@ public sealed class PlaceProximityPolicy : IPlaceProximityPolicy
             return new PlaceProximityDecision(true, false, null, null);
         }
 
-        var accuracy = Math.Clamp(request.ObservationAccuracyMeters ?? 0, 0, _options.MaxAcceptedAccuracyMeters);
+        if (request.ObservationAccuracyMeters is not double reportedAccuracy
+            || !double.IsFinite(reportedAccuracy) || reportedAccuracy < 0
+            || reportedAccuracy > Math.Min(150, _options.MaxAcceptedAccuracyMeters))
+            return new PlaceProximityDecision(isRealtime, false, null, null);
+
+        var accuracy = Math.Min(reportedAccuracy, Math.Clamp(_options.MaxAccuracyAllowanceMeters, 0, 50));
         var distance = DistanceMeters(
             request.PlaceLatitude,
             request.PlaceLongitude,
             request.ObservationLatitude.Value,
             request.ObservationLongitude.Value);
+        distance = GeometryDistance(request, distance);
         var effectiveDistance = Math.Max(0, distance - accuracy);
+        var verified = effectiveDistance <= Math.Max(1, _options.MaxRealtimePlaceDistanceMeters);
+        var allowed = effectiveDistance <= _options.MaxNearbyPlaceDistanceMeters;
         return new PlaceProximityDecision(
-            true,
-            effectiveDistance <= Math.Max(1, _options.MaxRealtimePlaceDistanceMeters),
+            isRealtime,
+            allowed,
             distance,
-            effectiveDistance);
+            effectiveDistance)
+        {
+            TrustLevel = verified ? "VERIFIED_LIVE" : allowed ? "NEARBY_PLACE_POST" : "OUT_OF_RANGE"
+        };
+    }
+
+    private static double GeometryDistance(PlaceProximityRequest request, double fallback)
+    {
+        if (string.IsNullOrWhiteSpace(request.GeometryWkt)) return fallback;
+        try
+        {
+            var geometry = new WKTReader().Read(request.GeometryWkt);
+            if (geometry is not Polygon && geometry is not MultiPolygon) return fallback;
+            if (geometry.IsEmpty || !geometry.IsValid
+                || geometry.Coordinates.Any(c => !IsValidCoordinate(c.Y, c.X))) return fallback;
+            // Local metric projection: NTS distances are planar, never degrees-as-metres.
+            geometry.Apply(new LocalMetricFilter(request.ObservationLatitude!.Value, request.ObservationLongitude!.Value));
+            geometry.GeometryChanged();
+            return geometry.Distance(new Point(0, 0));
+        }
+        catch (ArgumentException) { return fallback; }
+        catch (ParseException) { return fallback; }
+    }
+
+    private sealed class LocalMetricFilter(double latitude, double longitude) : ICoordinateFilter
+    {
+        public void Filter(Coordinate coordinate)
+        {
+            coordinate.X = DegreesToRadians(coordinate.X - longitude) * 6371000 * Math.Cos(DegreesToRadians(latitude));
+            coordinate.Y = DegreesToRadians(coordinate.Y - latitude) * 6371000;
+        }
     }
 
     private static bool IsRealtimeSignal(string signalType) =>

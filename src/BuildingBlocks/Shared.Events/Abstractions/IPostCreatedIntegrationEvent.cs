@@ -25,6 +25,7 @@ namespace Shared.Events.Abstractions
         double? AccuracyMeters { get; }
         string? LocationName { get; }
         Guid? PlaceId { get; }
+        string? PublicationTrust { get; }
         string? SignalType { get; }
         string? SignalValue { get; }
         string? AudienceType { get; }

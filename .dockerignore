@@ -5,8 +5,6 @@ obj/
 .vs/
 .git/
 data/
-src/Clients/Blinkr.Mobile/bin/
-src/Clients/Blinkr.Mobile/obj/
 src/Clients/Blinkr.Expo/node_modules/
 src/Clients/Blinkr.Expo/.expo/
 *.user

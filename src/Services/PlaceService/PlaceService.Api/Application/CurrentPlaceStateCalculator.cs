@@ -12,6 +12,7 @@ public sealed class CurrentPlaceStateCalculator : ICurrentPlaceStateCalculator
     public CurrentPlaceStateDto Calculate(IReadOnlyList<PlaceSignalDocument> activeSignals, DateTime nowUtc)
     {
         var valid = activeSignals
+            .Where(s => s.PublicationTrust is null or "VERIFIED_LIVE")
             .Where(s => !s.ExpiresAtUtc.HasValue || s.ExpiresAtUtc > nowUtc)
             .OrderByDescending(s => s.CreatedAtUtc)
             .Take(20)

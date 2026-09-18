@@ -22,7 +22,8 @@ namespace BlogService.Domain.Events
         string LocationPrecision = "ApproximateArea",
         string SourceType = "Community",
         DateTime? ExpiresAt = null,
-        ICollection<PostMediaInfo>? Media = null) : IDomainEvent;
+        ICollection<PostMediaInfo>? Media = null,
+        string? PublicationTrust = null) : IDomainEvent;
 
     public record PostMediaInfo(
         string Url,

@@ -13,6 +13,7 @@ public sealed class PlaceDocument
     public string Category { get; set; } = "Other";
     public double Latitude { get; set; }
     public double Longitude { get; set; }
+    public string? GeometryWkt { get; set; }
     public GeoJsonPoint<GeoJson2DGeographicCoordinates> Location { get; set; } = null!;
     public string? DisplayAddress { get; set; }
     public string Source { get; set; } = "Manual";

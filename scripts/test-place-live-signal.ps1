@@ -85,22 +85,15 @@ $authHeaders = @{
     Authorization = "Bearer $($auth.body.token)"
 }
 
-$place = Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/places" -Headers $authHeaders -ExpectedStatus @(201) -Body @{
-    name = "Blinkr Core Test Place $suffix"
-    category = "Cafe"
-    latitude = 41.0082
-    longitude = 28.9784
-    displayAddress = "Istanbul smoke area"
-    source = "SmokeTest"
+$nearby = Invoke-Json -Method GET -Url "$GatewayBaseUrl/api/places/nearby?lat=39.9334&lon=32.8597&radiusMeters=1500&limit=100" -Headers $headers
+$catalogPlace = $null
+foreach ($candidate in $nearby.body) {
+    if ($candidate.externalProvider -ne 'osm') { continue }
+    $candidateDetail = Invoke-Json -Method GET -Url "$GatewayBaseUrl/api/places/$($candidate.id)" -Headers $headers
+    if (@($candidateDetail.body.recentSignals).Count -eq 0) { $catalogPlace = $candidate; break }
 }
-$placeId = $place.body.id
-Assert-Truthy $placeId "Place create did not return id."
-
-$bounds = Invoke-Json -Method GET -Url "$GatewayBaseUrl/api/places/bounds?minLat=40.9&minLon=28.8&maxLat=41.2&maxLon=29.2&limit=50" -Headers $headers
-Assert-Truthy ($bounds.body | Where-Object { $_.id -eq $placeId }) "Created place was not returned from bounds."
-
-$nearby = Invoke-Json -Method GET -Url "$GatewayBaseUrl/api/places/nearby?lat=41.0082&lon=28.9784&radiusMeters=2000&limit=50" -Headers $headers
-Assert-Truthy ($nearby.body | Where-Object { $_.id -eq $placeId }) "Created place was not returned from nearby."
+Assert-Truthy $catalogPlace "No unused real catalog Place is available."
+$placeId = $catalogPlace.id
 
 $expiredPostId = [guid]::NewGuid().ToString()
 Invoke-MongoEval "db.place_signals.updateOne({ _id: '$expiredPostId' }, { `$set: { _id: '$expiredPostId', PlaceId: '$placeId', SignalType: 'Crowd', SignalValue: 'EMPTY', Title: 'Expired signal', Text: 'Should not affect state', CreatedAtUtc: new Date(Date.now() - 7200000), ExpiresAtUtc: new Date(Date.now() - 3600000), LocationName: 'Expired location', Media: [] } }, { upsert: true })"
@@ -108,11 +101,11 @@ Invoke-MongoEval "db.place_signals.updateOne({ _id: '$expiredPostId' }, { `$set:
 $post = Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/posts" -Headers $authHeaders -ExpectedStatus @(201) -Body @{
     title = "Place is busy"
     content = "Many people are here now."
-    latitude = 41.0082
-    longitude = 28.9784
+    latitude = $catalogPlace.latitude
+    longitude = $catalogPlace.longitude
     accuracyMeters = 20
-    observationLatitude = 41.0082
-    observationLongitude = 28.9784
+    observationLatitude = $catalogPlace.latitude
+    observationLongitude = $catalogPlace.longitude
     observationAccuracyMeters = 20
     locationName = "Blinkr Core Test Place"
     placeId = $placeId

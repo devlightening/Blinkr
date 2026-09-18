@@ -17,6 +17,20 @@ function Test-HttpStatus {
     }
 }
 
+function Test-NearbyCatalog {
+    param([string]$Name, [double]$Lat, [double]$Lon)
+    try {
+        $url = "http://localhost:5080/api/places/nearby?lat=$Lat&lon=$Lon&radiusMeters=1500&limit=20"
+        $response = Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 8
+        $items = @($response.Content | ConvertFrom-Json)
+        $coverage = [string]$response.Headers["X-Blinkr-Place-Coverage"]
+        if ($items.Count -gt 0 -and $coverage -ne "not_loaded") { return "READY ($($items.Count))" }
+        return "MISSING"
+    } catch {
+        return "DOWN"
+    }
+}
+
 function Get-ContainerStatus {
     param([string]$Container)
     $status = docker inspect --format "{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}" $Container 2>$null
@@ -53,8 +67,17 @@ $routeRows = @(
 )
 $routeRows | Format-Table -AutoSize
 
+Write-Host "Place catalog coverage`n" -ForegroundColor Cyan
+$catalogRows = @(
+    [pscustomobject]@{ Region = "Ankara"; Status = Test-NearbyCatalog "Ankara" 39.9334 32.8597 },
+    [pscustomobject]@{ Region = "Istanbul"; Status = Test-NearbyCatalog "Istanbul" 41.0082 28.9784 },
+    [pscustomobject]@{ Region = "Osmaniye"; Status = Test-NearbyCatalog "Osmaniye" 37.0746 36.2464 }
+)
+$catalogRows | Format-Table -AutoSize
+
 $unhealthy = @($rows | Where-Object { $_.Status -ne "HEALTHY" })
 $badRoutes = @($routeRows | Where-Object { $_.Status -eq "DOWN" -or $_.Status -eq "HTTP 502" })
+$missingCatalog = @($catalogRows | Where-Object { $_.Status -eq "MISSING" })
 
 if (Test-Path $stateFile) {
     Write-Host "Runtime state: $stateFile"
@@ -63,6 +86,9 @@ if (Test-Path $stateFile) {
 }
 
 if ($unhealthy.Count -eq 0 -and $badRoutes.Count -eq 0) {
+    if ($missingCatalog.Count -gt 0) {
+        Write-Host "Backend is ready, but Place catalog coverage is incomplete for: $(@($missingCatalog | ForEach-Object Region) -join ', ')." -ForegroundColor Yellow
+    }
     Write-Host "`nREADY" -ForegroundColor Green
     exit 0
 }

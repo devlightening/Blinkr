@@ -85,6 +85,7 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
         var authorGender = request.AuthorGender;
 
         PlaceLookupResult? place = null;
+        string? publicationTrust = null;
         if (request.PlaceId.HasValue)
         {
             place = await _placeLookupService.GetAsync(request.PlaceId.Value, ct);
@@ -99,7 +100,9 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
                 place.Longitude,
                 request.ObservationLatitude,
                 request.ObservationLongitude,
-                request.ObservationAccuracyMeters));
+                request.ObservationAccuracyMeters,
+                place.GeometryWkt));
+            publicationTrust = proximity.TrustLevel;
             _logger.LogInformation(
                 "[Blinkr Publish] anchorType=PLACE placeId={PlaceId} distanceMeters={DistanceMeters} proximityAllowed={ProximityAllowed}",
                 request.PlaceId,
@@ -111,7 +114,7 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
                     "[Blinkr PlacePublishRejected] placeId={PlaceId} serverDistanceMeters={ServerDistanceMeters} reason=PLACE_PROXIMITY_REQUIRED",
                     request.PlaceId,
                     proximity.DistanceMeters.HasValue ? Math.Round(proximity.DistanceMeters.Value) : null);
-                throw new PlaceProximityException("Bu yer için anlık sinyal bırakmak için mekana daha yakın olmalısın.");
+                throw new PlaceProximityException("Bu yer paylaşım alanının dışında veya konumun yeterince net değil. Konumunu yenileyip tekrar dene.");
             }
         }
         
@@ -180,7 +183,8 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
             request.LocationPrecision,
             "Community",
             expiresAt,
-            eventMedia);
+            eventMedia,
+            publicationTrust);
 
         try
         {

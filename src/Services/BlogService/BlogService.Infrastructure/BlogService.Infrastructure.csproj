@@ -20,7 +20,7 @@
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
 		<PackageReference Include="MassTransit.RabbitMQ" />
 		<PackageReference Include="MassTransit.EntityFrameworkCore" />
-		<PackageReference Include="EventStore.Client.Grpc.Streams" />		<PackageReference Include="AWSSDK.S3" />
+		<PackageReference Include="EventStore.Client.Grpc.Streams" />
 	</ItemGroup>
 
 	<ItemGroup>

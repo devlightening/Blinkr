@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 
-import type { AuthResponse, BlinkrPlace, Bounds, CreateSignalInput, MediaKind, UnifiedMapResponse } from './types';
+import type { AuthResponse, BlinkrPlace, Bounds, CreateSignalInput, MediaKind, UnifiedMapResponse, PlacePresence } from './types';
 
 type NearbyPlacesResponse = Array<BlinkrPlace & { distanceMeters?: number }> & {
   coverageState?: string | null;
@@ -40,6 +40,7 @@ let refreshInFlight: Promise<AuthResponse> | null = null;
 
 const readError = async (response: Response) => {
   const raw = await response.text();
+  if (response.status >= 500) return 'Şu anda bağlantı kurulamıyor. Lütfen tekrar dene.';
 
   if (raw) {
     try {
@@ -68,7 +69,7 @@ const readError = async (response: Response) => {
   if (response.status === 401) return 'Oturumun sona erdi. Lütfen yeniden giriş yap.';
   if (response.status === 403) return 'Bu işlemi yapmak için yetkin bulunmuyor.';
   if (response.status === 404) return 'İstenen kayıt bulunamadı.';
-  return `Sunucu HTTP ${response.status} yanıtını verdi.`;
+  return 'İşlem tamamlanamadı. Lütfen tekrar dene.';
 };
 
 export const toAbsoluteUrl = (url?: string | null) => {
@@ -184,7 +185,7 @@ export const getPlacesInBounds = async (bounds: Bounds, signal?: AbortSignal) =>
   return items.filter((place) => Number.isFinite(place.latitude) && Number.isFinite(place.longitude));
 };
 
-export const getUnifiedMapBounds = async (bounds: Bounds, signal?: AbortSignal) => {
+export const getUnifiedMapBounds = async (bounds: Bounds, signal?: AbortSignal, includeCatalogPlaces = false) => {
   const params = new URLSearchParams({
     south: bounds.minLat.toString(),
     west: bounds.minLng.toString(),
@@ -193,6 +194,7 @@ export const getUnifiedMapBounds = async (bounds: Bounds, signal?: AbortSignal) 
     sinceMinutes: '180',
     limit: '180',
   });
+  if (includeCatalogPlaces) params.set('includeCatalogPlaces', 'true');
   const payload = await requestJson<UnifiedMapResponse>(`/api/map/bounds?${params}`, { signal });
   console.log('[Blinkr Map]', `Places: ${payload.places?.length ?? 0}`, `Signals: ${payload.signals?.length ?? 0}`);
   return {
@@ -218,6 +220,17 @@ export const getNearbyPlaces = async (latitude: number, longitude: number, radiu
 
 export const getPlace = async (placeId: string, signal?: AbortSignal) =>
   requestJson<BlinkrPlace>(`/api/places/${placeId}`, { signal });
+
+export const getSignalContent = async (postId: string, signal?: AbortSignal) => {
+  const post = await requestJson<{ content?: string; media?: Array<{ url?: string; type?: string | number; mediaType?: string }> }>(`/api/posts/${postId}`, { signal });
+  return { content: post.content, media: (post.media ?? []).map(item => ({ url: item.url, mediaType: item.type === 1 || item.type === 'Video' || item.mediaType === 'Video' ? 'Video' : 'Image' })) };
+};
+
+export const searchPlaces = (query: string, latitude: number, longitude: number, signal?: AbortSignal) =>
+  requestJson<BlinkrPlace[]>(`/api/places/search?${new URLSearchParams({ q: query, lat: String(latitude), lon: String(longitude) })}`, { signal });
+
+export const previewPresence = (auth: AuthResponse, body: { placeId: string; latitude: number; longitude: number; accuracyMeters: number }, onAuthRefresh: (auth: AuthResponse) => void, onSessionExpired: () => void) =>
+  requestJson<PlacePresence>('/api/posts/place-presence', { auth, body, method: 'POST', onAuthRefresh, onSessionExpired });
 
 export const createSignal = async (
   auth: AuthResponse,

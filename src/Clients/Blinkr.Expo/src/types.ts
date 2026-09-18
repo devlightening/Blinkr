@@ -43,6 +43,8 @@ export type CurrentPlaceState = {
 };
 
 export type RecentSignal = {
+  publicationTrust?: string | null;
+  authorName?: string | null;
   postId: string;
   title?: string | null;
   text?: string | null;
@@ -55,6 +57,8 @@ export type RecentSignal = {
 };
 
 export type BlinkrPlace = {
+  activityCount?: number;
+  lastActivityUtc?: string | null;
   id: string;
   name: string;
   category?: string | null;
@@ -68,6 +72,8 @@ export type BlinkrPlace = {
 };
 
 export type CoordinateSignal = {
+  content?: string;
+  media?: BlinkrMedia[];
   postId: string;
   title: string;
   textPreview: string;
@@ -159,11 +165,19 @@ export type ComposerArea = {
   source: 'device' | 'map' | 'place';
   place?: BlinkrPlace | null;
   proximity?: {
+    trustLevel?: string;
     allowed: boolean;
     distanceMeters?: number | null;
     effectiveDistanceMeters?: number | null;
-    thresholdMeters: number;
+    thresholdMeters?: number;
   };
+};
+
+export type PlacePresence = {
+  isAllowed: boolean;
+  trustLevel: string;
+  distanceMeters: number | null;
+  effectiveDistanceMeters: number | null;
 };
 
 export type LocationReadiness =

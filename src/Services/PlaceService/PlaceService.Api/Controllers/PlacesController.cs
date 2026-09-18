@@ -54,7 +54,7 @@ public sealed class PlacesController : ControllerBase
         if (await _repository.GetAsync(id, ct) is null) return NotFound();
 
         var signals = await _repository.GetSignalsAsync(id, limit, ct);
-        return Ok(signals.Select(ToRecentSignal));
+        return Ok(signals.Take(limit).Select(ToRecentSignal));
     }
 
     [HttpGet("nearby")]
@@ -105,15 +105,35 @@ public sealed class PlacesController : ControllerBase
         return Ok(await ToNearbySummariesAsync(places, lat, lon, ct));
     }
 
+    [HttpGet("search")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Search([FromQuery] string q, [FromQuery] double lat,
+        [FromQuery] double lon, CancellationToken ct)
+    {
+        if (ValidateGeo(lat, lon) is not null || !double.IsFinite(lat) || !double.IsFinite(lon))
+            return BadRequest("Invalid origin.");
+        if (string.IsNullOrWhiteSpace(q) || q.Length > 80) return BadRequest("Query must contain 1-80 characters.");
+        var category = q.Trim().ToLowerInvariant() switch
+        {
+            "cami" => "MOSQUE", "park" => "PARK", "eczane" => "PHARMACY",
+            "kafe" => "CAFE", "restoran" => "RESTAURANT", "market" => "SUPERMARKET",
+            "okul" => "EDUCATION", _ => q
+        };
+        var places = await _repository.SearchAsync(category, lat, lon, 1500, 50, ct);
+        return Ok(await ToNearbySummariesAsync(places, lat, lon, ct));
+    }
+
     [HttpGet("bounds")]
     [AllowAnonymous]
-    public async Task<IActionResult> Bounds([FromQuery] double minLat, [FromQuery] double minLon, [FromQuery] double maxLat, [FromQuery] double maxLon, [FromQuery] int limit = 100, CancellationToken ct = default)
+    public async Task<IActionResult> Bounds([FromQuery] double minLat, [FromQuery] double minLon, [FromQuery] double maxLat, [FromQuery] double maxLon, [FromQuery] int limit = 100, CancellationToken ct = default, [FromQuery] bool activeOnly = false)
     {
         if (minLat > maxLat || minLon > maxLon) return BadRequest("Invalid bounds.");
         var validation = ValidateGeo(minLat, minLon) ?? ValidateGeo(maxLat, maxLon);
         if (validation is not null) return BadRequest(validation);
 
         limit = Math.Clamp(limit, 1, 200);
+        if (activeOnly)
+            return Ok(await ToSummariesAsync(await _repository.GetActiveBoundsAsync(minLat, minLon, maxLat, maxLon, limit, ct), ct));
         var total = Stopwatch.StartNew();
         var local = Stopwatch.StartNew();
         var places = await _repository.GetBoundsAsync(minLat, minLon, maxLat, maxLon, limit, ct);
@@ -215,15 +235,17 @@ public sealed class PlacesController : ControllerBase
 
     private PlaceDetailDto ToDetail(PlaceDocument place, IReadOnlyList<PlaceSignalDocument> signals) =>
         new(place.Id, place.Name, place.Category, place.Latitude, place.Longitude, place.DisplayAddress, place.Source,
-            _stateCalculator.Calculate(signals, DateTime.UtcNow), signals.Take(20).Select(ToRecentSignal).ToArray());
+            _stateCalculator.Calculate(signals, DateTime.UtcNow), signals.Take(20).Select(ToRecentSignal).ToArray(), place.GeometryWkt);
 
     private PlaceSummaryDto ToSummary(PlaceDocument place, IReadOnlyList<PlaceSignalDocument> signals) =>
         new(place.Id, place.Name, place.Category, place.Latitude, place.Longitude, place.DisplayAddress,
-            _stateCalculator.Calculate(signals, DateTime.UtcNow));
+            _stateCalculator.Calculate(signals, DateTime.UtcNow),
+            signals.Count(s => s.CreatedAtUtc > DateTime.UtcNow.AddHours(-3)),
+            signals.Count > 0 ? signals.Max(s => s.CreatedAtUtc) : null);
 
     private static RecentSignalDto ToRecentSignal(PlaceSignalDocument signal) =>
         new(signal.PostId, signal.Title, signal.Text, signal.SignalType, signal.SignalValue, signal.CreatedAtUtc,
-            signal.ExpiresAtUtc, signal.LocationName, signal.Media.Select(m => new RecentSignalMediaDto(m.Url, m.MediaType, m.MediaId, m.ContentType, m.SizeBytes, m.Width, m.Height, m.DurationSeconds, m.ThumbnailUrl)).ToArray());
+            signal.ExpiresAtUtc, signal.LocationName, signal.Media.Select(m => new RecentSignalMediaDto(m.Url, m.MediaType, m.MediaId, m.ContentType, m.SizeBytes, m.Width, m.Height, m.DurationSeconds, m.ThumbnailUrl)).ToArray(), signal.PublicationTrust, signal.AuthorName);
 
     private static string? ValidateGeo(double lat, double lon)
     {

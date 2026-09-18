@@ -1,0 +1,14 @@
+import { View } from 'react-native';
+export const Video = View;
+export const ResizeMode = { COVER: 'cover' };
+export const NotificationFeedbackType = { Success: 1, Error: 2 };
+export const notificationAsync = async () => {};
+export const selectionAsync = async () => {};
+export const requestCameraPermissionsAsync = async () => ({ status: 'denied' });
+export const requestMediaLibraryPermissionsAsync = requestCameraPermissionsAsync;
+export const launchCameraAsync = async () => ({ canceled: true, assets: [] });
+export const launchImageLibraryAsync = launchCameraAsync;
+export const MediaTypeOptions = { All: 'all' };
+export const getItemAsync = async (key: string) => localStorage.getItem(key);
+export const setItemAsync = async (key: string, value: string) => localStorage.setItem(key, value);
+export const deleteItemAsync = async (key: string) => localStorage.removeItem(key);

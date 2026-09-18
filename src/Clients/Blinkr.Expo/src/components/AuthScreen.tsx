@@ -1,5 +1,6 @@
 import * as Haptics from 'expo-haptics';
-import { ArrowRight, Eye, EyeOff, MapPin, ShieldCheck } from 'lucide-react-native';
+import { ArrowRight, Eye, EyeOff, Radio, ShieldCheck } from 'lucide-react-native';
+import { BlinkrMark } from './BlinkrMark';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,22 +15,21 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { API_BASE_URL, authenticate } from '../api';
-import { colors } from '../theme';
+import { authenticate } from '../api';
+import { friendlyError } from '../productPresentation';
+import { colors, shadowSoft } from '../theme';
 import type { AuthResponse } from '../types';
 
 type Props = {
   onAuthenticated: (auth: AuthResponse) => void;
 };
 
-const makeSeed = () => Math.floor(Math.random() * 1_000_000);
 
 export function AuthScreen({ onAuthenticated }: Props) {
   const [mode, setMode] = useState<'login' | 'register'>('register');
-  const [seed] = useState(makeSeed);
-  const [userName, setUserName] = useState(`gezgin_${seed}`);
-  const [email, setEmail] = useState(`cihaz_${seed}@blinkr.local`);
-  const [password, setPassword] = useState('Passw0rd!CoreLoop');
+  const [userName, setUserName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +43,7 @@ export function AuthScreen({ onAuthenticated }: Props) {
       onAuthenticated(auth);
     } catch (err) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(err instanceof Error ? err.message : 'Oturum açılamadı.');
+      setError(friendlyError(err));
     } finally {
       setIsLoading(false);
     }
@@ -60,22 +60,26 @@ export function AuthScreen({ onAuthenticated }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.brandRow}>
-            <View style={styles.brandMark}>
-              <MapPin color={colors.ink} fill={colors.lime} size={23} strokeWidth={2.5} />
+          <View style={styles.hero}>
+            <View style={styles.brandRow}>
+              <View style={styles.brandMark}>
+                <BlinkrMark size={32} />
+              </View>
+              <Text style={styles.brand}>blinkr</Text>
+              <View style={styles.livePill}>
+                <Radio color={colors.lime} size={13} strokeWidth={2.8} />
+                <Text style={styles.livePillText}>CANLI</Text>
+              </View>
             </View>
-            <Text style={styles.brand}>blinkr</Text>
+
+            <View style={styles.intro}>
+              <Text style={styles.eyebrow}>YAKININDA · ŞİMDİ</Text>
+              <Text style={styles.title}>Gitmeden önce bil.</Text>
+              <Text style={styles.subtitle}>Çevrendeki yerlerin canlı durumunu haritadan keşfet.</Text>
+            </View>
           </View>
 
-          <View style={styles.intro}>
-            <Text style={styles.eyebrow}>YAKININDA, ŞİMDİ</Text>
-            <Text style={styles.title}>Bir yere gitmeden önce, orada ne olduğunu gör.</Text>
-            <Text style={styles.subtitle}>
-              Çevrendeki taze sinyalleri keşfet, kararını gerçek insanlardan gelen güncel bilgiyle ver.
-            </Text>
-          </View>
-
-          <View style={styles.form}>
+          <View style={styles.formPanel}>
             <View style={styles.segment}>
               <Pressable
                 onPress={() => setMode('register')}
@@ -155,17 +159,15 @@ export function AuthScreen({ onAuthenticated }: Props) {
               style={({ pressed }) => [
                 styles.primaryButton,
                 pressed && styles.buttonPressed,
-                isLoading && styles.buttonDisabled,
+                (isLoading || !email || !password || (mode === 'register' && !userName)) && styles.buttonDisabled,
               ]}
             >
               {isLoading ? (
-                <ActivityIndicator color={colors.white} />
+                <ActivityIndicator color={colors.ink} />
               ) : (
                 <>
-                  <Text style={styles.primaryButtonText}>
-                    {mode === 'register' ? 'Hesabı oluştur' : 'Haritayı aç'}
-                  </Text>
-                  <ArrowRight color={colors.white} size={20} strokeWidth={2.5} />
+                  <Text style={styles.primaryButtonText}>{mode === 'register' ? 'Blinkr’a katıl' : 'Haritayı aç'}</Text>
+                  <ArrowRight color={colors.ink} size={20} strokeWidth={2.5} />
                 </>
               )}
             </Pressable>
@@ -175,8 +177,6 @@ export function AuthScreen({ onAuthenticated }: Props) {
               <Text style={styles.privacyText}>Konumun yalnızca sen paylaşmayı seçtiğinde kullanılır.</Text>
             </View>
           </View>
-
-          <Text style={styles.connection} numberOfLines={1}>Gateway · {API_BASE_URL}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -185,34 +185,37 @@ export function AuthScreen({ onAuthenticated }: Props) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  safeArea: { backgroundColor: colors.surfaceSoft, flex: 1 },
-  content: { flexGrow: 1, paddingBottom: 24, paddingHorizontal: 24, paddingTop: 18 },
+  safeArea: { backgroundColor: colors.ink, flex: 1 },
+  content: { flexGrow: 1 },
+  hero: { backgroundColor: colors.ink, minHeight: 300, paddingBottom: 30, paddingHorizontal: 22, paddingTop: 18 },
   brandRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
   brandMark: {
-    alignItems: 'center', backgroundColor: colors.green, borderRadius: 8, height: 42,
+    alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: 8, height: 42,
     justifyContent: 'center', width: 42,
   },
-  brand: { color: colors.ink, fontSize: 25, fontWeight: '900', letterSpacing: 0 },
-  intro: { marginTop: 44 },
-  eyebrow: { color: colors.green, fontSize: 12, fontWeight: '900', letterSpacing: 0 },
-  title: { color: colors.ink, fontSize: 34, fontWeight: '900', lineHeight: 39, marginTop: 10 },
-  subtitle: { color: colors.muted, fontSize: 16, lineHeight: 24, marginTop: 14 },
-  form: { marginTop: 34 },
+  brand: { color: colors.white, fontSize: 25, fontWeight: '600', letterSpacing: 0 },
+  livePill: { alignItems: 'center', borderColor: '#3B4941', borderRadius: 999, borderWidth: 1, flexDirection: 'row', gap: 5, marginLeft: 'auto', paddingHorizontal: 9, paddingVertical: 6 },
+  livePillText: { color: colors.white, fontSize: 12, fontWeight: '600' },
+  intro: { marginTop: 48 },
+  eyebrow: { color: colors.lime, fontSize: 12, fontWeight: '600', letterSpacing: 0 },
+  title: { color: colors.white, fontSize: 38, fontWeight: '600', lineHeight: 43, marginTop: 9 },
+  subtitle: { color: '#BCC7C0', fontSize: 16, lineHeight: 23, marginTop: 10, maxWidth: 320 },
+  formPanel: { backgroundColor: colors.surface, borderTopLeftRadius: 8, borderTopRightRadius: 8, flex: 1, marginTop: -8, paddingBottom: 24, paddingHorizontal: 22, paddingTop: 24 },
   segment: {
-    backgroundColor: '#E8ECE9', borderRadius: 8, flexDirection: 'row', height: 48, padding: 4,
+    backgroundColor: colors.surfaceSoft, borderRadius: 8, flexDirection: 'row', height: 48, padding: 4,
   },
   segmentItem: { alignItems: 'center', borderRadius: 6, flex: 1, justifyContent: 'center' },
-  segmentItemActive: { backgroundColor: colors.surface },
-  segmentText: { color: colors.muted, fontSize: 14, fontWeight: '800' },
+  segmentItemActive: { backgroundColor: colors.surface, ...shadowSoft },
+  segmentText: { color: colors.muted, fontSize: 14, fontWeight: '600' },
   segmentTextActive: { color: colors.ink },
   field: { marginTop: 18 },
-  label: { color: colors.ink, fontSize: 13, fontWeight: '800', marginBottom: 8 },
+  label: { color: colors.ink, fontSize: 13, fontWeight: '600', marginBottom: 8 },
   input: {
-    backgroundColor: colors.surface, borderColor: colors.line, borderRadius: 8, borderWidth: 1,
+    backgroundColor: colors.surfaceSoft, borderColor: colors.line, borderRadius: 8, borderWidth: 1,
     color: colors.ink, fontSize: 15, minHeight: 52, paddingHorizontal: 15,
   },
   passwordField: {
-    alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.line,
+    alignItems: 'center', backgroundColor: colors.surfaceSoft, borderColor: colors.line,
     borderRadius: 8, borderWidth: 1, flexDirection: 'row', minHeight: 52, paddingRight: 15,
   },
   passwordInput: { color: colors.ink, flex: 1, fontSize: 15, paddingHorizontal: 15 },
@@ -221,14 +224,12 @@ const styles = StyleSheet.create({
     fontSize: 13, lineHeight: 18, marginTop: 14, padding: 12,
   },
   primaryButton: {
-    alignItems: 'center', backgroundColor: colors.green, borderRadius: 8, flexDirection: 'row',
-    gap: 10, justifyContent: 'center', marginTop: 20, minHeight: 54, paddingHorizontal: 18,
+    alignItems: 'center', backgroundColor: colors.lime, borderColor: colors.ink, borderRadius: 8, borderWidth: 2, flexDirection: 'row',
+    gap: 10, justifyContent: 'center', marginTop: 20, minHeight: 54, paddingHorizontal: 18, ...shadowSoft,
   },
-  primaryButtonText: { color: colors.white, fontSize: 15, fontWeight: '900' },
+  primaryButtonText: { color: colors.ink, fontSize: 15, fontWeight: '600' },
   buttonPressed: { opacity: 0.88 },
   buttonDisabled: { opacity: 0.6 },
   privacyRow: { alignItems: 'center', flexDirection: 'row', gap: 8, marginTop: 16 },
   privacyText: { color: colors.muted, flex: 1, fontSize: 12, lineHeight: 17 },
-  connection: { color: '#8A938D', fontSize: 10, marginTop: 30, textAlign: 'center' },
 });
-

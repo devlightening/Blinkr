@@ -41,6 +41,7 @@ public sealed class MapController : ControllerBase
         [FromQuery] double? maxLon,
         [FromQuery] int sinceMinutes = 180,
         [FromQuery] int limit = 150,
+        [FromQuery] bool includeCatalogPlaces = false,
         CancellationToken ct = default)
     {
         var effectiveMinLat = south ?? minLat;
@@ -63,7 +64,7 @@ public sealed class MapController : ControllerBase
         var postsTask = _postQueryService.GetBoundsAsync(
             new BoundsQuery(effectiveMinLat.Value, effectiveMinLon.Value, effectiveMaxLat.Value, effectiveMaxLon.Value, 12, sinceMinutes, 1, limit),
             ct);
-        var placesTask = GetPlacesAsync(effectiveMinLat.Value, effectiveMinLon.Value, effectiveMaxLat.Value, effectiveMaxLon.Value, limit, ct);
+        var placesTask = GetPlacesAsync(effectiveMinLat.Value, effectiveMinLon.Value, effectiveMaxLat.Value, effectiveMaxLon.Value, Math.Min(limit, 80), includeCatalogPlaces, ct);
 
         await Task.WhenAll(postsTask, placesTask);
 
@@ -73,11 +74,11 @@ public sealed class MapController : ControllerBase
             .Select(ToSignalItem)
             .ToArray();
         var places = placesTask.Result
-            .Where(p => p.CurrentState?.ActiveSignalCount > 0)
+            .Where(p => includeCatalogPlaces || p.ActivityCount > 0)
             .Take(limit)
             .ToArray();
 
-        _logger.LogInformation("[Blinkr Map] Places: {Places} Signals: {Signals}", places.Length, signals.Length);
+        _logger.LogInformation("[Blinkr Map] Places: {Places} Signals: {Signals} includeCatalogPlaces={IncludeCatalogPlaces}", places.Length, signals.Length, includeCatalogPlaces);
         return Ok(new UnifiedMapResponse(places, signals));
     }
 
@@ -103,13 +104,13 @@ public sealed class MapController : ControllerBase
         return Ok(await _postQueryService.GetNearbyAsync(query, cancellationToken));
     }
 
-    private async Task<IReadOnlyList<PlaceMapItem>> GetPlacesAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, CancellationToken ct)
+    private async Task<IReadOnlyList<PlaceMapItem>> GetPlacesAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, bool includeCatalogPlaces, CancellationToken ct)
     {
         var baseUrl = _configuration["PlaceService:BaseUrl"] ?? "http://localhost:5225";
         var client = _httpClientFactory.CreateClient();
         client.BaseAddress = new Uri(baseUrl);
         var url = string.Create(CultureInfo.InvariantCulture,
-            $"/api/places/bounds?minLat={minLat:R}&minLon={minLon:R}&maxLat={maxLat:R}&maxLon={maxLon:R}&limit={limit}");
+            $"/api/places/bounds?minLat={minLat:R}&minLon={minLon:R}&maxLat={maxLat:R}&maxLon={maxLon:R}&limit={limit}&activeOnly={!includeCatalogPlaces}");
         try
         {
             var places = await client.GetFromJsonAsync<IReadOnlyList<PlaceMapItem>>(url, ct);
@@ -152,7 +153,9 @@ public sealed record PlaceMapItem(
     double Latitude,
     double Longitude,
     string? DisplayAddress,
-    PlaceMapState? CurrentState);
+    PlaceMapState? CurrentState,
+    int ActivityCount = 0,
+    DateTime? LastActivityUtc = null);
 
 public sealed record PlaceMapState(
     string? SignalType,

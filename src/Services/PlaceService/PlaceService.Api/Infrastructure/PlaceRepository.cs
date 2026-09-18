@@ -1,4 +1,5 @@
 using MongoDB.Driver;
+using MongoDB.Bson;
 using MongoDB.Driver.GeoJsonObjectModel;
 using PlaceService.Api.Application;
 using PlaceService.Api.Domain;
@@ -9,7 +10,9 @@ public interface IPlaceRepository
 {
     Task<PlaceDocument?> GetAsync(Guid id, CancellationToken ct);
     Task<IReadOnlyList<PlaceDocument>> GetNearbyAsync(double lat, double lon, int radiusMeters, int limit, CancellationToken ct);
+    Task<IReadOnlyList<PlaceDocument>> SearchAsync(string query, double lat, double lon, int radiusMeters, int limit, CancellationToken ct);
     Task<IReadOnlyList<PlaceDocument>> GetBoundsAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, CancellationToken ct);
+    Task<IReadOnlyList<PlaceDocument>> GetActiveBoundsAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, CancellationToken ct);
     Task<PlaceDocument> CreateAsync(CreatePlaceRequest request, CancellationToken ct);
     Task<IReadOnlyList<PlaceDocument>> UpsertDiscoveredAsync(IReadOnlyList<DiscoveredPlace> places, CancellationToken ct);
     Task<bool> HasFreshCoverageAsync(string key, TimeSpan ttl, CancellationToken ct);
@@ -40,17 +43,23 @@ public sealed class PlaceRepository : IPlaceRepository
 
     public async Task<IReadOnlyList<PlaceDocument>> GetNearbyAsync(double lat, double lon, int radiusMeters, int limit, CancellationToken ct)
     {
-        var deltaLat = radiusMeters / 111_000.0;
-        var deltaLon = radiusMeters / (111_000.0 * Math.Max(Math.Cos(lat * Math.PI / 180), 0.1));
-        var candidates = await GetBoundsAsync(lat - deltaLat, lon - deltaLon, lat + deltaLat, lon + deltaLon, Math.Max(limit * 4, limit), ct);
+        return await SearchAsync("", lat, lon, radiusMeters, limit, ct);
+    }
 
-        return candidates
-            .Select(p => new { Place = p, Distance = DistanceMeters(lat, lon, p.Latitude, p.Longitude) })
-            .Where(p => p.Distance <= radiusMeters)
-            .OrderBy(p => p.Distance)
-            .Take(limit)
-            .Select(p => p.Place)
-            .ToArray();
+    public async Task<IReadOnlyList<PlaceDocument>> SearchAsync(string query, double lat, double lon, int radiusMeters, int limit, CancellationToken ct)
+    {
+        var f = Builders<PlaceDocument>.Filter;
+        var filter = f.Eq(p => p.IsActive, true) & f.NearSphere(p => p.Location,
+            new GeoJsonPoint<GeoJson2DGeographicCoordinates>(new(lon, lat)), radiusMeters);
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var escaped = string.Concat(query.Trim().Select(c => c is 'i' or 'I' or 'İ' or 'ı'
+                ? "[iIİı]" : System.Text.RegularExpressions.Regex.Escape(c.ToString())));
+            var pattern = new MongoDB.Bson.BsonRegularExpression(escaped, "i");
+            filter &= f.Regex(p => p.Name, pattern) | f.Regex(p => p.Category, pattern);
+        }
+        // $nearSphere sorts before limit, so dense catalogs cannot hide the closest branch.
+        return await _places.Find(filter).Limit(limit).ToListAsync(ct);
     }
 
     private static double DistanceMeters(double lat1, double lon1, double lat2, double lon2)
@@ -114,6 +123,21 @@ public sealed class PlaceRepository : IPlaceRepository
         return place;
     }
 
+    public async Task<IReadOnlyList<PlaceDocument>> GetActiveBoundsAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        // Activity is independent of trust: nearby content keeps its Place visible.
+        var ids = await _signals.Distinct(s => s.PlaceId,
+            Builders<PlaceSignalDocument>.Filter.Gt(s => s.CreatedAtUtc, now.AddHours(-3)) &
+            (Builders<PlaceSignalDocument>.Filter.Eq(s => s.ExpiresAtUtc, null) |
+             Builders<PlaceSignalDocument>.Filter.Gt(s => s.ExpiresAtUtc, now))).ToListAsync(ct);
+        var f = Builders<PlaceDocument>.Filter;
+        return await _places.Find(f.In(p => p.Id, ids) & f.Eq(p => p.IsActive, true) &
+            f.Gte(p => p.Latitude, minLat) & f.Lte(p => p.Latitude, maxLat) &
+            f.Gte(p => p.Longitude, minLon) & f.Lte(p => p.Longitude, maxLon))
+            .SortBy(p => p.Id).Limit(limit).ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<PlaceDocument>> UpsertDiscoveredAsync(IReadOnlyList<DiscoveredPlace> places, CancellationToken ct)
     {
         var result = new List<PlaceDocument>(places.Count);
@@ -169,14 +193,7 @@ public sealed class PlaceRepository : IPlaceRepository
 
     public async Task<IReadOnlyList<PlaceSignalDocument>> GetSignalsAsync(Guid placeId, int limit, CancellationToken ct)
     {
-        var now = DateTime.UtcNow;
-        var filter = Builders<PlaceSignalDocument>.Filter.And(
-            Builders<PlaceSignalDocument>.Filter.Eq(s => s.PlaceId, placeId),
-            Builders<PlaceSignalDocument>.Filter.Or(
-                Builders<PlaceSignalDocument>.Filter.Eq(s => s.ExpiresAtUtc, null),
-                Builders<PlaceSignalDocument>.Filter.Gt(s => s.ExpiresAtUtc, now)));
-
-        return await _signals.Find(filter).SortByDescending(s => s.CreatedAtUtc).Limit(limit).ToListAsync(ct);
+        return await GetSignalsForPlacesAsync(new[] { placeId }, limit, ct);
     }
 
     public async Task<IReadOnlyList<PlaceSignalDocument>> GetSignalsForPlacesAsync(IReadOnlyCollection<Guid> placeIds, int perPlaceLimit, CancellationToken ct)
@@ -190,15 +207,20 @@ public sealed class PlaceRepository : IPlaceRepository
                 Builders<PlaceSignalDocument>.Filter.Eq(s => s.ExpiresAtUtc, null),
                 Builders<PlaceSignalDocument>.Filter.Gt(s => s.ExpiresAtUtc, now)));
 
-        var candidates = await _signals.Find(filter)
-            .SortByDescending(s => s.CreatedAtUtc)
-            .Limit(Math.Max(placeIds.Count * perPlaceLimit, perPlaceLimit))
-            .ToListAsync(ct);
-
-        return candidates
-            .GroupBy(s => s.PlaceId)
-            .SelectMany(g => g.Take(perPlaceLimit))
-            .ToList();
+        // Bound each Place/trust bucket independently. Nearby posts cannot evict
+        // verified observations before the live-state calculator sees them.
+        var group = new BsonDocument("$group", new BsonDocument
+        {
+            { "_id", new BsonDocument { { "place", "$PlaceId" }, { "verified",
+                new BsonDocument("$eq", new BsonArray { "$PublicationTrust", "VERIFIED_LIVE" }) } } },
+            { "items", new BsonDocument("$topN", new BsonDocument
+                { { "n", perPlaceLimit }, { "sortBy", new BsonDocument("CreatedAtUtc", -1) }, { "output", "$$ROOT" } }) }
+        });
+        return await _signals.Aggregate().Match(filter)
+            .AppendStage<BsonDocument>(group)
+            .AppendStage<BsonDocument>(new BsonDocument("$unwind", "$items"))
+            .AppendStage<PlaceSignalDocument>(new BsonDocument("$replaceRoot", new BsonDocument("newRoot", "$items")))
+            .SortByDescending(s => s.CreatedAtUtc).ToListAsync(ct);
     }
 
     public async Task UpsertSignalAsync(PlaceSignalDocument signal, CancellationToken ct)

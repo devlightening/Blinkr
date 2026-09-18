@@ -15,7 +15,9 @@ public sealed record PlaceSummaryDto(
     double Latitude,
     double Longitude,
     string? DisplayAddress,
-    CurrentPlaceStateDto CurrentState);
+    CurrentPlaceStateDto CurrentState,
+    int ActivityCount = 0,
+    DateTime? LastActivityUtc = null);
 
 public sealed record PlaceDetailDto(
     Guid Id,
@@ -26,7 +28,8 @@ public sealed record PlaceDetailDto(
     string? DisplayAddress,
     string Source,
     CurrentPlaceStateDto CurrentState,
-    IReadOnlyList<RecentSignalDto> RecentSignals);
+    IReadOnlyList<RecentSignalDto> RecentSignals,
+    string? GeometryWkt = null);
 
 public sealed record CurrentPlaceStateDto(
     string? SignalType,
@@ -47,7 +50,9 @@ public sealed record RecentSignalDto(
     DateTime CreatedAtUtc,
     DateTime? ExpiresAtUtc,
     string? LocationName,
-    IReadOnlyList<RecentSignalMediaDto> Media);
+    IReadOnlyList<RecentSignalMediaDto> Media,
+    string? PublicationTrust = null,
+    string? AuthorName = null);
 
 public sealed record RecentSignalMediaDto(
     string? Url,

@@ -6,6 +6,7 @@ using OsmSharp;
 using OsmSharp.Streams;
 using OsmSharp.Tags;
 using System.Diagnostics;
+using System.Globalization;
 
 if (args.Length < 1 || args[0] is "-h" or "--help")
 {
@@ -24,6 +25,7 @@ var databaseName = args.ElementAtOrDefault(2)
     ?? "BlinkrPlaces";
 
 var total = Stopwatch.StartNew();
+var geometryOnly = args.Contains("--geometry-only");
 var client = new MongoClient(mongoConnection);
 var database = client.GetDatabase(databaseName);
 var places = database.GetCollection<PlaceDocument>("places");
@@ -33,6 +35,7 @@ await EnsureIndexesAsync(places, coverage);
 
 var nodeCoordinates = new Dictionary<long, Coordinate>();
 var wayCenters = new Dictionary<long, Coordinate>();
+var wayRings = new Dictionary<long, Coordinate[]>();
 var candidates = 0;
 var imported = 0;
 var updated = 0;
@@ -50,7 +53,7 @@ foreach (var geo in source)
     {
         var coordinate = new Coordinate(node.Latitude.Value, node.Longitude.Value);
         nodeCoordinates[node.Id.Value] = coordinate;
-        if (TryCreatePlace(node, coordinate, out var place))
+        if (!geometryOnly && TryCreatePlace(node, coordinate, out var place))
         {
             candidates++;
             var result = await UpsertAsync(places, place);
@@ -61,12 +64,17 @@ foreach (var geo in source)
     }
     else if (geo is Way way && way.Id.HasValue)
     {
+        var ring = way.Nodes?.Select(id => nodeCoordinates.GetValueOrDefault(id)).ToArray();
+        if (ring is { Length: >= 4 } && ring.All(c => c is not null) && way.Nodes![0] == way.Nodes[^1])
+            wayRings[way.Id.Value] = ring.Select(c => c!).ToArray();
         var center = CenterOf(way.Nodes?.Select(id => nodeCoordinates.GetValueOrDefault(id)).Where(c => c is not null).Select(c => c!).ToArray());
         if (center is not null) wayCenters[way.Id.Value] = center;
         if (TryCreatePlace(way, center, out var place))
         {
+            if (wayRings.TryGetValue(way.Id.Value, out var footprint))
+                place.GeometryWkt = $"POLYGON ({RingText(footprint)})";
             candidates++;
-            var result = await UpsertAsync(places, place);
+            var result = geometryOnly ? await UpdateGeometryAsync(places, place) : await UpsertAsync(places, place);
             if (result == ImportWriteResult.Imported) imported++;
             if (result == ImportWriteResult.Updated) updated++;
             if (result == ImportWriteResult.Failed) failed++;
@@ -86,8 +94,19 @@ foreach (var geo in source)
         var center = CenterOf(memberCenters);
         if (TryCreatePlace(relation, center, out var place))
         {
+            // Only complete closed rings are trusted; incomplete relations retain point fallback.
+            var members = relation.Members?.Where(m => m.Type == OsmGeoType.Way).ToArray() ?? [];
+            if (members.Length > 0 && members.All(m => wayRings.ContainsKey(m.Id)))
+            {
+                var outers = members.Where(m => m.Role is "outer" or "").ToArray();
+                var inners = members.Where(m => m.Role == "inner").ToArray();
+                if (outers.Length == 1)
+                    place.GeometryWkt = $"POLYGON ({string.Join(",", new[] { RingText(wayRings[outers[0].Id]) }.Concat(inners.Select(m => RingText(wayRings[m.Id]))))})";
+                else if (inners.Length == 0 && outers.Length > 0)
+                    place.GeometryWkt = $"MULTIPOLYGON ({string.Join(",", outers.Select(m => $"({RingText(wayRings[m.Id])})"))})";
+            }
             candidates++;
-            var result = await UpsertAsync(places, place);
+            var result = geometryOnly ? await UpdateGeometryAsync(places, place) : await UpsertAsync(places, place);
             if (result == ImportWriteResult.Imported) imported++;
             if (result == ImportWriteResult.Updated) updated++;
             if (result == ImportWriteResult.Failed) failed++;
@@ -100,7 +119,7 @@ foreach (var geo in source)
 }
 
 var importedCoverageKey = $"osm-import:{Path.GetFileName(osmPath)}";
-await coverage.ReplaceOneAsync(
+if (!geometryOnly) await coverage.ReplaceOneAsync(
     c => c.Key == importedCoverageKey,
     new PlaceDiscoveryCoverageDocument
     {
@@ -128,6 +147,17 @@ static OsmStreamSource CreateSource(string path, Stream stream)
     if (path.EndsWith(".pbf", StringComparison.OrdinalIgnoreCase)) return new PBFOsmStreamSource(stream);
     if (path.EndsWith(".osm", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)) return new XmlOsmStreamSource(stream);
     throw new InvalidOperationException("Unsupported OSM extract. Use .osm, .xml, or .osm.pbf.");
+}
+
+static string RingText(Coordinate[] ring) =>
+    $"({string.Join(",", ring.Select(c => string.Create(CultureInfo.InvariantCulture, $"{c.Longitude:R} {c.Latitude:R}")))})";
+
+static async Task<ImportWriteResult> UpdateGeometryAsync(IMongoCollection<PlaceDocument> places, PlaceDocument place)
+{
+    if (place.GeometryWkt is null) return ImportWriteResult.Skipped;
+    var result = await places.UpdateOneAsync(p => p.ExternalProvider == "osm" && p.ExternalId == place.ExternalId,
+        Builders<PlaceDocument>.Update.Set(p => p.GeometryWkt, place.GeometryWkt));
+    return result.MatchedCount > 0 ? ImportWriteResult.Updated : ImportWriteResult.Skipped;
 }
 
 static bool TryCreatePlace(OsmGeo geo, Coordinate? coordinate, out PlaceDocument place)
@@ -285,6 +315,8 @@ static async Task<ImportWriteResult> UpsertAsync(IMongoCollection<PlaceDocument>
             .Set(p => p.UpdatedAtUtc, DateTime.UtcNow)
             .Set(p => p.IsActive, true)
             .SetOnInsert(p => p.CreatedAtUtc, DateTime.UtcNow);
+        if (place.GeometryWkt is not null)
+            update = update.Set(p => p.GeometryWkt, place.GeometryWkt);
 
         var result = await places.UpdateOneAsync(filter, update, new UpdateOptions { IsUpsert = true });
         return result.UpsertedId is not null ? ImportWriteResult.Imported : ImportWriteResult.Updated;
@@ -323,6 +355,8 @@ public sealed class PlaceDocument
     public string Category { get; set; } = "Other";
     public double Latitude { get; set; }
     public double Longitude { get; set; }
+    [BsonIgnoreIfNull]
+    public string? GeometryWkt { get; set; }
     public GeoJsonPoint<GeoJson2DGeographicCoordinates> Location { get; set; } = null!;
     public string? DisplayAddress { get; set; }
     public string Source { get; set; } = "External";
@@ -349,6 +383,7 @@ public sealed record Coordinate(double Latitude, double Longitude);
 
 public enum ImportWriteResult
 {
+    Skipped,
     Imported,
     Updated,
     Failed

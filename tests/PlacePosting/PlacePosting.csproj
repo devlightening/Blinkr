@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="NetTopologySuite" />
+    <PackageReference Include="MongoDB.Driver" />
+    <Compile Include="../../src/Services/BlogService/BlogService.Application/Services/PlaceProximityPolicy.cs" Link="PlaceProximityPolicy.cs" />
+    <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/CurrentPlaceStateCalculator.cs" Link="CurrentPlaceStateCalculator.cs" />
+    <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/PlaceDtos.cs" Link="PlaceDtos.cs" />
+    <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Domain/PlaceSignalDocument.cs" Link="PlaceSignalDocument.cs" />
+  </ItemGroup>
+</Project>
