@@ -9,6 +9,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy solution and project files
+COPY ["Directory.Packages.props", "./"]
 COPY ["src/Services/WorkerService/Blinkr.Projections.Worker/Blinkr.Projections.Worker.csproj", "src/Services/WorkerService/Blinkr.Projections.Worker/"]
 COPY ["src/BuildingBlocks/Shared.Events/Shared.Events.csproj", "src/BuildingBlocks/Shared.Events/"]
 COPY ["src/BuildingBlocks/Shared/Shared.csproj", "src/BuildingBlocks/Shared/"]
