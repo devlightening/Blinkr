@@ -24,7 +24,7 @@ public class EventConsumer : BackgroundService
     private readonly RabbitOptions _opt;
 
     private IConnection? _conn;
-    private IModel? _ch;
+    private IChannel? _ch;
 
     public EventConsumer(
         ILogger<EventConsumer> log,
@@ -138,7 +138,7 @@ public class PostCommentAddedNotificationConsumer : IConsumer<PostCommentAddedIn
     }
 }
 
-    public override Task StartAsync(CancellationToken cancellationToken)
+    public override async Task StartAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -156,24 +156,24 @@ public class PostCommentAddedNotificationConsumer : IConsumer<PostCommentAddedIn
                 NetworkRecoveryInterval = TimeSpan.FromSeconds(10)
             };
 
-            _conn = factory.CreateConnection();
-            _ch = _conn.CreateModel();
+            _conn = await factory.CreateConnectionAsync(cancellationToken);
+            _ch = await _conn.CreateChannelAsync(cancellationToken: cancellationToken);
 
             _log.LogInformation("✅ Connected to RabbitMQ successfully");
 
-            _ch.ExchangeDeclare(_opt.Exchange, ExchangeType.Topic, durable: true);
+            await _ch.ExchangeDeclareAsync(_opt.Exchange, ExchangeType.Topic, durable: true, cancellationToken: cancellationToken);
             _log.LogInformation("📢 Exchange declared: {Exchange}", _opt.Exchange);
 
-            _ch.QueueDeclare(_opt.QueueName, durable: true, exclusive: false, autoDelete: false);
-            _ch.QueueBind(_opt.QueueName, _opt.Exchange, "post.created");
-            _ch.QueueBind(_opt.QueueName, _opt.Exchange, "post.liked");
-            _ch.QueueBind(_opt.QueueName, _opt.Exchange, "comment.created");
+            await _ch.QueueDeclareAsync(_opt.QueueName, durable: true, exclusive: false, autoDelete: false, cancellationToken: cancellationToken);
+            await _ch.QueueBindAsync(_opt.QueueName, _opt.Exchange, "post.created", cancellationToken: cancellationToken);
+            await _ch.QueueBindAsync(_opt.QueueName, _opt.Exchange, "post.liked", cancellationToken: cancellationToken);
+            await _ch.QueueBindAsync(_opt.QueueName, _opt.Exchange, "comment.created", cancellationToken: cancellationToken);
 
             _log.LogInformation("WS-07A: Declaring exchange={Exchange}, queue={Queue}, routingKeys=[{Keys}]",
                 _opt.Exchange, _opt.QueueName, string.Join(",", new[] {"post.created","post.liked","comment.created"}));
             _log.LogInformation("📬 Queue declared and bound: {Queue}", _opt.QueueName);
 
-            return base.StartAsync(cancellationToken);
+            await base.StartAsync(cancellationToken);
         }
         catch (Exception ex)
         {
@@ -182,11 +182,11 @@ public class PostCommentAddedNotificationConsumer : IConsumer<PostCommentAddedIn
         }
     }
 
-    protected override Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var consumer = new EventingBasicConsumer(_ch!);
+        var consumer = new AsyncEventingBasicConsumer(_ch!);
         _log.LogInformation("WS-07A: Consuming events from queue {Queue}", _opt.QueueName);
-        consumer.Received += async (_, ea) =>
+        consumer.ReceivedAsync += async (_, ea) =>
         {
             // Create scope for scoped services
             using var scope = _scopeFactory.CreateScope();
@@ -218,22 +218,22 @@ public class PostCommentAddedNotificationConsumer : IConsumer<PostCommentAddedIn
                 if (type == "post.created")
                 {
                     await HandlePostCreatedAsync(root, notifRepo, tokenRepo, push, db, stoppingToken);
-                    _ch!.BasicAck(ea.DeliveryTag, multiple: false);
+                    await _ch!.BasicAckAsync(ea.DeliveryTag, multiple: false);
                     return;
                 }
-                
+
                 // Handle post.liked and comment.created events for WS-07A
                 if (type == "post.liked")
                 {
                     await HandlePostLikedAsync(root, notifRepo, tokenRepo, push, stoppingToken);
-                    _ch!.BasicAck(ea.DeliveryTag, multiple: false);
+                    await _ch!.BasicAckAsync(ea.DeliveryTag, multiple: false);
                     return;
                 }
-                
+
                 if (type == "comment.created")
                 {
                     await HandleCommentCreatedAsync(root, notifRepo, tokenRepo, push, stoppingToken);
-                    _ch!.BasicAck(ea.DeliveryTag, multiple: false);
+                    await _ch!.BasicAckAsync(ea.DeliveryTag, multiple: false);
                     return;
                 }
                 
@@ -255,17 +255,16 @@ public class PostCommentAddedNotificationConsumer : IConsumer<PostCommentAddedIn
                 }
                 await push.SendAsync(tokList, payload.title, payload.body, payload.deep, stoppingToken);
 
-                _ch!.BasicAck(ea.DeliveryTag, multiple: false);
+                await _ch!.BasicAckAsync(ea.DeliveryTag, multiple: false);
             }
             catch (Exception ex)
             {
                 _log.LogError(ex, "Event handling failed");
-                _ch!.BasicNack(ea.DeliveryTag, multiple:false, requeue:false);
+                await _ch!.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: false);
             }
         };
 
-        _ch!.BasicConsume(_opt.QueueName, autoAck: false, consumer);
-        return Task.CompletedTask;
+        await _ch!.BasicConsumeAsync(_opt.QueueName, autoAck: false, consumer, cancellationToken: stoppingToken);
     }
 
     /// <summary>

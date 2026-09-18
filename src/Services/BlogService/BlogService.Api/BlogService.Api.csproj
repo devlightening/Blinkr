@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
@@ -33,7 +33,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
     <!-- DİKKAT: Microsoft.IdentityModel.Tokens referansı kaldırıldı -->
     <PackageReference Include="MongoDB.Driver" />
@@ -48,6 +47,9 @@
     <PackageReference Include="Serilog.Sinks.Seq" />
     <PackageReference Include="StackExchange.Redis" />
     <PackageReference Include="Swashbuckle.AspNetCore" />
+    <!-- net10.0 BCL has its own System.Linq.AsyncEnumerable; exclude the transitive
+         System.Linq.Async ref assembly (pulled in via EventStore.Client) to avoid CS0433 -->
+    <PackageReference Include="System.Linq.Async" ExcludeAssets="compile" />
   </ItemGroup>
 
 </Project>

@@ -217,8 +217,9 @@ public static class ServiceCollectionExtensions
                 try
                 {
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                    await client.ReadAllAsync(Direction.Forwards, Position.Start, 1, cancellationToken: cts.Token)
-                                .FirstOrDefaultAsync(cts.Token);
+                    await System.Linq.AsyncEnumerable.FirstOrDefaultAsync(
+                        client.ReadAllAsync(Direction.Forwards, Position.Start, 1, cancellationToken: cts.Token),
+                        cts.Token);
                     Serilog.Log.Information("✅ EventStore connectivity check OK");
                 }
                 catch (Exception ex)
@@ -492,12 +493,22 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddBlogHealthChecks(this IServiceCollection services, IConfiguration config)
     {
+        // AspNetCore.HealthChecks.RabbitMQ 9.x (RabbitMQ.Client 7.x) no longer accepts a
+        // connection string directly - it wants a long-lived IConnection, created once and
+        // reused across checks (per the package's own guidance on connection churn).
+        var rabbitConnectionString = config.GetConnectionString("RabbitMq") ?? "";
+        var rabbitConnectionTask = new Lazy<Task<RabbitMQ.Client.IConnection>>(() =>
+        {
+            var factory = new RabbitMQ.Client.ConnectionFactory { Uri = new Uri(rabbitConnectionString) };
+            return factory.CreateConnectionAsync();
+        });
+
         services.AddHealthChecks()
             .AddCheck("self", () =>
                 Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy())
             .AddMongoDb(sp => sp.GetRequiredService<IMongoClient>(), name: "mongo", tags: new[] { "ready" })
             .AddRedis(config.GetConnectionString("Redis") ?? "", name: "redis", tags: new[] { "ready" })
-            .AddRabbitMQ(config.GetConnectionString("RabbitMq") ?? "", name: "rabbitmq", tags: new[] { "ready" })
+            .AddRabbitMQ(sp => rabbitConnectionTask.Value, name: "rabbitmq", tags: new[] { "ready" })
             .AddCheck<BlogService.Infrastructure.Geocoding.GeocodingHealthCheck>("geocoding", tags: new[] { "ready" });
 
         return services;

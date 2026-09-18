@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net8.0</TargetFramework>
+		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 	</PropertyGroup>
@@ -21,6 +21,9 @@
 		<PackageReference Include="MassTransit.RabbitMQ" />
 		<PackageReference Include="MassTransit.EntityFrameworkCore" />
 		<PackageReference Include="EventStore.Client.Grpc.Streams" />
+		<!-- net10.0 BCL has its own System.Linq.AsyncEnumerable; exclude the transitive
+		     System.Linq.Async ref assembly (pulled in via EventStore.Client) to avoid CS0433 -->
+		<PackageReference Include="System.Linq.Async" ExcludeAssets="compile" />
 	</ItemGroup>
 
 	<ItemGroup>

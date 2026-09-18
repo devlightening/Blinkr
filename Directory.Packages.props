@@ -4,12 +4,12 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- Core / EF / Identity (.NET 8) -->
-		<PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.6" />
-		<PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.6" />
-		<PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.6" />
-		<PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.6" />
-		<PackageVersion Include="Microsoft.EntityFrameworkCore.Analyzers" Version="8.0.6" />
+		<!-- Core / EF / Identity (.NET 10) -->
+		<PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.EntityFrameworkCore.Analyzers" Version="10.0.12" />
 		<!-- JWT / Tokens -->
 		<PackageVersion Include="Microsoft.IdentityModel.Tokens" Version="8.0.1" />
 		<PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.0.1" />
@@ -19,66 +19,70 @@
 		<PackageVersion Include="Duende.IdentityServer.EntityFramework" Version="7.0.8" />
 
 		<!-- ASP.NET & Auth -->
-		<PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.6" />
+		<PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
 		<PackageVersion Include="Microsoft.AspNetCore.Mvc.Versioning" Version="5.1.0" />
 		<PackageVersion Include="Microsoft.AspNetCore.Mvc.Versioning.ApiExplorer" Version="5.1.0" />
 		<PackageVersion Include="Swashbuckle.AspNetCore" Version="6.6.2" />
 		<PackageVersion Include="Yarp.ReverseProxy" Version="2.3.0" />
 
-		<!-- Microsoft.Extensions* (hepsi 8.x hattında) -->
-		<PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
-		<PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.0" />
-		<PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
-		<PackageVersion Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
-		<PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
-		<PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.0" />
-		<PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
-		<PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
-		<PackageVersion Include="Microsoft.Extensions.Caching.Abstractions" Version="8.0.0" />
-		<PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.1" />
-		<PackageVersion Include="Microsoft.Extensions.Http" Version="8.0.0" />
-		<PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="8.0.0" />
-		<PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
-		<PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="8.0.0" />
-		<PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="8.0.6" />
-		<PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="8.0.11" />
+		<!-- Microsoft.Extensions* (hepsi 10.x hattında) -->
+		<PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.10.0" />
+		<PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.12" />
 
 		<!-- Observability -->
-		<PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.7.0" />
-		<PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.8.1" />
-		<PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.8.1" />
-		<PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.7.0" />
-		<PackageVersion Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.8.0-beta.1" />
+		<PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.18.0" />
+		<PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.18.0" />
+		<PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.18.0" />
+		<PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.18.0" />
+		<PackageVersion Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.18.0-beta.1" />
 
-		<!-- HealthChecks -->
+		<!-- HealthChecks (Xabaril henüz net10 hedefli sürüm yayımlamadı; 9.0.0 net8/net9
+		     lib'i net10.0'da geriye dönük uyumlulukla çalışır) -->
 		<PackageVersion Include="AspNetCore.HealthChecks.MongoDb" Version="9.0.0" />
-		<PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="8.0.1" />
-		<PackageVersion Include="AspNetCore.HealthChecks.Redis" Version="8.0.1" />
-		<PackageVersion Include="AspNetCore.HealthChecks.UI" Version="8.0.1" />
-		<PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="8.0.1" />
-		<PackageVersion Include="AspNetCore.HealthChecks.UI.SqlServer.Storage" Version="8.0.1" />
-		<PackageVersion Include="AspNetCore.HealthChecks.RabbitMQ" Version="8.0.1" />
+		<PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
+		<PackageVersion Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
+		<PackageVersion Include="AspNetCore.HealthChecks.UI" Version="9.0.0" />
+		<PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
+		<PackageVersion Include="AspNetCore.HealthChecks.UI.SqlServer.Storage" Version="9.0.0" />
+		<PackageVersion Include="AspNetCore.HealthChecks.RabbitMQ" Version="9.0.0" />
 
 		<!-- Mongo / Postgres -->
-		<PackageVersion Include="MongoDB.Driver" Version="3.0.0" />
-		<PackageVersion Include="MongoDB.Bson" Version="3.0.0" />
+		<PackageVersion Include="MongoDB.Driver" Version="3.12.0" />
+		<PackageVersion Include="MongoDB.Bson" Version="3.12.0" />
 		<PackageVersion Include="OsmSharp" Version="6.2.0" />
-		<PackageVersion Include="Npgsql" Version="8.0.1" />
-		<PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
-		<PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" Version="9.0.4" />
+		<PackageVersion Include="Npgsql" Version="10.0.3" />
+		<PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+		<PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" Version="10.0.3" />
 		<PackageVersion Include="NetTopologySuite" Version="2.6.0" />
 
 		<!-- Messaging / Events -->
-		<PackageVersion Include="RabbitMQ.Client" Version="6.8.1" />
+		<PackageVersion Include="RabbitMQ.Client" Version="7.2.2" />
 		<PackageVersion Include="EventStore.Client" Version="22.0.0" />
 		<PackageVersion Include="EventStore.Client.Grpc.Streams" Version="23.0.0" />
-		<PackageVersion Include="MassTransit" Version="8.2.3" />
-		<PackageVersion Include="MassTransit.RabbitMQ" Version="8.2.3" />
-		<PackageVersion Include="MassTransit.EntityFrameworkCore" Version="8.2.3" />
-
-		<!-- AWS -->
-		<PackageVersion Include="AWSSDK.S3" Version="3.7.401" />
-		<PackageVersion Include="AWSSDK.SecurityToken" Version="3.7.100.14" />
+		<!-- EventStore.Client.Grpc.Streams pulls System.Linq.Async 6.0.1, whose AsyncEnumerable
+		     type collides with the one now built into the net10.0 BCL (CS0433). We still need
+		     the package resolved (transitive consumers reference its runtime types), but its
+		     compile-time ref assembly must be excluded so the compiler only sees the BCL type. -->
+		<PackageVersion Include="System.Linq.Async" Version="6.0.1" />
+		<!-- 8.5.10 explicitly ships a net10.0 target (checked nuspec); staying on the 8.x
+		     line avoids the 9.x major-version API surface changes for this migration -->
+		<PackageVersion Include="MassTransit" Version="8.5.10" />
+		<PackageVersion Include="MassTransit.RabbitMQ" Version="8.5.10" />
+		<PackageVersion Include="MassTransit.EntityFrameworkCore" Version="8.5.10" />
 
 		<!-- Serilog -->
 		<PackageVersion Include="Serilog.AspNetCore" Version="8.0.1" />
@@ -88,7 +92,7 @@
 		<PackageVersion Include="Serilog.Sinks.Seq" Version="7.0.1" />
 
 		<!-- Mapping / Validation / Mediator -->
-		<PackageVersion Include="AutoMapper" Version="13.0.1" />
+		<PackageVersion Include="AutoMapper" Version="16.2.0" />
 		<PackageVersion Include="FluentValidation.AspNetCore" Version="11.3.0" />
 		<PackageVersion Include="FluentValidation" Version="11.9.2" />
 		<PackageVersion Include="MediatR" Version="12.3.0" />
@@ -97,13 +101,6 @@
 
 		<!-- Notifications / Firebase -->
 		<PackageVersion Include="FirebaseAdmin" Version="3.0.0" />
-
-		<!-- Mobile (MAUI) – .NET 8 hattı -->
-		<PackageVersion Include="Microsoft.Maui.Controls" Version="8.0.92" />
-		<PackageVersion Include="Microsoft.Maui.Controls.Maps" Version="8.0.92" />
-		<PackageVersion Include="CommunityToolkit.Mvvm" Version="8.3.2" />
-		<PackageVersion Include="Refit" Version="7.2.22" />
-		<PackageVersion Include="Refit.HttpClientFactory" Version="7.2.22" />
 
 		<!-- Diğer -->
 		<PackageVersion Include="System.IO.Hashing" Version="8.0.0" />
