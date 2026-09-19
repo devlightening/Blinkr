@@ -1,10 +1,13 @@
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import {
+  Camera,
   CheckCircle2,
   Layers3,
   LogOut,
   Map as MapIcon,
+  MessageCircle,
   Navigation2,
   Plus,
   RefreshCw,
@@ -26,6 +29,7 @@ import {
   View,
 } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { createSignal, getNearbyPlaces, getPlace, getUnifiedMapBounds, previewPresence, getSignalContent } from '../api';
@@ -41,7 +45,9 @@ import {
   type NearbySource,
   distanceMeters,
 } from '../nearbyRequestOwnership';
-import { colors, shadow, shadowSoft } from '../theme';
+import { colors, radii, shadow, shadowSoft } from '../theme';
+import { mapDarkStyle } from '../mapDarkStyle';
+import { AnimatedPressable } from './AnimatedPressable';
 import type {
   AuthResponse,
   BlinkrPlace,
@@ -60,6 +66,7 @@ type Props = {
   auth: AuthResponse;
   onAuthChange: (auth: AuthResponse) => void;
   onLogout: () => void;
+  onOpenChat: () => void;
 };
 
 type MapLayer = 'all' | 'live' | 'places' | 'signals';
@@ -85,7 +92,7 @@ const MAX_NEARBY_LOCATION_AGE_MS = 30_000;
 const LOCATION_TIMEOUT_MS = 8_000;
 
 
-export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
+export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const activeRequest = useRef<AbortController | null>(null);
@@ -123,6 +130,8 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [composerArea, setComposerArea] = useState<ComposerArea | null>(null);
+  const [pendingCapture, setPendingCapture] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [composerInitialStep, setComposerInitialStep] = useState(0);
   const [mapLayer, setMapLayer] = useState<MapLayer>('all');
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(timer); }, []);
@@ -250,7 +259,14 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
       }
       nearbyOwner.current.fail(requestId);
       setNearbyStatus('FAILED');
-      console.log('[Blinkr NearbyResult]', { id: requestId, status: 'failed', primary: 0, extended: 0, nearestMeters: null });
+      console.log('[Blinkr NearbyResult]', {
+        id: requestId,
+        status: 'failed',
+        primary: 0,
+        extended: 0,
+        nearestMeters: null,
+        reason: err instanceof Error ? err.message : String(err),
+      });
       setComposerError('Yakındaki yerler şu an yenilenemedi. Tekrar dene.');
       return [];
     } finally {
@@ -392,6 +408,8 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
     setNearbyStatus('EMPTY');
     setComposerOpen(false);
     setComposerArea(null);
+    setPendingCapture(null);
+    setComposerInitialStep(0);
   }, [isCreating]);
 
   const moveToDeviceLocation = useCallback(async (requestPermission = true) => {
@@ -598,11 +616,12 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
     if (generation === composerGeneration.current) setComposerArea({ ...location, name, source });
   }, [auth, onAuthChange, onLogout, getFreshDeviceLocation, loadNearbyPlaces, region, resolveAreaName]);
 
-  const openComposer = (place?: BlinkrPlace | null) => {
+  const openComposer = (place?: BlinkrPlace | null, initialStep = 0) => {
     const opening = ++composerGeneration.current;
     closeDetailSheet();
     setProfileOpen(false);
     setComposerArea(null);
+    setComposerInitialStep(initialStep);
     nearbyOwner.current.reset();
     setComposerError(null);
     setComposerOpen(true);
@@ -622,6 +641,19 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
         await selectComposerArea('device', null, 'COMPOSER_OPEN');
       })
       .catch(() => setLocationReadiness('unavailable'));
+  };
+
+  const openCameraSignal = async () => {
+    if (isCreating) return;
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (permission.status !== 'granted') {
+      setComposerError('Kamera izni gerekiyor.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ allowsEditing: false, mediaTypes: ['images', 'videos'], quality: 0.84, videoMaxDuration: 45 });
+    if (result.canceled || !result.assets[0]) return;
+    setPendingCapture(result.assets[0]);
+    openComposer(selectedPlace, 1);
   };
 
   const submitSignal = async (
@@ -674,6 +706,7 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
   return (
     <View style={styles.screen}>
       <MapView
+        customMapStyle={Platform.OS === 'android' ? mapDarkStyle : undefined}
         initialRegion={ISTANBUL_REGION}
         mapPadding={{ top: 158, right: 14, bottom: 126, left: 14 }}
         onRegionChangeComplete={handleRegionChangeComplete}
@@ -683,11 +716,12 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
         rotateEnabled={false}
         showsCompass={false}
         showsMyLocationButton={false}
-        showsPointsOfInterest
+        showsPointsOfInterests
         showsScale={false}
         showsUserLocation={locationReadiness === 'ready'}
         style={StyleSheet.absoluteFill}
         toolbarEnabled={false}
+        userInterfaceStyle="dark"
       >
         {mapItems.map(item => item.type === 'cluster'
           ? <BlinkrClusterMarker key={item.id} latitude={item.latitude} longitude={item.longitude} count={item.pointCount} onPress={() => expandCluster(item)} />
@@ -696,10 +730,10 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
       </MapView>
 
       {!isLoading && !error && visibleItemCount === 0 && !isComposerOpen && !isProfileOpen && !selectedPlace && !selectedSignal && (
-        <View style={[styles.emptyMap, { bottom: insets.bottom + 148 }]}>
+        <Animated.View entering={FadeInDown.duration(320).springify().damping(15)} style={[styles.emptyMap, { bottom: insets.bottom + 148 }]}>
           <Text style={styles.emptyMapText}>Bu bölgede henüz taze sinyal yok.</Text>
-          <Pressable onPress={() => openComposer()} style={styles.emptyMapAction}><Plus color={colors.green} size={18} /><Text style={styles.emptyMapLink}>İlk sinyali bırak</Text></Pressable>
-        </View>
+          <AnimatedPressable onPress={() => openComposer()} pressScale={0.94} style={styles.emptyMapAction}><Plus color={colors.green} size={18} /><Text style={styles.emptyMapLink}>İlk sinyali bırak</Text></AnimatedPressable>
+        </Animated.View>
       )}
 
       <SafeAreaView edges={['top']} pointerEvents="box-none" style={styles.topOverlay}>
@@ -715,33 +749,36 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
               <Text style={styles.visibleCount}>· {visibleItemCount} görünür</Text>
             </View>
           </View>
-          <Pressable accessibilityLabel="Profili aç" onPress={() => setProfileOpen(true)} style={styles.avatar}>
+          <AnimatedPressable accessibilityLabel="Profili aç" onPress={() => setProfileOpen(true)} pressScale={0.9} style={styles.avatar}>
             <Text style={styles.avatarText}>{auth.userName.slice(0, 1).toUpperCase()}</Text>
-          </Pressable>
+          </AnimatedPressable>
         </View>
 
         <View style={styles.layerControl}>
           <Layers3 color={colors.muted} size={15} />
           {mapLayers.map((layer) => (
-            <Pressable
+            <AnimatedPressable
               accessibilityRole="button"
               key={layer.key}
               onPress={() => {
                 setMapLayer(layer.key);
                 Haptics.selectionAsync();
               }}
+              pressScale={0.92}
               style={[styles.layerOption, mapLayer === layer.key && styles.layerOptionActive]}
             >
               <Text style={[styles.layerText, mapLayer === layer.key && styles.layerTextActive]}>{layer.label}</Text>
-            </Pressable>
+            </AnimatedPressable>
           ))}
         </View>
 
         {mapDirty && (
-          <Pressable disabled={isLoading} onPress={scanVisibleArea} style={styles.searchAreaButton}>
-            {isLoading ? <ActivityIndicator color={colors.white} size="small" /> : <RefreshCw color={colors.white} size={16} />}
-            <Text style={styles.searchAreaText}>{isLoading ? 'Taranıyor' : 'Bu alanı tara'}</Text>
-          </Pressable>
+          <Animated.View entering={FadeInDown.duration(220).springify().damping(16)}>
+            <AnimatedPressable disabled={isLoading} onPress={scanVisibleArea} pressScale={0.94} style={styles.searchAreaButton}>
+              {isLoading ? <ActivityIndicator color={colors.white} size="small" /> : <RefreshCw color={colors.white} size={16} />}
+              <Text style={styles.searchAreaText}>{isLoading ? 'Taranıyor' : 'Bu alanı tara'}</Text>
+            </AnimatedPressable>
+          </Animated.View>
         )}
       </SafeAreaView>
 
@@ -752,45 +789,51 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
             <Text style={styles.loadingText}>Çevre güncelleniyor</Text>
           </View>
         )}
-        <Pressable
+        <AnimatedPressable
           accessibilityLabel="Konumuma git"
           onPress={() => moveToDeviceLocation(true).catch((err) => setError(friendlyError(err)))}
-          style={({ pressed }) => [styles.locateButton, pressed && styles.controlPressed]}
+          pressScale={0.88}
+          style={styles.locateButton}
         >
           <Navigation2 color={colors.ink} fill={colors.blueSoft} size={21} strokeWidth={2.4} />
-        </Pressable>
+        </AnimatedPressable>
       </View>
 
       {(success || error) && (
-        <View style={[styles.toast, error ? styles.errorToast : styles.successToast, { top: insets.top + 145 }]}>
+        <Animated.View entering={FadeInDown.duration(260).springify().damping(15)} style={[styles.toast, error ? styles.errorToast : styles.successToast, { top: insets.top + 145 }]}>
           {error ? <Wifi color={colors.error} size={18} /> : <CheckCircle2 color={colors.greenDark} size={18} />}
           <Text style={[styles.toastText, error && styles.errorToastText]} numberOfLines={3}>
             {error || success}
           </Text>
-          <Pressable accessibilityLabel="Bildirimi kapat" hitSlop={10} onPress={() => { setError(null); setSuccess(null); }}>
+          <AnimatedPressable accessibilityLabel="Bildirimi kapat" hitSlop={10} onPress={() => { setError(null); setSuccess(null); }} pressScale={0.85}>
             <X color={error ? colors.error : colors.greenDark} size={18} />
-          </Pressable>
-        </View>
+          </AnimatedPressable>
+        </Animated.View>
       )}
 
       <View pointerEvents="box-none" style={[styles.bottomNavWrap, { bottom: Math.max(insets.bottom, 8) }]}>
         <View style={styles.bottomNav}>
-          <Pressable accessibilityLabel="Harita" style={styles.navItem}>
+          <AnimatedPressable accessibilityLabel="Sohbet" onPress={onOpenChat} pressScale={0.92} style={styles.navItem}>
+            <MessageCircle color={colors.muted} size={21} strokeWidth={2.3} />
+            <Text style={styles.navLabel}>Sohbet</Text>
+          </AnimatedPressable>
+          <AnimatedPressable accessibilityLabel="Harita" pressScale={0.92} style={styles.navItem}>
             <View style={styles.navIconActive}><MapIcon color={colors.greenDark} size={20} strokeWidth={2.6} /></View>
             <Text style={[styles.navLabel, styles.navLabelActive]}>Harita</Text>
-          </Pressable>
-          <Pressable
-            accessibilityLabel="Yeni sinyal oluştur"
+          </AnimatedPressable>
+          <AnimatedPressable
+            accessibilityLabel="Kamerayla sinyal paylaş"
             disabled={isCreating}
-            onPress={() => openComposer(selectedPlace)}
-            style={({ pressed }) => [styles.createButton, pressed && styles.createButtonPressed]}
+            onPress={openCameraSignal}
+            pressScale={0.88}
+            style={styles.createButton}
           >
-            <Plus color={colors.ink} size={25} strokeWidth={3} />
-          </Pressable>
-          <Pressable accessibilityLabel="Profil" onPress={() => setProfileOpen(true)} style={styles.navItem}>
+            <Camera color={colors.ink} size={24} strokeWidth={2.6} />
+          </AnimatedPressable>
+          <AnimatedPressable accessibilityLabel="Profil" onPress={() => setProfileOpen(true)} pressScale={0.92} style={styles.navItem}>
             <UserRound color={colors.muted} size={21} strokeWidth={2.3} />
             <Text style={styles.navLabel}>Profil</Text>
-          </Pressable>
+          </AnimatedPressable>
         </View>
       </View>
 
@@ -799,6 +842,7 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
         auth={auth}
         canAskLocationAgain={canAskLocationAgain}
         error={composerError}
+        initialStep={composerInitialStep}
         isSubmitting={isCreating}
         locationReadiness={locationReadiness}
         nearbyCoverageState={nearbyCoverageState}
@@ -813,6 +857,7 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
         onSelectArea={selectComposerArea}
         onSessionExpired={onLogout}
         onSubmit={submitSignal}
+        pendingCapture={pendingCapture}
         visible={isComposerOpen}
       />}
       {!isComposerOpen && !isProfileOpen && <PostDetailSheet
@@ -831,9 +876,9 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
                 <Text style={styles.profileEyebrow}>BLINKR PROFİLİ</Text>
                 <Text style={styles.profileTitle}>Senin çevren</Text>
               </View>
-              <Pressable accessibilityLabel="Profili kapat" onPress={() => setProfileOpen(false)} style={styles.profileClose}>
-                <X color={colors.ink} size={20} />
-              </Pressable>
+              <AnimatedPressable accessibilityLabel="Profili kapat" onPress={() => setProfileOpen(false)} pressScale={0.88} style={styles.profileClose}>
+                <X color={colors.textPrimary} size={20} />
+              </AnimatedPressable>
             </View>
 
             <View style={styles.profileIdentity}>
@@ -855,10 +900,10 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
               </View>
             </View>
 
-            <Pressable onPress={onLogout} style={styles.logoutButton}>
+            <AnimatedPressable onPress={onLogout} pressScale={0.95} style={styles.logoutButton}>
               <LogOut color={colors.error} size={18} />
               <Text style={styles.logoutText}>Oturumu kapat</Text>
-            </Pressable>
+            </AnimatedPressable>
           </View>
       </Sheet>}
     </View>
@@ -866,65 +911,65 @@ export function MapScreen({ auth, onAuthChange, onLogout }: Props) {
 }
 
 const styles = StyleSheet.create({
-  emptyMap: { position: 'absolute', left: 36, right: 36, backgroundColor: colors.surface, borderRadius: 8, padding: 16, ...shadowSoft },
-  emptyMapText: { color: colors.ink, fontSize: 14, lineHeight: 21, textAlign: 'center' },
+  emptyMap: { position: 'absolute', left: 36, right: 36, backgroundColor: colors.surface, borderRadius: radii.control, padding: 16, ...shadowSoft },
+  emptyMapText: { color: colors.textPrimary, fontSize: 14, lineHeight: 21, textAlign: 'center' },
   emptyMapAction: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   emptyMapLink: { fontSize: 14, color: colors.green, fontWeight: '600' },
-  screen: { backgroundColor: '#D9E3DC', flex: 1 },
+  screen: { backgroundColor: colors.mapCanvas, flex: 1 },
   topOverlay: { left: 0, paddingHorizontal: 12, position: 'absolute', right: 0, top: 0 },
-  topBar: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.97)', borderColor: 'rgba(255,255,255,0.75)', borderRadius: 8, borderWidth: 1, flexDirection: 'row', marginTop: 7, minHeight: 58, paddingHorizontal: 10, ...shadow },
-  brandMark: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: 8, height: 38, justifyContent: 'center', width: 38 },
+  topBar: { alignItems: 'center', backgroundColor: 'rgba(15,20,16,0.92)', borderColor: 'rgba(244,247,241,0.08)', borderRadius: radii.control, borderWidth: 1, flexDirection: 'row', marginTop: 7, minHeight: 58, paddingHorizontal: 10, ...shadow },
+  brandMark: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: radii.control, height: 38, justifyContent: 'center', width: 38 },
   brandCopy: { flex: 1, marginLeft: 10 },
-  brand: { color: colors.ink, fontSize: 19, fontWeight: '600', letterSpacing: 0 },
+  brand: { color: colors.textPrimary, fontSize: 19, fontWeight: '600', letterSpacing: 0 },
   liveStatus: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', marginTop: 2 },
   liveDot: { backgroundColor: colors.coral, borderRadius: 4, height: 7, marginRight: 5, width: 7 },
   liveStatusText: { color: colors.greenDark, fontSize: 12, fontWeight: '600' },
   visibleCount: { color: colors.muted, fontSize: 12, fontWeight: '700', marginLeft: 3 },
-  avatar: { alignItems: 'center', backgroundColor: colors.ink, borderRadius: 8, height: 44, justifyContent: 'center', width: 38 },
+  avatar: { alignItems: 'center', backgroundColor: colors.ink, borderRadius: radii.control, height: 44, justifyContent: 'center', width: 38 },
   avatarText: { color: colors.white, fontSize: 14, fontWeight: '600' },
-  layerControl: { alignItems: 'center', alignSelf: 'center', backgroundColor: 'rgba(255,255,255,0.97)', borderRadius: 8, flexDirection: 'row', gap: 3, marginTop: 7, minHeight: 40, paddingHorizontal: 6, ...shadowSoft },
+  layerControl: { alignItems: 'center', alignSelf: 'center', backgroundColor: 'rgba(15,20,16,0.92)', borderRadius: radii.control, flexDirection: 'row', gap: 3, marginTop: 7, minHeight: 40, paddingHorizontal: 6, ...shadowSoft },
   layerOption: { alignItems: 'center', borderRadius: 6, justifyContent: 'center', minHeight: 44, paddingHorizontal: 9 },
-  layerOptionActive: { backgroundColor: colors.ink },
+  layerOptionActive: { backgroundColor: colors.lime },
   layerText: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  layerTextActive: { color: colors.white },
-  searchAreaButton: { alignItems: 'center', alignSelf: 'center', backgroundColor: colors.ink, borderRadius: 8, flexDirection: 'row', gap: 8, marginTop: 8, minHeight: 44, paddingHorizontal: 15, ...shadow },
+  layerTextActive: { color: colors.ink },
+  searchAreaButton: { alignItems: 'center', alignSelf: 'center', backgroundColor: colors.ink, borderRadius: radii.control, flexDirection: 'row', gap: 8, marginTop: 8, minHeight: 44, paddingHorizontal: 15, ...shadow },
   searchAreaText: { color: colors.white, fontSize: 12, fontWeight: '600' },
   mapActions: { alignItems: 'flex-end', left: 12, position: 'absolute', right: 12 },
-  locateButton: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.line, borderRadius: 8, borderWidth: 1, height: 48, justifyContent: 'center', width: 48, ...shadow },
+  locateButton: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radii.control, borderWidth: 1, height: 48, justifyContent: 'center', width: 48, ...shadow },
   controlPressed: { opacity: 0.82, transform: [{ scale: 0.97 }] },
-  loadingBadge: { alignItems: 'center', alignSelf: 'center', backgroundColor: 'rgba(255,255,255,0.97)', borderRadius: 8, flexDirection: 'row', gap: 8, marginBottom: -42, minHeight: 38, paddingHorizontal: 12, ...shadowSoft },
-  loadingText: { color: colors.ink, fontSize: 12, fontWeight: '600' },
-  toast: { alignItems: 'center', borderRadius: 8, flexDirection: 'row', gap: 9, left: 16, paddingHorizontal: 13, paddingVertical: 11, position: 'absolute', right: 16, ...shadow },
+  loadingBadge: { alignItems: 'center', alignSelf: 'center', backgroundColor: 'rgba(15,20,16,0.92)', borderRadius: radii.control, flexDirection: 'row', gap: 8, marginBottom: -42, minHeight: 38, paddingHorizontal: 12, ...shadowSoft },
+  loadingText: { color: colors.textPrimary, fontSize: 12, fontWeight: '600' },
+  toast: { alignItems: 'center', borderRadius: radii.control, flexDirection: 'row', gap: 9, left: 16, paddingHorizontal: 13, paddingVertical: 11, position: 'absolute', right: 16, ...shadow },
   successToast: { backgroundColor: colors.greenSoft },
   errorToast: { backgroundColor: colors.errorSoft },
   toastText: { color: colors.greenDark, flex: 1, fontSize: 12, fontWeight: '600', lineHeight: 17 },
   errorToastText: { color: colors.error },
   bottomNavWrap: { alignItems: 'center', left: 12, position: 'absolute', right: 12 },
-  bottomNav: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.98)', borderColor: 'rgba(255,255,255,0.7)', borderRadius: 8, borderWidth: 1, flexDirection: 'row', height: 68, justifyContent: 'space-around', maxWidth: 360, paddingHorizontal: 16, width: '100%', ...shadow },
+  bottomNav: { alignItems: 'center', backgroundColor: 'rgba(15,20,16,0.94)', borderColor: 'rgba(244,247,241,0.08)', borderRadius: radii.control, borderWidth: 1, flexDirection: 'row', height: 68, justifyContent: 'space-around', maxWidth: 420, paddingHorizontal: 12, width: '100%', ...shadow },
   navItem: { alignItems: 'center', justifyContent: 'center', minHeight: 52, minWidth: 72 },
   navIconActive: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: 6, height: 27, justifyContent: 'center', width: 34 },
   navLabel: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 3 },
   navLabelActive: { color: colors.greenDark },
-  createButton: { alignItems: 'center', backgroundColor: colors.lime, borderColor: colors.ink, borderRadius: 8, borderWidth: 2, height: 52, justifyContent: 'center', width: 58, ...shadowSoft },
+  createButton: { alignItems: 'center', backgroundColor: colors.lime, borderColor: colors.ink, borderRadius: radii.control, borderWidth: 2, height: 52, justifyContent: 'center', width: 58, ...shadowSoft },
   createButtonPressed: { opacity: 0.86, transform: [{ scale: 0.96 }] },
-  profilePanel: { backgroundColor: colors.surface, borderTopLeftRadius: 8, borderTopRightRadius: 8, maxHeight: '88%', paddingHorizontal: 20, paddingTop: 9, ...shadow },
+  profilePanel: { backgroundColor: colors.surface, borderTopLeftRadius: radii.panel, borderTopRightRadius: radii.panel, maxHeight: '88%', paddingHorizontal: 20, paddingTop: 9, ...shadow },
   profileHandle: { alignSelf: 'center', backgroundColor: colors.lineStrong, borderRadius: 2, height: 4, marginBottom: 16, width: 38 },
   profileHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   profileEyebrow: { color: colors.green, fontSize: 12, fontWeight: '600' },
-  profileTitle: { color: colors.ink, fontSize: 23, fontWeight: '600', marginTop: 3 },
-  profileClose: { alignItems: 'center', backgroundColor: colors.surfaceSoft, borderRadius: 8, height: 44, justifyContent: 'center', width: 40 },
+  profileTitle: { color: colors.textPrimary, fontSize: 23, fontWeight: '600', marginTop: 3 },
+  profileClose: { alignItems: 'center', backgroundColor: colors.surfaceSoft, borderRadius: radii.control, height: 44, justifyContent: 'center', width: 40 },
   profileIdentity: { alignItems: 'center', flexDirection: 'row', marginTop: 20 },
   profileIdentityCopy: { flex: 1, marginLeft: 13 },
-  profileAvatar: { alignItems: 'center', backgroundColor: colors.ink, borderRadius: 8, height: 56, justifyContent: 'center', width: 56 },
+  profileAvatar: { alignItems: 'center', backgroundColor: colors.ink, borderRadius: radii.control, height: 56, justifyContent: 'center', width: 56 },
   profileAvatarText: { color: colors.white, fontSize: 22, fontWeight: '600' },
-  profileName: { color: colors.ink, fontSize: 19, fontWeight: '600' },
+  profileName: { color: colors.textPrimary, fontSize: 19, fontWeight: '600' },
   profileEmail: { color: colors.muted, fontSize: 12, marginTop: 4 },
   verifiedPill: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: 999, flexDirection: 'row', gap: 5, paddingHorizontal: 9, paddingVertical: 6 },
   verifiedText: { color: colors.greenDark, fontSize: 12, fontWeight: '600' },
   profileSection: { borderBottomColor: colors.line, borderBottomWidth: 1, borderTopColor: colors.line, borderTopWidth: 1, marginTop: 20 },
   profileRow: { alignItems: 'center', flexDirection: 'row', paddingVertical: 13 },
-  profileRowTitle: { color: colors.ink, fontSize: 13, fontWeight: '600' },
+  profileRowTitle: { color: colors.textPrimary, fontSize: 13, fontWeight: '600' },
   profileRowText: { color: colors.muted, fontSize: 12, lineHeight: 16, marginTop: 3 },
-  logoutButton: { alignItems: 'center', borderColor: '#F0D0CD', borderRadius: 8, borderWidth: 1, flexDirection: 'row', gap: 9, marginTop: 18, minHeight: 48, paddingHorizontal: 14 },
+  logoutButton: { alignItems: 'center', borderColor: colors.coralLine, borderRadius: radii.control, borderWidth: 1, flexDirection: 'row', gap: 9, marginTop: 18, minHeight: 48, paddingHorizontal: 14 },
   logoutText: { color: colors.error, fontSize: 14, fontWeight: '600' },
 });

@@ -1,13 +1,15 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 
-import type { AuthResponse, BlinkrPlace, Bounds, CreateSignalInput, MediaKind, UnifiedMapResponse, PlacePresence } from './types';
+import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, CreateSignalInput, MediaKind, UnifiedMapResponse, PlacePresence, UserSummary } from './types';
 
 type NearbyPlacesResponse = Array<BlinkrPlace & { distanceMeters?: number }> & {
   coverageState?: string | null;
 };
 
 declare const process: { env?: Record<string, string | undefined> };
+
+const isDev = process.env?.NODE_ENV !== 'production';
 
 const configuredBaseUrl =
   process.env?.EXPO_PUBLIC_BLINKR_API_URL
@@ -26,7 +28,10 @@ type RequestOptions = {
   onSessionExpired?: () => void;
   rawBody?: BodyInit;
   signal?: AbortSignal;
+  timeoutMs?: number;
 };
+
+const DEFAULT_TIMEOUT_MS = 15000;
 
 type PresignResponse = {
   mediaId: string;
@@ -126,12 +131,49 @@ const request = async (path: string, options: RequestOptions = {}, retrying = fa
     ...(options.headers ?? {}),
   };
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: options.method ?? 'GET',
-    headers,
-    body: options.rawBody ?? (options.body ? JSON.stringify(options.body) : undefined),
-    signal: options.signal,
-  });
+  // Every request gets a bounded upper limit, even when the caller passes its own
+  // (e.g. stale-request abort) signal - a hung TCP connection otherwise never
+  // settles the fetch promise, which is how "Medya hazırlanıyor"/nearby spinners
+  // got stuck indefinitely with no error ever surfacing.
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const controller = new AbortController();
+  const onCallerAbort = () => controller.abort();
+  if (options.signal) {
+    if (options.signal.aborted) controller.abort();
+    else options.signal.addEventListener('abort', onCallerAbort);
+  }
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const startedAt = Date.now();
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: options.method ?? 'GET',
+      headers,
+      body: options.rawBody ?? (options.body ? JSON.stringify(options.body) : undefined),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    const timedOut = controller.signal.aborted && !options.signal?.aborted;
+    if (isDev) {
+      console.log('[Blinkr API]', {
+        route: path,
+        elapsedMs: Date.now() - startedAt,
+        aborted: controller.signal.aborted,
+        timeout: timedOut,
+        errorCode: err instanceof Error ? err.name : 'Unknown',
+      });
+    }
+    if (timedOut) throw new Error('Bağlantı zaman aşımına uğradı. Tekrar dene.');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+    if (options.signal) options.signal.removeEventListener('abort', onCallerAbort);
+  }
+
+  if (isDev) {
+    console.log('[Blinkr API]', { route: path, elapsedMs: Date.now() - startedAt, httpStatus: response.status, aborted: false, timeout: false });
+  }
 
   if (response.status === 401 && options.auth?.refreshToken && !retrying) {
     try {
@@ -259,6 +301,68 @@ export const createSignal = async (
   return (payload.postId || payload.PostId) as string;
 };
 
+export const searchUsers = (auth: AuthResponse, query: string, signal?: AbortSignal) =>
+  requestJson<UserSummary[]>(`/api/users/search?${new URLSearchParams({ q: query })}`, { auth, signal });
+
+export const listConversations = (
+  auth: AuthResponse,
+  onAuthRefresh?: (auth: AuthResponse) => void,
+  onSessionExpired?: () => void,
+) =>
+  requestJson<{ items: Conversation[] }>('/api/chat/conversations', { auth, onAuthRefresh, onSessionExpired })
+    .then((payload) => payload.items);
+
+export const startConversation = (
+  auth: AuthResponse,
+  targetUserId: string,
+  onAuthRefresh?: (auth: AuthResponse) => void,
+  onSessionExpired?: () => void,
+) =>
+  requestJson<Conversation>('/api/chat/conversations', {
+    auth,
+    body: { targetUserId },
+    method: 'POST',
+    onAuthRefresh,
+    onSessionExpired,
+  });
+
+export const getMessages = (
+  auth: AuthResponse,
+  conversationId: string,
+  signal?: AbortSignal,
+  onAuthRefresh?: (auth: AuthResponse) => void,
+  onSessionExpired?: () => void,
+) =>
+  requestJson<{ items: ChatMessage[]; nextCursor?: string | null }>(`/api/chat/conversations/${conversationId}/messages`, {
+    auth,
+    onAuthRefresh,
+    onSessionExpired,
+    signal,
+  });
+
+export const sendMessage = (
+  auth: AuthResponse,
+  conversationId: string,
+  text: string,
+  onAuthRefresh?: (auth: AuthResponse) => void,
+  onSessionExpired?: () => void,
+) =>
+  requestJson<ChatMessage>(`/api/chat/conversations/${conversationId}/messages`, {
+    auth,
+    body: { text },
+    method: 'POST',
+    onAuthRefresh,
+    onSessionExpired,
+  });
+
+export const markConversationRead = (
+  auth: AuthResponse,
+  conversationId: string,
+  onAuthRefresh?: (auth: AuthResponse) => void,
+  onSessionExpired?: () => void,
+) =>
+  request(`/api/chat/conversations/${conversationId}/read`, { auth, method: 'POST', onAuthRefresh, onSessionExpired });
+
 export const uploadMedia = async (
   auth: AuthResponse,
   asset: {
@@ -287,8 +391,21 @@ export const uploadMedia = async (
     onSessionExpired,
   });
 
-  const localResponse = await fetch(asset.uri);
-  const blob = await localResponse.blob();
+  const localController = new AbortController();
+  const localTimer = setTimeout(() => localController.abort(), 10000);
+  let blob: Blob;
+  try {
+    const localResponse = await fetch(asset.uri, { signal: localController.signal });
+    blob = await localResponse.blob();
+  } catch (err) {
+    if (isDev) console.log('[Blinkr Media]', { mime: contentType, failedStage: 'local-read', errorCode: err instanceof Error ? err.name : 'Unknown' });
+    throw localController.signal.aborted
+      ? new Error('Medya dosyası okunamadı (zaman aşımı). Tekrar dene.')
+      : err;
+  } finally {
+    clearTimeout(localTimer);
+  }
+
   const uploadPath = presign.uploadUrl.startsWith('http')
     ? presign.uploadUrl.replace(API_BASE_URL, '')
     : presign.uploadUrl;
@@ -303,9 +420,11 @@ export const uploadMedia = async (
     onAuthRefresh,
     onSessionExpired,
     rawBody: blob,
+    timeoutMs: 45000,
   });
 
   if (!uploadResponse.ok) throw new Error(await readError(uploadResponse));
+  if (isDev) console.log('[Blinkr Media]', { mediaId: presign.mediaId.slice(0, 8), mime: contentType, state: 'uploaded' });
 
   return {
     mediaId: presign.mediaId,

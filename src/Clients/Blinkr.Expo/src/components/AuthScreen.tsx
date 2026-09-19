@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,10 +13,12 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 
 import { authenticate } from '../api';
 import { friendlyError } from '../productPresentation';
-import { colors, shadowSoft } from '../theme';
+import { AnimatedPressable } from './AnimatedPressable';
+import { colors, radii, shadowSoft } from '../theme';
 import type { AuthResponse } from '../types';
 
 type Props = {
@@ -60,7 +61,7 @@ export function AuthScreen({ onAuthenticated }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.hero}>
+          <Animated.View entering={FadeInDown.duration(420).springify().damping(16)} style={styles.hero}>
             <View style={styles.brandRow}>
               <View style={styles.brandMark}>
                 <BlinkrMark size={32} />
@@ -77,26 +78,28 @@ export function AuthScreen({ onAuthenticated }: Props) {
               <Text style={styles.title}>Gitmeden önce bil.</Text>
               <Text style={styles.subtitle}>Çevrendeki yerlerin canlı durumunu haritadan keşfet.</Text>
             </View>
-          </View>
+          </Animated.View>
 
-          <View style={styles.formPanel}>
+          <Animated.View entering={FadeInUp.duration(460).delay(80).springify().damping(17)} style={styles.formPanel}>
             <View style={styles.segment}>
-              <Pressable
+              <AnimatedPressable
                 onPress={() => setMode('register')}
+                pressScale={0.96}
                 style={[styles.segmentItem, mode === 'register' && styles.segmentItemActive]}
               >
                 <Text style={[styles.segmentText, mode === 'register' && styles.segmentTextActive]}>
                   Yeni hesap
                 </Text>
-              </Pressable>
-              <Pressable
+              </AnimatedPressable>
+              <AnimatedPressable
                 onPress={() => setMode('login')}
+                pressScale={0.96}
                 style={[styles.segmentItem, mode === 'login' && styles.segmentItemActive]}
               >
                 <Text style={[styles.segmentText, mode === 'login' && styles.segmentTextActive]}>
                   Giriş yap
                 </Text>
-              </Pressable>
+              </AnimatedPressable>
             </View>
 
             {mode === 'register' && (
@@ -107,7 +110,7 @@ export function AuthScreen({ onAuthenticated }: Props) {
                   autoCorrect={false}
                   onChangeText={setUserName}
                   placeholder="ornek_kullanici"
-                  placeholderTextColor="#919A94"
+                  placeholderTextColor={colors.mutedSoft}
                   style={styles.input}
                   value={userName}
                 />
@@ -122,7 +125,7 @@ export function AuthScreen({ onAuthenticated }: Props) {
                 keyboardType="email-address"
                 onChangeText={setEmail}
                 placeholder="sen@ornek.com"
-                placeholderTextColor="#919A94"
+                placeholderTextColor={colors.mutedSoft}
                 style={styles.input}
                 value={email}
               />
@@ -134,31 +137,32 @@ export function AuthScreen({ onAuthenticated }: Props) {
                 <TextInput
                   onChangeText={setPassword}
                   placeholder="Şifren"
-                  placeholderTextColor="#919A94"
+                  placeholderTextColor={colors.mutedSoft}
                   secureTextEntry={!showPassword}
                   style={styles.passwordInput}
                   value={password}
                 />
-                <Pressable
+                <AnimatedPressable
                   accessibilityLabel={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
                   hitSlop={10}
                   onPress={() => setShowPassword((value) => !value)}
+                  pressScale={0.85}
                 >
                   {showPassword
                     ? <EyeOff color={colors.muted} size={20} />
                     : <Eye color={colors.muted} size={20} />}
-                </Pressable>
+                </AnimatedPressable>
               </View>
             </View>
 
             {error && <Text style={styles.error}>{error}</Text>}
 
-            <Pressable
+            <AnimatedPressable
               disabled={isLoading || !email || !password || (mode === 'register' && !userName)}
               onPress={submit}
-              style={({ pressed }) => [
+              pressScale={0.95}
+              style={[
                 styles.primaryButton,
-                pressed && styles.buttonPressed,
                 (isLoading || !email || !password || (mode === 'register' && !userName)) && styles.buttonDisabled,
               ]}
             >
@@ -170,13 +174,13 @@ export function AuthScreen({ onAuthenticated }: Props) {
                   <ArrowRight color={colors.ink} size={20} strokeWidth={2.5} />
                 </>
               )}
-            </Pressable>
+            </AnimatedPressable>
 
             <View style={styles.privacyRow}>
               <ShieldCheck color={colors.green} size={18} />
               <Text style={styles.privacyText}>Konumun yalnızca sen paylaşmayı seçtiğinde kullanılır.</Text>
             </View>
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -190,45 +194,44 @@ const styles = StyleSheet.create({
   hero: { backgroundColor: colors.ink, minHeight: 300, paddingBottom: 30, paddingHorizontal: 22, paddingTop: 18 },
   brandRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
   brandMark: {
-    alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: 8, height: 42,
+    alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: radii.control, height: 42,
     justifyContent: 'center', width: 42,
   },
   brand: { color: colors.white, fontSize: 25, fontWeight: '600', letterSpacing: 0 },
-  livePill: { alignItems: 'center', borderColor: '#3B4941', borderRadius: 999, borderWidth: 1, flexDirection: 'row', gap: 5, marginLeft: 'auto', paddingHorizontal: 9, paddingVertical: 6 },
+  livePill: { alignItems: 'center', borderColor: colors.lineOnDark, borderRadius: 999, borderWidth: 1, flexDirection: 'row', gap: 5, marginLeft: 'auto', paddingHorizontal: 9, paddingVertical: 6 },
   livePillText: { color: colors.white, fontSize: 12, fontWeight: '600' },
   intro: { marginTop: 48 },
   eyebrow: { color: colors.lime, fontSize: 12, fontWeight: '600', letterSpacing: 0 },
   title: { color: colors.white, fontSize: 38, fontWeight: '600', lineHeight: 43, marginTop: 9 },
-  subtitle: { color: '#BCC7C0', fontSize: 16, lineHeight: 23, marginTop: 10, maxWidth: 320 },
-  formPanel: { backgroundColor: colors.surface, borderTopLeftRadius: 8, borderTopRightRadius: 8, flex: 1, marginTop: -8, paddingBottom: 24, paddingHorizontal: 22, paddingTop: 24 },
+  subtitle: { color: colors.mutedOnDark, fontSize: 16, lineHeight: 23, marginTop: 10, maxWidth: 320 },
+  formPanel: { backgroundColor: colors.surface, borderTopLeftRadius: radii.panel, borderTopRightRadius: radii.panel, flex: 1, marginTop: -radii.panel / 3, paddingBottom: 24, paddingHorizontal: 22, paddingTop: 28 },
   segment: {
-    backgroundColor: colors.surfaceSoft, borderRadius: 8, flexDirection: 'row', height: 48, padding: 4,
+    backgroundColor: colors.surfaceSoft, borderRadius: radii.control, flexDirection: 'row', height: 48, padding: 4,
   },
-  segmentItem: { alignItems: 'center', borderRadius: 6, flex: 1, justifyContent: 'center' },
-  segmentItemActive: { backgroundColor: colors.surface, ...shadowSoft },
+  segmentItem: { alignItems: 'center', borderRadius: radii.control - 4, flex: 1, justifyContent: 'center' },
+  segmentItemActive: { backgroundColor: colors.lime, ...shadowSoft },
   segmentText: { color: colors.muted, fontSize: 14, fontWeight: '600' },
   segmentTextActive: { color: colors.ink },
   field: { marginTop: 18 },
-  label: { color: colors.ink, fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  label: { color: colors.textPrimary, fontSize: 13, fontWeight: '600', marginBottom: 8 },
   input: {
-    backgroundColor: colors.surfaceSoft, borderColor: colors.line, borderRadius: 8, borderWidth: 1,
-    color: colors.ink, fontSize: 15, minHeight: 52, paddingHorizontal: 15,
+    backgroundColor: colors.surfaceSoft, borderColor: colors.line, borderRadius: radii.control, borderWidth: 1,
+    color: colors.textPrimary, fontSize: 15, minHeight: 52, paddingHorizontal: 15,
   },
   passwordField: {
     alignItems: 'center', backgroundColor: colors.surfaceSoft, borderColor: colors.line,
-    borderRadius: 8, borderWidth: 1, flexDirection: 'row', minHeight: 52, paddingRight: 15,
+    borderRadius: radii.control, borderWidth: 1, flexDirection: 'row', minHeight: 52, paddingRight: 15,
   },
-  passwordInput: { color: colors.ink, flex: 1, fontSize: 15, paddingHorizontal: 15 },
+  passwordInput: { color: colors.textPrimary, flex: 1, fontSize: 15, paddingHorizontal: 15 },
   error: {
-    backgroundColor: colors.errorSoft, borderRadius: 8, color: colors.error,
+    backgroundColor: colors.errorSoft, borderRadius: radii.control, color: colors.error,
     fontSize: 13, lineHeight: 18, marginTop: 14, padding: 12,
   },
   primaryButton: {
-    alignItems: 'center', backgroundColor: colors.lime, borderColor: colors.ink, borderRadius: 8, borderWidth: 2, flexDirection: 'row',
+    alignItems: 'center', backgroundColor: colors.lime, borderColor: colors.ink, borderRadius: radii.control, borderWidth: 2, flexDirection: 'row',
     gap: 10, justifyContent: 'center', marginTop: 20, minHeight: 54, paddingHorizontal: 18, ...shadowSoft,
   },
   primaryButtonText: { color: colors.ink, fontSize: 15, fontWeight: '600' },
-  buttonPressed: { opacity: 0.88 },
   buttonDisabled: { opacity: 0.6 },
   privacyRow: { alignItems: 'center', flexDirection: 'row', gap: 8, marginTop: 16 },
   privacyText: { color: colors.muted, flex: 1, fontSize: 12, lineHeight: 17 },

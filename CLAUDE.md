@@ -45,13 +45,14 @@ Blinkr su anda genel bir sosyal medya urunune donusturulmemelidir:
 
 - Sonsuz ve eglence merkezli genel feed
 - Kullanici tutma amacli story veya kisa video akisi
-- Urun amacindan kopuk DM/mesajlasma
 - Surekli kisi takibi veya canli konum izleme
 - Genis ve gosterisli profil ekonomisi
 - Reklami dogrulanmis yer sinyali gibi gosteren yuzeyler
 - Mahremiyet veya guvenligi engagement icin zayiflatan mekanikler
 
 Medya, yorum, begeni veya bildirim ancak yer karari dongusunu destekledigi olcude anlamlidir. Bunlar urunun merkezi degildir.
+
+Bilincli urun karariyla eklenen tek istisna 1:1 DM/chat'tir (bkz. 6.5): kullanici arama ile baslatilir, kalici arkadas grafigi veya takip mekanigi olusturmaz, urunun ana giris ekrani degildir ve map-first kimligi degistirmez.
 
 ## 3. Hedef Kullanici Problemi
 
@@ -215,10 +216,13 @@ Sorumluluklar:
 - Kullanici konum aboneligi
 - Like/comment gibi eventlerden bildirim uretme
 - Okunmamis sayisi ve read durumu
+- 1:1 sohbet (DM): konusma baslatma/listeleme, mesaj gonderme/okuma, kullanici aramasi IdentityService `/api/users/search` uzerinden yapilir
 
 Kod: `src/Services/NotificationsService`
 
 Bu context MVP harita dongusunun birincil bloklayicisi degildir. Cekirdek event ve map akisi bozukken notification genisletilmemelidir.
+
+Chat v1 gercek zamanlilik icin WebSocket/SignalR kullanmaz; mobil istemci kisa aralikli (aktif konusma ekraninda ~4sn, liste ekraninda ~8sn) REST polling yapar. Bu bilincli bir MVP kapsam karari; sonsuz/agresif polling'e donusturulmemelidir.
 
 ### 6.6 Gateway Context
 
@@ -571,6 +575,15 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 - `POST /api/notifications/read`
 - `POST /api/subscriptions`
 - `POST /api/subscriptions/location`
+
+### Chat
+
+- `GET /api/users/search?q=`
+- `GET /api/chat/conversations`
+- `POST /api/chat/conversations`
+- `GET /api/chat/conversations/{id}/messages`
+- `POST /api/chat/conversations/{id}/messages`
+- `POST /api/chat/conversations/{id}/read`
 
 API contract degisikligi yaparken mobil type'lari, Gateway route'larini, integration event consumer'larini ve smoke testlerini birlikte kontrol et.
 

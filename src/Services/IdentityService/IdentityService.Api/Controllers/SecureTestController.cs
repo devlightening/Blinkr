@@ -1,20 +1,26 @@
 ﻿using IdentityService.Application.Interfaces;
+using IdentityService.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace IdentityService.Api.Controllers
 {
+    public record UserSummaryDto(Guid Id, string UserName);
+
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly AppDbContext _db;
 
-        public UsersController(IUserService userService)
+        public UsersController(IUserService userService, AppDbContext db)
         {
             _userService = userService;
+            _db = db;
         }
 
         /// <summary>
@@ -35,6 +41,37 @@ namespace IdentityService.Api.Controllers
                 return NotFound("User not found.");
             }
 
+            return Ok(user);
+        }
+
+        /// <summary>
+        /// GET /api/users/search?q= - Search users by username (chat/DM için kullanıcı arama)
+        /// </summary>
+        [HttpGet("search")]
+        public async Task<IActionResult> Search([FromQuery] string q)
+        {
+            if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2)
+                return Ok(Array.Empty<UserSummaryDto>());
+
+            var term = q.Trim();
+            var results = await _db.Users
+                .Where(u => EF.Functions.ILike(u.UserName, $"%{term}%"))
+                .OrderBy(u => u.UserName)
+                .Take(20)
+                .Select(u => new UserSummaryDto(u.Id, u.UserName))
+                .ToListAsync();
+
+            return Ok(results);
+        }
+
+        [HttpGet("{id:guid}")]
+        public async Task<IActionResult> GetById(Guid id)
+        {
+            var user = await _db.Users.Where(u => u.Id == id)
+                .Select(u => new UserSummaryDto(u.Id, u.UserName))
+                .FirstOrDefaultAsync();
+
+            if (user is null) return NotFound();
             return Ok(user);
         }
     }

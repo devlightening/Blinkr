@@ -41,5 +41,7 @@ module.exports = ({ config }) => ({
     ...(config.plugins ?? []),
     'expo-secure-store',
     'expo-image-picker',
+    'expo-status-bar',
+    'expo-video',
   ],
 });

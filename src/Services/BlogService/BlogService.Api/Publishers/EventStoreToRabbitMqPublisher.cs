@@ -355,24 +355,35 @@ public sealed class EventStoreToRabbitMqPublisher : BackgroundService
 
     private async Task WriteStatusAsync(string state, Position? checkpoint, string? lastError, CancellationToken ct)
     {
-        BsonValue lastErrorValue = lastError is null ? BsonNull.Value : new BsonString(lastError);
-        var update = Builders<BsonDocument>.Update
-            .Set("state", state)
-            .Set("updatedAtUtc", DateTime.UtcNow)
-            .Set("lastError", lastErrorValue);
-
-        if (checkpoint.HasValue)
+        // Best-effort diagnostic write. Must never throw: this is called from the
+        // exception-recovery path itself, and an unhandled exception here would
+        // escape ExecuteAsync and (BackgroundServiceExceptionBehavior=StopHost)
+        // take down the entire BlogService host over a transient Mongo blip.
+        try
         {
-            update = update
-                .Set("commit", ToBson(checkpoint.Value.CommitPosition))
-                .Set("prepare", ToBson(checkpoint.Value.PreparePosition));
-        }
+            BsonValue lastErrorValue = lastError is null ? BsonNull.Value : new BsonString(lastError);
+            var update = Builders<BsonDocument>.Update
+                .Set("state", state)
+                .Set("updatedAtUtc", DateTime.UtcNow)
+                .Set("lastError", lastErrorValue);
 
-        await _statusCollection.UpdateOneAsync(
-            Builders<BsonDocument>.Filter.Eq("_id", CheckpointKey),
-            update,
-            new UpdateOptions { IsUpsert = true },
-            ct);
+            if (checkpoint.HasValue)
+            {
+                update = update
+                    .Set("commit", ToBson(checkpoint.Value.CommitPosition))
+                    .Set("prepare", ToBson(checkpoint.Value.PreparePosition));
+            }
+
+            await _statusCollection.UpdateOneAsync(
+                Builders<BsonDocument>.Filter.Eq("_id", CheckpointKey),
+                update,
+                new UpdateOptions { IsUpsert = true },
+                ct);
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Failed to write publisher status (state={State}); continuing without crashing the host.", state);
+        }
     }
 
     private static BsonValue ToBson(ulong value) =>

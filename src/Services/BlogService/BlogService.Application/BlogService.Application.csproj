@@ -2,7 +2,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\Shared.Events\Shared.Events.csproj" />
-    <ProjectReference Include="..\..\WorkerService\Blinkr.Projections.Worker\Blinkr.Projections.Worker.csproj" />
     <ProjectReference Include="..\BlogService.Domain\BlogService.Domain.csproj" />
   </ItemGroup>
 
@@ -11,6 +10,8 @@
     <PackageReference Include="FluentValidation.AspNetCore" />
     <PackageReference Include="MassTransit" />
     <PackageReference Include="MediatR" />
+    <PackageReference Include="MongoDB.Bson" />
+    <PackageReference Include="MongoDB.Driver" />
     <PackageReference Include="NetTopologySuite" />
   </ItemGroup>
 

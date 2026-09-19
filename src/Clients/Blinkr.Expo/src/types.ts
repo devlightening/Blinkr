@@ -190,6 +190,28 @@ export type LocationReadiness =
 export type UploadState = 'idle' | 'preparing' | 'uploading' | 'ready' | 'failed';
 export type NearbyStatus = 'LOADING' | 'READY' | 'EMPTY' | 'NOT_LOADED' | 'FAILED';
 
+export type UserSummary = {
+  id: string;
+  userName: string;
+};
+
+export type Conversation = {
+  id: string;
+  otherUserId: string;
+  lastMessageAtUtc: string;
+  lastMessagePreview?: string | null;
+  lastMessageSenderId?: string | null;
+};
+
+export type ChatMessage = {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  text: string;
+  createdAtUtc: string;
+  isRead: boolean;
+};
+
 export const ISTANBUL_REGION: Region = {
   latitude: 41.0082,
   longitude: 28.9784,

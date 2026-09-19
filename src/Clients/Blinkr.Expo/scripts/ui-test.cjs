@@ -6,12 +6,17 @@ const { chromium, expect } = require('@playwright/test');
 async function main() {
   const out = path.resolve('.tmp/product-ui');
   await fs.mkdir(out, { recursive: true });
-  await esbuild.build({ entryPoints: ['scripts/ui-preview.tsx'], outfile: path.join(out, 'app.js'), bundle: true, jsx: 'automatic', resolveExtensions: ['.web.tsx', '.web.ts', '.web.js', '.tsx', '.ts', '.js', '.json'], define: { __DEV__: 'true', 'process.env.NODE_ENV': '"development"' }, alias: { 'react-native': 'react-native-web' }, plugins: [{ name: 'native-test-ports', setup(build) {
+  await esbuild.build({ entryPoints: ['scripts/ui-preview.tsx'], outfile: path.join(out, 'app.js'), bundle: true, jsx: 'automatic', resolveExtensions: ['.web.tsx', '.web.ts', '.web.js', '.tsx', '.ts', '.js', '.json'], define: { __DEV__: 'true', 'process.env.NODE_ENV': '"development"', global: 'globalThis' }, inject: [path.resolve('scripts/ui-process-shim.js')], alias: {
+    'react-native': 'react-native-web',
+    // expo SDK 57 nests expo-modules-core under expo/node_modules instead of
+    // hoisting it; Metro resolves that fine, plain esbuild/Node resolution does not.
+    'expo-modules-core': path.resolve('node_modules/expo/node_modules/expo-modules-core'),
+  }, plugins: [{ name: 'native-test-ports', setup(build) {
     build.onResolve({ filter: /^\.\/.*\.js$/ }, async args => {
       const web = path.resolve(args.resolveDir, args.path.replace(/\.js$/, '.web.js'));
       try { await fs.access(web); return { path: web }; } catch { return undefined; }
     });
-    build.onResolve({ filter: /^(expo-av|expo-haptics|expo-image-picker|expo-secure-store)$/ }, () => ({ path: path.resolve('scripts/ui-native-stub.tsx') }));
+    build.onResolve({ filter: /^(expo-video|expo-haptics|expo-image-picker|expo-secure-store)$/ }, () => ({ path: path.resolve('scripts/ui-native-stub.tsx') }));
     build.onResolve({ filter: /\/api$/ }, () => ({ path: path.resolve('scripts/ui-api-stub.ts') }));
   } }] });
   const server = http.createServer(async (req, res) => {
@@ -26,18 +31,18 @@ async function main() {
     const url=`http://127.0.0.1:${server.address().port}`;
     await page.goto(url);
     await expect(page.getByText('Nerede oluyor?')).toBeVisible();
-    await page.screenshot({ path: path.join(out, 'composer-where.png') });
+    await page.waitForTimeout(420); await page.screenshot({ path: path.join(out, 'composer-where.png') });
     await page.getByLabel('Şehit Mahmut Kavak Parkı yerini seç').click();
     await expect(page.getByText('Yakındaki yer paylaşımı')).toBeVisible();
     await expect(page.getByText('Hz. Ali Camii')).toHaveCount(0);
     await page.getByText('Devam', { exact: true }).click();
     await page.getByText('Doluluk', { exact: true }).click();
     await page.getByText('Sakin', { exact: true }).click();
-    await page.screenshot({ path: path.join(out, 'composer-type.png') });
+    await page.waitForTimeout(420); await page.screenshot({ path: path.join(out, 'composer-type.png') });
     await page.getByText('Devam', { exact: true }).click();
     await page.getByPlaceholder('Örn. Bekleme süresi 10 dakika').fill('Park bu akşam sakin');
     await page.getByText('Devam', { exact: true }).click();
-    await page.screenshot({ path: path.join(out, 'composer-review.png') });
+    await page.waitForTimeout(420); await page.screenshot({ path: path.join(out, 'composer-review.png') });
     await page.getByText('Yayınla', { exact: true }).click();
     await expect(page.getByRole('button', { name: 'Yayınlanıyor' })).toBeDisabled();
     await expect(page.getByLabel('Published result')).toHaveText('park:Crowd:Calm');
@@ -62,12 +67,12 @@ async function main() {
     await page.getByText('Yer ara', { exact: true }).click();
     await page.getByLabel('Yer adı veya kategori').fill('BİM');
     await expect(page.getByLabel(/BİM, .*seç/)).toHaveCount(2);
-    await page.screenshot({ path: path.join(out, 'place-search.png') });
+    await page.waitForTimeout(420); await page.screenshot({ path: path.join(out, 'place-search.png') });
     for (const width of [320, 430, 820]) {
       await page.setViewportSize({ width, height: width === 820 ? 1180 : 844 });
       await page.goto(url+'?detail');
       await expect(page.getByText('Şehit Mahmut Kavak Parkı')).toBeVisible();
-      await page.screenshot({ path: path.join(out, `place-detail-${width}.png`) });
+      await page.waitForTimeout(420); await page.screenshot({ path: path.join(out, `place-detail-${width}.png`) });
       if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw new Error(`Horizontal overflow ${width}`);
       await page.getByLabel('Kaydet', { exact: true }).click();
       await expect(page.getByLabel('Kayıttan kaldır')).toBeVisible();

@@ -3,10 +3,9 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Marker } from 'react-native-maps';
 import { PlaceSymbol } from './PlaceSymbol';
 import { SignalSymbol } from './SignalSymbol';
-import { colors, shadowSoft } from '../theme';
+import { colors, signalColors, shadowSoft } from '../theme';
 import { freshnessOpacity } from '../productPresentation';
-import type { BlinkrPlace, CoordinateSignal, SignalType } from '../types';
-const signalColors: Partial<Record<SignalType, string>> = { Crowd: '#C75039', Queue: '#98620C', Event: '#147B76', Offer: '#7451AA', TemporaryStatus: '#AF3F3C', GeneralObservation: '#2878B0' };
+import type { BlinkrPlace, CoordinateSignal } from '../types';
 
 export const BlinkrMapMarker = memo(function BlinkrMapMarker({ place, signal, selected, now, onPlace, onSignal }: {
   place?: BlinkrPlace; signal?: CoordinateSignal; selected: boolean; now: number;

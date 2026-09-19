@@ -41,6 +41,8 @@ public static class ServiceCollectionExtensions
     {
         services.AddScoped<INotificationRepository, MongoNotificationRepository>();
         services.AddScoped<IDeviceTokenRepository, MongoDeviceTokenRepository>();
+        services.AddScoped<IConversationRepository, MongoConversationRepository>();
+        services.AddScoped<IChatMessageRepository, MongoChatMessageRepository>();
 
         return services;
     }

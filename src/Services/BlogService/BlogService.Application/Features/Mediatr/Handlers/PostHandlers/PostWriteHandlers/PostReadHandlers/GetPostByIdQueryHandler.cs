@@ -1,4 +1,4 @@
-﻿using Blinkr.Projections.Worker.Documents;
+﻿using BlogService.Application.Common.ReadModels;
 using BlogService.Application.DTOs.PostDtos;
 using BlogService.Application.Features.Mediatr.Queries.PostQueries;
 using BlogService.Domain.Enums;

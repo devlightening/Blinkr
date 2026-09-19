@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ArrowLeft, MapPin, Search, ChevronRight } from 'lucide-react-native';
 import { searchPlaces } from '../api';
 import { formatCategory, formatDistance } from '../presentation';
 import { friendlyError } from '../productPresentation';
-import { colors, typography, sizes, spacing } from '../theme';
+import { AnimatedPressable } from './AnimatedPressable';
+import { colors, radii, typography, sizes, spacing } from '../theme';
 import type { BlinkrPlace } from '../types';
 
 export function PlacePicker({ origin, nearby, onSelect, onBack }: {
@@ -34,16 +36,20 @@ export function PlacePicker({ origin, nearby, onSelect, onBack }: {
   }, [query, lat, lon, nearby]);
   return <View style={styles.flex}>
     <View style={styles.bar}>
-      <Pressable accessibilityLabel="Yer seçimine dön" onPress={onBack} style={styles.icon}><ArrowLeft color={colors.ink} /></Pressable>
+      <AnimatedPressable accessibilityLabel="Yer seçimine dön" onPress={onBack} pressScale={0.88} style={styles.icon}><ArrowLeft color={colors.textPrimary} /></AnimatedPressable>
       <Text style={styles.heading}>Yer seç</Text>
     </View>
-    <View style={styles.search}><Search size={20} color={colors.muted} /><TextInput accessibilityLabel="Yer adı veya kategori" autoFocus maxLength={80} value={query} onChangeText={setQuery} placeholder="Yer adı veya kategori" style={styles.input} /></View>
+    <View style={styles.search}><Search size={20} color={colors.muted} /><TextInput accessibilityLabel="Yer adı veya kategori" autoFocus maxLength={80} value={query} onChangeText={setQuery} placeholder="Yer adı veya kategori" placeholderTextColor={colors.mutedSoft} style={styles.input} /></View>
     {loading && <ActivityIndicator style={styles.progress} color={colors.green} />}
     {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     <ScrollView keyboardShouldPersistTaps="handled">
-      {results.map(place => <Pressable accessibilityLabel={`${place.name}, ${formatDistance(place.distanceMeters)}, seç`} key={place.id} onPress={() => onSelect(place)} style={styles.row}>
-        <MapPin color={colors.green} size={22} /><View style={styles.flex}><Text style={styles.name}>{place.name}</Text><Text style={styles.caption}>{formatCategory(place.category)} · {formatDistance(place.distanceMeters)}</Text></View><ChevronRight color={colors.muted} size={18} />
-      </Pressable>)}
+      {results.map((place, index) => (
+        <Animated.View entering={FadeInDown.duration(260).delay(Math.min(index, 8) * 35)} key={place.id}>
+          <AnimatedPressable accessibilityLabel={`${place.name}, ${formatDistance(place.distanceMeters)}, seç`} onPress={() => onSelect(place)} pressScale={0.97} style={styles.row}>
+            <MapPin color={colors.green} size={22} /><View style={styles.flex}><Text style={styles.name}>{place.name}</Text><Text style={styles.caption}>{formatCategory(place.category)} · {formatDistance(place.distanceMeters)}</Text></View><ChevronRight color={colors.muted} size={18} />
+          </AnimatedPressable>
+        </Animated.View>
+      ))}
       {!loading && !results.length && <Text style={styles.empty}>Bu arama için yakınında eşleşen yer bulunamadı.</Text>}
     </ScrollView>
   </View>;
@@ -51,8 +57,8 @@ export function PlacePicker({ origin, nearby, onSelect, onBack }: {
 const styles = StyleSheet.create({
   flex: { flex: 1 }, bar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginVertical: spacing.sm },
   icon: { width: sizes.touch, height: sizes.touch, alignItems: 'center', justifyContent: 'center' },
-  heading: { ...typography.heading, color: colors.ink }, search: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceSoft, borderRadius: 8, paddingHorizontal: 12, gap: 8 },
-  input: { ...typography.body, minHeight: 50, flex: 1 }, row: { flexDirection: 'row', gap: 12, alignItems: 'center', paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: colors.line },
-  name: { ...typography.body, fontWeight: '600', color: colors.ink }, caption: { ...typography.caption, color: colors.muted, marginTop: 4 },
+  heading: { ...typography.heading, color: colors.textPrimary }, search: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceSoft, borderRadius: radii.control, paddingHorizontal: 12, gap: 8 },
+  input: { ...typography.body, minHeight: 50, flex: 1, color: colors.textPrimary }, row: { flexDirection: 'row', gap: 12, alignItems: 'center', paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: colors.line },
+  name: { ...typography.body, fontWeight: '600', color: colors.textPrimary }, caption: { ...typography.caption, color: colors.muted, marginTop: 4 },
   progress: { marginTop: 12 }, error: { ...typography.caption, color: colors.error, padding: 12 }, empty: { ...typography.body, color: colors.muted, paddingVertical: 24 },
 });

@@ -1,8 +1,8 @@
-﻿using BlogService.Application.DTOs.PostDtos;
+﻿using BlogService.Application.Common.ReadModels;
+using BlogService.Application.DTOs.PostDtos;
 using BlogService.Application.Features.Mediatr.Queries.PostQueries;
 using MediatR;
 using MongoDB.Driver;
-using Blinkr.Projections.Worker.Documents;
 using AutoMapper;
 
 namespace BlogService.Application.Features.Mediatr.Handlers.PostHandlers.PostWriteHandlers.PostReadHandlers;

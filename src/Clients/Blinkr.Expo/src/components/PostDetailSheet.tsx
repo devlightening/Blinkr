@@ -1,18 +1,20 @@
-import { ResizeMode, Video } from 'expo-av';
 import { Clock3, Compass, Image as ImageIcon, MessageCircle, Plus, ShieldCheck, X, Bookmark, Share2 } from 'lucide-react-native';
 import { ActivityIndicator, Alert, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View, Share } from 'react-native';
 import { useEffect, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { toAbsoluteUrl } from '../api';
 import { formatAge, formatCategory, formatDistance, signalLabels } from '../presentation';
-import { colors, shadow, shadowSoft } from '../theme';
+import { colors, radii, shadow, shadowSoft } from '../theme';
 import type { BlinkrMedia, BlinkrPlace, CoordinateSignal, RecentSignal } from '../types';
 import { signalValueLabel, trustLabel } from '../productPresentation';
+import { AnimatedPressable } from './AnimatedPressable';
 import { Sheet } from './Sheet';
 import { SignalSymbol } from './SignalSymbol';
 import { PlaceSymbol } from './PlaceSymbol';
+import { VideoPreview } from './VideoPreview';
 
 type Props = {
   isLoading: boolean;
@@ -47,13 +49,13 @@ const MediaPreview = ({ media }: { media: BlinkrMedia }) => {
   const url = toAbsoluteUrl(media.url);
   if (!url) return null;
   if (media.mediaType === 'Video') {
-    return <Video resizeMode={ResizeMode.COVER} source={{ uri: url }} style={styles.mediaPreview} useNativeControls />;
+    return <VideoPreview style={styles.mediaPreview} uri={url} />;
   }
   return <Image source={{ uri: url }} style={styles.mediaPreview} />;
 };
 
-const SignalCard = ({ signal }: { signal: RecentSignal }) => (
-  <View style={styles.signalCard}>
+const SignalCard = ({ signal, index }: { signal: RecentSignal; index: number }) => (
+  <Animated.View entering={FadeInUp.duration(320).delay(Math.min(index, 6) * 45)} style={styles.signalCard}>
     <View style={styles.signalMeta}>
       <View style={styles.freshBadge}>
         <Text style={styles.freshText}>{signalLabels[signal.signalType ?? 'GeneralObservation'] ?? 'Sinyal'}</Text>
@@ -71,7 +73,7 @@ const SignalCard = ({ signal }: { signal: RecentSignal }) => (
         ))}
       </ScrollView>
     )}
-  </View>
+  </Animated.View>
 );
 
 export function PostDetailSheet({ isLoading, onClose, onCreateSignal, place, signal }: Props) {
@@ -110,9 +112,9 @@ export function PostDetailSheet({ isLoading, onClose, onCreateSignal, place, sig
                 <Text numberOfLines={1} style={styles.placeName}>{signal.locationName || 'Yaklaşık konum sinyali'}</Text>
                 <Text style={styles.placeContext}>Yaklaşık konum · {formatAge(signal.createdAtUtc)}</Text>
               </View>
-              <Pressable accessibilityLabel="Kapat" hitSlop={10} onPress={onClose} style={styles.close}>
-                <X color={colors.ink} size={21} />
-              </Pressable>
+              <AnimatedPressable accessibilityLabel="Kapat" hitSlop={10} onPress={onClose} pressScale={0.88} style={styles.close}>
+                <X color={colors.textPrimary} size={21} />
+              </AnimatedPressable>
             </View>
             <ScrollView style={styles.coordinateSignalCard}>
               <View style={styles.signalMeta}>
@@ -142,9 +144,9 @@ export function PostDetailSheet({ isLoading, onClose, onCreateSignal, place, sig
                 <Text style={styles.placeName}>{place.name}</Text>
                 <Text style={styles.placeContext}>{formatCategory(place.category)}{formatDistance(place.distanceMeters) ? ` · ${formatDistance(place.distanceMeters)}` : ''}</Text>
               </View>
-              <Pressable accessibilityLabel="Kapat" hitSlop={10} onPress={onClose} style={styles.close}>
-                <X color={colors.ink} size={21} />
-              </Pressable>
+              <AnimatedPressable accessibilityLabel="Kapat" hitSlop={10} onPress={onClose} pressScale={0.88} style={styles.close}>
+                <X color={colors.textPrimary} size={21} />
+              </AnimatedPressable>
             </View>
 
             {isLoading && (
@@ -183,15 +185,15 @@ export function PostDetailSheet({ isLoading, onClose, onCreateSignal, place, sig
               </View>
 
               <View style={styles.actions}>
-                <Pressable onPress={onCreateSignal} style={styles.primaryAction}>
-                  <Plus color={colors.white} size={18} />
+                <AnimatedPressable onPress={onCreateSignal} pressScale={0.95} style={styles.primaryAction}>
+                  <Plus color={colors.ink} size={18} />
                   <Text style={styles.primaryActionText}>Sinyal bırak</Text>
-                </Pressable>
-                <Pressable accessibilityLabel="Yol tarifi" onPress={() => openDirections(place)} style={styles.secondaryAction}>
+                </AnimatedPressable>
+                <AnimatedPressable accessibilityLabel="Yol tarifi" onPress={() => openDirections(place)} pressScale={0.9} style={styles.secondaryAction}>
                   <Compass color={colors.greenDark} size={18} />
-                </Pressable>
-                <Pressable accessibilityLabel={saved ? 'Kayıttan kaldır' : 'Kaydet'} accessibilityState={{ selected: saved }} onPress={toggleSaved} style={styles.secondaryAction}><Bookmark color={colors.greenDark} fill={saved ? colors.lime : 'none'} size={20} /></Pressable>
-                <Pressable accessibilityLabel="Paylaş" onPress={() => Share.share({ message: `${place.name} · ${formatCategory(place.category)}\nhttps://maps.apple.com/?q=${encodeURIComponent(place.name)}&ll=${place.latitude},${place.longitude}` }).catch(() => Alert.alert('Paylaşılamadı'))} style={styles.secondaryAction}><Share2 color={colors.greenDark} size={20} /></Pressable>
+                </AnimatedPressable>
+                <AnimatedPressable accessibilityLabel={saved ? 'Kayıttan kaldır' : 'Kaydet'} accessibilityState={{ selected: saved }} onPress={toggleSaved} pressScale={0.85} style={styles.secondaryAction}><Bookmark color={colors.greenDark} fill={saved ? colors.lime : 'none'} size={20} /></AnimatedPressable>
+                <AnimatedPressable accessibilityLabel="Paylaş" onPress={() => Share.share({ message: `${place.name} · ${formatCategory(place.category)}\nhttps://maps.apple.com/?q=${encodeURIComponent(place.name)}&ll=${place.latitude},${place.longitude}` }).catch(() => Alert.alert('Paylaşılamadı'))} pressScale={0.9} style={styles.secondaryAction}><Share2 color={colors.greenDark} size={20} /></AnimatedPressable>
               </View>
 
               <View style={styles.sectionHeader}>
@@ -204,8 +206,8 @@ export function PostDetailSheet({ isLoading, onClose, onCreateSignal, place, sig
                   <Text style={styles.emptyTitle}>Bu yer için taze içerik bekleniyor</Text>
                   <Text style={styles.emptyText}>İlk sinyali paylaşarak haritadaki kararı kolaylaştırabilirsin.</Text>
                 </View>
-              ) : recentSignals.map((signal) => (
-                <SignalCard key={signal.postId} signal={signal} />
+              ) : recentSignals.map((signal, index) => (
+                <SignalCard index={index} key={signal.postId} signal={signal} />
               ))}
             </ScrollView>
           </View>
@@ -215,45 +217,45 @@ export function PostDetailSheet({ isLoading, onClose, onCreateSignal, place, sig
 }
 
 const styles = StyleSheet.create({
-  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 8, borderTopRightRadius: 8, maxHeight: '88%', paddingHorizontal: 20, paddingTop: 10, ...shadow },
+  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: radii.panel, borderTopRightRadius: radii.panel, maxHeight: '88%', paddingHorizontal: 20, paddingTop: 10, ...shadow },
   handle: { alignSelf: 'center', backgroundColor: colors.lineStrong, borderRadius: 2, height: 4, marginBottom: 18, width: 38 },
   header: { alignItems: 'center', flexDirection: 'row' },
-  placeIcon: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: 8, height: 44, justifyContent: 'center', width: 44 },
-  signalIcon: { alignItems: 'center', backgroundColor: colors.coral, borderRadius: 8, height: 44, justifyContent: 'center', width: 44 },
+  placeIcon: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: radii.control, height: 44, justifyContent: 'center', width: 44 },
+  signalIcon: { alignItems: 'center', backgroundColor: colors.coral, borderRadius: radii.control, height: 44, justifyContent: 'center', width: 44 },
   headerText: { flex: 1, marginLeft: 12 },
-  placeName: { color: colors.ink, fontSize: 17, fontWeight: '600' },
+  placeName: { color: colors.textPrimary, fontSize: 17, fontWeight: '600' },
   placeContext: { color: colors.muted, fontSize: 12, marginTop: 3 },
-  close: { alignItems: 'center', backgroundColor: colors.surfaceSoft, borderRadius: 8, height: 44, justifyContent: 'center', width: 40 },
+  close: { alignItems: 'center', backgroundColor: colors.surfaceSoft, borderRadius: radii.control, height: 44, justifyContent: 'center', width: 40 },
   loadingRow: { alignItems: 'center', flexDirection: 'row', gap: 8, marginTop: 14 },
   loadingText: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  statePanel: { backgroundColor: colors.ink, borderRadius: 8, marginTop: 18, padding: 16 },
+  statePanel: { backgroundColor: colors.ink, borderRadius: radii.card, marginTop: 18, padding: 16 },
   stateEyebrowRow: { alignItems: 'center', flexDirection: 'row', gap: 6 },
   statePulse: { backgroundColor: colors.lime, borderRadius: 4, height: 7, width: 7 },
   stateEyebrow: { color: colors.lime, fontSize: 12, fontWeight: '600' },
   stateTitle: { color: colors.white, fontSize: 22, fontWeight: '600', lineHeight: 27, marginTop: 7 },
-  stateText: { color: '#BEC8C1', fontSize: 13, lineHeight: 20, marginTop: 7 },
+  stateText: { color: colors.mutedOnDark, fontSize: 13, lineHeight: 20, marginTop: 7 },
   stateStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
-  statPill: { alignItems: 'center', backgroundColor: '#29342E', borderRadius: 8, flexDirection: 'row', gap: 6, minHeight: 32, paddingHorizontal: 9 },
+  statPill: { alignItems: 'center', backgroundColor: colors.surfaceOnDark, borderRadius: radii.pill, flexDirection: 'row', gap: 6, minHeight: 32, paddingHorizontal: 9 },
   statText: { color: colors.white, fontSize: 12, fontWeight: '600' },
   actions: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  primaryAction: { alignItems: 'center', backgroundColor: colors.green, borderRadius: 8, flex: 1, flexDirection: 'row', gap: 8, justifyContent: 'center', minHeight: 48, ...shadowSoft },
-  primaryActionText: { color: colors.white, fontSize: 13, fontWeight: '600' },
-  secondaryAction: { alignItems: 'center', backgroundColor: colors.surfaceSoft, borderColor: colors.line, borderRadius: 8, borderWidth: 1, justifyContent: 'center', width: 48 },
+  primaryAction: { alignItems: 'center', backgroundColor: colors.lime, borderColor: colors.ink, borderRadius: radii.control, borderWidth: 2, flex: 1, flexDirection: 'row', gap: 8, justifyContent: 'center', minHeight: 48, ...shadowSoft },
+  primaryActionText: { color: colors.ink, fontSize: 13, fontWeight: '600' },
+  secondaryAction: { alignItems: 'center', backgroundColor: colors.surfaceSoft, borderColor: colors.line, borderRadius: radii.control, borderWidth: 1, justifyContent: 'center', width: 48 },
   sectionHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, marginTop: 22 },
-  sectionLabel: { color: colors.ink, fontSize: 15, fontWeight: '600' },
-  sectionCount: { backgroundColor: colors.surfaceSoft, borderRadius: 999, color: colors.muted, fontSize: 12, fontWeight: '600', overflow: 'hidden', paddingHorizontal: 9, paddingVertical: 5 },
-  empty: { alignItems: 'center', backgroundColor: colors.surfaceSoft, borderColor: colors.line, borderRadius: 8, borderWidth: 1, padding: 18 },
-  emptyTitle: { color: colors.ink, fontSize: 13, fontWeight: '600', marginTop: 8, textAlign: 'center' },
+  sectionLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
+  sectionCount: { backgroundColor: colors.surfaceSoft, borderRadius: radii.pill, color: colors.muted, fontSize: 12, fontWeight: '600', overflow: 'hidden', paddingHorizontal: 9, paddingVertical: 5 },
+  empty: { alignItems: 'center', backgroundColor: colors.surfaceSoft, borderColor: colors.line, borderRadius: radii.card, borderWidth: 1, padding: 18 },
+  emptyTitle: { color: colors.textPrimary, fontSize: 13, fontWeight: '600', marginTop: 8, textAlign: 'center' },
   emptyText: { color: colors.muted, fontSize: 12, lineHeight: 16, marginTop: 4, textAlign: 'center' },
-  signalCard: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: 8, borderWidth: 1, marginBottom: 10, padding: 13, ...shadowSoft },
+  signalCard: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radii.card, borderWidth: 1, marginBottom: 10, padding: 13, ...shadowSoft },
   coordinateSignalCard: { marginTop: 18 },
   signalMeta: { alignItems: 'center', flexDirection: 'row', gap: 6 },
-  freshBadge: { backgroundColor: colors.lime, borderRadius: 5, paddingHorizontal: 8, paddingVertical: 4 },
+  freshBadge: { backgroundColor: colors.lime, borderRadius: radii.pill, paddingHorizontal: 8, paddingVertical: 4 },
   freshText: { color: colors.greenDark, fontSize: 12, fontWeight: '600' },
   age: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  signalTitle: { color: colors.ink, fontSize: 16, fontWeight: '600', marginTop: 10 },
+  signalTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: '600', marginTop: 10 },
   signalText: { color: colors.inkSoft, fontSize: 13, lineHeight: 20, marginTop: 6 },
   mediaRail: { marginTop: 10 },
-  mediaPreview: { backgroundColor: colors.surfaceSoft, borderRadius: 8, height: 138, marginRight: 9, width: 138 },
-  coordinateMedia: { backgroundColor: colors.surfaceSoft, borderRadius: 8, height: 190, marginTop: 12, width: '100%' },
+  mediaPreview: { backgroundColor: colors.surfaceSoft, borderRadius: radii.control, height: 138, marginRight: 9, width: 138 },
+  coordinateMedia: { backgroundColor: colors.surfaceSoft, borderRadius: radii.control, height: 190, marginTop: 12, width: '100%' },
 });
