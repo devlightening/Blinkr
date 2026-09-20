@@ -43,7 +43,8 @@
     "test:nearby": "tsc --ignoreConfig --ignoreDeprecations 6.0 --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --outDir .tmp/nearby-tests scripts/nearby-request-ownership.test.ts scripts/nearby-place-tiers.test.ts scripts/map-clusters.test.ts src/nearbyRequestOwnership.ts src/nearbyPlaceTiers.ts src/mapClusters.ts && node .tmp/nearby-tests/scripts/nearby-request-ownership.test.js && node .tmp/nearby-tests/scripts/nearby-place-tiers.test.js && node .tmp/nearby-tests/scripts/map-clusters.test.js",
     "brand:build": "node scripts/build-brand.cjs",
     "test:ui": "node scripts/ui-test.cjs",
-    "test:product": "tsc --ignoreConfig --ignoreDeprecations 6.0 --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --outDir .tmp/product-tests scripts/product-presentation.test.ts && node .tmp/product-tests/scripts/product-presentation.test.js"
+    "test:product": "tsc --ignoreConfig --ignoreDeprecations 6.0 --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --outDir .tmp/product-tests scripts/product-presentation.test.ts && node .tmp/product-tests/scripts/product-presentation.test.js",
+    "test:theme": "tsc --ignoreConfig --ignoreDeprecations 6.0 --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --outDir .tmp/theme-tests scripts/theme-contrast.test.ts src/theme.ts && node .tmp/theme-tests/scripts/theme-contrast.test.js"
   },
   "private": true
 }

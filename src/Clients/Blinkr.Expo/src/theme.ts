@@ -1,96 +1,124 @@
+/**
+ * Blinkr design tokens - the single source for colour, spacing, radius and type.
+ *
+ * Names that existed before the redesign (`ink`, `surface`, `muted`, `green`, ...) are kept and
+ * re-pointed at the new palette so screens migrate one at a time; new code should prefer the
+ * semantic names (`background`, `text`, `textSecondary`, `primary`, `mint`, ...).
+ */
 export const colors = {
-  ink: '#101713',
+  // --- Palette ---------------------------------------------------------------------------
+  background: '#101714',
+  surface: '#19221F',
+  surfaceElevated: '#202B26',
+  glass: 'rgba(15, 23, 20, 0.94)',
+  primary: '#D9FF57',
+  primaryPressed: '#C5F13D',
+  mint: '#65E6B5',
+  darkGreen: '#159B72',
+  text: '#FFFFFF',
+  textSecondary: '#A2ADA7',
+  /** Decorative / large text only - it does not reach 4.5:1 on `surface`. */
+  textMuted: '#6B7871',
+  border: 'rgba(255, 255, 255, 0.10)',
+  orange: '#FFB45E',
+  purple: '#BA8BFF',
+  pink: '#FF74B8',
+  danger: '#FF675C',
+
+  // --- Legacy names, mapped onto the palette ---------------------------------------------
+  ink: '#101714',
   inkSoft: '#C4CCC6',
-  textPrimary: '#F4F7F1',
-  muted: '#8A968D',
-  mutedSoft: '#5C665F',
-  line: '#262C26',
-  lineStrong: '#3A423B',
-  surface: '#171D19',
-  surfaceSoft: '#12170F',
-  surfaceTint: '#122019',
+  textPrimary: '#FFFFFF',
+  muted: '#A2ADA7',
+  mutedSoft: '#6B7871',
+  line: 'rgba(255, 255, 255, 0.10)',
+  lineStrong: 'rgba(255, 255, 255, 0.18)',
+  surfaceSoft: '#141C18',
+  surfaceTint: '#16241E',
   mapCanvas: '#0B0F0C',
-  green: '#22A876',
-  greenDark: '#5EE8A5',
-  greenSoft: '#132019',
-  greenLine: '#25392E',
-  lime: '#D8F65A',
-  coral: '#F36C52',
+  green: '#159B72',
+  greenDark: '#65E6B5',
+  greenSoft: '#12241D',
+  greenLine: '#1F3A2E',
+  lime: '#D9FF57',
+  coral: '#FF675C',
   coralSoft: '#2A1712',
   coralLine: '#4A2B22',
-  purple: '#7957C8',
-  purpleSoft: '#1E1830',
-  teal: '#2BB5AE',
-  tealSoft: '#132523',
-  blue: '#4A94E8',
+  blue: '#5AA7FF',
   blueSoft: '#E9F2FC',
-  amber: '#D58A19',
-  amberSoft: '#241C0C',
-  warning: '#E08A3C',
-  error: '#F47066',
+  teal: '#2BD4C6',
+  amber: '#FFD25E',
+  warning: '#FFB45E',
+  error: '#FF675C',
   errorSoft: '#2B1613',
   errorLine: '#4A2521',
   white: '#FFFFFF',
-  scrim: 'rgba(3, 7, 5, 0.62)',
+  scrim: 'rgba(3, 7, 5, 0.52)',
   shadow: '#000000',
-  // Dark-surface variants, for the hero/header sections that are always-dark
-  // by brand design (Auth hero, PostDetailSheet current-state panel) -
-  // not an OS dark-mode palette.
-  mutedOnDark: '#BCC7C0',
-  surfaceOnDark: '#29342E',
-  lineOnDark: '#3B4941',
+  mutedOnDark: '#A2ADA7',
+  surfaceOnDark: '#202B26',
+  lineOnDark: 'rgba(255, 255, 255, 0.14)',
 };
 
-/** Per-signal-type marker/accent color, shared by the map pins and the composer's type picker. */
+/** Per-signal-type accent, shared by the map pins, the composer's type picker and signal cards. */
 export const signalColors: Record<
   'GeneralObservation' | 'Crowd' | 'Queue' | 'TemporaryStatus' | 'Event' | 'Offer' | 'NewOpening',
   string
 > = {
   GeneralObservation: colors.blue,
-  Crowd: colors.coral,
+  Crowd: colors.orange,
   Queue: colors.amber,
-  TemporaryStatus: colors.error,
-  Event: colors.green,
+  TemporaryStatus: colors.danger,
+  Event: colors.mint,
   Offer: colors.purple,
-  NewOpening: colors.teal,
+  NewOpening: colors.pink,
 };
 
 export const shadow = {
   shadowColor: colors.shadow,
-  shadowOffset: { width: 0, height: 7 },
-  shadowOpacity: 0.14,
-  shadowRadius: 16,
-  elevation: 7,
+  shadowOffset: { width: 0, height: 8 },
+  shadowOpacity: 0.28,
+  shadowRadius: 18,
+  elevation: 8,
 };
 
 export const shadowSoft = {
   shadowColor: colors.shadow,
-  shadowOffset: { width: 0, height: 3 },
-  shadowOpacity: 0.08,
-  shadowRadius: 9,
-  elevation: 3,
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.18,
+  shadowRadius: 10,
+  elevation: 4,
 };
 
 export const radii = {
-  control: 16,
-  panel: 28,
-  card: 20,
+  sm: 12,
+  md: 18,
+  lg: 26,
+  xl: 34,
   pill: 999,
+  // Legacy names
+  control: 18,
+  card: 22,
+  panel: 30,
 };
 
 export const spacing = {
-  xs: 6,
-  sm: 10,
-  md: 16,
-  lg: 22,
-  xl: 30,
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  xxl: 32,
 };
 
 export const typography = {
-  title: { fontSize: 24, lineHeight: 30, fontWeight: '700' as const, letterSpacing: 0 },
-  heading: { fontSize: 18, lineHeight: 24, fontWeight: '600' as const, letterSpacing: 0 },
-  body: { fontSize: 15, lineHeight: 22, fontWeight: '400' as const, letterSpacing: 0 },
-  caption: { fontSize: 12, lineHeight: 18, fontWeight: '500' as const, letterSpacing: 0 },
+  headline: { fontSize: 30, lineHeight: 36, fontWeight: '800' as const, letterSpacing: 0 },
+  title: { fontSize: 24, lineHeight: 30, fontWeight: '800' as const, letterSpacing: 0 },
+  heading: { fontSize: 20, lineHeight: 26, fontWeight: '700' as const, letterSpacing: 0 },
+  body: { fontSize: 16, lineHeight: 22, fontWeight: '400' as const, letterSpacing: 0 },
+  bodyStrong: { fontSize: 16, lineHeight: 22, fontWeight: '700' as const, letterSpacing: 0 },
+  caption: { fontSize: 13, lineHeight: 18, fontWeight: '500' as const, letterSpacing: 0 },
+  label: { fontSize: 12, lineHeight: 16, fontWeight: '700' as const, letterSpacing: 0.4 },
 };
 export const motion = { fast: 160, sheet: 240 };
 
@@ -104,4 +132,32 @@ export const springs = {
   gentle: { damping: 22, stiffness: 170, mass: 1 },
 };
 
-export const sizes = { touch: 44, icon: 20, marker: 38 };
+/** `touch` is the minimum interactive size (HIG 44pt / Material 48dp). */
+export const sizes = { touch: 44, icon: 20, marker: 38, bottomBar: 76, camera: 68 };
+
+/** Same tokens under the names used in the design package's reference code. */
+export const blinkrTheme = { colors, spacing, radius: radii, typography } as const;
+
+/** Accent for a Place category: marker outline, icon and place chips share it. */
+export const categoryTones: Record<string, string> = {
+  RESTAURANT: colors.mint,
+  FAST_FOOD: colors.mint,
+  CAFE: colors.mint,
+  BAKERY: colors.mint,
+  BAR: colors.pink,
+  ENTERTAINMENT: colors.pink,
+  SHOP: colors.orange,
+  SUPERMARKET: colors.orange,
+  PARK: colors.mint,
+  PLAYGROUND: colors.mint,
+  SPORT: colors.purple,
+  TOURISM: colors.pink,
+  MOSQUE: colors.purple,
+  PLACE_OF_WORSHIP: colors.purple,
+  EDUCATION: colors.blue,
+  HEALTH: colors.danger,
+  PHARMACY: colors.danger,
+  TRANSPORT: colors.blue,
+  FUEL: colors.orange,
+};
+export const categoryTone = (category?: string | null) => categoryTones[(category ?? '').toUpperCase()] ?? colors.mint;
