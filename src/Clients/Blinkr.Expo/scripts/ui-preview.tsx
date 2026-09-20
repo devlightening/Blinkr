@@ -6,6 +6,7 @@ import { SignalComposer } from '../src/components/SignalComposer';
 import { PostDetailSheet } from '../src/components/PostDetailSheet';
 import { BlinkrMark } from '../src/components/BlinkrMark';
 import { nearby, area as initialArea } from './ui-fixtures';
+import { SceneHost } from './ui-scenes';
 import type { ComposerArea } from '../src/types';
 function Preview() {
   const [area, setArea] = useState<ComposerArea>(initialArea);
@@ -39,4 +40,5 @@ function Preview() {
     </View>
   </SafeAreaProvider>;
 }
-createRoot(document.getElementById('root')!).render(<Preview />);
+const scene = new URLSearchParams(location.search).get('scene');
+createRoot(document.getElementById('root')!).render(scene ? <SceneHost name={scene} /> : <Preview />);

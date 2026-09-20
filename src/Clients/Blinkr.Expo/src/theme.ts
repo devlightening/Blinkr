@@ -133,7 +133,7 @@ export const springs = {
 };
 
 /** `touch` is the minimum interactive size (HIG 44pt / Material 48dp). */
-export const sizes = { touch: 44, icon: 20, marker: 38, bottomBar: 76, camera: 68 };
+export const sizes = { touch: 44, icon: 20, marker: 38, bottomBar: 70, camera: 64 };
 
 /** Same tokens under the names used in the design package's reference code. */
 export const blinkrTheme = { colors, spacing, radius: radii, typography } as const;
