@@ -120,6 +120,10 @@ Check "empty message leaks no exception" (-not (Leaks-Exception $r.Raw))
 $r = Invoke-Api -Method GET -Path "/api/chat/conversations" -Token $b.Token
 $mine = @($r.Json.items | Where-Object { $_.id -eq $conversationId })
 Check "B lists the conversation with preview" ($mine.Count -eq 1 -and $mine[0].lastMessagePreview -eq $text -and $mine[0].otherUserId -eq $a.Id) "HTTP $($r.Status)"
+Check "B sees exactly one unread message" ($mine.Count -eq 1 -and $mine[0].unreadCount -eq 1) "unreadCount=$($mine[0].unreadCount)"
+$rA = Invoke-Api -Method GET -Path "/api/chat/conversations" -Token $a.Token
+$senderSide = @($rA.Json.items | Where-Object { $_.id -eq $conversationId })
+Check "sender's own message is not unread for the sender" ($senderSide.Count -eq 1 -and $senderSide[0].unreadCount -eq 0) "unreadCount=$($senderSide[0].unreadCount)"
 
 $r = Invoke-Api -Method GET -Path "/api/chat/conversations/$conversationId/messages?limit=30" -Token $b.Token
 $msgs = @($r.Json.items)
@@ -127,6 +131,9 @@ Check "B reads the message unread" ($r.Status -eq 200 -and $msgs.Count -eq 1 -an
 
 $r = Invoke-Api -Method POST -Path "/api/chat/conversations/$conversationId/read" -Token $b.Token
 Check "B marks read (204)" ($r.Status -eq 204) "HTTP $($r.Status)"
+$rB2 = Invoke-Api -Method GET -Path "/api/chat/conversations" -Token $b.Token
+$afterRead = @($rB2.Json.items | Where-Object { $_.id -eq $conversationId })
+Check "unread count drops to 0 after mark-read" ($afterRead.Count -eq 1 -and $afterRead[0].unreadCount -eq 0) "unreadCount=$($afterRead[0].unreadCount)"
 $r = Invoke-Api -Method GET -Path "/api/chat/conversations/$conversationId/messages" -Token $b.Token
 Check "message is read after mark-read" (@($r.Json.items)[0].isRead -eq $true)
 

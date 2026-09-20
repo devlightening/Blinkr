@@ -15,4 +15,7 @@ public interface IChatMessageRepository
     Task<ChatMessage> InsertAsync(ChatMessage message, CancellationToken ct);
     Task<(IReadOnlyList<ChatMessage> Items, string? NextCursor)> ListByConversationAsync(string conversationId, int limit, string? beforeCursor, CancellationToken ct);
     Task MarkReadAsync(string conversationId, Guid userId, CancellationToken ct);
+
+    /// <summary>Messages from other participants that <paramref name="userId"/> has not read, per conversation. Conversations with none are absent.</summary>
+    Task<IReadOnlyDictionary<string, int>> CountUnreadAsync(IReadOnlyCollection<string> conversationIds, Guid userId, CancellationToken ct);
 }

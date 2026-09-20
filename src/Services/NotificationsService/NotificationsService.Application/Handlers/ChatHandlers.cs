@@ -95,12 +95,20 @@ public sealed class MarkConversationReadHandler : IRequestHandler<MarkConversati
 public sealed class ListConversationsHandler : IRequestHandler<ListConversationsQuery, IReadOnlyList<ConversationDto>>
 {
     private readonly IConversationRepository _conversations;
-    public ListConversationsHandler(IConversationRepository conversations) => _conversations = conversations;
+    private readonly IChatMessageRepository _messages;
+
+    public ListConversationsHandler(IConversationRepository conversations, IChatMessageRepository messages)
+    {
+        _conversations = conversations;
+        _messages = messages;
+    }
 
     public async Task<IReadOnlyList<ConversationDto>> Handle(ListConversationsQuery q, CancellationToken ct)
     {
         var list = await _conversations.ListForUserAsync(q.UserId, ct);
-        return list.Select(c => c.ToDto(q.UserId)).ToList();
+        var ids = list.Select(c => c.Id).OfType<string>().ToList();
+        var unread = await _messages.CountUnreadAsync(ids, q.UserId, ct);
+        return list.Select(c => c.ToDto(q.UserId, c.Id is not null ? unread.GetValueOrDefault(c.Id) : 0)).ToList();
     }
 }
 

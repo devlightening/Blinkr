@@ -5,13 +5,14 @@ namespace NotificationsService.Application.Mapping;
 
 public static class ChatMapper
 {
-    public static ConversationDto ToDto(this Conversation c, Guid viewerId) =>
+    public static ConversationDto ToDto(this Conversation c, Guid viewerId, int unreadCount = 0) =>
         new(
             c.Id ?? string.Empty,
             c.ParticipantIds.FirstOrDefault(p => p != viewerId),
             c.LastMessageAtUtc,
             c.LastMessagePreview,
-            c.LastMessageSenderId
+            c.LastMessageSenderId,
+            unreadCount
         );
 
     public static ChatMessageDto ToDto(this ChatMessage m, Guid viewerId) =>

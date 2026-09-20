@@ -52,4 +52,21 @@ public class MongoChatMessageRepository : IChatMessageRepository
         var update = Builders<ChatMessage>.Update.AddToSet(x => x.ReadByUserIds, userId);
         await _messages.UpdateManyAsync(filter, update, cancellationToken: ct);
     }
+
+    public async Task<IReadOnlyDictionary<string, int>> CountUnreadAsync(IReadOnlyCollection<string> conversationIds, Guid userId, CancellationToken ct)
+    {
+        if (conversationIds.Count == 0) return new Dictionary<string, int>();
+
+        // Same predicate MarkReadAsync clears, so "unread" and "mark read" can never disagree.
+        var filter = Builders<ChatMessage>.Filter.In(x => x.ConversationId, conversationIds) &
+                     Builders<ChatMessage>.Filter.Ne(x => x.SenderId, userId) &
+                     Builders<ChatMessage>.Filter.Not(Builders<ChatMessage>.Filter.AnyEq(x => x.ReadByUserIds, userId));
+
+        var groups = await _messages.Aggregate()
+            .Match(filter)
+            .Group(x => x.ConversationId, g => new { ConversationId = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        return groups.ToDictionary(x => x.ConversationId, x => x.Count);
+    }
 }

@@ -5,7 +5,8 @@ public record ConversationDto(
     Guid OtherUserId,
     DateTime LastMessageAtUtc,
     string? LastMessagePreview,
-    Guid? LastMessageSenderId
+    Guid? LastMessageSenderId,
+    int UnreadCount = 0
 );
 
 public record ChatMessageDto(
