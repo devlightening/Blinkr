@@ -23,6 +23,8 @@ public static class ServiceCollectionExtensions
         services.AddControllers()
             .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
+        services.AddScoped<NotificationsService.Api.Filters.ChatExceptionFilter>();
+
         services.AddEndpointsApiExplorer();
         return services;
     }

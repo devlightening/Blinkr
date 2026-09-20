@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NotificationsService.Api.Filters;
 using NotificationsService.Application.Commands;
 using NotificationsService.Application.Queries;
 
@@ -9,6 +10,7 @@ namespace NotificationsService.Api.Controllers;
 [ApiController]
 [Route("api/chat")]
 [Authorize]
+[ServiceFilter(typeof(ChatExceptionFilter))]
 public class ChatController : ControllerBase
 {
     private readonly IMediator _mediator;
