@@ -142,6 +142,16 @@ Start-Sleep -Seconds 6
 $mapAfterExpired = Get-Map -Lat $lat -Lon $lon
 Assert-Truthy ((@($mapAfterExpired.signals) | Where-Object { $_.postId -eq $expiredPostId }).Count -eq 0) "Expired coordinate signal appeared on active map."
 
+Write-Host "[G] Verifying the Yerler layer keeps Places with active signals..."
+# includeCatalogPlaces feeds the Yerler layer. The catalog is capped per viewport, so a Place with a
+# live signal must still be present rather than being pushed out by more recently updated catalog rows.
+$delta = 0.025
+$catalogMap = Invoke-Json -Method GET -Url "$GatewayBaseUrl/api/map/bounds?south=$($lat - $delta)&west=$($lon - $delta)&north=$($lat + $delta)&east=$($lon + $delta)&sinceMinutes=180&limit=120&includeCatalogPlaces=true"
+$catalogPlaces = @($catalogMap.places)
+Assert-Truthy ($catalogPlaces.Count -le 80) "Catalog Place cap exceeded 80 (got $($catalogPlaces.Count))."
+Assert-Truthy ((@($catalogPlaces | ForEach-Object { $_.id } | Sort-Object -Unique)).Count -eq $catalogPlaces.Count) "Yerler layer returned duplicate Places."
+Assert-Truthy ((@($catalogPlaces | Where-Object { $_.id -eq $place.id })).Count -eq 1) "Yerler layer dropped Place $($place.id) which has an active signal ($($catalogPlaces.Count) places returned)."
+
 Write-Host "PASS BLK-LOCATION-01 location/map smoke"
 Write-Host "PlaceId: $($place.id)"
 Write-Host "CoordinatePostId: $coordinatePostId"

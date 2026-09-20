@@ -106,11 +106,28 @@ public sealed class MapController : ControllerBase
 
     private async Task<IReadOnlyList<PlaceMapItem>> GetPlacesAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, bool includeCatalogPlaces, CancellationToken ct)
     {
+        if (!includeCatalogPlaces)
+            return await FetchPlacesAsync(minLat, minLon, maxLat, maxLon, limit, activeOnly: true, ct);
+
+        // The catalog query is ordered by recency, not by activity, so on its own the viewport cap
+        // can push out a Place that has a live signal. Active Places always come first.
+        var activeTask = FetchPlacesAsync(minLat, minLon, maxLat, maxLon, limit, activeOnly: true, ct);
+        var catalogTask = FetchPlacesAsync(minLat, minLon, maxLat, maxLon, limit, activeOnly: false, ct);
+        await Task.WhenAll(activeTask, catalogTask);
+        return activeTask.Result
+            .Concat(catalogTask.Result)
+            .DistinctBy(place => place.Id)
+            .Take(limit)
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyList<PlaceMapItem>> FetchPlacesAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, bool activeOnly, CancellationToken ct)
+    {
         var baseUrl = _configuration["PlaceService:BaseUrl"] ?? "http://localhost:5225";
         var client = _httpClientFactory.CreateClient();
         client.BaseAddress = new Uri(baseUrl);
         var url = string.Create(CultureInfo.InvariantCulture,
-            $"/api/places/bounds?minLat={minLat:R}&minLon={minLon:R}&maxLat={maxLat:R}&maxLon={maxLon:R}&limit={limit}&activeOnly={!includeCatalogPlaces}");
+            $"/api/places/bounds?minLat={minLat:R}&minLon={minLon:R}&maxLat={maxLat:R}&maxLon={maxLon:R}&limit={limit}&activeOnly={activeOnly}");
         try
         {
             var places = await client.GetFromJsonAsync<IReadOnlyList<PlaceMapItem>>(url, ct);
