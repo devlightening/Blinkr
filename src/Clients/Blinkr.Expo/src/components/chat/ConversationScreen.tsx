@@ -11,9 +11,10 @@ import type { AuthResponse, ChatMessage, Conversation } from '../../types';
 
 const POLL_INTERVAL_MS = 4000;
 
-export function ConversationScreen({ auth, conversation, onAuthChange, onSessionExpired, onBack }: {
+export function ConversationScreen({ auth, conversation, otherUserName, onAuthChange, onSessionExpired, onBack }: {
   auth: AuthResponse;
   conversation: Conversation;
+  otherUserName: string;
   onAuthChange: (auth: AuthResponse) => void;
   onSessionExpired: () => void;
   onBack: () => void;
@@ -77,7 +78,7 @@ export function ConversationScreen({ auth, conversation, onAuthChange, onSession
   return <SafeAreaView edges={['top']} style={styles.screen}>
     <View style={styles.bar}>
       <AnimatedPressable accessibilityLabel="Geri dön" onPress={onBack} pressScale={0.88} style={styles.icon}><ArrowLeft color={colors.textPrimary} /></AnimatedPressable>
-      <Text style={styles.heading}>Sohbet</Text>
+      <Text numberOfLines={1} style={styles.heading}>{otherUserName}</Text>
     </View>
 
     {isLoading ? (
@@ -85,7 +86,7 @@ export function ConversationScreen({ auth, conversation, onAuthChange, onSession
     ) : !messages.length ? (
       <View style={styles.centerFill}>
         <Text style={styles.emptyTitle}>Henüz mesaj yok</Text>
-        <Text style={styles.emptyText}>İlk mesajı sen yaz.</Text>
+        <Text style={styles.emptyText}>{otherUserName} ile ilk mesajı sen yaz.</Text>
       </View>
     ) : (
       <FlatList
@@ -136,7 +137,7 @@ const styles = StyleSheet.create({
   screen: { backgroundColor: colors.surface, flex: 1 },
   bar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, marginVertical: spacing.sm },
   icon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  heading: { ...typography.heading, color: colors.textPrimary },
+  heading: { ...typography.heading, color: colors.textPrimary, flexShrink: 1 },
   centerFill: { alignItems: 'center', flex: 1, gap: 6, justifyContent: 'center', paddingHorizontal: 36 },
   emptyTitle: { ...typography.heading, color: colors.textPrimary },
   emptyText: { ...typography.body, color: colors.muted, textAlign: 'center' },

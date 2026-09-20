@@ -4,7 +4,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { MapPin, MessageCirclePlus, Plus, UserRound } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { listConversations, startConversation } from '../../api';
+import { getUser, listConversations, startConversation } from '../../api';
 import { friendlyError } from '../../productPresentation';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Sheet } from '../Sheet';
@@ -14,6 +14,12 @@ import { colors, radii, shadow, shadowSoft, typography, spacing } from '../../th
 import type { AuthResponse, Conversation, UserSummary } from '../../types';
 
 const POLL_INTERVAL_MS = 8000;
+const NAME_BATCH_SIZE = 30;
+const FALLBACK_NAME = 'Kullanıcı';
+
+// user id -> user name. Names are public and stable, so successful lookups are kept for the
+// whole app session and survive the tab being unmounted and remounted.
+const userNameCache = new Map<string, string>();
 
 const formatWhen = (iso: string) => {
   const date = new Date(iso);
@@ -38,8 +44,30 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onOpenMap
   const [error, setError] = useState<string | null>(null);
   const [isSearchOpen, setSearchOpen] = useState(false);
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+  const [names, setNames] = useState<Record<string, string>>(() => Object.fromEntries(userNameCache));
   const pollInFlight = useRef(false);
   const hasSettled = useRef(false);
+  // Ids already looked up by this screen instance. A failed lookup (e.g. a deleted user) is not
+  // retried on every poll; it is tried again the next time the screen is opened.
+  const requestedNames = useRef(new Set<string>());
+
+  const resolveNames = useCallback(async (items: Conversation[]) => {
+    const missing = [...new Set(items.map((item) => item.otherUserId))]
+      .filter((id) => !userNameCache.has(id) && !requestedNames.current.has(id))
+      .slice(0, NAME_BATCH_SIZE);
+    if (!missing.length) return;
+    missing.forEach((id) => requestedNames.current.add(id));
+
+    const results = await Promise.allSettled(missing.map((id) => getUser(auth, id, onAuthChange, onSessionExpired)));
+    let resolved = false;
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled' && result.value.userName) {
+        userNameCache.set(missing[index], result.value.userName);
+        resolved = true;
+      }
+    });
+    if (resolved) setNames(Object.fromEntries(userNameCache));
+  }, [auth, onAuthChange, onSessionExpired]);
 
   // Only background polls are skipped while another request is in flight; a user-initiated
   // refresh always runs so the pull-to-refresh indicator can never be left spinning.
@@ -52,6 +80,7 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onOpenMap
       setConversations(items);
       setError(null);
       console.log('[Blinkr Chat]', { status: 'ready', resultCount: items.length });
+      void resolveNames(items);
     } catch (err) {
       console.log('[Blinkr Chat]', { status: 'failed', reason: err instanceof Error ? err.message : String(err) });
       if (!background) setError(friendlyError(err, 'Sohbetler yüklenemedi. Tekrar dene.'));
@@ -61,7 +90,7 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onOpenMap
       if (!background) setLoading(false);
       setRefreshing(false);
     }
-  }, [auth, onAuthChange, onSessionExpired]);
+  }, [auth, onAuthChange, onSessionExpired, resolveNames]);
 
   // `refresh` changes identity when the session token is refreshed; reload quietly in that
   // case instead of flashing the full-screen spinner again.
@@ -81,6 +110,9 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onOpenMap
 
   const openConversationWith = async (user: UserSummary) => {
     setSearchOpen(false);
+    // The search result already carries the name; no extra lookup is needed.
+    userNameCache.set(user.id, user.userName);
+    setNames(Object.fromEntries(userNameCache));
     try {
       const conversation = await startConversation(auth, user.id, onAuthChange, onSessionExpired);
       setActiveConversation(conversation);
@@ -93,6 +125,7 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onOpenMap
     return <ConversationScreen
       auth={auth}
       conversation={activeConversation}
+      otherUserName={names[activeConversation.otherUserId] ?? FALLBACK_NAME}
       onAuthChange={onAuthChange}
       onBack={() => { setActiveConversation(null); refresh(true); }}
       onSessionExpired={onSessionExpired}
@@ -130,17 +163,21 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onOpenMap
       <ScrollView
         refreshControl={<RefreshControl onRefresh={() => { setRefreshing(true); refresh(); }} refreshing={isRefreshing} tintColor={colors.green} />}
       >
-        {conversations.map((conversation, index) => (
-          <Animated.View entering={FadeInDown.duration(220).delay(Math.min(index, 10) * 30)} key={conversation.id}>
-            <AnimatedPressable accessibilityLabel="Konuşmayı aç" onPress={() => setActiveConversation(conversation)} pressScale={0.97} style={styles.row}>
-              <View style={styles.avatar}><Text style={styles.avatarText}>?</Text></View>
-              <View style={styles.rowBody}>
-                <Text numberOfLines={1} style={styles.rowPreview}>{conversation.lastMessagePreview || 'Yeni konuşma'}</Text>
-              </View>
-              <Text style={styles.rowWhen}>{formatWhen(conversation.lastMessageAtUtc)}</Text>
-            </AnimatedPressable>
-          </Animated.View>
-        ))}
+        {conversations.map((conversation, index) => {
+          const name = names[conversation.otherUserId] ?? FALLBACK_NAME;
+          return (
+            <Animated.View entering={FadeInDown.duration(220).delay(Math.min(index, 10) * 30)} key={conversation.id}>
+              <AnimatedPressable accessibilityLabel={`${name} ile konuşmayı aç`} onPress={() => setActiveConversation(conversation)} pressScale={0.97} style={styles.row}>
+                <View style={styles.avatar}><Text style={styles.avatarText}>{name.slice(0, 1).toUpperCase()}</Text></View>
+                <View style={styles.rowBody}>
+                  <Text numberOfLines={1} style={styles.rowName}>{name}</Text>
+                  <Text numberOfLines={1} style={styles.rowPreview}>{conversation.lastMessagePreview || 'Yeni konuşma'}</Text>
+                </View>
+                <Text style={styles.rowWhen}>{formatWhen(conversation.lastMessageAtUtc)}</Text>
+              </AnimatedPressable>
+            </Animated.View>
+          );
+        })}
       </ScrollView>
     )}
 
@@ -180,7 +217,8 @@ const styles = StyleSheet.create({
   avatar: { alignItems: 'center', backgroundColor: colors.ink, borderRadius: radii.control, height: 48, justifyContent: 'center', width: 48 },
   avatarText: { color: colors.white, fontSize: 18, fontWeight: '600' },
   rowBody: { flex: 1 },
-  rowPreview: { ...typography.body, color: colors.textPrimary },
+  rowName: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
+  rowPreview: { ...typography.caption, color: colors.muted, marginTop: 2 },
   rowWhen: { ...typography.caption, color: colors.muted },
   bottomNavWrap: { alignItems: 'center', left: 12, position: 'absolute', right: 12 },
   bottomNav: { alignItems: 'center', backgroundColor: 'rgba(15,20,16,0.94)', borderColor: 'rgba(244,247,241,0.08)', borderRadius: radii.control, borderWidth: 1, flexDirection: 'row', height: 68, justifyContent: 'space-around', maxWidth: 420, paddingHorizontal: 12, width: '100%', ...shadow },

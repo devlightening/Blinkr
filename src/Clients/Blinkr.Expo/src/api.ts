@@ -304,6 +304,14 @@ export const createSignal = async (
 export const searchUsers = (auth: AuthResponse, query: string, signal?: AbortSignal) =>
   requestJson<UserSummary[]>(`/api/users/search?${new URLSearchParams({ q: query })}`, { auth, signal });
 
+export const getUser = (
+  auth: AuthResponse,
+  userId: string,
+  onAuthRefresh?: (auth: AuthResponse) => void,
+  onSessionExpired?: () => void,
+) =>
+  requestJson<UserSummary>(`/api/users/${userId}`, { auth, onAuthRefresh, onSessionExpired });
+
 export const listConversations = (
   auth: AuthResponse,
   onAuthRefresh?: (auth: AuthResponse) => void,
