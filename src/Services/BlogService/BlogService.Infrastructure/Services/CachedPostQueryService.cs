@@ -162,10 +162,10 @@ public class CachedPostQueryService : IPostQueryService
         return new PaginatedResult<PostReadDto> { Items = items.Select(MapToReadDto).ToList(), TotalCount = total, Page = page, PageSize = pageSize };
     }
 
-    public async Task<PaginatedResult<PostReadDto>> GetUserPostsAsync(Guid authorId, int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<PaginatedResult<PostReadDto>> GetUserPostsAsync(Guid authorId, int page, int pageSize, CancellationToken cancellationToken = default, bool includeAnonymous = false)
     {
         var collection = _mongoDb.GetCollection<PostDocument>("posts");
-        var filter = Builders<PostDocument>.Filter.Eq(p => p.AuthorId, authorId);
+        var filter = AuthorPostFilters.ForAuthor(authorId, includeAnonymous);
         var total = (int)await collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
         var items = await collection.Find(filter)
             .SortByDescending(p => p.CreatedAtUtc)
@@ -506,7 +506,7 @@ public class CachedPostQueryService : IPostQueryService
 
         if (!string.IsNullOrEmpty(query.AuthorId) && Guid.TryParse(query.AuthorId, out var authorId))
         {
-            filter = filterBuilder.And(filter, filterBuilder.Eq(p => p.AuthorId, authorId));
+            filter = filterBuilder.And(filter, AuthorPostFilters.ForAuthor(authorId, query.IncludeAnonymousAuthored));
         }
 
         var total = (int)await collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);

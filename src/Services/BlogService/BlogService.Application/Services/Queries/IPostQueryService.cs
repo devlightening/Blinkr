@@ -20,7 +20,7 @@ public interface IPostQueryService
     /// <summary>
     /// Get paginated posts by a specific author
     /// </summary>
-    Task<PaginatedResult<PostReadDto>> GetUserPostsAsync(Guid authorId, int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<PaginatedResult<PostReadDto>> GetUserPostsAsync(Guid authorId, int page, int pageSize, CancellationToken cancellationToken = default, bool includeAnonymous = false);
 
     /// <summary>
     /// Check if a post exists

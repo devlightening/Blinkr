@@ -18,6 +18,8 @@ public class PostDocument
     [BsonExtraElements]
     public MongoDB.Bson.BsonDocument? ExtraElements { get; set; }
 
+    /// <summary>Stored as a string by the projection worker; without this, filters like Eq(AuthorId, guid) build a binary GUID and match nothing.</summary>
+    [BsonRepresentation(MongoDB.Bson.BsonType.String)]
     public Guid AuthorId { get; set; }
     
     [BsonIgnoreIfNull]

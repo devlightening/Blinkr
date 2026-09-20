@@ -55,12 +55,12 @@ public class PostFeedQueryService
         };
     }
 
-    public async Task<PaginatedResult<PostReadDto>> GetUserPostsAsync(Guid authorId, int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<PaginatedResult<PostReadDto>> GetUserPostsAsync(Guid authorId, int page, int pageSize, CancellationToken cancellationToken = default, bool includeAnonymous = false)
     {
         _logger.LogInformation("👤 Getting user posts: authorId={AuthorId}, page={Page}, pageSize={PageSize}", authorId, page, pageSize);
 
         var skip = (page - 1) * pageSize;
-        var filter = Builders<PostDocument>.Filter.Eq(p => p.AuthorId, authorId);
+        var filter = AuthorPostFilters.ForAuthor(authorId, includeAnonymous);
 
         var posts = await _postsCollection
             .Find(filter)

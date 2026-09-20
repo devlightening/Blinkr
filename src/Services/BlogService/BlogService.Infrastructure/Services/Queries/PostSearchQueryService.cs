@@ -50,7 +50,7 @@ public class PostSearchQueryService
 
         if (!string.IsNullOrWhiteSpace(query.AuthorId) && Guid.TryParse(query.AuthorId, out var authorGuid))
         {
-            filter &= filterBuilder.Eq(p => p.AuthorId, authorGuid);
+            filter &= AuthorPostFilters.ForAuthor(authorGuid, query.IncludeAnonymousAuthored);
         }
 
         if (!string.IsNullOrWhiteSpace(query.Search))

@@ -1,3 +1,4 @@
+using BlogService.Api.Extensions;
 using BlogService.Application.Services.Queries;
 using BlogService.Application.DTOs.PostDtos;
 using Microsoft.AspNetCore.Authorization;
@@ -275,11 +276,16 @@ public class PostsReadController : ControllerBase
         try
         {
             // Use the main query method with author filter
+            // Only the author sees their own anonymous posts; the response is then private.
+            var includeAnonymous = User.GetUserId() == authorId;
+            if (includeAnonymous) Response.Headers.CacheControl = "private, no-store";
+
             var query = new PostQuery
             {
                 Page = page,
                 PageSize = pageSize,
                 AuthorId = authorId.ToString(),
+                IncludeAnonymousAuthored = includeAnonymous,
                 Sort = "createdAt:desc"
             };
 
