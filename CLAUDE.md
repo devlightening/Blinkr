@@ -553,6 +553,7 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 - `POST /api/posts/{id}/likes`
 - `GET /api/posts-read/bounds`
 - `GET /api/posts-read/nearby`
+- `GET /api/posts-read/author/{id}?page&pageSize` (sayfa numarasi en fazla 1000; `X-Total-Count`): yazarin paylasimlari. Anonim (`AnonymousMap`) paylasimlar yalnizca yazarin kendisine doner ve o yanit `Cache-Control: private, no-store`'dur; baskalarina, giris yapmamislara ve herkese acik `?authorId=` listesine asla donmez (anayasa 10.3).
 - `POST /api/posts/place-presence`
 
 ### Map

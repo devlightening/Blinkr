@@ -15,7 +15,7 @@ Paketin kendi kuralı (`asamalar/00`, README) tasarım görsellerini **örnek/mo
 | `126 kişi şu anda burada`, `6 kişi burada` | Canlı ziyaretçi verisi yok; kişi konumu izleme anayasa dışı | Gerçek sinyal sayısı |
 | `2.3B kaydetme` | Kaydetme sayısı sunucuda tutulmuyor (kayıtlar cihaz-yerel) | Gerçek `Kaydet` düğmesi |
 | Doğrulama rozeti, `Topluluk doğruladı` | Doğrulanmış işletme/rozet yok | Sunucunun ürettiği güven etiketi (`Yüksek/Orta güven`) |
-| Profil: `128 sinyal`, `9 rozet`, `Rozetlerin`, `Katkıların` | Backend yok (bkz. §6-A) | Gerçek kaydedilen yerler |
+| Profil: `9 rozet`, `Rozetlerin` | Rozet/başarım backend'i yok | Gerçek `Sinyal` sayısı + `Sinyallerim` listesi ve kaydedilen yerler (bkz. §6-A) |
 | Sohbet: `Yakınında`, `İstekler` sekmeleri, `Yakındaki kullanıcıları keşfet` | Sürekli kişi keşfi ve arkadaş grafiği anayasa dışı (§2.2) | Gerçek konuşma listesi |
 | Sohbet: çevrimiçi noktaları, mekân çipleri | Presence/konuşma-mekân verisi yok | — |
 | İnsan/yemek fotoğrafları | Uydurma içerik | Sinyallerin **gerçek** medyası |
@@ -75,7 +75,7 @@ Paketin kendi kuralı (`asamalar/00`, README) tasarım görsellerini **örnek/mo
 
 ## 6. Bilinen sınırlamalar ve kalan işler
 
-- **A. Profil "Sinyallerim/Katkıların" için backend gerekli.** `GET /api/posts-read/author/{id}` anonim erişime açık ve **her yazar için 0 dönüyor** (author filtresi çalışmıyor; kök neden bulunamadı). Ayrıca düzeltilirse, sahibi dışında anonim (`AnonymousMap`) paylaşımları listelememesi gerekir (anayasa §10.3). Çözüm: kimlik doğrulamalı, sahibine özel yeni bir uç nokta. Profil bu yüzden kaydedilen yerleri gösteriyor.
+- **A. (Çözüldü) Profil "Sinyallerim".** `GET /api/posts-read/author/{id}` her yazar için 0 dönüyordu: Mongo'da `AuthorId` string saklı ama okuma modelinde ikili GUID olarak eşleniyordu, bu yüzden hiçbir yazar filtresi eşleşmiyordu. Sadece bunu düzeltmek, herkese açık olan bu endpoint'ler üzerinden **hangi anonim paylaşımın kime ait olduğunu sızdırırdı** (anayasa §10.3). Bu yüzden yazar filtreleri artık merkezî `AuthorPostFilters` üzerinden geçiyor: anonim paylaşımlar yalnızca yazarın kendisine döner (yanıt `private, no-store`). `test-author-posts-privacy.ps1` bunu 8 kontrolle korur. Profil gerçek sayıyı (`X-Total-Count`) ve 50'şerlik sayfalarla `Sinyallerim` listesini gösterir. Sunucu sayfa numarasını 1000 ile sınırladığı için (50.000 kayda kadar erişilir), bunun üstünde liste "En yeni N sinyal gösteriliyor" der. Ayrıca aynı hatalı eşleme `GET /api/posts-read/{id}` (tek paylaşım) için ayrıca 404 üretiyor gibi görünüyor; bu işin dışında bırakıldı ve incelenmedi.
 - **B. Sheet açıkken alt bar gizli.** Tasarım (02) barı sheet üstünde gösteriyor; tek overlay sahibi ve dokunma kilidi riski (CLAUDE.md §12.4) nedeniyle bar gizleniyor.
 - **C. Marker üstü ön izleme balonu yok** (tasarım 01'deki "Hayat Lokantası / N kişi burada"). Marker'a dokunmak doğrudan detayı açıyor; ara durum eklemek dokunma yaşam döngüsünü karmaşıklaştırır ve balonun içeriği (kişi sayısı) uydurma olurdu.
 - **D. Composer tasarımı tek panel, uygulama dört adım.** Yer seçimi ve proximity açıkça ayrı adım olarak kalmalı (CLAUDE.md §12.2, §10).
