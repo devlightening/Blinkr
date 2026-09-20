@@ -18,6 +18,7 @@ import { UserSearchSheet } from '../src/components/chat/UserSearchSheet';
 import { BlinkrSheetPanel } from '../src/components/ui/BlinkrSheetPanel';
 import { conversations, nearby, area as composerArea } from './ui-fixtures';
 import { SignalComposer } from '../src/components/SignalComposer';
+import { AuthScreen } from '../src/components/AuthScreen';
 import { ClusterVisual, MarkerVisual } from '../src/components/MapMarkerVisuals';
 import { MapTopChrome } from '../src/components/map/MapTopChrome';
 import type { MapLayer } from '../src/mapSelection';
@@ -227,7 +228,9 @@ function ComposerWithMedia() {
   );
 }
 
-const scenes: Record<string, () => React.JSX.Element> = { composerMedia: ComposerWithMedia, kit: Kit, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, conversation: Conversation, search: UserSearch };
+function Auth() { return <AuthScreen onAuthenticated={() => {}} />; }
+
+const scenes: Record<string, () => React.JSX.Element> = { auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, conversation: Conversation, search: UserSearch };
 
 export function SceneHost({ name }: { name: string }) {
   const Scene = scenes[name];

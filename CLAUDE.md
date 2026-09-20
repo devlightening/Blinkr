@@ -481,13 +481,21 @@ Viewport requestlerinde eski cevap yeni state'i ezmemelidir. Generation/request 
 
 ### 12.1 Ana ekranlar
 
+- `App.tsx`: navigasyon kabugu. Kutuphanesiz `activeTab` (`chat | map | profile`); `MapScreen` her zaman monte kalir (viewport, katman ve marker'lar sekme degisince kaybolmaz), Sohbet ve Profil onun ustunde tam ekran katman olarak acilir. Tek alt bar `BlinkrBottomBar` (Sohbet | Harita | Kamera | Profil); sheet/composer/acik konusma varken bar gizlenir. Kamera ve "kayitli yeri ac" tek seferlik istektir (`cameraRequested`/`focusPlace` + `on...Handled`), Android geri tusu sekmeyi haritaya dondurur.
 - `AuthScreen`: register/login
-- `MapScreen`: ana urun kabugu, map state, layers, marker'lar, nearby ve composer orchestration
-- `SignalComposer`: dort adimli yayin akisi
+- `MapScreen`: harita state'i, layers, marker'lar, nearby ve composer orchestration. Ust krom `map/MapTopChrome` (header + `MapLayerBar` + tara/konum satiri), filtre mantigi `mapSelection.ts`.
+- `SignalComposer`: dort adimli yayin akisi; tam ekran katman, arkada gercek cekilen medya (sistem kamerasi, `expo-camera` yok)
 - `PlacePicker`: nearby ve extended Place secimi
-- `PostDetailSheet`: Place veya coordinate signal detayi
-- `Sheet`: uygulama ici ortak bottom sheet yapisi
-- `BlinkrMapMarker`, `PlaceSymbol`, `SignalSymbol`: semantik marker sunumu
+- `PostDetailSheet`: Place veya coordinate signal detayi (gercek medya seridi, sinyal sayisi/tazelik/guven/uzaklik, Kaydet/Paylas/Yol tarifi)
+- `ProfileScreen`: hesap, cihaz-yerel kayitli yerler (`savedPlaces.ts`, anahtarlar userId ile ad alanina alinir), gizlilik notu, cikis
+- `chat/ChatListScreen`, `chat/ConversationScreen`, `chat/UserSearchSheet`: 1:1 sohbet; gercek `unreadCount` rozeti
+- `Sheet`: uygulama ici ortak bottom sheet yapisi; gorunum kabugu `ui/BlinkrSheetPanel`
+- `BlinkrMapMarker` (native sarmalayici) + `MapMarkerVisuals`, `PlaceSymbol`, `SignalSymbol`: semantik marker sunumu
+- `ui/`: ortak tasarim bilesenleri (`BlinkrButton`, `BlinkrChip`, `BlinkrCard`, `BlinkrHeader`, `BlinkrEmptyState`, `BlinkrBottomBar`, `BlinkrSignalCard`, `BlinkrSheetPanel`)
+
+Tasarim token'lari tek kaynaktan gelir: `src/theme.ts`. Yeni kod semantik adlari (`background`, `text`, `textSecondary`, `primary`, `mint`, `categoryTone`) kullanir; eski adlar (`ink`, `muted`, `green`...) yeni palete baglidir. Tasarim referansi: `docs/blinkr_tema_kod`. Tasarim gorsellerindeki puan, "N kisi burada", rozet, kaydetme sayisi gibi ogeler ornek veridir; backend'de karsiligi olmadan uretim ekranina eklenmez.
+
+Tarayicida gorsel inceleme: `node scripts/ui-shot.cjs <sahne> [genislik] [yukseklik] [sorgu]` (sahneler `scripts/ui-scenes.tsx`); ciktilar `.tmp/product-ui/`.
 
 ### 12.2 Composer adimlari
 
@@ -579,7 +587,7 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 ### Chat
 
 - `GET /api/users/search?q=`
-- `GET /api/chat/conversations`
+- `GET /api/chat/conversations` (her ogede `unreadCount`: karsi tarafin okunmamis mesajlari)
 - `POST /api/chat/conversations`
 - `GET /api/chat/conversations/{id}/messages`
 - `POST /api/chat/conversations/{id}/messages`
@@ -733,10 +741,13 @@ Dogru mental model:
 dotnet build Blinkr.sln
 cd src\Clients\Blinkr.Expo
 npm run typecheck
+npm run test:theme
 npm run test:nearby
 npm run test:product
 npm run test:ui
 ```
+
+`test:ui` tarayicida (react-native-web) render eder; `MapScreen`, `App` ve react-native-maps'i kapsamaz. Onlarin derlendigini `npx expo export --platform ios` (ve `android`) ile dogrula.
 
 ### 19.2 Canonical backend kabul runner'i
 

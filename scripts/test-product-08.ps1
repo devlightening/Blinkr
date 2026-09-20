@@ -12,7 +12,7 @@ try {
     }
     Push-Location src/Clients/Blinkr.Expo
     try {
-        foreach ($task in @('typecheck', 'test:nearby', 'test:product', 'test:ui')) {
+        foreach ($task in @('typecheck', 'test:theme', 'test:nearby', 'test:product', 'test:ui')) {
             & npm.cmd run $task
             if ($LASTEXITCODE -ne 0) { throw "$task failed." }
         }
