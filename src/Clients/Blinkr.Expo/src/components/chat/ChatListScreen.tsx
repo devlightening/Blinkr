@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { MapPin, MessageCirclePlus, Plus, UserRound } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -38,9 +38,14 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onOpenMap
   const [error, setError] = useState<string | null>(null);
   const [isSearchOpen, setSearchOpen] = useState(false);
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
-  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollInFlight = useRef(false);
+  const hasSettled = useRef(false);
 
+  // Only background polls are skipped while another request is in flight; a user-initiated
+  // refresh always runs so the pull-to-refresh indicator can never be left spinning.
   const refresh = useCallback(async (background = false) => {
+    if (background && pollInFlight.current) return;
+    pollInFlight.current = true;
     if (!background) setLoading(true);
     try {
       const items = await listConversations(auth, onAuthChange, onSessionExpired);
@@ -51,16 +56,28 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onOpenMap
       console.log('[Blinkr Chat]', { status: 'failed', reason: err instanceof Error ? err.message : String(err) });
       if (!background) setError(friendlyError(err, 'Sohbetler yüklenemedi. Tekrar dene.'));
     } finally {
+      pollInFlight.current = false;
+      hasSettled.current = true;
       if (!background) setLoading(false);
       setRefreshing(false);
     }
   }, [auth, onAuthChange, onSessionExpired]);
 
+  // `refresh` changes identity when the session token is refreshed; reload quietly in that
+  // case instead of flashing the full-screen spinner again.
   useEffect(() => {
-    refresh();
-    pollTimer.current = setInterval(() => refresh(true), POLL_INTERVAL_MS);
-    return () => { if (pollTimer.current) clearInterval(pollTimer.current); };
+    refresh(hasSettled.current);
   }, [refresh]);
+
+  // The conversation screen owns its own faster poll, so the list poll pauses while one is
+  // open, and ticks are skipped while the app is not in the foreground.
+  useEffect(() => {
+    if (activeConversation) return;
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') refresh(true);
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [refresh, activeConversation]);
 
   const openConversationWith = async (user: UserSummary) => {
     setSearchOpen(false);
@@ -93,7 +110,12 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onOpenMap
     {isLoading ? (
       <View style={styles.centerFill}><ActivityIndicator color={colors.green} /></View>
     ) : error ? (
-      <View style={styles.centerFill}><Text style={styles.errorText}>{error}</Text></View>
+      <View style={styles.centerFill}>
+        <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text>
+        <AnimatedPressable accessibilityLabel="Tekrar dene" onPress={() => refresh()} pressScale={0.95} style={styles.emptyAction}>
+          <Text style={styles.emptyActionText}>Tekrar dene</Text>
+        </AnimatedPressable>
+      </View>
     ) : !conversations.length ? (
       <View style={styles.centerFill}>
         <UserRound color={colors.mutedSoft} size={40} />

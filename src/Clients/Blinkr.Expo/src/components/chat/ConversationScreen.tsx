@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, AppState, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ArrowLeft, Send } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -24,28 +24,38 @@ export function ConversationScreen({ auth, conversation, onAuthChange, onSession
   const [draft, setDraft] = useState('');
   const [isSending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollInFlight = useRef(false);
 
+  // The server returns messages newest-first; the list is inverted so the newest message
+  // sits at the bottom and no manual scrolling is needed.
   const load = useCallback(async (background = false) => {
+    if (background && pollInFlight.current) return;
+    pollInFlight.current = true;
     try {
       const { items } = await getMessages(auth, conversation.id, undefined, onAuthChange, onSessionExpired);
-      setMessages([...items].reverse());
+      setMessages(items);
       setError(null);
       console.log('[Blinkr Chat]', { status: 'ready', resultCount: items.length });
+      // Messages that arrive while the conversation is open are read by definition.
+      if (items.some((message) => message.senderId !== auth.userId && !message.isRead)) {
+        markConversationRead(auth, conversation.id, onAuthChange, onSessionExpired).catch(() => {});
+      }
     } catch (err) {
       console.log('[Blinkr Chat]', { status: 'failed', reason: err instanceof Error ? err.message : String(err) });
       if (!background) setError(friendlyError(err, 'Mesajlar yüklenemedi.'));
     } finally {
+      pollInFlight.current = false;
       setLoading(false);
     }
   }, [auth, conversation.id, onAuthChange, onSessionExpired]);
 
   useEffect(() => {
     load();
-    markConversationRead(auth, conversation.id, onAuthChange, onSessionExpired).catch(() => {});
-    pollTimer.current = setInterval(() => load(true), POLL_INTERVAL_MS);
-    return () => { if (pollTimer.current) clearInterval(pollTimer.current); };
-  }, [load, auth, conversation.id, onAuthChange, onSessionExpired]);
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') load(true);
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [load]);
 
   const handleSend = async () => {
     const text = draft.trim();
@@ -54,7 +64,8 @@ export function ConversationScreen({ auth, conversation, onAuthChange, onSession
     setDraft('');
     try {
       const sent = await sendMessage(auth, conversation.id, text, onAuthChange, onSessionExpired);
-      setMessages((prev) => [...prev, sent]);
+      // A poll may already have returned the message; never show it twice.
+      setMessages((prev) => (prev.some((message) => message.id === sent.id) ? prev : [sent, ...prev]));
     } catch (err) {
       setError(friendlyError(err, 'Mesaj gönderilemedi. Tekrar dene.'));
       setDraft(text);
@@ -71,10 +82,16 @@ export function ConversationScreen({ auth, conversation, onAuthChange, onSession
 
     {isLoading ? (
       <View style={styles.centerFill}><ActivityIndicator color={colors.green} /></View>
+    ) : !messages.length ? (
+      <View style={styles.centerFill}>
+        <Text style={styles.emptyTitle}>Henüz mesaj yok</Text>
+        <Text style={styles.emptyText}>İlk mesajı sen yaz.</Text>
+      </View>
     ) : (
       <FlatList
         contentContainerStyle={styles.listContent}
         data={messages}
+        inverted
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
           const isMine = item.senderId === auth.userId;
@@ -120,7 +137,9 @@ const styles = StyleSheet.create({
   bar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, marginVertical: spacing.sm },
   icon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   heading: { ...typography.heading, color: colors.textPrimary },
-  centerFill: { alignItems: 'center', flex: 1, justifyContent: 'center' },
+  centerFill: { alignItems: 'center', flex: 1, gap: 6, justifyContent: 'center', paddingHorizontal: 36 },
+  emptyTitle: { ...typography.heading, color: colors.textPrimary },
+  emptyText: { ...typography.body, color: colors.muted, textAlign: 'center' },
   listContent: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: 8 },
   bubbleRow: { flexDirection: 'row' },
   bubbleRowMine: { justifyContent: 'flex-end' },
