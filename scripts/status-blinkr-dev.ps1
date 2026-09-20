@@ -22,7 +22,8 @@ function Test-NearbyCatalog {
     try {
         $url = "http://localhost:5080/api/places/nearby?lat=$Lat&lon=$Lon&radiusMeters=1500&limit=20"
         $response = Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 8
-        $items = @($response.Content | ConvertFrom-Json)
+        # Windows PowerShell 5.1 emits a JSON array as one object; ForEach-Object unrolls it.
+        $items = @($response.Content | ConvertFrom-Json | ForEach-Object { $_ })
         $coverage = [string]$response.Headers["X-Blinkr-Place-Coverage"]
         if ($items.Count -gt 0 -and $coverage -ne "not_loaded") { return "READY ($($items.Count))" }
         return "MISSING"
