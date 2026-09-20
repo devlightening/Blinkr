@@ -76,6 +76,14 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      # `ping` passes while the Erlang node is up but the AMQP listener is still closed;
+      # check_port_connectivity only succeeds once every listener accepts connections.
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 20s
 
   mongodb:
     image: mongo:6.0.2
@@ -120,7 +128,7 @@ services:
       mongodb:
         condition: service_started
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "8082:8080"
     healthcheck:

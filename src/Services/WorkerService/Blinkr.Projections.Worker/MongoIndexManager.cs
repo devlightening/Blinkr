@@ -5,21 +5,28 @@ namespace Blinkr.Projections.Worker;
 
 public class MongoIndexManager
 {
-    private readonly IMongoDatabase _database;
+    // Mongo error codes raised when an index with the same key (86) or same name (85)
+    // already exists with different options/name, e.g. one created by BlogService.
+    private const int IndexOptionsConflict = 85;
+    private const int IndexKeySpecsConflict = 86;
 
-    public MongoIndexManager(IMongoDatabase database)
+    private readonly IMongoDatabase _database;
+    private readonly ILogger<MongoIndexManager> _logger;
+
+    public MongoIndexManager(IMongoDatabase database, ILogger<MongoIndexManager> logger)
     {
         _database = database;
+        _logger = logger;
     }
 
-    public async Task CreateIndexesAsync()  
+    public async Task CreateIndexesAsync()
     {
         var postsCollection = _database.GetCollection<PostDocument>("posts");
-        
+
         // Feed index: CreatedAtUtc descending (for sorting by newest first)
         var feedIndexKeys = Builders<PostDocument>.IndexKeys.Descending(p => p.CreatedAtUtc);
         var feedIndexModel = new CreateIndexModel<PostDocument>(feedIndexKeys);
-        
+
         // User posts index: AuthorId + CreatedAtUtc descending
         var userPostsIndexKeys = Builders<PostDocument>.IndexKeys
             .Ascending(p => p.AuthorId)
@@ -53,12 +60,35 @@ public class MongoIndexManager
                     Background = true
                 })
         };
-        
+
         // Note: Geospatial indexing is handled by BlogService MongoIndexService
         // which creates compound index "ix_posts_location_time" for optimal NOW feed performance
-        
-        await postsCollection.Indexes.CreateManyAsync(
-            new[] { feedIndexModel, userPostsIndexModel, visibilityIndexModel });
-        await processedCollection.Indexes.CreateManyAsync(processedMessageIndexes);
+
+        // Each index is ensured on its own so one conflicting index cannot stop the rest.
+        await EnsureIndexAsync(postsCollection, feedIndexModel);
+        await EnsureIndexAsync(postsCollection, userPostsIndexModel);
+        await EnsureIndexAsync(postsCollection, visibilityIndexModel);
+        foreach (var model in processedMessageIndexes)
+        {
+            await EnsureIndexAsync(processedCollection, model);
+        }
+    }
+
+    private async Task EnsureIndexAsync<T>(IMongoCollection<T> collection, CreateIndexModel<T> model)
+    {
+        try
+        {
+            await collection.Indexes.CreateOneAsync(model);
+        }
+        catch (MongoCommandException ex) when (ex.Code is IndexOptionsConflict or IndexKeySpecsConflict)
+        {
+            // An equivalent index already exists under another name/options. That is enough for
+            // reads, so it is not a startup failure. Real Mongo errors still propagate.
+            _logger.LogInformation(
+                "Mongo index already present in another form; skipping. Collection={Collection} Index={Index} Code={Code}",
+                collection.CollectionNamespace.CollectionName,
+                model.Options?.Name ?? "(default name)",
+                ex.Code);
+        }
     }
 }
