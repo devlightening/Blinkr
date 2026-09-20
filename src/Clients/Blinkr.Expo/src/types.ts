@@ -88,6 +88,22 @@ export type CoordinateSignal = {
   authorPreview?: string | null;
 };
 
+/** One of the signed-in user's own posts, as returned by GET /api/posts-read/author/{id}. */
+export type AuthoredPost = {
+  id: string;
+  title: string;
+  content: string;
+  createdAtUtc: string;
+  expiresAt?: string | null;
+  signalType: SignalType;
+  signalValue?: string | null;
+  locationName?: string | null;
+  /** Only the author ever receives their own AnonymousMap posts. */
+  identityDisclosure: 'LimitedProfile' | 'AnonymousMap' | string;
+  mediaUrls: string[];
+  placeId?: string | null;
+};
+
 export type UnifiedMapResponse = {
   places: BlinkrPlace[];
   signals: CoordinateSignal[];

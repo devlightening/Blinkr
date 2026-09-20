@@ -165,7 +165,7 @@ export default function App() {
                 )}
                 {activeTab === 'profile' && (
                   <View style={styles.tabLayer}>
-                    <ProfileScreen auth={auth} onLogout={logout} onOpenPlace={openSavedPlace} />
+                    <ProfileScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={openCamera} onLogout={logout} onOpenPlace={openSavedPlace} />
                   </View>
                 )}
                 <BlinkrBottomBar

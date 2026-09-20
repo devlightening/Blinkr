@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 
-import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, CreateSignalInput, MediaKind, UnifiedMapResponse, PlacePresence, UserSummary } from './types';
+import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, CreateSignalInput, MediaKind, UnifiedMapResponse, PlacePresence, UserSummary, AuthoredPost } from './types';
 
 type NearbyPlacesResponse = Array<BlinkrPlace & { distanceMeters?: number }> & {
   coverageState?: string | null;
@@ -303,6 +303,22 @@ export const createSignal = async (
 
 export const searchUsers = (auth: AuthResponse, query: string, signal?: AbortSignal) =>
   requestJson<UserSummary[]>(`/api/users/search?${new URLSearchParams({ q: query })}`, { auth, signal });
+
+export const getMyPosts = async (
+  auth: AuthResponse,
+  page: number,
+  pageSize: number,
+  signal?: AbortSignal,
+  onAuthRefresh?: (auth: AuthResponse) => void,
+  onSessionExpired?: () => void,
+) => {
+  const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  const response = await request(`/api/posts-read/author/${auth.userId}?${query}`, { auth, onAuthRefresh, onSessionExpired, signal });
+  if (!response.ok) throw new Error(await readError(response));
+  const items = await response.json() as AuthoredPost[];
+  const total = Number(response.headers.get('X-Total-Count'));
+  return { items, total: Number.isFinite(total) ? total : items.length };
+};
 
 export const getUser = (
   auth: AuthResponse,

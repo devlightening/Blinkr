@@ -32,3 +32,21 @@ export const sendMessage = async (_auth: unknown, conversationId: string, text: 
   return message;
 };
 export const markConversationRead = async () => {};
+
+// Own posts: 20,030 generated rows served in pages, newest first (?fewposts = 3 rows, ?noposts = none, ?postsfail = server error).
+const TOTAL_POSTS = 20030;
+const kinds = ['Crowd', 'Queue', 'GeneralObservation', 'Event', 'Offer', 'TemporaryStatus'] as const;
+export const getMyPosts = async (_auth: unknown, page: number, pageSize: number) => {
+  if (flag('postsfail')) throw new Error('Network request failed');
+  const total = flag('noposts') ? 0 : flag('fewposts') ? 3 : TOTAL_POSTS;
+  const start = (page - 1) * pageSize;
+  const items = Array.from({ length: Math.max(0, Math.min(pageSize, total - start)) }, (_, i) => {
+    const n = total - (start + i);
+    return {
+      id: `post-${n}`, title: `Sinyal başlığı ${n}`, content: `Osmaniye Merkez: sıradan bir gözlem. (#${String(n).padStart(5, '0')})`,
+      createdAtUtc: new Date(Date.now() - n * 60_000).toISOString(), expiresAt: new Date(Date.now() + (n % 7 === 0 ? 30 : -30) * 60_000).toISOString(),
+      signalType: kinds[n % kinds.length], signalValue: null, locationName: 'Osmaniye Merkez', identityDisclosure: n % 10 === 0 ? 'AnonymousMap' : 'LimitedProfile', mediaUrls: n % 5 === 0 ? ['/m.png'] : [],
+    };
+  });
+  return { items, total };
+};

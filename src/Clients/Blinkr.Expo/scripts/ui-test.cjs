@@ -90,7 +90,24 @@ async function main() {
     await expect(page.getByLabel(/haritada aç/)).toHaveCount(3);
     await expect(page.getByText('Kaydedilen', { exact: true })).toBeVisible();
     await expect(page.getByText(/rozet|puan|yorum/i)).toHaveCount(0);
+    // Own posts: the real total (Turkish thousands separator), newest first, paged as the list scrolls.
+    await expect(page.getByLabel('20.030 sinyal')).toBeVisible();
+    await expect(page.getByText('Sinyal başlığı 20030')).toBeVisible();
+    await expect(page.getByText('Anonim').first()).toBeVisible();
+    await expect(page.getByText('Sinyal başlığı 20010')).toHaveCount(0);
+    await page.mouse.move(195, 500);
+    for (let i = 0; i < 8; i += 1) { await page.mouse.wheel(0, 1600); await page.waitForTimeout(150); }
+    // The list is virtualised, so rows between the first pages leave the DOM; rows far beyond page 1 prove paging worked.
+    await expect(page.getByText(/Sinyal başlığı 199\d\d/).first()).toBeVisible();
     await page.screenshot({ path: path.join(out, 'profile.png') });
+    await page.goto(url + '?scene=profile&noposts');
+    await expect(page.getByText('Henüz sinyal paylaşmadın')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'İlk sinyalini bırak' })).toBeVisible();
+    await page.goto(url + '?scene=profile&postsfail');
+    await expect(page.getByText('Sinyallerin yüklenemedi. Tekrar dene.')).toBeVisible();
+    await expect(page.getByText('Network request failed')).toHaveCount(0);
+    await page.goto(url + '?scene=profile&fewposts');
+    await expect(page.getByText('Hepsi bu kadar')).toBeVisible();
 
     // Chat list: names, real unread badge, "Sen:" prefix for own last message; empty and failing states.
     await page.goto(url + '?scene=chat');

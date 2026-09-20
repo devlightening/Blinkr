@@ -165,7 +165,7 @@ function Profile() {
   const [tab, setTab] = useState<BlinkrTab>('profile');
   return (
     <View style={{ backgroundColor: colors.background, flex: 1 }}>
-      <ProfileScreen auth={{ userId: 'scene', userName: 'alper', email: 'alper@example.test', token: 't' }} onLogout={() => {}} onOpenPlace={() => {}} />
+      <ProfileScreen auth={{ userId: 'scene', userName: 'alper', email: 'alper@example.test', token: 't' }} onAuthChange={() => {}} onCreateSignal={() => {}} onLogout={() => {}} onOpenPlace={() => {}} />
       <BlinkrBottomBar active={tab} onCamera={() => {}} onTab={setTab} />
     </View>
   );
