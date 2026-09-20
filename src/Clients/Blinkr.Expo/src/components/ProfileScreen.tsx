@@ -18,7 +18,10 @@ import { bottomBarClearance } from './ui/BlinkrBottomBar';
 import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
 import { BlinkrHeader } from './ui/BlinkrHeader';
 
-const PAGE_SIZE = 20;
+// 50 per page keeps the request count low, and the server refuses page numbers above 1000 (an abuse
+// guard), so 50 x 1000 = 50,000 posts stay reachable; 20 per page would strand posts past 20,000.
+const PAGE_SIZE = 50;
+const MAX_PAGE = 1000;
 const formatCount = (value: number) => value.toLocaleString('tr-TR');
 
 type Props = {
@@ -121,7 +124,9 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
   useEffect(() => { void loadSaved(); }, [loadSaved]);
   useEffect(() => { void loadPosts(true); return () => inFlight.current?.abort(); }, [auth.userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const hasMore = total !== null && posts.length < total;
+  const reachable = nextPage.current <= MAX_PAGE;
+  const hasMore = total !== null && posts.length < total && reachable;
+  const capped = total !== null && posts.length < total && !reachable;
   const initial = auth.userName.trim().charAt(0).toLocaleUpperCase('tr-TR') || '?';
 
   const header = (
@@ -231,6 +236,7 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
       </View>
     )
     : loadingMore ? <ActivityIndicator accessibilityLabel="Daha fazla yükleniyor" color={colors.mint} style={styles.loading} />
+    : capped ? <Text style={styles.endText}>En yeni {formatCount(posts.length)} sinyal gösteriliyor</Text>
     : !hasMore && posts.length > 0 ? <Text style={styles.endText}>Hepsi bu kadar</Text>
     : null;
 

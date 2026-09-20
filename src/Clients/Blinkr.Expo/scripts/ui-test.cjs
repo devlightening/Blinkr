@@ -94,11 +94,14 @@ async function main() {
     await expect(page.getByLabel('20.030 sinyal')).toBeVisible();
     await expect(page.getByText('Sinyal başlığı 20030')).toBeVisible();
     await expect(page.getByText('Anonim').first()).toBeVisible();
-    await expect(page.getByText('Sinyal başlığı 20010')).toHaveCount(0);
+    // 50 rows per page: rows only appear after scrolling loads the next pages (the list is virtualised).
+    const lowestRow = async () => (await page.getByText(/^Sinyal başlığı \d+$/).allTextContents()).map((v) => Number(v.replace(/\D/g, ''))).reduce((a, b) => Math.min(a, b), Infinity);
+    const firstScreenLowest = await lowestRow();
+    if (firstScreenLowest < 19981) throw new Error('rows beyond the first page were loaded before scrolling: ' + firstScreenLowest);
     await page.mouse.move(195, 500);
-    for (let i = 0; i < 8; i += 1) { await page.mouse.wheel(0, 1600); await page.waitForTimeout(150); }
-    // The list is virtualised, so rows between the first pages leave the DOM; rows far beyond page 1 prove paging worked.
-    await expect(page.getByText(/Sinyal başlığı 199\d\d/).first()).toBeVisible();
+    for (let i = 0; i < 10; i += 1) { await page.mouse.wheel(0, 1800); await page.waitForTimeout(150); }
+    const afterScrollLowest = await lowestRow();
+    if (!(afterScrollLowest < 19981)) throw new Error('scrolling did not load the next page: ' + afterScrollLowest);
     await page.screenshot({ path: path.join(out, 'profile.png') });
     await page.goto(url + '?scene=profile&noposts');
     await expect(page.getByText('Henüz sinyal paylaşmadın')).toBeVisible();
