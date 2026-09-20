@@ -88,6 +88,11 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddBlogRateLimiting(this IServiceCollection services, IConfiguration config)
     {
+        // Production default stays 100 requests/minute per device or IP. It can be raised through
+        // configuration (RateLimiting:GlobalPermitLimit) for controlled runs such as load or seed tests;
+        // callers must not be able to raise it themselves.
+        var globalPermitLimit = Math.Max(1, config.GetValue<int?>("RateLimiting:GlobalPermitLimit") ?? 100);
+
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -104,7 +109,7 @@ public static class ServiceCollectionExtensions
                     partitionKey: key,
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
-                        PermitLimit = 100, // 100 req / window
+                        PermitLimit = globalPermitLimit, // 100 req / window unless configured
                         Window = TimeSpan.FromMinutes(1),
                         QueueLimit = 0,
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst
