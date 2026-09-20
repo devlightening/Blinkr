@@ -73,6 +73,33 @@ async function main() {
     await expect(page.getByLabel('Tap count')).toHaveText('11');
     await expect(page.getByRole('button', { name: 'Kapalı' })).toBeDisabled();
     await page.screenshot({ path: path.join(out, 'kit.png') });
+
+    // Map chrome: four layers, exactly one selected, tab bar present, scan + locate reachable.
+    await page.goto(url + '?scene=map');
+    await expect(page.getByRole('tab')).toHaveCount(3 + 4);
+    await expect(page.getByLabel('Bu alanı tara')).toBeVisible();
+    await expect(page.getByLabel('Konumuma git')).toBeVisible();
+    await page.getByRole('tab', { name: 'Canlı', exact: true }).click();
+    await expect(page.getByRole('tab', { name: 'Canlı', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tab', { name: 'Tümü', exact: true })).toHaveAttribute('aria-selected', 'false');
+    await page.screenshot({ path: path.join(out, 'map-chrome.png') });
+
+    // Profile: real saved places (per user), no invented counters or badges.
+    await page.goto(url + '?scene=profile');
+    await expect(page.getByText('Kaydettiğin yerler')).toBeVisible();
+    await expect(page.getByLabel(/haritada aç/)).toHaveCount(3);
+    await expect(page.getByText('Kaydedilen', { exact: true })).toBeVisible();
+    await expect(page.getByText(/rozet|puan|yorum/i)).toHaveCount(0);
+    await page.screenshot({ path: path.join(out, 'profile.png') });
+
+    // Detail sheet: real facts only (signal count, freshness, confidence, distance) and working secondary actions.
+    await page.goto(url + '?scene=detail');
+    await expect(page.getByText('Örnek Lokanta')).toBeVisible();
+    await expect(page.getByLabel('Yol tarifi')).toBeVisible();
+    await expect(page.getByLabel('Paylaş')).toBeVisible();
+    await expect(page.getByText('+2')).toBeVisible();
+    await expect(page.getByText(/4\.6|şu anda burada|kaydetme/i)).toHaveCount(0);
+    await page.screenshot({ path: path.join(out, 'detail.png') });
     if(errors.length) throw new Error(errors.join('\n'));
     console.log('PASS browser-rendered components: selection, collapse, nearby/coordinate publish, submitting lock, value selection, branch search, save, close, responsive detail. Native map/media/iOS gestures require physical retest.');
   } finally { await browser.close(); server.close(); }

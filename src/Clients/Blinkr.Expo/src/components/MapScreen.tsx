@@ -1,42 +1,27 @@
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import {
-  Camera,
-  CheckCircle2,
-  Layers3,
-  LogOut,
-  Map as MapIcon,
-  MessageCircle,
-  Navigation2,
-  Plus,
-  RefreshCw,
-  ShieldCheck,
-  UserRound,
-  Wifi,
-  X,
-} from 'lucide-react-native';
+import { CheckCircle2, Plus, Wifi, X } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   AppState,
   InteractionManager,
   Linking,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { createSignal, getNearbyPlaces, getPlace, getUnifiedMapBounds, previewPresence, getSignalContent } from '../api';
-import { friendlyError, isFresh } from '../productPresentation';
-import { Sheet } from './Sheet';
-import { BlinkrMark } from './BlinkrMark';
+import { friendlyError } from '../productPresentation';
 import { BlinkrMapMarker, BlinkrClusterMarker } from './BlinkrMapMarker';
+import { bottomBarClearance } from './ui/BlinkrBottomBar';
+import { MapTopChrome } from './map/MapTopChrome';
+import { selectMapData, type MapLayer } from '../mapSelection';
 import { clusterMapPoints, zoomToLongitudeDelta } from '../mapClusters';
 import {
   NearbyRequestOwnership,
@@ -66,17 +51,16 @@ type Props = {
   auth: AuthResponse;
   onAuthChange: (auth: AuthResponse) => void;
   onLogout: () => void;
-  onOpenChat: () => void;
+  onOpenProfile: () => void;
+  /** True when the camera button was pressed on any tab; cleared through `onCameraHandled`. */
+  cameraRequested?: boolean;
+  onCameraHandled?: () => void;
+  /** A saved Place to bring into view and open; cleared through `onFocusHandled`. */
+  focusPlace?: BlinkrPlace | null;
+  onFocusHandled?: () => void;
+  /** Reports whether a sheet or the composer currently owns the screen (the app shell hides its tab bar). */
+  onOverlayOpenChange?: (open: boolean) => void;
 };
-
-type MapLayer = 'all' | 'live' | 'places' | 'signals';
-
-const mapLayers: Array<{ key: MapLayer; label: string }> = [
-  { key: 'all', label: 'Tümü' },
-  { key: 'live', label: 'Canlı' },
-  { key: 'places', label: 'Yerler' },
-  { key: 'signals', label: 'Sinyaller' },
-];
 
 const getBounds = (region: Region): Bounds => ({
   minLat: region.latitude - region.latitudeDelta / 2,
@@ -92,7 +76,7 @@ const MAX_NEARBY_LOCATION_AGE_MS = 30_000;
 const LOCATION_TIMEOUT_MS = 8_000;
 
 
-export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
+export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, cameraRequested = false, onCameraHandled, focusPlace = null, onFocusHandled, onOverlayOpenChange }: Props) {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const activeRequest = useRef<AbortController | null>(null);
@@ -119,7 +103,6 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
   const [selectedDetail, setSelectedDetail] = useState<BlinkrPlace | null>(null);
   const [selectedSignal, setSelectedSignal] = useState<CoordinateSignal | null>(null);
   const [isComposerOpen, setComposerOpen] = useState(false);
-  const [isProfileOpen, setProfileOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -133,21 +116,16 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
   const [pendingCapture, setPendingCapture] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [composerInitialStep, setComposerInitialStep] = useState(0);
   const [mapLayer, setMapLayer] = useState<MapLayer>('all');
+  // moveToDeviceLocation must not depend on the layer: the mount effect below depends on it, and a
+  // changing dependency re-ran that effect (permission check + recentre) on every filter change.
+  const mapLayerRef = useRef<MapLayer>('all');
+  mapLayerRef.current = mapLayer;
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(timer); }, []);
 
-  const visiblePlaces = useMemo(() => {
-    if (mapLayer === 'signals') return [];
-    if (mapLayer === 'live') {
-      return places.filter((place) => (place.currentState?.activeSignalCount ?? 0) > 0 && isFresh(place.currentState?.observedAtUtc, place.currentState?.expiresAtUtc, now));
-    }
-    if (mapLayer === 'places') return places;
-    return places.filter(place => isFresh(place.lastActivityUtc ?? place.currentState?.observedAtUtc, null, now));
-  }, [mapLayer, places, now]);
-
-  const visibleSignals = useMemo(
-    () => mapLayer === 'places' ? [] : signals.filter(signal => isFresh(signal.createdAtUtc, signal.expiresAt, now)),
-    [mapLayer, signals, now],
+  const { places: visiblePlaces, signals: visibleSignals } = useMemo(
+    () => selectMapData(mapLayer, places, signals, now),
+    [mapLayer, places, signals, now],
   );
 
   const markerLookup = useMemo(() => ({
@@ -434,7 +412,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
     setLocationReadiness('ready');
     ignoreRegionChangeUntil.current = Date.now() + 900;
     mapRef.current?.animateToRegion(target, 450);
-    await loadPlaces(target, false, mapLayer === 'places');
+    await loadPlaces(target, false, mapLayerRef.current === 'places');
     return {
       accuracyMeters: Math.max(1, position.coords.accuracy ?? 25),
       observationAccuracyMeters: Math.max(1, position.coords.accuracy ?? 25),
@@ -442,9 +420,11 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
       observationLongitude: position.coords.longitude,
       region: target,
     };
-  }, [getFreshDeviceLocation, loadPlaces, mapLayer]);
+  }, [getFreshDeviceLocation, loadPlaces]);
 
   useEffect(() => {
+    // A saved Place opened from the profile brings its own viewport; do not recentre on the device.
+    if (focusPlace) return undefined;
     Location.getForegroundPermissionsAsync()
       .then(async (permission) => {
         setCanAskLocationAgain(permission.canAskAgain);
@@ -466,6 +446,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
       nearbyOwner.current.reset();
       nearbyLoadingRequest.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadPlaces, moveToDeviceLocation]);
 
   useEffect(() => {
@@ -619,7 +600,6 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
   const openComposer = (place?: BlinkrPlace | null, initialStep = 0) => {
     const opening = ++composerGeneration.current;
     closeDetailSheet();
-    setProfileOpen(false);
     setComposerArea(null);
     setComposerInitialStep(initialStep);
     nearbyOwner.current.reset();
@@ -703,12 +683,40 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
     }
   };
 
+  useEffect(() => {
+    if (!cameraRequested) return;
+    onCameraHandled?.();
+    void openCameraSignal();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cameraRequested]);
+
+  useEffect(() => {
+    if (!focusPlace) return undefined;
+    const target: Region = { latitude: focusPlace.latitude, longitude: focusPlace.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 };
+    const place = focusPlace;
+    onFocusHandled?.();
+    currentRegion.current = target;
+    setRegion(target);
+    ignoreRegionChangeUntil.current = Date.now() + 1200;
+    // The native map is not always ready to animate on the very first frame after mount.
+    const timer = setTimeout(() => mapRef.current?.animateToRegion(target, 450), 350);
+    void loadPlaces(target, true, mapLayerRef.current === 'places');
+    openPlaceDetailAfterTouch(place);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusPlace]);
+
+  const overlayOpen = isComposerOpen || Boolean(selectedPlace) || Boolean(selectedSignal);
+  useEffect(() => { onOverlayOpenChange?.(overlayOpen); }, [overlayOpen, onOverlayOpenChange]);
+
+  const chromeTop = insets.top + 140;
+
   return (
     <View style={styles.screen}>
       <MapView
         customMapStyle={Platform.OS === 'android' ? mapDarkStyle : undefined}
-        initialRegion={ISTANBUL_REGION}
-        mapPadding={{ top: 158, right: 14, bottom: 126, left: 14 }}
+        initialRegion={focusPlace ? { latitude: focusPlace.latitude, longitude: focusPlace.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 } : ISTANBUL_REGION}
+        mapPadding={{ top: chromeTop, right: 14, bottom: bottomBarClearance(insets.bottom), left: 14 }}
         onRegionChangeComplete={handleRegionChangeComplete}
         pitchEnabled={false}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
@@ -729,113 +737,36 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
               selected={item.id === `place:${selectedPlace?.id}` || item.id === `signal:${selectedSignal?.postId}`} onPlace={openPlaceDetailAfterTouch} onSignal={openSignalDetailAfterTouch} />)}
       </MapView>
 
-      {!isLoading && !error && visibleItemCount === 0 && !isComposerOpen && !isProfileOpen && !selectedPlace && !selectedSignal && (
-        <Animated.View entering={FadeInDown.duration(320).springify().damping(15)} style={[styles.emptyMap, { bottom: insets.bottom + 148 }]}>
+      {!isLoading && !error && visibleItemCount === 0 && !isComposerOpen && !selectedPlace && !selectedSignal && (
+        <Animated.View entering={FadeInDown.duration(320).springify().damping(15)} style={[styles.emptyMap, { bottom: bottomBarClearance(insets.bottom) + 12 }]}>
           <Text style={styles.emptyMapText}>Bu bölgede henüz taze sinyal yok.</Text>
-          <AnimatedPressable onPress={() => openComposer()} pressScale={0.94} style={styles.emptyMapAction}><Plus color={colors.green} size={18} /><Text style={styles.emptyMapLink}>İlk sinyali bırak</Text></AnimatedPressable>
+          <AnimatedPressable onPress={() => openComposer()} pressScale={0.94} style={styles.emptyMapAction}><Plus color={colors.mint} size={18} /><Text style={styles.emptyMapLink}>İlk sinyali bırak</Text></AnimatedPressable>
         </Animated.View>
       )}
 
-      <SafeAreaView edges={['top']} pointerEvents="box-none" style={styles.topOverlay}>
-        <View style={styles.topBar}>
-          <View style={styles.brandMark}>
-            <BlinkrMark size={30} />
-          </View>
-          <View style={styles.brandCopy}>
-            <Text style={styles.brand}>blinkr</Text>
-            <View style={styles.liveStatus}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveStatusText}>CANLI ÇEVRE</Text>
-              <Text style={styles.visibleCount}>· {visibleItemCount} görünür</Text>
-            </View>
-          </View>
-          <AnimatedPressable accessibilityLabel="Profili aç" onPress={() => setProfileOpen(true)} pressScale={0.9} style={styles.avatar}>
-            <Text style={styles.avatarText}>{auth.userName.slice(0, 1).toUpperCase()}</Text>
-          </AnimatedPressable>
-        </View>
-
-        <View style={styles.layerControl}>
-          <Layers3 color={colors.muted} size={15} />
-          {mapLayers.map((layer) => (
-            <AnimatedPressable
-              accessibilityRole="button"
-              key={layer.key}
-              onPress={() => {
-                setMapLayer(layer.key);
-                Haptics.selectionAsync();
-              }}
-              pressScale={0.92}
-              style={[styles.layerOption, mapLayer === layer.key && styles.layerOptionActive]}
-            >
-              <Text style={[styles.layerText, mapLayer === layer.key && styles.layerTextActive]}>{layer.label}</Text>
-            </AnimatedPressable>
-          ))}
-        </View>
-
-        {mapDirty && (
-          <Animated.View entering={FadeInDown.duration(220).springify().damping(16)}>
-            <AnimatedPressable disabled={isLoading} onPress={scanVisibleArea} pressScale={0.94} style={styles.searchAreaButton}>
-              {isLoading ? <ActivityIndicator color={colors.white} size="small" /> : <RefreshCw color={colors.white} size={16} />}
-              <Text style={styles.searchAreaText}>{isLoading ? 'Taranıyor' : 'Bu alanı tara'}</Text>
-            </AnimatedPressable>
-          </Animated.View>
-        )}
-      </SafeAreaView>
-
-      <View pointerEvents="box-none" style={[styles.mapActions, { bottom: insets.bottom + 88 }]}>
-        {!mapDirty && isLoading && (
-          <View style={styles.loadingBadge}>
-            <ActivityIndicator color={colors.green} size="small" />
-            <Text style={styles.loadingText}>Çevre güncelleniyor</Text>
-          </View>
-        )}
-        <AnimatedPressable
-          accessibilityLabel="Konumuma git"
-          onPress={() => moveToDeviceLocation(true).catch((err) => setError(friendlyError(err)))}
-          pressScale={0.88}
-          style={styles.locateButton}
-        >
-          <Navigation2 color={colors.ink} fill={colors.blueSoft} size={21} strokeWidth={2.4} />
-        </AnimatedPressable>
-      </View>
+      <MapTopChrome
+        isLoading={isLoading}
+        layer={mapLayer}
+        onLayerChange={(layer) => { setMapLayer(layer); Haptics.selectionAsync(); }}
+        onLocate={() => moveToDeviceLocation(true).catch((err) => setError(friendlyError(err)))}
+        onOpenProfile={onOpenProfile}
+        onScan={scanVisibleArea}
+        scanAvailable={mapDirty}
+        userName={auth.userName}
+        visibleCount={visibleItemCount}
+      />
 
       {(success || error) && (
-        <Animated.View entering={FadeInDown.duration(260).springify().damping(15)} style={[styles.toast, error ? styles.errorToast : styles.successToast, { top: insets.top + 145 }]}>
-          {error ? <Wifi color={colors.error} size={18} /> : <CheckCircle2 color={colors.greenDark} size={18} />}
+        <Animated.View entering={FadeInDown.duration(260).springify().damping(15)} style={[styles.toast, error ? styles.errorToast : styles.successToast, { bottom: bottomBarClearance(insets.bottom) + 8 }]}>
+          {error ? <Wifi color={colors.danger} size={18} /> : <CheckCircle2 color={colors.mint} size={18} />}
           <Text style={[styles.toastText, error && styles.errorToastText]} numberOfLines={3}>
             {error || success}
           </Text>
           <AnimatedPressable accessibilityLabel="Bildirimi kapat" hitSlop={10} onPress={() => { setError(null); setSuccess(null); }} pressScale={0.85}>
-            <X color={error ? colors.error : colors.greenDark} size={18} />
+            <X color={error ? colors.danger : colors.mint} size={18} />
           </AnimatedPressable>
         </Animated.View>
       )}
-
-      <View pointerEvents="box-none" style={[styles.bottomNavWrap, { bottom: Math.max(insets.bottom, 8) }]}>
-        <View style={styles.bottomNav}>
-          <AnimatedPressable accessibilityLabel="Sohbet" onPress={onOpenChat} pressScale={0.92} style={styles.navItem}>
-            <MessageCircle color={colors.muted} size={21} strokeWidth={2.3} />
-            <Text style={styles.navLabel}>Sohbet</Text>
-          </AnimatedPressable>
-          <AnimatedPressable accessibilityLabel="Harita" pressScale={0.92} style={styles.navItem}>
-            <View style={styles.navIconActive}><MapIcon color={colors.greenDark} size={20} strokeWidth={2.6} /></View>
-            <Text style={[styles.navLabel, styles.navLabelActive]}>Harita</Text>
-          </AnimatedPressable>
-          <AnimatedPressable
-            accessibilityLabel="Kamerayla sinyal paylaş"
-            disabled={isCreating}
-            onPress={openCameraSignal}
-            pressScale={0.88}
-            style={styles.createButton}
-          >
-            <Camera color={colors.ink} size={24} strokeWidth={2.6} />
-          </AnimatedPressable>
-          <AnimatedPressable accessibilityLabel="Profil" onPress={() => setProfileOpen(true)} pressScale={0.92} style={styles.navItem}>
-            <UserRound color={colors.muted} size={21} strokeWidth={2.3} />
-            <Text style={styles.navLabel}>Profil</Text>
-          </AnimatedPressable>
-        </View>
-      </View>
 
       {isComposerOpen && <SignalComposer
         area={composerArea}
@@ -860,116 +791,28 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
         pendingCapture={pendingCapture}
         visible={isComposerOpen}
       />}
-      {!isComposerOpen && !isProfileOpen && <PostDetailSheet
+      {!isComposerOpen && <PostDetailSheet
         isLoading={isDetailLoading}
         onClose={closeDetailSheet}
         onCreateSignal={() => openComposer(selectedDetail ?? selectedPlace)}
         place={selectedDetail ?? selectedPlace}
         signal={selectedSignal}
+        userId={auth.userId}
       />}
 
-      {isProfileOpen && !isComposerOpen && <Sheet onClose={() => setProfileOpen(false)}>
-          <View style={[styles.profilePanel, { paddingBottom: Math.max(insets.bottom, 18) }]}>
-            <View style={styles.profileHandle} />
-            <View style={styles.profileHeader}>
-              <View>
-                <Text style={styles.profileEyebrow}>BLINKR PROFİLİ</Text>
-                <Text style={styles.profileTitle}>Senin çevren</Text>
-              </View>
-              <AnimatedPressable accessibilityLabel="Profili kapat" onPress={() => setProfileOpen(false)} pressScale={0.88} style={styles.profileClose}>
-                <X color={colors.textPrimary} size={20} />
-              </AnimatedPressable>
-            </View>
-
-            <View style={styles.profileIdentity}>
-              <View style={styles.profileAvatar}><Text style={styles.profileAvatarText}>{auth.userName.slice(0, 1).toUpperCase()}</Text></View>
-              <View style={styles.profileIdentityCopy}>
-                <Text numberOfLines={1} style={styles.profileName}>{auth.userName}</Text>
-                <Text numberOfLines={1} style={styles.profileEmail}>{auth.email}</Text>
-              </View>
-              <View style={styles.verifiedPill}><ShieldCheck color={colors.greenDark} size={14} /><Text style={styles.verifiedText}>Aktif</Text></View>
-            </View>
-
-            <View style={styles.profileSection}>
-              <View style={styles.profileRow}>
-                <ShieldCheck color={colors.green} size={22} />
-                <View style={styles.profileIdentityCopy}>
-                  <Text style={styles.profileRowTitle}>Gizlilik</Text>
-                  <Text style={styles.profileRowText}>Kesin cihaz konumun diğer kullanıcılara gösterilmez.</Text>
-                </View>
-              </View>
-            </View>
-
-            <AnimatedPressable onPress={onLogout} pressScale={0.95} style={styles.logoutButton}>
-              <LogOut color={colors.error} size={18} />
-              <Text style={styles.logoutText}>Oturumu kapat</Text>
-            </AnimatedPressable>
-          </View>
-      </Sheet>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  emptyMap: { position: 'absolute', left: 36, right: 36, backgroundColor: colors.surface, borderRadius: radii.control, padding: 16, ...shadowSoft },
-  emptyMapText: { color: colors.textPrimary, fontSize: 14, lineHeight: 21, textAlign: 'center' },
-  emptyMapAction: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  emptyMapLink: { fontSize: 14, color: colors.green, fontWeight: '600' },
   screen: { backgroundColor: colors.mapCanvas, flex: 1 },
-  topOverlay: { left: 0, paddingHorizontal: 12, position: 'absolute', right: 0, top: 0 },
-  topBar: { alignItems: 'center', backgroundColor: 'rgba(15,20,16,0.92)', borderColor: 'rgba(244,247,241,0.08)', borderRadius: radii.control, borderWidth: 1, flexDirection: 'row', marginTop: 7, minHeight: 58, paddingHorizontal: 10, ...shadow },
-  brandMark: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: radii.control, height: 38, justifyContent: 'center', width: 38 },
-  brandCopy: { flex: 1, marginLeft: 10 },
-  brand: { color: colors.textPrimary, fontSize: 19, fontWeight: '600', letterSpacing: 0 },
-  liveStatus: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', marginTop: 2 },
-  liveDot: { backgroundColor: colors.coral, borderRadius: 4, height: 7, marginRight: 5, width: 7 },
-  liveStatusText: { color: colors.greenDark, fontSize: 12, fontWeight: '600' },
-  visibleCount: { color: colors.muted, fontSize: 12, fontWeight: '700', marginLeft: 3 },
-  avatar: { alignItems: 'center', backgroundColor: colors.ink, borderRadius: radii.control, height: 44, justifyContent: 'center', width: 38 },
-  avatarText: { color: colors.white, fontSize: 14, fontWeight: '600' },
-  layerControl: { alignItems: 'center', alignSelf: 'center', backgroundColor: 'rgba(15,20,16,0.92)', borderRadius: radii.control, flexDirection: 'row', gap: 3, marginTop: 7, minHeight: 40, paddingHorizontal: 6, ...shadowSoft },
-  layerOption: { alignItems: 'center', borderRadius: 6, justifyContent: 'center', minHeight: 44, paddingHorizontal: 9 },
-  layerOptionActive: { backgroundColor: colors.lime },
-  layerText: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  layerTextActive: { color: colors.ink },
-  searchAreaButton: { alignItems: 'center', alignSelf: 'center', backgroundColor: colors.ink, borderRadius: radii.control, flexDirection: 'row', gap: 8, marginTop: 8, minHeight: 44, paddingHorizontal: 15, ...shadow },
-  searchAreaText: { color: colors.white, fontSize: 12, fontWeight: '600' },
-  mapActions: { alignItems: 'flex-end', left: 12, position: 'absolute', right: 12 },
-  locateButton: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radii.control, borderWidth: 1, height: 48, justifyContent: 'center', width: 48, ...shadow },
-  controlPressed: { opacity: 0.82, transform: [{ scale: 0.97 }] },
-  loadingBadge: { alignItems: 'center', alignSelf: 'center', backgroundColor: 'rgba(15,20,16,0.92)', borderRadius: radii.control, flexDirection: 'row', gap: 8, marginBottom: -42, minHeight: 38, paddingHorizontal: 12, ...shadowSoft },
-  loadingText: { color: colors.textPrimary, fontSize: 12, fontWeight: '600' },
-  toast: { alignItems: 'center', borderRadius: radii.control, flexDirection: 'row', gap: 9, left: 16, paddingHorizontal: 13, paddingVertical: 11, position: 'absolute', right: 16, ...shadow },
-  successToast: { backgroundColor: colors.greenSoft },
-  errorToast: { backgroundColor: colors.errorSoft },
-  toastText: { color: colors.greenDark, flex: 1, fontSize: 12, fontWeight: '600', lineHeight: 17 },
-  errorToastText: { color: colors.error },
-  bottomNavWrap: { alignItems: 'center', left: 12, position: 'absolute', right: 12 },
-  bottomNav: { alignItems: 'center', backgroundColor: 'rgba(15,20,16,0.94)', borderColor: 'rgba(244,247,241,0.08)', borderRadius: radii.control, borderWidth: 1, flexDirection: 'row', height: 68, justifyContent: 'space-around', maxWidth: 420, paddingHorizontal: 12, width: '100%', ...shadow },
-  navItem: { alignItems: 'center', justifyContent: 'center', minHeight: 52, minWidth: 72 },
-  navIconActive: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: 6, height: 27, justifyContent: 'center', width: 34 },
-  navLabel: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 3 },
-  navLabelActive: { color: colors.greenDark },
-  createButton: { alignItems: 'center', backgroundColor: colors.lime, borderColor: colors.ink, borderRadius: radii.control, borderWidth: 2, height: 52, justifyContent: 'center', width: 58, ...shadowSoft },
-  createButtonPressed: { opacity: 0.86, transform: [{ scale: 0.96 }] },
-  profilePanel: { backgroundColor: colors.surface, borderTopLeftRadius: radii.panel, borderTopRightRadius: radii.panel, maxHeight: '88%', paddingHorizontal: 20, paddingTop: 9, ...shadow },
-  profileHandle: { alignSelf: 'center', backgroundColor: colors.lineStrong, borderRadius: 2, height: 4, marginBottom: 16, width: 38 },
-  profileHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  profileEyebrow: { color: colors.green, fontSize: 12, fontWeight: '600' },
-  profileTitle: { color: colors.textPrimary, fontSize: 23, fontWeight: '600', marginTop: 3 },
-  profileClose: { alignItems: 'center', backgroundColor: colors.surfaceSoft, borderRadius: radii.control, height: 44, justifyContent: 'center', width: 40 },
-  profileIdentity: { alignItems: 'center', flexDirection: 'row', marginTop: 20 },
-  profileIdentityCopy: { flex: 1, marginLeft: 13 },
-  profileAvatar: { alignItems: 'center', backgroundColor: colors.ink, borderRadius: radii.control, height: 56, justifyContent: 'center', width: 56 },
-  profileAvatarText: { color: colors.white, fontSize: 22, fontWeight: '600' },
-  profileName: { color: colors.textPrimary, fontSize: 19, fontWeight: '600' },
-  profileEmail: { color: colors.muted, fontSize: 12, marginTop: 4 },
-  verifiedPill: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: 999, flexDirection: 'row', gap: 5, paddingHorizontal: 9, paddingVertical: 6 },
-  verifiedText: { color: colors.greenDark, fontSize: 12, fontWeight: '600' },
-  profileSection: { borderBottomColor: colors.line, borderBottomWidth: 1, borderTopColor: colors.line, borderTopWidth: 1, marginTop: 20 },
-  profileRow: { alignItems: 'center', flexDirection: 'row', paddingVertical: 13 },
-  profileRowTitle: { color: colors.textPrimary, fontSize: 13, fontWeight: '600' },
-  profileRowText: { color: colors.muted, fontSize: 12, lineHeight: 16, marginTop: 3 },
-  logoutButton: { alignItems: 'center', borderColor: colors.coralLine, borderRadius: radii.control, borderWidth: 1, flexDirection: 'row', gap: 9, marginTop: 18, minHeight: 48, paddingHorizontal: 14 },
-  logoutText: { color: colors.error, fontSize: 14, fontWeight: '600' },
+  emptyMap: { position: 'absolute', left: 28, right: 28, backgroundColor: colors.glass, borderColor: colors.border, borderWidth: 1, borderRadius: radii.card, padding: 16, ...shadowSoft },
+  emptyMapText: { color: colors.text, fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  emptyMapAction: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  emptyMapLink: { fontSize: 15, color: colors.mint, fontWeight: '700' },
+  toast: { alignItems: 'center', borderRadius: radii.control, borderWidth: 1, flexDirection: 'row', gap: 10, left: 16, paddingHorizontal: 14, paddingVertical: 12, position: 'absolute', right: 16, zIndex: 15, ...shadow },
+  successToast: { backgroundColor: colors.glass, borderColor: colors.greenLine },
+  errorToast: { backgroundColor: colors.errorSoft, borderColor: colors.errorLine },
+  toastText: { color: colors.mint, flex: 1, fontSize: 14, fontWeight: '600', lineHeight: 19 },
+  errorToastText: { color: colors.danger },
 });

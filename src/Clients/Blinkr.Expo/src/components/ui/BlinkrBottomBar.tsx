@@ -15,6 +15,8 @@ type Props = {
   /** Shows the red dot on Sohbet. Only pass true when a real unread message exists. */
   chatUnread?: boolean;
   cameraDisabled?: boolean;
+  /** A sheet or the composer owns the screen; two stacked bars are never shown. */
+  hidden?: boolean;
 };
 
 const tabIcons = { chat: MessageCircle, map: MapIcon, profile: UserRound } as const;
@@ -27,7 +29,7 @@ function TabItem({ tab, active, unread, onPress }: { tab: BlinkrTab; active: boo
     <AnimatedPressable
       accessibilityLabel={unread ? `${tabLabels[tab]}, okunmamış mesaj var` : tabLabels[tab]}
       accessibilityRole="tab"
-      accessibilityState={{ selected: active }}
+      aria-selected={active}
       onPress={onPress}
       pressScale={0.92}
       style={styles.item}
@@ -45,10 +47,10 @@ function TabItem({ tab, active, unread, onPress }: { tab: BlinkrTab; active: boo
  * The one bottom navigation for the whole app: Sohbet | Harita | Kamera | Profil.
  * The camera is an action, not a tab - it never shows as "selected".
  */
-export function BlinkrBottomBar({ active, onTab, onCamera, chatUnread = false, cameraDisabled = false }: Props) {
+export function BlinkrBottomBar({ active, onTab, onCamera, chatUnread = false, cameraDisabled = false, hidden = false }: Props) {
   const insets = useSafeAreaInsets();
   const keyboardVisible = useKeyboardVisible();
-  if (keyboardVisible) return null;
+  if (keyboardVisible || hidden) return null;
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { bottom: Math.max(insets.bottom, spacing.sm) }]}>
       <View accessibilityRole="tablist" style={styles.bar}>
@@ -58,7 +60,7 @@ export function BlinkrBottomBar({ active, onTab, onCamera, chatUnread = false, c
           <AnimatedPressable
             accessibilityLabel="Kamerayla sinyal paylaş"
             accessibilityRole="button"
-            accessibilityState={{ disabled: cameraDisabled }}
+            aria-disabled={cameraDisabled}
             disabled={cameraDisabled}
             onPress={onCamera}
             pressScale={0.9}

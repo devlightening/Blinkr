@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { MapPin, MessageCirclePlus, Plus, UserRound } from 'lucide-react-native';
+import { MessageCirclePlus, Plus, UserRound } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getUser, listConversations, startConversation } from '../../api';
@@ -31,11 +31,10 @@ const formatWhen = (iso: string) => {
   return `${Math.round(diffHr / 24)}g`;
 };
 
-export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onOpenMap }: {
+export function ChatListScreen({ auth, onAuthChange, onSessionExpired }: {
   auth: AuthResponse;
   onAuthChange: (auth: AuthResponse) => void;
   onSessionExpired: () => void;
-  onOpenMap: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -181,18 +180,6 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onOpenMap
       </ScrollView>
     )}
 
-    <View pointerEvents="box-none" style={[styles.bottomNavWrap, { bottom: Math.max(insets.bottom, 8) }]}>
-      <View style={styles.bottomNav}>
-        <AnimatedPressable accessibilityLabel="Harita" onPress={onOpenMap} pressScale={0.92} style={styles.navItem}>
-          <MapPin color={colors.muted} size={21} strokeWidth={2.3} />
-          <Text style={styles.navLabel}>Harita</Text>
-        </AnimatedPressable>
-        <AnimatedPressable accessibilityLabel="Yeni mesaj" onPress={() => setSearchOpen(true)} pressScale={0.88} style={styles.createButton}>
-          <Plus color={colors.ink} size={25} strokeWidth={3} />
-        </AnimatedPressable>
-      </View>
-    </View>
-
     {isSearchOpen && <Sheet onClose={() => setSearchOpen(false)}>
       <View style={[styles.searchPanel, { paddingBottom: Math.max(insets.bottom, 18) }]}>
         <View style={styles.handle} />
@@ -220,11 +207,6 @@ const styles = StyleSheet.create({
   rowName: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
   rowPreview: { ...typography.caption, color: colors.muted, marginTop: 2 },
   rowWhen: { ...typography.caption, color: colors.muted },
-  bottomNavWrap: { alignItems: 'center', left: 12, position: 'absolute', right: 12 },
-  bottomNav: { alignItems: 'center', backgroundColor: 'rgba(15,20,16,0.94)', borderColor: 'rgba(244,247,241,0.08)', borderRadius: radii.control, borderWidth: 1, flexDirection: 'row', height: 68, justifyContent: 'space-around', maxWidth: 420, paddingHorizontal: 12, width: '100%', ...shadow },
-  navItem: { alignItems: 'center', justifyContent: 'center', minHeight: 52, minWidth: 72 },
-  navLabel: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 3 },
-  createButton: { alignItems: 'center', backgroundColor: colors.lime, borderColor: colors.ink, borderRadius: radii.control, borderWidth: 2, height: 52, justifyContent: 'center', width: 58, ...shadowSoft },
   searchPanel: { backgroundColor: colors.surface, borderTopLeftRadius: radii.panel, borderTopRightRadius: radii.panel, maxHeight: '88%', minHeight: '60%', paddingHorizontal: 20, paddingTop: 9, ...shadow },
   handle: { alignSelf: 'center', backgroundColor: colors.lineStrong, borderRadius: 2, height: 4, marginBottom: 8, width: 38 },
 });

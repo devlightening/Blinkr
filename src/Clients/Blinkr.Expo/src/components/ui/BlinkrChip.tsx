@@ -23,7 +23,8 @@ export function BlinkrChip({ label, selected, onPress, icon, tone, disabled = fa
     <AnimatedPressable
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityRole="button"
-      accessibilityState={{ selected, disabled }}
+      aria-selected={selected}
+      aria-disabled={disabled}
       disabled={disabled}
       onPress={onPress}
       pressScale={0.94}
