@@ -12,6 +12,11 @@ import { BlinkrHeader, HeaderAvatar } from '../src/components/ui/BlinkrHeader';
 import { BlinkrSignalCard } from '../src/components/ui/BlinkrSignalCard';
 import { PostDetailSheet } from '../src/components/PostDetailSheet';
 import { ProfileScreen } from '../src/components/ProfileScreen';
+import { ChatListScreen } from '../src/components/chat/ChatListScreen';
+import { ConversationScreen } from '../src/components/chat/ConversationScreen';
+import { UserSearchSheet } from '../src/components/chat/UserSearchSheet';
+import { BlinkrSheetPanel } from '../src/components/ui/BlinkrSheetPanel';
+import { conversations } from './ui-fixtures';
 import { ClusterVisual, MarkerVisual } from '../src/components/MapMarkerVisuals';
 import { MapTopChrome } from '../src/components/map/MapTopChrome';
 import type { MapLayer } from '../src/mapSelection';
@@ -164,7 +169,35 @@ function Profile() {
   );
 }
 
-const scenes: Record<string, () => React.JSX.Element> = { kit: Kit, detail: Detail, map: MapChrome, profile: Profile };
+// --- Chat ---
+const qaAuth = { userId: 'qa', userName: 'alper', email: 'qa@example.test', token: 't' };
+function Chat() {
+  const [tab, setTab] = useState<BlinkrTab>('chat');
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <ChatListScreen auth={qaAuth} onAuthChange={() => {}} onSessionExpired={() => {}} />
+      <BlinkrBottomBar active={tab} chatUnread onCamera={() => {}} onTab={setTab} />
+    </View>
+  );
+}
+function Conversation() {
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <ConversationScreen auth={qaAuth} conversation={conversations[0]} onAuthChange={() => {}} onBack={() => {}} onSessionExpired={() => {}} otherUserName="zeynep" />
+    </View>
+  );
+}
+function UserSearch() {
+  return (
+    <View style={{ backgroundColor: colors.mapCanvas, flex: 1, justifyContent: 'flex-end' }}>
+      <BlinkrSheetPanel maxHeightRatio={0.88}>
+        <UserSearchSheet auth={qaAuth} onBack={() => {}} onSelect={() => {}} />
+      </BlinkrSheetPanel>
+    </View>
+  );
+}
+
+const scenes: Record<string, () => React.JSX.Element> = { kit: Kit, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, conversation: Conversation, search: UserSearch };
 
 export function SceneHost({ name }: { name: string }) {
   const Scene = scenes[name];

@@ -201,6 +201,8 @@ export type Conversation = {
   lastMessageAtUtc: string;
   lastMessagePreview?: string | null;
   lastMessageSenderId?: string | null;
+  /** Messages from the other person that this user has not read yet (server-computed). */
+  unreadCount?: number;
 };
 
 export type ChatMessage = {

@@ -92,6 +92,50 @@ async function main() {
     await expect(page.getByText(/rozet|puan|yorum/i)).toHaveCount(0);
     await page.screenshot({ path: path.join(out, 'profile.png') });
 
+    // Chat list: names, real unread badge, "Sen:" prefix for own last message; empty and failing states.
+    await page.goto(url + '?scene=chat');
+    await expect(page.getByLabel(/zeynep ile konuşma, 3 okunmamış mesaj/)).toBeVisible();
+    await expect(page.getByLabel('arda ile konuşmayı aç')).toBeVisible();
+    await expect(page.getByText('Sen: Buraya geldin mi?')).toBeVisible();
+    await expect(page.getByText('3 konuşma')).toBeVisible();
+    await expect(page.getByLabel('Sohbet, okunmamış mesaj var')).toBeVisible();
+    await page.screenshot({ path: path.join(out, 'chat.png') });
+    await page.goto(url + '?scene=chat&empty');
+    await expect(page.getByText('Henüz mesajın yok')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Yeni mesaj' })).toHaveCount(2);
+    await page.goto(url + '?scene=chat&failing');
+    await expect(page.getByText('Sohbetler açılamadı')).toBeVisible();
+    await expect(page.getByText('Network request failed')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Tekrar dene' }).click();
+    await expect(page.getByText('Sohbetler açılamadı')).toBeVisible();
+
+    // Conversation: newest message at the bottom, send clears the draft, a failed send keeps it and shows a plain message.
+    await page.goto(url + '?scene=conversation');
+    const first = await page.getByText('Selam', { exact: true }).boundingBox();
+    const last = await page.getByText('Tamam, geliyorum.').boundingBox();
+    if (!first || !last || last.y <= first.y) throw new Error('Newest chat message is not below the oldest one');
+    await page.getByLabel('Mesaj yaz').fill('Deneme mesajı');
+    await page.getByRole('button', { name: 'Gönder' }).click();
+    await expect(page.getByText('Deneme mesajı')).toBeVisible();
+    await expect(page.getByLabel('Mesaj yaz')).toHaveValue('');
+    await page.screenshot({ path: path.join(out, 'conversation.png') });
+    await page.goto(url + '?scene=conversation&sendfail');
+    await page.getByLabel('Mesaj yaz').fill('Gitmeyecek');
+    await page.getByRole('button', { name: 'Gönder' }).click();
+    await expect(page.getByText('Mesaj gönderilemedi. Tekrar dene.')).toBeVisible();
+    await expect(page.getByText('Network request failed')).toHaveCount(0);
+    await expect(page.getByLabel('Mesaj yaz')).toHaveValue('Gitmeyecek');
+    await page.goto(url + '?scene=conversation&emptychat');
+    await expect(page.getByText('Henüz mesaj yok')).toBeVisible();
+
+    // User search opens with a hint, finds people by name and never lists yourself.
+    await page.goto(url + '?scene=search');
+    await expect(page.getByText(/en az 2 harf/)).toBeVisible();
+    await page.getByLabel('Kullanıcı adı').fill('zey');
+    await expect(page.getByLabel('zeynep ile mesajlaş')).toBeVisible();
+    await page.getByLabel('Kullanıcı adı').fill('yok-boyle-biri');
+    await expect(page.getByText('Bu isimde bir kullanıcı bulunamadı.')).toBeVisible();
+
     // Detail sheet: real facts only (signal count, freshness, confidence, distance) and working secondary actions.
     await page.goto(url + '?scene=detail');
     await expect(page.getByText('Örnek Lokanta')).toBeVisible();

@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { MessageCirclePlus, Plus, UserRound } from 'lucide-react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ChevronRight, MessageCircle, SquarePen, WifiOff } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getUser, listConversations, startConversation } from '../../api';
+import { formatAge } from '../../presentation';
 import { friendlyError } from '../../productPresentation';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Sheet } from '../Sheet';
+import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
+import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
+import { bottomBarClearance } from '../ui/BlinkrBottomBar';
 import { UserSearchSheet } from './UserSearchSheet';
 import { ConversationScreen } from './ConversationScreen';
-import { colors, radii, shadow, shadowSoft, typography, spacing } from '../../theme';
+import { colors, radii, shadowSoft, spacing, typography } from '../../theme';
 import type { AuthResponse, Conversation, UserSummary } from '../../types';
 
 const POLL_INTERVAL_MS = 8000;
@@ -21,21 +25,17 @@ const FALLBACK_NAME = 'Kullanıcı';
 // whole app session and survive the tab being unmounted and remounted.
 const userNameCache = new Map<string, string>();
 
-const formatWhen = (iso: string) => {
-  const date = new Date(iso);
-  const diffMin = Math.round((Date.now() - date.getTime()) / 60000);
-  if (diffMin < 1) return 'şimdi';
-  if (diffMin < 60) return `${diffMin}dk`;
-  const diffHr = Math.round(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}sa`;
-  return `${Math.round(diffHr / 24)}g`;
-};
-
-export function ChatListScreen({ auth, onAuthChange, onSessionExpired }: {
+type Props = {
   auth: AuthResponse;
   onAuthChange: (auth: AuthResponse) => void;
   onSessionExpired: () => void;
-}) {
+  /** True while any conversation has messages this user has not read (drives the tab-bar dot). */
+  onUnreadChange?: (hasUnread: boolean) => void;
+  /** A conversation screen owns the whole tab, so the app shell hides its bar and shows the composer. */
+  onConversationOpenChange?: (open: boolean) => void;
+};
+
+export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadChange, onConversationOpenChange }: Props) {
   const insets = useSafeAreaInsets();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setLoading] = useState(true);
@@ -107,6 +107,15 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired }: {
     return () => clearInterval(timer);
   }, [refresh, activeConversation]);
 
+  useEffect(() => {
+    onUnreadChange?.(conversations.some((conversation) => (conversation.unreadCount ?? 0) > 0));
+  }, [conversations, onUnreadChange]);
+
+  useEffect(() => {
+    onConversationOpenChange?.(Boolean(activeConversation));
+    return () => onConversationOpenChange?.(false);
+  }, [activeConversation, onConversationOpenChange]);
+
   const openConversationWith = async (user: UserSummary) => {
     setSearchOpen(false);
     // The search result already carries the name; no extra lookup is needed.
@@ -131,82 +140,111 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired }: {
     />;
   }
 
-  return <SafeAreaView edges={['top']} style={styles.screen}>
-    <View style={styles.header}>
-      <Text style={styles.title}>Sohbet</Text>
-      <AnimatedPressable accessibilityLabel="Yeni mesaj" onPress={() => setSearchOpen(true)} pressScale={0.9} style={styles.newButton}>
-        <MessageCirclePlus color={colors.ink} size={20} strokeWidth={2.4} />
+  const total = conversations.length;
+
+  return <View style={styles.screen}>
+    <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
+      <View style={styles.headerCopy}>
+        <Text accessibilityRole="header" style={styles.title}>Sohbet</Text>
+        {total > 0 && <Text style={styles.subtitle}>{total} konuşma</Text>}
+      </View>
+      <AnimatedPressable accessibilityLabel="Yeni mesaj" accessibilityRole="button" onPress={() => setSearchOpen(true)} pressScale={0.9} style={styles.newButton}>
+        <SquarePen color={colors.ink} size={26} strokeWidth={2.3} />
       </AnimatedPressable>
     </View>
 
     {isLoading ? (
-      <View style={styles.centerFill}><ActivityIndicator color={colors.green} /></View>
+      <View style={styles.centerFill}><ActivityIndicator accessibilityLabel="Yükleniyor" color={colors.mint} /></View>
     ) : error ? (
       <View style={styles.centerFill}>
-        <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text>
-        <AnimatedPressable accessibilityLabel="Tekrar dene" onPress={() => refresh()} pressScale={0.95} style={styles.emptyAction}>
-          <Text style={styles.emptyActionText}>Tekrar dene</Text>
-        </AnimatedPressable>
+        <BlinkrEmptyState
+          action={{ label: 'Tekrar dene', onPress: () => refresh() }}
+          description={error}
+          icon={<WifiOff color={colors.textSecondary} size={32} />}
+          title="Sohbetler açılamadı"
+        />
       </View>
-    ) : !conversations.length ? (
+    ) : !total ? (
       <View style={styles.centerFill}>
-        <UserRound color={colors.mutedSoft} size={40} />
-        <Text style={styles.emptyTitle}>Henüz mesajın yok</Text>
-        <Text style={styles.emptyText}>Bir kullanıcı bul ve konuşmaya başla.</Text>
-        <AnimatedPressable onPress={() => setSearchOpen(true)} pressScale={0.95} style={styles.emptyAction}>
-          <Plus color={colors.ink} size={16} strokeWidth={2.6} />
-          <Text style={styles.emptyActionText}>Yeni mesaj</Text>
-        </AnimatedPressable>
+        <BlinkrEmptyState
+          action={{ label: 'Yeni mesaj', onPress: () => setSearchOpen(true), icon: <SquarePen color={colors.ink} size={20} /> }}
+          description="Bir kullanıcı bul ve konuşmaya başla."
+          icon={<MessageCircle color={colors.textSecondary} size={34} />}
+          title="Henüz mesajın yok"
+        />
       </View>
     ) : (
-      <ScrollView
-        refreshControl={<RefreshControl onRefresh={() => { setRefreshing(true); refresh(); }} refreshing={isRefreshing} tintColor={colors.green} />}
-      >
-        {conversations.map((conversation, index) => {
-          const name = names[conversation.otherUserId] ?? FALLBACK_NAME;
+      <FlatList
+        contentContainerStyle={[styles.list, { paddingBottom: bottomBarClearance(insets.bottom) + spacing.lg }]}
+        data={conversations}
+        keyExtractor={(item) => item.id}
+        refreshControl={<RefreshControl onRefresh={() => { setRefreshing(true); refresh(); }} refreshing={isRefreshing} tintColor={colors.mint} />}
+        renderItem={({ item, index }) => {
+          const name = names[item.otherUserId] ?? FALLBACK_NAME;
+          const unread = item.unreadCount ?? 0;
+          const mine = item.lastMessageSenderId === auth.userId;
           return (
-            <Animated.View entering={FadeInDown.duration(220).delay(Math.min(index, 10) * 30)} key={conversation.id}>
-              <AnimatedPressable accessibilityLabel={`${name} ile konuşmayı aç`} onPress={() => setActiveConversation(conversation)} pressScale={0.97} style={styles.row}>
-                <View style={styles.avatar}><Text style={styles.avatarText}>{name.slice(0, 1).toUpperCase()}</Text></View>
-                <View style={styles.rowBody}>
-                  <Text numberOfLines={1} style={styles.rowName}>{name}</Text>
-                  <Text numberOfLines={1} style={styles.rowPreview}>{conversation.lastMessagePreview || 'Yeni konuşma'}</Text>
+            <Animated.View entering={FadeInDown.duration(220).delay(Math.min(index, 10) * 30)}>
+              <AnimatedPressable
+                accessibilityLabel={unread > 0 ? `${name} ile konuşma, ${unread} okunmamış mesaj` : `${name} ile konuşmayı aç`}
+                accessibilityRole="button"
+                onPress={() => setActiveConversation(item)}
+                pressScale={0.98}
+                style={[styles.card, unread > 0 && styles.cardUnread]}
+              >
+                <View style={[styles.avatar, unread > 0 && styles.avatarUnread]}>
+                  <Text style={styles.avatarText}>{name.slice(0, 1).toLocaleUpperCase('tr-TR')}</Text>
                 </View>
-                <Text style={styles.rowWhen}>{formatWhen(conversation.lastMessageAtUtc)}</Text>
+                <View style={styles.cardBody}>
+                  <View style={styles.cardTop}>
+                    <Text numberOfLines={1} style={styles.name}>{name}</Text>
+                    <Text style={styles.when}>{formatAge(item.lastMessageAtUtc)}</Text>
+                  </View>
+                  <Text numberOfLines={1} style={[styles.preview, unread > 0 && styles.previewUnread]}>
+                    {item.lastMessagePreview ? `${mine ? 'Sen: ' : ''}${item.lastMessagePreview}` : 'Yeni konuşma'}
+                  </Text>
+                </View>
+                <View style={styles.cardEnd}>
+                  {unread > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{unread > 99 ? '99+' : unread}</Text></View>}
+                  <ChevronRight color={colors.textSecondary} size={22} />
+                </View>
               </AnimatedPressable>
             </Animated.View>
           );
-        })}
-      </ScrollView>
+        }}
+        showsVerticalScrollIndicator={false}
+      />
     )}
 
     {isSearchOpen && <Sheet onClose={() => setSearchOpen(false)}>
-      <View style={[styles.searchPanel, { paddingBottom: Math.max(insets.bottom, 18) }]}>
-        <View style={styles.handle} />
+      <BlinkrSheetPanel maxHeightRatio={0.88}>
         <UserSearchSheet auth={auth} onBack={() => setSearchOpen(false)} onSelect={openConversationWith} />
-      </View>
+      </BlinkrSheetPanel>
     </Sheet>}
-  </SafeAreaView>;
+  </View>;
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: colors.surface, flex: 1 },
-  header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.sm },
-  title: { ...typography.title, color: colors.textPrimary },
-  newButton: { alignItems: 'center', backgroundColor: colors.lime, borderRadius: radii.control, height: 42, justifyContent: 'center', width: 42, ...shadowSoft },
-  centerFill: { alignItems: 'center', flex: 1, gap: 8, justifyContent: 'center', paddingHorizontal: 36 },
-  errorText: { ...typography.body, color: colors.error, textAlign: 'center' },
-  emptyTitle: { ...typography.heading, color: colors.textPrimary, marginTop: 8 },
-  emptyText: { ...typography.body, color: colors.muted, textAlign: 'center' },
-  emptyAction: { alignItems: 'center', backgroundColor: colors.lime, borderRadius: radii.pill, flexDirection: 'row', gap: 6, marginTop: 14, paddingHorizontal: 18, paddingVertical: 12 },
-  emptyActionText: { color: colors.ink, fontSize: 14, fontWeight: '700' },
-  row: { alignItems: 'center', flexDirection: 'row', gap: 12, paddingHorizontal: spacing.md, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.line },
-  avatar: { alignItems: 'center', backgroundColor: colors.ink, borderRadius: radii.control, height: 48, justifyContent: 'center', width: 48 },
-  avatarText: { color: colors.white, fontSize: 18, fontWeight: '600' },
-  rowBody: { flex: 1 },
-  rowName: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
-  rowPreview: { ...typography.caption, color: colors.muted, marginTop: 2 },
-  rowWhen: { ...typography.caption, color: colors.muted },
-  searchPanel: { backgroundColor: colors.surface, borderTopLeftRadius: radii.panel, borderTopRightRadius: radii.panel, maxHeight: '88%', minHeight: '60%', paddingHorizontal: 20, paddingTop: 9, ...shadow },
-  handle: { alignSelf: 'center', backgroundColor: colors.lineStrong, borderRadius: 2, height: 4, marginBottom: 8, width: 38 },
+  screen: { backgroundColor: colors.background, flex: 1 },
+  header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingBottom: spacing.md, paddingHorizontal: spacing.lg },
+  headerCopy: { flex: 1 },
+  title: { ...typography.headline, color: colors.text, fontSize: 34, lineHeight: 40 },
+  subtitle: { ...typography.caption, color: colors.textSecondary },
+  newButton: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: radii.lg, height: 60, justifyContent: 'center', width: 60, ...shadowSoft },
+  centerFill: { flex: 1, justifyContent: 'center' },
+  list: { gap: spacing.md, paddingHorizontal: spacing.md, paddingTop: spacing.sm },
+  card: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 88, padding: spacing.md },
+  cardUnread: { borderColor: colors.primary },
+  avatar: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.pill, borderWidth: 2, height: 60, justifyContent: 'center', width: 60 },
+  avatarUnread: { borderColor: colors.primary },
+  avatarText: { ...typography.title, color: colors.text },
+  cardBody: { flex: 1, gap: 2 },
+  cardTop: { alignItems: 'baseline', flexDirection: 'row', gap: spacing.sm, justifyContent: 'space-between' },
+  name: { ...typography.heading, color: colors.text, flexShrink: 1 },
+  when: { ...typography.caption, color: colors.textSecondary },
+  preview: { ...typography.body, color: colors.textSecondary },
+  previewUnread: { color: colors.text, fontWeight: '600' },
+  cardEnd: { alignItems: 'center', gap: spacing.xs },
+  badge: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: radii.pill, height: 26, justifyContent: 'center', minWidth: 26, paddingHorizontal: 7 },
+  badgeText: { ...typography.label, color: colors.ink, letterSpacing: 0 },
 });

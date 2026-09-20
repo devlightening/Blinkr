@@ -1,12 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
 import { BlinkrMark } from './src/components/BlinkrMark';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, BackHandler, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, BackHandler, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, Easing } from 'react-native-reanimated';
 
-import { clearAuth, loadAuth, saveAuth } from './src/api';
+import { clearAuth, listConversations, loadAuth, saveAuth } from './src/api';
 import { AuthScreen } from './src/components/AuthScreen';
 import { MapScreen } from './src/components/MapScreen';
 import { ChatListScreen } from './src/components/chat/ChatListScreen';
@@ -14,6 +14,9 @@ import { ProfileScreen } from './src/components/ProfileScreen';
 import { BlinkrBottomBar, type BlinkrTab } from './src/components/ui/BlinkrBottomBar';
 import { colors } from './src/theme';
 import type { AuthResponse, BlinkrPlace } from './src/types';
+
+// While Sohbet is not on screen the tab-bar dot is refreshed at this gentle interval, foreground only.
+const UNREAD_POLL_MS = 30_000;
 
 const PulsingMark = () => {
   const pulse = useSharedValue(1);
@@ -42,6 +45,7 @@ export default function App() {
   const [focusPlace, setFocusPlace] = useState<BlinkrPlace | null>(null);
   const [mapOverlayOpen, setMapOverlayOpen] = useState(false);
   const [chatUnread, setChatUnread] = useState(false);
+  const [chatConversationOpen, setChatConversationOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -73,6 +77,7 @@ export default function App() {
     setFocusPlace(null);
     setMapOverlayOpen(false);
     setChatUnread(false);
+    setChatConversationOpen(false);
     await clearAuth();
   }, []);
 
@@ -86,6 +91,25 @@ export default function App() {
     setFocusPlace(place);
     setActiveTab('map');
   }, []);
+
+  // Sohbet reports its own unread state while it is open; otherwise check now and then so the
+  // dot on the tab bar reflects real unread messages.
+  useEffect(() => {
+    if (!auth || activeTab === 'chat') return undefined;
+    let cancelled = false;
+    const check = async () => {
+      if (AppState.currentState !== 'active') return;
+      try {
+        const items = await listConversations(auth, acceptAuth, logout);
+        if (!cancelled) setChatUnread(items.some((item) => (item.unreadCount ?? 0) > 0));
+      } catch {
+        // A failed check keeps the previous dot state; the chat screen surfaces real errors.
+      }
+    };
+    void check();
+    const timer = setInterval(check, UNREAD_POLL_MS);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [auth, activeTab, acceptAuth, logout]);
 
   // Android back: leave Sohbet/Profil for the map before it would close the app. Sheets and the
   // open conversation register their own handlers later, so theirs run first.
@@ -130,7 +154,13 @@ export default function App() {
                 </View>
                 {activeTab === 'chat' && (
                   <View style={styles.tabLayer}>
-                    <ChatListScreen auth={auth} onAuthChange={acceptAuth} onSessionExpired={logout} />
+                    <ChatListScreen
+                      auth={auth}
+                      onAuthChange={acceptAuth}
+                      onConversationOpenChange={setChatConversationOpen}
+                      onSessionExpired={logout}
+                      onUnreadChange={setChatUnread}
+                    />
                   </View>
                 )}
                 {activeTab === 'profile' && (
@@ -141,7 +171,7 @@ export default function App() {
                 <BlinkrBottomBar
                   active={activeTab}
                   chatUnread={chatUnread}
-                  hidden={activeTab === 'map' && mapOverlayOpen}
+                  hidden={(activeTab === 'map' && mapOverlayOpen) || (activeTab === 'chat' && chatConversationOpen)}
                   onCamera={openCamera}
                   onTab={setActiveTab}
                 />
