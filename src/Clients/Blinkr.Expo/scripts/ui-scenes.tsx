@@ -16,7 +16,8 @@ import { ChatListScreen } from '../src/components/chat/ChatListScreen';
 import { ConversationScreen } from '../src/components/chat/ConversationScreen';
 import { UserSearchSheet } from '../src/components/chat/UserSearchSheet';
 import { BlinkrSheetPanel } from '../src/components/ui/BlinkrSheetPanel';
-import { conversations } from './ui-fixtures';
+import { conversations, nearby, area as composerArea } from './ui-fixtures';
+import { SignalComposer } from '../src/components/SignalComposer';
 import { ClusterVisual, MarkerVisual } from '../src/components/MapMarkerVisuals';
 import { MapTopChrome } from '../src/components/map/MapTopChrome';
 import type { MapLayer } from '../src/mapSelection';
@@ -197,7 +198,36 @@ function UserSearch() {
   );
 }
 
-const scenes: Record<string, () => React.JSX.Element> = { kit: Kit, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, conversation: Conversation, search: UserSearch };
+// --- Composer over a captured photo (the design's camera-first look) ---
+function ComposerWithMedia() {
+  const capture = { uri: tile(20), type: 'image', fileName: 'kare.jpg', width: 400, height: 300 } as never;
+  return (
+    <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
+      <SignalComposer
+        area={{ ...composerArea, place: nearby[1], source: 'place', proximity: { allowed: true, trustLevel: 'VERIFIED_LIVE', thresholdMeters: 200 } }}
+        auth={qaAuth}
+        canAskLocationAgain
+        error={null}
+        initialStep={1}
+        isSubmitting={false}
+        locationReadiness="ready"
+        nearbyPlaces={nearby}
+        nearbyStatus="READY"
+        onAuthChange={() => {}}
+        onClearError={() => {}}
+        onClose={() => {}}
+        onOpenSettings={() => {}}
+        onSelectArea={async () => {}}
+        onSessionExpired={() => {}}
+        onSubmit={async () => {}}
+        pendingCapture={capture}
+        visible
+      />
+    </View>
+  );
+}
+
+const scenes: Record<string, () => React.JSX.Element> = { composerMedia: ComposerWithMedia, kit: Kit, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, conversation: Conversation, search: UserSearch };
 
 export function SceneHost({ name }: { name: string }) {
   const Scene = scenes[name];

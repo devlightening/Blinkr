@@ -25,7 +25,7 @@ async function main() {
     await page.getByPlaceholder('Örn. Bekleme süresi 10 dakika').fill('Park bu akşam sakin');
     await page.getByText('Devam', { exact: true }).click();
     await page.waitForTimeout(420); await page.screenshot({ path: path.join(out, 'composer-review.png') });
-    await page.getByText('Yayınla', { exact: true }).click();
+    await page.getByText('Sinyal bırak', { exact: true }).click();
     await expect(page.getByRole('button', { name: 'Yayınlanıyor' })).toBeDisabled();
     await expect(page.getByLabel('Published result')).toHaveText('park:Crowd:Calm');
     await expect(page.getByLabel('Publication count')).toHaveText('1');
@@ -36,7 +36,7 @@ async function main() {
     await page.getByText('Sakin', { exact: true }).click();
     await page.getByRole('button', { name: 'Devam', exact: true }).click();
     await page.getByRole('button', { name: 'Devam', exact: true }).click();
-    await page.getByRole('button', { name: 'Yayınla', exact: true }).click();
+    await page.getByRole('button', { name: 'Sinyal bırak', exact: true }).click();
     await expect(page.getByLabel('Published result')).toHaveText('coordinate:Crowd:Calm');
     await expect(page.getByLabel('Publication count')).toHaveText('1');
     await page.goto(url+'?error');
