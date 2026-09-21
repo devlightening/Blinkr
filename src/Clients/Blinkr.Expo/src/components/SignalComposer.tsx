@@ -33,12 +33,12 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { uploadMedia } from '../api';
 import { splitNearbyPlaces } from '../nearbyPlaceTiers';
 import { formatCategory, formatDistance } from '../presentation';
-import { categoryTone, colors, radii, shadow, signalColors, spacing, typography } from '../theme';
+import { categoryTone, colors, motion, radii, shadow, signalColors, spacing, typography } from '../theme';
 import { canPublishAt, friendlyError, signalOptions, trustLabel } from '../productPresentation';
 import { AnimatedPressable } from './AnimatedPressable';
 import { SignalSymbol } from './SignalSymbol';
@@ -69,6 +69,8 @@ type Props = {
   canAskLocationAgain: boolean;
   error: string | null;
   initialStep?: number;
+  /** Pre-selected signal, e.g. when answering "Hâlâ böyle mi?" on a Place. */
+  initialSignal?: { type: SignalType; value: string | null } | null;
   isSubmitting: boolean;
   locationReadiness: LocationReadiness;
   nearbyCoverageState?: string | null;
@@ -78,6 +80,8 @@ type Props = {
   onClearError: () => void;
   onClose: () => void;
   onOpenSettings: () => void;
+  /** Opens the in-app camera above the composer; without it the system camera is used. */
+  onRequestCamera?: () => void;
   onSelectArea: (source: 'device' | 'map', place?: BlinkrPlace | null) => Promise<void>;
   onSessionExpired: () => void;
   onSubmit: (input: ComposerInput) => Promise<void>;
@@ -111,6 +115,7 @@ export function SignalComposer({
   canAskLocationAgain,
   error,
   initialStep,
+  initialSignal,
   isSubmitting,
   locationReadiness,
   nearbyCoverageState,
@@ -120,6 +125,7 @@ export function SignalComposer({
   onClearError,
   onClose,
   onOpenSettings,
+  onRequestCamera,
   onSelectArea,
   onSessionExpired,
   onSubmit,
@@ -128,8 +134,8 @@ export function SignalComposer({
 }: Props) {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const [signalType, setSignalType] = useState<SignalType>('GeneralObservation');
-  const [signalValue, setSignalValue] = useState<string | null>(null);
+  const [signalType, setSignalType] = useState<SignalType>(initialSignal?.type ?? 'GeneralObservation');
+  const [signalValue, setSignalValue] = useState<string | null>(initialSignal?.value ?? null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [identityDisclosure, setIdentityDisclosure] = useState<IdentityDisclosure>('LimitedProfile');
@@ -297,7 +303,7 @@ export function SignalComposer({
               <X color={colors.text} size={24} />
             </AnimatedPressable>
           }
-          subtitle={<Text style={styles.stepLabel}>ADIM {step + 1}/4 · {stepTitles[step].toLocaleUpperCase('tr-TR')}</Text>}
+          subtitle={<Text style={styles.stepLabel}>Adım {step + 1}/4 · {stepTitles[step]}</Text>}
         />
       </View>
 
@@ -375,7 +381,7 @@ export function SignalComposer({
                     {visibleNearbyPlaces.map((place, index) => {
                       const tone = categoryTone(place.category);
                       return (
-                        <Animated.View entering={FadeInDown.duration(280).delay(Math.min(index, 6) * 40)} key={place.id}>
+                        <Animated.View entering={FadeIn.duration(motion.base)} key={place.id}>
                           <AnimatedPressable
                             accessibilityLabel={`${place.name} yerini seç`}
                             accessibilityRole="button"
@@ -417,7 +423,7 @@ export function SignalComposer({
             {step === 1 && <>
             <View style={styles.sectionHeadingRow}>
               <Text style={styles.sectionLabel}>Sinyal türü seç</Text>
-              <Text style={styles.sectionHint}>3 SAAT CANLI</Text>
+              <Text style={styles.sectionHint}>3 saat canlı kalır</Text>
             </View>
             <View style={styles.chipRow}>
               {signalTypes.map((item) => (
@@ -454,7 +460,7 @@ export function SignalComposer({
               <Text style={styles.sectionHint}>İSTEĞE BAĞLI</Text>
             </View>
             <View style={styles.sourceRow}>
-              <BlinkrButton icon={<Camera color={colors.text} size={18} />} label="Kamera" onPress={() => pickMedia('camera')} style={styles.mediaButton} variant="secondary" />
+              <BlinkrButton icon={<Camera color={colors.text} size={18} />} label="Kamera" onPress={() => (onRequestCamera ? onRequestCamera() : pickMedia('camera'))} style={styles.mediaButton} variant="secondary" />
               <BlinkrButton icon={<ImageIcon color={colors.text} size={18} />} label="Galeri" onPress={() => pickMedia('library')} style={styles.mediaButton} variant="secondary" />
             </View>
 
@@ -536,12 +542,12 @@ const styles = StyleSheet.create({
   host: { ...StyleSheet.absoluteFill, backgroundColor: colors.background, zIndex: 100 },
   backdropShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(8, 12, 10, 0.32)' },
   top: { left: 0, paddingHorizontal: spacing.md, position: 'absolute', right: 0, top: 0 },
-  stepLabel: { ...typography.label, color: colors.mint },
-  close: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.pill, borderWidth: 1, height: 48, justifyContent: 'center', width: 48 },
+  stepLabel: { ...typography.caption, color: colors.textSecondary },
+  close: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.pill, borderWidth: 1, height: 40, justifyContent: 'center', width: 40 },
   bottom: { bottom: 0, left: 0, position: 'absolute', right: 0 },
   panel: { backgroundColor: colors.glass, borderColor: colors.border, borderTopLeftRadius: radii.panel, borderTopRightRadius: radii.panel, borderWidth: 1, borderBottomWidth: 0, paddingHorizontal: spacing.lg, paddingTop: spacing.md, ...shadow },
   progress: { flexDirection: 'row', gap: 6, marginBottom: spacing.md },
-  progressSegment: { backgroundColor: colors.lineStrong, borderRadius: 3, flex: 1, height: 5 },
+  progressSegment: { backgroundColor: colors.lineStrong, borderRadius: 2, flex: 1, height: 3 },
   progressSegmentActive: { backgroundColor: colors.primary },
   heading: { ...typography.title, color: colors.text },
   flex: { flex: 1 },
@@ -553,8 +559,8 @@ const styles = StyleSheet.create({
   sectionHint: { ...typography.label, color: colors.textSecondary },
   placeCard: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', gap: spacing.md, padding: spacing.md },
   placeCardSelected: { borderColor: colors.mint },
-  placeTile: { alignItems: 'center', backgroundColor: colors.background, borderRadius: radii.md, borderWidth: 2, height: 52, justifyContent: 'center', width: 52 },
-  placeTileSmall: { borderRadius: radii.sm + 2, height: 42, width: 42 },
+  placeTile: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.md, height: 44, justifyContent: 'center', width: 44 },
+  placeTileSmall: { borderRadius: radii.sm + 2, height: 36, width: 36 },
   placeName: { ...typography.bodyStrong, color: colors.text },
   placeMeta: { ...typography.caption, color: colors.textSecondary },
   summaryLabel: { ...typography.label, color: colors.mint },
@@ -569,11 +575,11 @@ const styles = StyleSheet.create({
   nearbyState: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
   nearbyStateText: { ...typography.caption, color: colors.textSecondary, flex: 1 },
   nearbyList: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, overflow: 'hidden' },
-  nearbyItem: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: 64, paddingHorizontal: spacing.md },
+  nearbyItem: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: 60, paddingHorizontal: spacing.md },
   nearbyItemDivider: { borderTopColor: colors.border, borderTopWidth: 1 },
   nearbyName: { ...typography.bodyStrong, color: colors.text, fontSize: 15 },
   nearbyMeta: { ...typography.caption, color: colors.textSecondary },
-  pickText: { ...typography.label, backgroundColor: colors.greenSoft, borderRadius: radii.pill, color: colors.mint, letterSpacing: 0, overflow: 'hidden', paddingHorizontal: 12, paddingVertical: 7 },
+  pickText: { ...typography.label, backgroundColor: colors.greenSoft, borderRadius: radii.pill, color: colors.mint, overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 5 },
   coordinateAction: { marginTop: spacing.sm },
   morePlacesButton: { alignItems: 'center', flexDirection: 'row', gap: 5, justifyContent: 'center', minHeight: 44 },
   morePlacesText: { ...typography.caption, color: colors.mint, fontWeight: '700' },
@@ -582,11 +588,11 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   valueRow: { marginTop: spacing.lg },
   inputLabel: { ...typography.caption, color: colors.textSecondary, fontWeight: '700', marginBottom: spacing.sm, marginTop: spacing.lg },
-  input: { ...typography.body, backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, color: colors.text, minHeight: 54, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  input: { ...typography.body, backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, color: colors.text, minHeight: 48, paddingHorizontal: spacing.md, paddingVertical: spacing.md },
   textArea: { minHeight: 112 },
   counter: { ...typography.caption, color: colors.textSecondary, marginTop: 6, textAlign: 'right' },
   mediaDraft: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm, padding: spacing.sm },
-  mediaThumb: { backgroundColor: colors.surfaceElevated, borderRadius: radii.sm, height: 58, width: 58 },
+  mediaThumb: { backgroundColor: colors.surfaceElevated, borderRadius: radii.sm, height: 52, width: 52 },
   mediaName: { ...typography.caption, color: colors.text, fontWeight: '700' },
   mediaStatus: { ...typography.caption, color: colors.textSecondary },
   mediaFailed: { color: colors.danger },
@@ -596,7 +602,7 @@ const styles = StyleSheet.create({
   segmented: { backgroundColor: colors.background, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', padding: 4 },
   segment: { alignItems: 'center', borderRadius: radii.md - 4, flex: 1, justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.sm },
   segmentActive: { backgroundColor: colors.primary },
-  segmentText: { ...typography.caption, color: colors.textSecondary, fontWeight: '700' },
+  segmentText: { ...typography.caption, color: colors.textSecondary, fontWeight: '600' },
   segmentTextActive: { color: colors.ink },
   policySummary: { alignItems: 'flex-start', backgroundColor: colors.greenSoft, borderRadius: radii.md, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
   policyText: { ...typography.caption, color: colors.mint, flex: 1 },

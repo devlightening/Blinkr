@@ -13,7 +13,12 @@ import { BlinkrSignalCard } from '../src/components/ui/BlinkrSignalCard';
 import { PostDetailSheet } from '../src/components/PostDetailSheet';
 import { ProfileScreen } from '../src/components/ProfileScreen';
 import { ChatListScreen } from '../src/components/chat/ChatListScreen';
+import { Avatar } from '../src/components/Avatar';
+import { avatarKeyOf } from '../src/avatars';
 import { NearbyScreen } from '../src/components/NearbyScreen';
+import { MapSearchOverlay } from '../src/components/map/MapSearchOverlay';
+import { ShareHubSheet } from '../src/components/ShareHubSheet';
+import { SignalCamera } from '../src/components/camera/SignalCamera';
 import { ConversationScreen } from '../src/components/chat/ConversationScreen';
 import { UserSearchSheet } from '../src/components/chat/UserSearchSheet';
 import { BlinkrSheetPanel } from '../src/components/ui/BlinkrSheetPanel';
@@ -24,7 +29,7 @@ import { ClusterVisual, MarkerVisual } from '../src/components/MapMarkerVisuals'
 import { MapTopChrome } from '../src/components/map/MapTopChrome';
 import type { MapLayer } from '../src/mapSelection';
 import { colors, signalColors, typography } from '../src/theme';
-import type { BlinkrPlace } from '../src/types';
+import type { AuthResponse, BlinkrPlace, SignalType } from '../src/types';
 
 /** Browser-only scenes for visual review against the design package. Never shipped in the app bundle. */
 function Kit() {
@@ -35,7 +40,7 @@ function Kit() {
     <View style={{ backgroundColor: colors.background, flex: 1 }}>
       <ScrollView contentContainerStyle={{ gap: 16, padding: 16, paddingBottom: 140 }}>
         <BlinkrHeader
-          right={<HeaderAvatar userName="alper" />}
+          right={<HeaderAvatar userId="scene" userName="alper" />}
           subtitle={<Text style={{ ...typography.caption, color: colors.mint }}>CANLI ÇEVRE · 4 görünür</Text>}
         />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -77,7 +82,7 @@ function Kit() {
           title="Henüz mesajın yok"
         />
       </ScrollView>
-      <BlinkrBottomBar active={tab} chatUnread onCamera={() => setTaps(taps + 10)} onTab={setTab} />
+      <BlinkrBottomBar active={tab} chatUnread onShare={() => setTaps(taps + 10)} onTab={setTab} />
     </View>
   );
 }
@@ -95,20 +100,33 @@ const detailPlace: BlinkrPlace = {
   ],
 };
 function Detail() {
+  const [answer, setAnswer] = useState('');
+  const stale = typeof location !== 'undefined' && location.search.includes('stale');
+  const place = stale ? { ...detailPlace, currentState: { ...detailPlace.currentState, freshness: 'STALE' } } : detailPlace;
   return (
     <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
-      <PostDetailSheet isLoading={false} onClose={() => {}} onCreateSignal={() => {}} place={detailPlace} userId="scene" />
+      <PostDetailSheet isLoading={false} onClose={() => {}} onCreateSignal={() => {}} onRecheck={(mode, signal) => setAnswer(`${mode}:${signal.type}:${signal.value}`)} place={place} userId="scene" />
+      <Text accessibilityLabel="answer" style={{ height: 0, opacity: 0, position: 'absolute' }}>{answer}</Text>
     </View>
   );
 }
 
 // --- Map chrome + markers over a flat stand-in for the base map (react-native-maps has no web build) ---
-const at = (place: Partial<BlinkrPlace> & { category: string }, left: number, top: number, extra: { selected?: boolean; live?: boolean } = {}) => (
+const at = (place: Partial<BlinkrPlace> & { category: string }, left: number, top: number, extra: { selected?: boolean; live?: boolean; type?: SignalType } = {}) => (
   <View key={`${place.category}-${left}-${top}`} style={{ left, position: 'absolute', top }}>
     <MarkerVisual
       now={Date.now()}
-      place={{ id: place.category + left, name: place.category, latitude: 0, longitude: 0, category: place.category, lastActivityUtc: iso(3), currentState: extra.live ? { activeSignalCount: 2 } : null }}
+      place={{ id: place.category + left, name: place.category, latitude: 0, longitude: 0, category: place.category, lastActivityUtc: iso(3), currentState: extra.live ? { activeSignalCount: 2, signalType: extra.type ?? 'Crowd', signalValue: 'Busy', freshness: 'FRESH' } : null }}
       selected={Boolean(extra.selected)}
+    />
+  </View>
+);
+const bubble = (type: SignalType, left: number, top: number, ageMinutes: number, selected = false) => (
+  <View key={`sig-${type}-${left}-${top}`} style={{ left, position: 'absolute', top }}>
+    <MarkerVisual
+      now={Date.now()}
+      selected={selected}
+      signal={{ postId: `s${left}`, title: 'Sinyal', textPreview: '', latitude: 0, longitude: 0, signalType: type, createdAtUtc: iso(ageMinutes), expiresAt: new Date(Date.now() + (180 - ageMinutes) * 60_000).toISOString() }}
     />
   </View>
 );
@@ -124,16 +142,20 @@ function MapChrome() {
         {[
           <View key="c12" style={{ left: 120, position: 'absolute', top: 250 }}><ClusterVisual count={12} /></View>,
           <View key="c5" style={{ left: 280, position: 'absolute', top: 290 }}><ClusterVisual count={5} /></View>,
-          <View key="c3" style={{ left: 40, position: 'absolute', top: 430 }}><ClusterVisual count={3} /></View>,
-          <View key="c8" style={{ left: 240, position: 'absolute', top: 520 }}><ClusterVisual count={8} /></View>,
-          at({ category: 'RESTAURANT' }, 190, 320, { live: true }),
-          at({ category: 'RESTAURANT' }, 165, 430, { selected: true, live: true }),
+          <View key="c3" style={{ left: 30, position: 'absolute', top: 520 }}><ClusterVisual count={3} /></View>,
+          <View key="c120" style={{ left: 250, position: 'absolute', top: 560 }}><ClusterVisual count={120} /></View>,
+          at({ category: 'RESTAURANT' }, 190, 320, { live: true, type: 'Crowd' }),
+          at({ category: 'RESTAURANT' }, 165, 430, { selected: true, live: true, type: 'Queue' }),
           at({ category: 'CAFE' }, 230, 440),
-          at({ category: 'BAR' }, 100, 480, { live: true }),
-          at({ category: 'SPORT' }, 130, 560),
-          at({ category: 'SHOP' }, 20, 350),
-          at({ category: 'TOURISM' }, 290, 220),
-          at({ category: 'PARK' }, 90, 250),
+          at({ category: 'PHARMACY' }, 95, 470, { live: true, type: 'Queue' }),
+          at({ category: 'BAR' }, 30, 380, { live: true, type: 'Event' }),
+          at({ category: 'SPORT' }, 130, 590),
+          at({ category: 'SHOP' }, 20, 330),
+          at({ category: 'TOURISM' }, 290, 200),
+          at({ category: 'PARK' }, 90, 230, { live: true, type: 'TemporaryStatus' }),
+          bubble('GeneralObservation', 300, 400, 6),
+          bubble('Offer', 320, 470, 80),
+          bubble('Event', 200, 520, 165),
         ]}
       </View>
       <MapTopChrome
@@ -144,10 +166,12 @@ function MapChrome() {
         onOpenProfile={() => {}}
         onScan={() => {}}
         scanAvailable
+        onOpenSearch={() => {}}
+        userId="scene"
         userName="alper"
         visibleCount={80}
       />
-      <BlinkrBottomBar active={tab} chatUnread onCamera={() => {}} onTab={setTab} />
+      <BlinkrBottomBar active={tab} chatUnread onShare={() => {}} onTab={setTab} />
     </View>
   );
 }
@@ -164,10 +188,13 @@ function Profile() {
     localStorage.setItem('blinkr.saved.scene.index', saved.map((place) => place.id).join(','));
   });
   const [tab, setTab] = useState<BlinkrTab>('profile');
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [auth, setAuth] = useState<AuthResponse>({ userId: 'scene', userName: 'alper', email: 'alper@example.test', token: 't' });
   return (
     <View style={{ backgroundColor: colors.background, flex: 1 }}>
-      <ProfileScreen auth={{ userId: 'scene', userName: 'alper', email: 'alper@example.test', token: 't' }} onAuthChange={() => {}} onCreateSignal={() => {}} onLogout={() => {}} onOpenPlace={() => {}} />
-      <BlinkrBottomBar active={tab} onCamera={() => {}} onTab={setTab} />
+      <ProfileScreen auth={auth} onAuthChange={(next) => setAuth(next)} onCreateSignal={() => {}} onLogout={() => {}} onOpenPlace={() => {}} onOverlayOpenChange={setSheetOpen} />
+      <Text accessibilityLabel="avatar-key" style={{ height: 0, opacity: 0, position: 'absolute' }}>{auth.avatarKey ?? 'default'}</Text>
+      <BlinkrBottomBar active={tab} hidden={sheetOpen} onShare={() => {}} onTab={setTab} />
     </View>
   );
 }
@@ -176,10 +203,50 @@ function Profile() {
 const qaAuth = { userId: 'qa', userName: 'alper', email: 'qa@example.test', token: 't' };
 function Chat() {
   const [tab, setTab] = useState<BlinkrTab>('chat');
+  const [covered, setCovered] = useState(false);
   return (
     <View style={{ backgroundColor: colors.background, flex: 1 }}>
-      <ChatListScreen auth={qaAuth} onAuthChange={() => {}} onSessionExpired={() => {}} />
-      <BlinkrBottomBar active={tab} chatUnread onCamera={() => {}} onTab={setTab} />
+      <ChatListScreen auth={qaAuth} onAuthChange={() => {}} onConversationOpenChange={setCovered} onSessionExpired={() => {}} snapRequested={typeof location !== 'undefined' && location.search.includes('compose')} />
+      <BlinkrBottomBar active={tab} chatUnread hidden={covered} onShare={() => {}} onTab={setTab} />
+    </View>
+  );
+}
+function ShareHub() {
+  const [choice, setChoice] = useState('');
+  return (
+    <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
+      <ShareHubSheet onCamera={() => setChoice('camera')} onClose={() => setChoice('closed')} onGallery={() => setChoice('gallery')} onSignalOnly={() => setChoice('signal')} />
+      <Text accessibilityLabel="choice" style={{ height: 0, opacity: 0, position: 'absolute' }}>{choice}</Text>
+    </View>
+  );
+}
+function CameraScene() {
+  const [result, setResult] = useState('');
+  const [closed, setClosed] = useState(false);
+  return (
+    <View style={{ backgroundColor: '#000', flex: 1 }}>
+      {!closed && <SignalCamera onCapture={(asset) => setResult(`${asset.type}:${asset.mimeType}:${asset.uri.endsWith('#rendered') ? 'rendered' : 'original'}`)} onClose={() => setClosed(true)} />}
+      <Text accessibilityLabel="captured" style={{ height: 0, opacity: 0, position: 'absolute' }}>{result}{closed ? 'closed' : ''}</Text>
+    </View>
+  );
+}
+function AvatarGallery() {
+  const keys = Array.from({ length: 48 }, (_, i) => avatarKeyOf({ color: i % 8, face: Math.floor(i / 8) % 6, accessory: (i * 5 + Math.floor(i / 8)) % 6 }));
+  const accessories = [0, 1, 2, 3, 4, 5].map((accessory) => avatarKeyOf({ color: accessory + 1, face: accessory % 6, accessory }));
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1, gap: 20, padding: 16 }}>
+      <View style={{ alignItems: 'center', flexDirection: 'row', gap: 12 }}>{accessories.map((key) => <Avatar avatarKey={key} key={key} ringColor={colors.primary} seed="gallery" size={52} />)}</View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>{keys.map((key, i) => <Avatar avatarKey={key} key={`${key}-${i}`} seed="gallery" size={40} />)}</View>
+      <View style={{ alignItems: 'center', flexDirection: 'row', gap: 12 }}>{['a', 'b', 'c', 'd', 'e', 'f'].map((seed) => <Avatar key={seed} seed={seed} size={40} />)}</View>
+    </View>
+  );
+}
+function MapSearch() {
+  const [chosen, setChosen] = useState('');
+  return (
+    <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
+      <MapSearchOverlay onClose={() => setChosen('closed')} onSelectLocation={(target) => setChosen(`location:${target.label}`)} onSelectPlace={(place) => setChosen(`place:${place.id}`)} origin={{ latitude: 37.0742, longitude: 36.2478 }} userId="scene" />
+      <Text accessibilityLabel="chosen" style={{ height: 0, opacity: 0, position: 'absolute' }}>{chosen}</Text>
     </View>
   );
 }
@@ -190,7 +257,7 @@ function Nearby() {
     <View style={{ backgroundColor: colors.background, flex: 1 }}>
       <NearbyScreen onCreateSignal={() => setOpened('camera')} onOpenPlace={(place) => setOpened(`place:${place.id}`)} onOpenSignal={(signal) => setOpened(`signal:${signal.postId}`)} />
       <Text accessibilityLabel="opened" style={{ height: 0, opacity: 0, position: 'absolute' }}>{opened}</Text>
-      <BlinkrBottomBar active={tab} chatUnread onCamera={() => {}} onTab={setTab} />
+      <BlinkrBottomBar active={tab} chatUnread onShare={() => {}} onTab={setTab} />
     </View>
   );
 }
@@ -242,7 +309,7 @@ function ComposerWithMedia() {
 
 function Auth() { return <AuthScreen onAuthenticated={() => {}} />; }
 
-const scenes: Record<string, () => React.JSX.Element> = { auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, conversation: Conversation, search: UserSearch };
+const scenes: Record<string, () => React.JSX.Element> = { auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, mapSearch: MapSearch, avatars: AvatarGallery, share: ShareHub, camera: CameraScene, conversation: Conversation, search: UserSearch };
 
 export function SceneHost({ name }: { name: string }) {
   const Scene = scenes[name];

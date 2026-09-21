@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ArrowLeft, ChevronRight, Search, UserRound } from 'lucide-react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { ArrowLeft, Search, UserRound } from 'lucide-react-native';
 
 import { searchUsers } from '../../api';
 import { friendlyError } from '../../productPresentation';
 import { AnimatedPressable } from '../AnimatedPressable';
-import { colors, radii, typography, sizes, spacing } from '../../theme';
+import { colors, motion, radii, typography, sizes, spacing } from '../../theme';
 import type { AuthResponse, UserSummary } from '../../types';
+import { Avatar } from '../Avatar';
 
 const MIN_QUERY_LENGTH = 2;
 
@@ -40,13 +41,13 @@ export function UserSearchSheet({ auth, onBack, onSelect }: {
 
   return <View style={styles.flex}>
     <View style={styles.bar}>
-      <AnimatedPressable accessibilityLabel="Geri dön" accessibilityRole="button" onPress={onBack} pressScale={0.88} style={styles.back}>
+      <AnimatedPressable accessibilityLabel="Geri dön" accessibilityRole="button" onPress={onBack} pressScale={0.95} style={styles.back}>
         <ArrowLeft color={colors.text} size={22} />
       </AnimatedPressable>
       <Text accessibilityRole="header" style={styles.heading}>Yeni mesaj</Text>
     </View>
     <View style={styles.search}>
-      <Search size={20} color={colors.textSecondary} />
+      <Search size={18} color={colors.textSecondary} />
       <TextInput
         accessibilityLabel="Kullanıcı adı"
         autoCapitalize="none"
@@ -60,21 +61,20 @@ export function UserSearchSheet({ auth, onBack, onSelect }: {
         value={query}
       />
     </View>
-    {loading && <ActivityIndicator accessibilityLabel="Aranıyor" style={styles.progress} color={colors.mint} />}
+    {loading && <ActivityIndicator accessibilityLabel="Aranıyor" style={styles.progress} color={colors.primary} />}
     {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      {results.map((user, index) => (
-        <Animated.View entering={FadeInDown.duration(220).delay(Math.min(index, 8) * 30)} key={user.id}>
+      {results.map((user) => (
+        <Animated.View entering={FadeIn.duration(motion.base)} key={user.id}>
           <AnimatedPressable accessibilityLabel={`${user.userName} ile mesajlaş`} accessibilityRole="button" onPress={() => onSelect(user)} pressScale={0.97} style={styles.row}>
-            <View style={styles.avatar}><Text style={styles.avatarText}>{user.userName.slice(0, 1).toLocaleUpperCase('tr-TR')}</Text></View>
+            <Avatar avatarKey={user.avatarKey} seed={user.id} size={44} />
             <Text numberOfLines={1} style={styles.name}>{user.userName}</Text>
-            <ChevronRight color={colors.textSecondary} size={22} />
           </AnimatedPressable>
         </Animated.View>
       ))}
       {!loading && !error && searched && !results.length && (
         <View style={styles.empty}>
-          <UserRound color={colors.textSecondary} size={30} />
+          <UserRound color={colors.textSecondary} size={26} />
           <Text style={styles.emptyText}>Bu isimde bir kullanıcı bulunamadı.</Text>
         </View>
       )}
@@ -87,18 +87,16 @@ export function UserSearchSheet({ auth, onBack, onSelect }: {
 
 const styles = StyleSheet.create({
   flex: { minHeight: 380 },
-  bar: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
-  back: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.pill, borderWidth: 1, height: sizes.touch, justifyContent: 'center', width: sizes.touch },
-  heading: { ...typography.title, color: colors.text },
-  search: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg },
-  input: { ...typography.body, color: colors.text, flex: 1, minHeight: 54 },
+  bar: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
+  back: { alignItems: 'center', height: sizes.touch, justifyContent: 'center', marginLeft: -spacing.sm, width: sizes.touch },
+  heading: { ...typography.heading, color: colors.text },
+  search: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md },
+  input: { ...typography.body, color: colors.text, flex: 1, minHeight: sizes.touch },
   progress: { marginTop: spacing.md },
   error: { ...typography.caption, color: colors.danger, paddingTop: spacing.md },
-  row: { alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 68, paddingVertical: spacing.sm },
-  avatar: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.pill, borderWidth: 1, height: 48, justifyContent: 'center', width: 48 },
-  avatarText: { ...typography.bodyStrong, color: colors.text },
+  row: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: 60, paddingVertical: spacing.sm },
   name: { ...typography.bodyStrong, color: colors.text, flex: 1 },
   empty: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxl },
   emptyText: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
-  hint: { ...typography.body, color: colors.textSecondary, paddingVertical: spacing.xl, textAlign: 'center' },
+  hint: { ...typography.caption, color: colors.textSecondary, paddingVertical: spacing.xl, textAlign: 'center' },
 });

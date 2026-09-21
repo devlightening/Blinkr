@@ -7,6 +7,8 @@ export type AuthResponse = {
   token: string;
   refreshToken?: string;
   expiresIn?: number;
+  /** Chosen avatar (see avatars.ts); null/absent = the default for this user id. */
+  avatarKey?: string | null;
 };
 
 export type Bounds = {
@@ -209,6 +211,7 @@ export type NearbyStatus = 'LOADING' | 'READY' | 'EMPTY' | 'NOT_LOADED' | 'FAILE
 export type UserSummary = {
   id: string;
   userName: string;
+  avatarKey?: string | null;
 };
 
 export type Conversation = {
@@ -219,6 +222,33 @@ export type Conversation = {
   lastMessageSenderId?: string | null;
   /** Messages from the other person that this user has not read yet (server-computed). */
   unreadCount?: number;
+  /** "snap" when the latest message is a view-once photo/video; absent on older servers (= text). */
+  lastMessageKind?: 'text' | 'snap';
+  /** For a snap: waiting ("sent"), "opened" or "expired". */
+  lastMessageState?: SnapState | null;
+  /** Id of the latest message; lets the list open a waiting snap without loading the conversation. */
+  lastMessageId?: string | null;
+};
+
+export type SnapState = 'sent' | 'opened' | 'expired';
+
+/** What the client may know about a snap; the media itself is only fetched by the recipient, once. */
+export type SnapInfo = {
+  mediaType: 'Image' | 'Video';
+  /** Seconds the recipient may look (1-10); 0 = until they close it. */
+  durationSeconds: number;
+  caption?: string | null;
+  state: SnapState;
+  expiresAtUtc: string;
+  openedAtUtc?: string | null;
+};
+
+export type SnapOpenResult = {
+  contentUrl: string;
+  mediaType: 'Image' | 'Video';
+  durationSeconds: number;
+  caption?: string | null;
+  viewUntilUtc: string;
 };
 
 export type ChatMessage = {
@@ -228,6 +258,8 @@ export type ChatMessage = {
   text: string;
   createdAtUtc: string;
   isRead: boolean;
+  kind?: 'text' | 'snap';
+  snap?: SnapInfo | null;
 };
 
 export const ISTANBUL_REGION: Region = {

@@ -9,7 +9,7 @@ async function main() {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    const errors=[]; page.on('pageerror', error => errors.push(error.message));
+    const errors=[]; page.on('pageerror', error => errors.push(page.url().replace(/^.*?/, '?') + ' ' + error.message));
     const url=`http://127.0.0.1:${server.address().port}`;
     await page.goto(url);
     await expect(page.getByText('Nerede oluyor?')).toBeVisible();
@@ -69,7 +69,7 @@ async function main() {
     await expect(page.getByLabel('Sohbet, okunmamış mesaj var')).toBeVisible();
     await page.getByLabel('Sinyal bırak', { exact: true }).click();
     await expect(page.getByLabel('Tap count')).toHaveText('1');
-    await page.getByLabel('Kamerayla sinyal paylaş').click();
+    await page.getByLabel('Yeni sinyal paylaş').click();
     await expect(page.getByLabel('Tap count')).toHaveText('11');
     await expect(page.getByRole('button', { name: 'Kapalı' })).toBeDisabled();
     await page.screenshot({ path: path.join(out, 'kit.png') });
@@ -114,10 +114,14 @@ async function main() {
 
     // Chat list: names, real unread badge, "Sen:" prefix for own last message; empty and failing states.
     await page.goto(url + '?scene=chat');
-    await expect(page.getByLabel(/zeynep ile konuşma, 3 okunmamış mesaj/)).toBeVisible();
-    await expect(page.getByLabel('arda ile konuşmayı aç')).toBeVisible();
-    await expect(page.getByText('Sen: Buraya geldin mi?')).toBeVisible();
-    await expect(page.getByText('3 konuşma')).toBeVisible();
+    // Snapchat-style rows: a waiting snap is "Yeni Snap" and opens the viewer; text shows its preview or "Yeni sohbet".
+    await expect(page.getByLabel(/^zeynep, Yeni Snap, .* önce\. Snapı aç$/)).toBeVisible();
+    await expect(page.getByLabel(/^arda, Buraya geldin mi\?, .* önce\. Sohbeti aç$/)).toBeVisible();
+    await expect(page.getByLabel(/^melis, Açıldı, .* önce\. Sohbeti aç$/)).toBeVisible();
+    await expect(page.getByLabel(/^ece, Yeni sohbet, .* önce\. Sohbeti aç$/)).toBeVisible();
+    await expect(page.getByLabel(/^can, Süresi doldu, .* önce\. Sohbeti aç$/)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Sohbetler' })).toBeVisible();
+    await expect(page.getByLabel('zeynep kişisine Snap gönder')).toBeVisible();
     await expect(page.getByLabel('Sohbet, okunmamış mesaj var')).toBeVisible();
     await page.screenshot({ path: path.join(out, 'chat.png') });
     await page.goto(url + '?scene=chat&empty');
@@ -129,6 +133,194 @@ async function main() {
     await page.getByRole('button', { name: 'Tekrar dene' }).click();
     await expect(page.getByText('Sohbetler açılamadı')).toBeVisible();
 
+    // Snap viewer: opens from the row, shows the caption, closes on tap, and the row becomes "Açıldı" (view once).
+    await page.goto(url + '?scene=chat');
+    await page.getByLabel(/^zeynep, Yeni Snap/).click();
+    await expect(page.getByLabel('Snap yazısı: Burası çok kalabalık')).toBeVisible();
+    await page.waitForTimeout(400); await page.screenshot({ path: path.join(out, 'snap-viewer.png') });
+    await page.getByRole('button', { name: 'Snapı kapat' }).click();
+    await expect(page.getByLabel('Snap yazısı: Burası çok kalabalık')).toHaveCount(0);
+    await expect(page.getByLabel(/^zeynep, Açıldı, .* önce\. Sohbeti aç$/)).toBeVisible();
+    await page.goto(url + '?scene=chat');
+    await page.getByLabel(/^zeynep, Yeni Snap/).click();
+    await expect(page.getByLabel('Snap yazısı: Burası çok kalabalık')).toBeVisible();
+    await expect(page.getByLabel('Snap yazısı: Burası çok kalabalık')).toHaveCount(0, { timeout: 7000 });
+    await page.goto(url + '?scene=chat&snapgone');
+    await page.getByLabel(/^zeynep, Yeni Snap/).click();
+    await expect(page.getByText('Bu Snap zaten açıldı.')).toBeVisible();
+    await page.getByRole('button', { name: 'Kapat', exact: true }).last().click();
+    await expect(page.getByText('Bu Snap zaten açıldı.')).toHaveCount(0);
+
+    // Snap sending: camera -> editor -> caption/timer -> send to the person; failures keep the caption.
+    await page.goto(url + '?scene=chat');
+    await page.getByLabel('arda kişisine Snap gönder').click();
+    await page.getByRole('button', { name: 'Fotoğraf çek' }).click();
+    await expect(page.getByRole('heading', { name: 'Efekt ve çıkartma' })).toBeVisible();
+    await page.getByRole('button', { name: 'İleri' }).click();
+    await expect(page.getByRole('heading', { name: 'Snap gönder' })).toBeVisible();
+    await expect(page.getByText('Kime?')).toHaveCount(0);
+    await page.getByLabel('Snap yazısı').fill('Selam');
+    await page.getByRole('button', { name: /^Süre 5 sn/ }).click();
+    await expect(page.getByRole('button', { name: /^Süre 10 sn/ })).toBeVisible();
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'snap-send.png') });
+    await page.getByRole('button', { name: 'Gönder · arda' }).click();
+    await expect(page.getByText('Snap gönderildi')).toBeVisible();
+    const sentOne = await page.evaluate(() => JSON.stringify(window.__sentSnaps));
+    if (sentOne !== JSON.stringify([{ conversationId: 'c2', durationSeconds: 10, caption: 'Selam' }])) throw new Error('Unexpected snap payload: ' + sentOne);
+    await page.goto(url + '?scene=chat&sendsnapfail');
+    await page.getByLabel('arda kişisine Snap gönder').click();
+    await page.getByRole('button', { name: 'Fotoğraf çek' }).click();
+    await page.getByRole('button', { name: 'İleri' }).click();
+    await page.getByLabel('Snap yazısı').fill('Kalsın');
+    await page.getByRole('button', { name: 'Gönder · arda' }).click();
+    await expect(page.getByText('Snap gönderilemedi. Tekrar dene.')).toBeVisible();
+    await expect(page.getByText('Network request failed')).toHaveCount(0);
+    await expect(page.getByLabel('Snap yazısı')).toHaveValue('Kalsın');
+
+    // Snap to several people from the share hub's flow: pick recipients, one send per person.
+    await page.goto(url + '?scene=chat&compose');
+    await page.getByRole('button', { name: 'Fotoğraf çek' }).click();
+    await page.getByRole('button', { name: 'İleri' }).click();
+    await expect(page.getByText('Kime?')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Kişi seç' })).toBeDisabled();
+    await page.getByRole('checkbox', { name: 'zeynep' }).click();
+    await page.getByRole('checkbox', { name: 'ece' }).click();
+    await expect(page.getByRole('checkbox', { name: 'zeynep, seçili' })).toBeVisible();
+    await page.getByRole('button', { name: 'Gönder · 2 kişi' }).click();
+    await expect(page.getByText('Snap 2 kişiye gönderildi')).toBeVisible();
+    const sentTwo = await page.evaluate(() => JSON.stringify(window.__sentSnaps.map((item) => item.conversationId)));
+    if (sentTwo !== JSON.stringify(['c1', 'c4'])) throw new Error('Unexpected recipients: ' + sentTwo);
+
+    // Inside a conversation: snap rows are Snapchat-style lines; a waiting one opens the viewer, my own cannot be opened.
+    await page.goto(url + '?scene=chat');
+    await page.getByLabel(/^arda, Buraya geldin mi\?/).click();
+    await expect(page.getByLabel('Snap, Görmek için dokun')).toBeVisible();
+    await expect(page.getByLabel('Video, Açıldı')).toBeVisible();
+    await expect(page.getByLabel('arda kişisine Snap gönder').first()).toBeVisible();
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'conversation-snapchat.png') });
+    await page.getByLabel('Snap, Görmek için dokun').click();
+    await expect(page.getByLabel('Snap yazısı: Burası çok kalabalık')).toBeVisible();
+    await page.getByRole('button', { name: 'Snapı kapat' }).click();
+    // Answering "Hâlâ böyle mi?": the composer opens on the last step with the current signal already chosen.
+    await page.goto(url + '?prefill');
+    await expect(page.getByText('Paylaşmaya hazır')).toBeVisible();
+    await expect(page.getByText('Doluluk').first()).toBeVisible();
+    await page.getByText('Sinyal bırak', { exact: true }).click();
+    await expect(page.getByLabel('Published result')).toHaveText(/:Crowd:Busy$/);
+
+    // Share hub: the centre button offers camera, gallery or a plain signal instead of opening the camera directly.
+    await page.goto(url + '?scene=share');
+    await expect(page.getByRole('heading', { name: 'Ne paylaşmak istersin?' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Kamera\./ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Galeri\./ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Sadece sinyal\./ })).toBeVisible();
+    await page.waitForTimeout(700); await page.screenshot({ path: path.join(out, 'share-hub.png') });
+    await page.getByRole('button', { name: /^Sadece sinyal\./ }).click();
+    await expect(page.getByLabel('choice')).toHaveText('signal');
+    await page.getByRole('button', { name: /^Kamera\./ }).click();
+    await expect(page.getByLabel('choice')).toHaveText('camera');
+
+    // In-app camera: lenses, mode switch, edit stage with lens + stickers, untouched photos are passed on as they are.
+    await page.goto(url + '?scene=camera');
+    await expect(page.getByLabel('Kamera önizlemesi')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Fotoğraf çek' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Neon efekti' })).toHaveAttribute('aria-selected', 'false');
+    await page.getByRole('button', { name: 'Neon efekti' }).click();
+    await expect(page.getByRole('button', { name: 'Neon efekti' })).toHaveAttribute('aria-selected', 'true');
+    await page.getByRole('button', { name: 'Flaş kapalı' }).click();
+    await expect(page.getByRole('button', { name: 'Flaş açık' })).toBeVisible();
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'camera.png') });
+    await page.getByRole('button', { name: 'Video modu' }).click();
+    await expect(page.getByText('Video, seçtiğin efekt olmadan kaydedilir.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Neon efekti' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Fotoğraf modu' }).click();
+    await page.getByRole('button', { name: 'Fotoğraf çek' }).click();
+    await expect(page.getByRole('heading', { name: 'Efekt ve çıkartma' })).toBeVisible();
+    await page.getByRole('button', { name: 'Kalabalık çıkartması ekle' }).click();
+    await expect(page.getByLabel('Kalabalık çıkartması', { exact: true })).toBeVisible();
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'camera-editor.png') });
+    await page.getByRole('button', { name: 'Kalabalık çıkartmasını kaldır' }).click();
+    await expect(page.getByLabel('Kalabalık çıkartması', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Kullan' }).click();
+    await expect(page.getByLabel('captured')).toHaveText('image:image/jpeg:rendered');
+    await page.goto(url + '?scene=camera');
+    await page.getByRole('button', { name: 'Fotoğraf çek' }).click();
+    await page.getByRole('button', { name: 'Normal efekti' }).click();
+    await page.getByRole('button', { name: 'Kullan' }).click();
+    await expect(page.getByLabel('captured')).toHaveText('image:image/jpeg:original');
+    await page.goto(url + '?scene=camera');
+    await page.getByRole('button', { name: 'Video modu' }).click();
+    await page.getByRole('button', { name: 'Kaydı başlat' }).click();
+    await expect(page.getByRole('button', { name: 'Kaydı durdur' })).toBeVisible();
+    await page.getByRole('button', { name: 'Kaydı durdur' }).click();
+    await expect(page.getByLabel('captured')).toHaveText('video:video/mp4:original');
+    await page.goto(url + '?scene=camera&nocamperm');
+    await expect(page.getByText('Kamera izni gerekiyor')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Kameraya izin ver' })).toBeVisible();
+    await page.getByRole('button', { name: 'Kamerayı kapat' }).click();
+    await expect(page.getByLabel('captured')).toHaveText('closed');
+    // Avatars: profile shows the default character, the picker changes colour/face/accessory and saves a catalogue key.
+    await page.goto(url + '?scene=profile');
+    await expect(page.getByLabel('avatar-key')).toHaveText('default');
+    await page.getByRole('button', { name: 'Avatarı değiştir' }).click();
+    await expect(page.getByRole('heading', { name: 'Avatarını seç' })).toBeVisible();
+    await page.getByRole('button', { name: 'Mor renk' }).click();
+    await expect(page.getByRole('button', { name: 'Mor renk' })).toHaveAttribute('aria-selected', 'true');
+    await page.getByRole('button', { name: 'Şaşkın yüz' }).click();
+    await page.getByRole('button', { name: 'Gözlük aksesuar' }).click();
+    await page.waitForTimeout(700); await page.screenshot({ path: path.join(out, 'avatar-picker.png') });
+    await page.getByRole('button', { name: 'Kaydet' }).click();
+    await expect(page.getByLabel('avatar-key')).toHaveText('421');
+    await expect(page.getByRole('heading', { name: 'Avatarını seç' })).toHaveCount(0);
+    await page.goto(url + '?scene=profile&avatarfail');
+    await page.getByRole('button', { name: 'Avatarı değiştir' }).click();
+    await page.getByRole('button', { name: 'Kaydet' }).click();
+    await expect(page.getByText('Avatar kaydedilemedi. Tekrar dene.')).toBeVisible();
+    await expect(page.getByText('Network request failed')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Avatarını seç' })).toBeVisible();
+    // Map search "Nereye gidiyorsun?": categories, ranking, live badge, recents, address fallback, empty/error states.
+    await page.goto(url + '?scene=map');
+    await expect(page.getByRole('search', { name: /Yer ara/ })).toBeVisible();
+    await page.goto(url + '?scene=mapSearch');
+    await expect(page.getByLabel('Yer ara', { exact: true })).toBeFocused();
+    await expect(page.getByText('Yakınında ara')).toBeVisible();
+    await expect(page.getByText('Son aramalar')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Eczane', exact: true }).click();
+    await expect(page.getByLabel(/Kent Eczanesi, .*Haritada göster/)).toBeVisible();
+    const pharmacyOrder = await page.getByLabel(/Haritada göster/).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label').split(',')[0]));
+    if (pharmacyOrder.join('|') !== 'Kent Eczanesi|Şifa Eczanesi') throw new Error('Category results not nearest first: ' + pharmacyOrder.join('|'));
+    await page.getByLabel('Yer ara', { exact: true }).fill('a');
+    await expect(page.getByText('Aramak için en az 2 harf yaz.')).toBeVisible();
+    await page.getByLabel('Yer ara', { exact: true }).fill('kent');
+    await expect(page.getByLabel(/Kent Meydanı, .*Haritada göster/)).toBeVisible();
+    const kentOrder = await page.getByLabel(/Haritada göster/).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label').split(',')[0]));
+    // Name matches first (prefix, nearest first), a mid-word match last.
+    if (kentOrder.join('|') !== 'Kent Meydanı|Kent Eczanesi|Şehirkent Market') throw new Error('Name ranking wrong: ' + kentOrder.join('|'));
+    await expect(page.getByText('Canlı', { exact: true })).toHaveCount(1);
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'map-search.png') });
+    await page.getByLabel(/Kent Meydanı, .*Haritada göster/).click();
+    await expect(page.getByLabel('chosen')).toHaveText('place:kent');
+    await page.goto(url + '?scene=mapSearch');
+    await expect(page.getByText('Son aramalar')).toBeVisible();
+    await page.getByLabel(/Kent Meydanı, son arama/).click();
+    await expect(page.getByLabel('chosen')).toHaveText('place:kent');
+    await page.goto(url + '?scene=mapSearch');
+    await page.getByRole('button', { name: 'Son aramaları temizle' }).click();
+    await expect(page.getByText('Son aramalar')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Aramayı kapat' }).click();
+    await expect(page.getByLabel('chosen')).toHaveText('closed');
+    await page.goto(url + '?scene=mapSearch&emptysearch');
+    await page.getByLabel('Yer ara', { exact: true }).fill('zzzz');
+    await expect(page.getByText('Sonuç bulunamadı')).toBeVisible();
+    await page.goto(url + '?scene=mapSearch&searchfail');
+    await page.getByLabel('Yer ara', { exact: true }).fill('kent');
+    await expect(page.getByText('Arama açılamadı')).toBeVisible();
+    await expect(page.getByText('Network request failed')).toHaveCount(0);
+    await page.goto(url + '?scene=mapSearch&emptysearch&geocode');
+    await page.getByLabel('Yer ara', { exact: true }).fill('kadirli');
+    await expect(page.getByLabel('kadirli konumuna git')).toBeVisible();
+    await page.getByLabel('kadirli konumuna git').click();
+    await expect(page.getByLabel('chosen')).toHaveText('location:kadirli');
     // Yakında: fresh, close, capped list of what is happening around the device; five-item bottom bar.
     await page.goto(url + '?scene=nearby');
     await expect(page.getByRole('heading', { name: 'Yakında' })).toBeVisible();
@@ -205,6 +397,15 @@ async function main() {
     await expect(page.getByText('+2')).toBeVisible();
     await expect(page.getByText(/4\.6|şu anda burada|kaydetme/i)).toHaveCount(0);
     await page.screenshot({ path: path.join(out, 'detail.png') });
+    // "Hâlâ böyle mi?": offered for a fresh structured state; answers hand the current value to the composer.
+    await expect(page.getByText('Hâlâ böyle mi?')).toBeVisible();
+    await page.getByRole('button', { name: 'Evet, hâlâ böyle' }).click();
+    await expect(page.getByLabel('answer')).toHaveText('confirm:Crowd:Busy');
+    await page.getByRole('button', { name: 'Değişti' }).click();
+    await expect(page.getByLabel('answer')).toHaveText('changed:Crowd:Busy');
+    await page.goto(url + '?scene=detail&stale');
+    await expect(page.getByText('Örnek Lokanta')).toBeVisible();
+    await expect(page.getByText('Hâlâ böyle mi?')).toHaveCount(0);
     if(errors.length) throw new Error(errors.join('\n'));
     console.log('PASS browser-rendered components: selection, collapse, nearby/coordinate publish, submitting lock, value selection, branch search, save, close, responsive detail. Native map/media/iOS gestures require physical retest.');
   } finally { await browser.close(); server.close(); }

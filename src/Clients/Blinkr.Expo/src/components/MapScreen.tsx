@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { createSignal, getNearbyPlaces, getPlace, getUnifiedMapBounds, previewPresence, getSignalContent } from '../api';
@@ -21,6 +21,7 @@ import { friendlyError } from '../productPresentation';
 import { BlinkrMapMarker, BlinkrClusterMarker } from './BlinkrMapMarker';
 import { bottomBarClearance } from './ui/BlinkrBottomBar';
 import { MapTopChrome } from './map/MapTopChrome';
+import { MapSearchOverlay } from './map/MapSearchOverlay';
 import { selectMapData, type MapLayer } from '../mapSelection';
 import { clusterMapPoints, zoomToLongitudeDelta } from '../mapClusters';
 import {
@@ -30,7 +31,7 @@ import {
   type NearbySource,
   distanceMeters,
 } from '../nearbyRequestOwnership';
-import { colors, radii, shadow, shadowSoft } from '../theme';
+import { colors, motion, radii, shadow, shadowSoft } from '../theme';
 import { mapDarkStyle } from '../mapDarkStyle';
 import { AnimatedPressable } from './AnimatedPressable';
 import type {
@@ -42,9 +43,13 @@ import type {
   CreateSignalInput,
   LocationReadiness,
   NearbyStatus,
+  SignalType,
 } from '../types';
 import { ISTANBUL_REGION } from '../types';
 import { PostDetailSheet } from './PostDetailSheet';
+import { ShareHubSheet } from './ShareHubSheet';
+import { SignalCamera } from './camera/SignalCamera';
+import type { CapturedMedia } from './camera/PhotoEditor';
 import { SignalComposer } from './SignalComposer';
 
 type Props = {
@@ -52,9 +57,11 @@ type Props = {
   onAuthChange: (auth: AuthResponse) => void;
   onLogout: () => void;
   onOpenProfile: () => void;
-  /** True when the camera button was pressed on any tab; cleared through `onCameraHandled`. */
-  cameraRequested?: boolean;
-  onCameraHandled?: () => void;
+  /** True when the share button was pressed on any tab; cleared through `onShareHandled`. */
+  shareRequested?: boolean;
+  onShareHandled?: () => void;
+  /** The hub's "Snap gönder": the app shell opens the Sohbet tab and starts the snap flow there. */
+  onStartSnap?: () => void;
   /** A saved Place to bring into view and open; cleared through `onFocusHandled`. */
   focusPlace?: BlinkrPlace | null;
   onFocusHandled?: () => void;
@@ -79,7 +86,7 @@ const MAX_NEARBY_LOCATION_AGE_MS = 30_000;
 const LOCATION_TIMEOUT_MS = 8_000;
 
 
-export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, cameraRequested = false, onCameraHandled, focusPlace = null, onFocusHandled, focusSignal = null, onFocusSignalHandled, onOverlayOpenChange }: Props) {
+export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRequested = false, onShareHandled, onStartSnap, focusPlace = null, onFocusHandled, focusSignal = null, onFocusSignalHandled, onOverlayOpenChange }: Props) {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const activeRequest = useRef<AbortController | null>(null);
@@ -117,7 +124,12 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, cameraR
   const [success, setSuccess] = useState<string | null>(null);
   const [composerArea, setComposerArea] = useState<ComposerArea | null>(null);
   const [pendingCapture, setPendingCapture] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchOrigin, setSearchOrigin] = useState({ latitude: 0, longitude: 0 });
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [composerInitialStep, setComposerInitialStep] = useState(0);
+  const [composerInitialSignal, setComposerInitialSignal] = useState<{ type: SignalType; value: string | null } | null>(null);
   const [mapLayer, setMapLayer] = useState<MapLayer>('all');
   // moveToDeviceLocation must not depend on the layer: the mount effect below depends on it, and a
   // changing dependency re-ran that effect (permission check + recentre) on every filter change.
@@ -600,11 +612,12 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, cameraR
     if (generation === composerGeneration.current) setComposerArea({ ...location, name, source });
   }, [auth, onAuthChange, onLogout, getFreshDeviceLocation, loadNearbyPlaces, region, resolveAreaName]);
 
-  const openComposer = (place?: BlinkrPlace | null, initialStep = 0) => {
+  const openComposer = (place?: BlinkrPlace | null, initialStep = 0, initialSignal: { type: SignalType; value: string | null } | null = null) => {
     const opening = ++composerGeneration.current;
     closeDetailSheet();
     setComposerArea(null);
     setComposerInitialStep(initialStep);
+    setComposerInitialSignal(initialSignal);
     nearbyOwner.current.reset();
     setComposerError(null);
     setComposerOpen(true);
@@ -626,17 +639,45 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, cameraR
       .catch(() => setLocationReadiness('unavailable'));
   };
 
-  const openCameraSignal = async () => {
-    if (isCreating) return;
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (permission.status !== 'granted') {
-      setComposerError('Kamera izni gerekiyor.');
-      return;
+  // Share hub: camera (own UI with lenses), gallery, or a signal without media. All three end in the same composer.
+  const startCamera = () => {
+    setShareOpen(false);
+    setCameraOpen(true);
+  };
+
+  const handleCaptured = (asset: CapturedMedia) => {
+    setCameraOpen(false);
+    setPendingCapture(asset);
+    if (!isComposerOpen) openComposer(selectedPlace, 1);
+  };
+
+  const startGallery = async () => {
+    setShareOpen(false);
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permission.status !== 'granted') {
+        openComposer(selectedPlace, 0);
+        setComposerError('Fotoğraf arşivi izni gerekiyor.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: false, mediaTypes: ['images', 'videos'], quality: 0.84, videoMaxDuration: 45 });
+      if (result.canceled || !result.assets[0]) return;
+      setPendingCapture(result.assets[0]);
+      openComposer(selectedPlace, 1);
+    } catch (err) {
+      openComposer(selectedPlace, 0);
+      setComposerError(friendlyError(err, 'Medya seçilemedi. Tekrar dene.'));
     }
-    const result = await ImagePicker.launchCameraAsync({ allowsEditing: false, mediaTypes: ['images', 'videos'], quality: 0.84, videoMaxDuration: 45 });
-    if (result.canceled || !result.assets[0]) return;
-    setPendingCapture(result.assets[0]);
-    openComposer(selectedPlace, 1);
+  };
+
+  const startSnap = () => {
+    setShareOpen(false);
+    onStartSnap?.();
+  };
+
+  const startSignalOnly = () => {
+    setShareOpen(false);
+    openComposer(selectedPlace, 0);
   };
 
   const submitSignal = async (
@@ -687,11 +728,35 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, cameraR
   };
 
   useEffect(() => {
-    if (!cameraRequested) return;
-    onCameraHandled?.();
-    void openCameraSignal();
+    if (!shareRequested) return;
+    onShareHandled?.();
+    if (!isCreating) setShareOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cameraRequested]);
+  }, [shareRequested]);
+
+  // "Nereye gidiyorsun?" results: fly to the Place and open its detail, or just move the map to an address.
+  const flyToPlace = useCallback((place: BlinkrPlace) => {
+    const target: Region = { latitude: place.latitude, longitude: place.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 };
+    setSearchOpen(false);
+    currentRegion.current = target;
+    setRegion(target);
+    ignoreRegionChangeUntil.current = Date.now() + 1200;
+    setTimeout(() => mapRef.current?.animateToRegion(target, 450), 250);
+    void loadPlaces(target, true, mapLayerRef.current === 'places');
+    openPlaceDetailAfterTouch(place);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openPlaceDetailAfterTouch]);
+
+  const flyToLocation = useCallback((target: { latitude: number; longitude: number }) => {
+    const next: Region = { latitude: target.latitude, longitude: target.longitude, latitudeDelta: 0.03, longitudeDelta: 0.03 };
+    setSearchOpen(false);
+    currentRegion.current = next;
+    setRegion(next);
+    ignoreRegionChangeUntil.current = Date.now() + 1200;
+    setTimeout(() => mapRef.current?.animateToRegion(next, 450), 250);
+    void loadPlaces(next, true, mapLayerRef.current === 'places');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!focusPlace) return undefined;
@@ -724,7 +789,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, cameraR
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusSignal]);
 
-  const overlayOpen = isComposerOpen || Boolean(selectedPlace) || Boolean(selectedSignal);
+  const overlayOpen = isComposerOpen || shareOpen || searchOpen || cameraOpen || Boolean(selectedPlace) || Boolean(selectedSignal);
   useEffect(() => { onOverlayOpenChange?.(overlayOpen); }, [overlayOpen, onOverlayOpenChange]);
 
   const chromeTop = insets.top + 140;
@@ -756,7 +821,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, cameraR
       </MapView>
 
       {!isLoading && !error && visibleItemCount === 0 && !isComposerOpen && !selectedPlace && !selectedSignal && (
-        <Animated.View entering={FadeInDown.duration(320).springify().damping(15)} style={[styles.emptyMap, { bottom: bottomBarClearance(insets.bottom) + 12 }]}>
+        <Animated.View entering={FadeIn.duration(motion.base)} style={[styles.emptyMap, { bottom: bottomBarClearance(insets.bottom) + 12 }]}>
           <Text style={styles.emptyMapText}>Bu bölgede henüz taze sinyal yok.</Text>
           <AnimatedPressable onPress={() => openComposer()} pressScale={0.94} style={styles.emptyMapAction}><Plus color={colors.mint} size={18} /><Text style={styles.emptyMapLink}>İlk sinyali bırak</Text></AnimatedPressable>
         </Animated.View>
@@ -770,12 +835,15 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, cameraR
         onOpenProfile={onOpenProfile}
         onScan={scanVisibleArea}
         scanAvailable={mapDirty}
+        avatarKey={auth.avatarKey}
+        onOpenSearch={() => { setSearchOrigin({ latitude: currentRegion.current.latitude, longitude: currentRegion.current.longitude }); setSearchOpen(true); }}
+        userId={auth.userId}
         userName={auth.userName}
         visibleCount={visibleItemCount}
       />
 
       {(success || error) && (
-        <Animated.View entering={FadeInDown.duration(260).springify().damping(15)} style={[styles.toast, error ? styles.errorToast : styles.successToast, { bottom: bottomBarClearance(insets.bottom) + 8 }]}>
+        <Animated.View entering={FadeIn.duration(motion.base)} style={[styles.toast, error ? styles.errorToast : styles.successToast, { bottom: bottomBarClearance(insets.bottom) + 8 }]}>
           {error ? <Wifi color={colors.danger} size={18} /> : <CheckCircle2 color={colors.mint} size={18} />}
           <Text style={[styles.toastText, error && styles.errorToastText]} numberOfLines={3}>
             {error || success}
@@ -792,6 +860,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, cameraR
         canAskLocationAgain={canAskLocationAgain}
         error={composerError}
         initialStep={composerInitialStep}
+        initialSignal={composerInitialSignal}
         isSubmitting={isCreating}
         locationReadiness={locationReadiness}
         nearbyCoverageState={nearbyCoverageState}
@@ -803,16 +872,22 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, cameraR
         onOpenSettings={() => {
           Linking.openSettings().catch(() => setComposerError('Cihaz ayarları açılamadı.'));
         }}
+        onRequestCamera={() => setCameraOpen(true)}
         onSelectArea={selectComposerArea}
         onSessionExpired={onLogout}
         onSubmit={submitSignal}
         pendingCapture={pendingCapture}
         visible={isComposerOpen}
       />}
+      {searchOpen && <MapSearchOverlay onClose={() => setSearchOpen(false)} onSelectLocation={flyToLocation} onSelectPlace={flyToPlace} origin={searchOrigin} userId={auth.userId} />}
+      {shareOpen && <ShareHubSheet onCamera={startCamera} onClose={() => setShareOpen(false)} onGallery={() => { void startGallery(); }} onSignalOnly={startSignalOnly} onSnap={onStartSnap ? startSnap : undefined} />}
+      {cameraOpen && <View style={styles.cameraLayer}><SignalCamera onCapture={handleCaptured} onClose={() => setCameraOpen(false)} /></View>}
       {!isComposerOpen && <PostDetailSheet
         isLoading={isDetailLoading}
         onClose={closeDetailSheet}
         onCreateSignal={() => openComposer(selectedDetail ?? selectedPlace)}
+        // Confirming goes straight to the last step with the same value; "changed" asks for the new value.
+        onRecheck={(mode, current) => openComposer(selectedDetail ?? selectedPlace, mode === 'confirm' ? 3 : 1, { type: current.type, value: mode === 'confirm' ? current.value : null })}
         place={selectedDetail ?? selectedPlace}
         signal={selectedSignal}
         userId={auth.userId}
@@ -824,6 +899,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, cameraR
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.mapCanvas, flex: 1 },
+  cameraLayer: { ...StyleSheet.absoluteFill, backgroundColor: '#000000', zIndex: 200 },
   emptyMap: { position: 'absolute', left: 28, right: 28, backgroundColor: colors.glass, borderColor: colors.border, borderWidth: 1, borderRadius: radii.card, padding: 16, ...shadowSoft },
   emptyMapText: { color: colors.text, fontSize: 15, lineHeight: 22, textAlign: 'center' },
   emptyMapAction: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },

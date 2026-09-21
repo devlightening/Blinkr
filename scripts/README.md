@@ -108,6 +108,12 @@ anonymous posts belong to whom.
 
 `seed-chat.cjs` gives ahmet 20 synthetic Osmaniye contacts (`<name>@blinkr.local`, password `Sentetik!2026`, the same convention as `seed-osmaniye.cjs`) with place-decision style conversations through the public chat API; 8 of them end with unread messages (13 in total) so the Sohbet badge can be tested. It is idempotent (`--force` re-sends), lists everything in `artifacts/synthetic/chat-manifest.json`, and `--print-cleanup` prints the conversation ids because the chat API has no delete endpoint.
 
+`test-snap-smoke.ps1` (BLK-SNAP-01, 34 checks) covers view-once snaps end to end: only participants can send, the recipient opens a snap exactly once and can fetch its media only inside the viewing window, the sender and outsiders are refused, EXIF is stripped from photos, expired snaps cannot be opened and stop counting as unread, a waiting snap survives opening the conversation. It rewrites message timestamps in Mongo (`blinkr_mongodb` container) to test the window and expiry without waiting.
+
+`test-place-search.ps1` (BLK-SEARCH-01) checks the map search: wide radius, nearest first, everyday category words, Turkish dotted I, clamping and bad input.
+
+`test-avatar.ps1` (BLK-AVATAR-01) checks the avatar catalogue: a catalogue key is accepted and returned by login, user lookup and search, invalid keys (`999`, `abc`, `2533`, markup) are a 400 `INVALID_AVATAR` and change nothing, and `null` restores the default. It creates one throw-away user per run.
+
 `test-auth-registration.ps1` (BLK-AUTH-02) checks that registration keeps usernames and e-mails unique regardless of
 case, rejects bad input with stable `{ error, message }` bodies (409 `USERNAME_TAKEN` / `EMAIL_TAKEN`, 400
 `INVALID_USERNAME` / `INVALID_EMAIL` / `INVALID_PASSWORD`) and that login ignores the case of the e-mail. It creates

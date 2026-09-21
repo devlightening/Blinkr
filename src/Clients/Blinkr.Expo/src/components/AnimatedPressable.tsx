@@ -5,21 +5,21 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import { springs } from '../theme';
 
 const AnimatedPressableBase = Animated.createAnimatedComponent(Pressable);
+const MIN_PRESS_SCALE = 0.95;
 
 type Props = PressableProps & {
-  /** How much to shrink on press. Defaults to a subtle 0.96 - use 0.9 for chunky primary buttons. */
+  /** How much to shrink on press. Subtle by default; values below 0.95 are raised to 0.95 so nothing feels toy-like. */
   pressScale?: number;
   style?: StyleProp<ViewStyle>;
 };
 
 /**
- * Drop-in replacement for react-native's Pressable that adds a spring-based
- * press-down/release scale, matching the energetic, tactile feel of
- * BeReal/Snapchat-style interfaces. Every primary tap target in the app
- * should use this instead of the plain Pressable.
+ * Drop-in replacement for react-native's Pressable that adds a soft, critically damped press-down
+ * scale. Every primary tap target in the app uses this instead of the plain Pressable.
  */
 export const AnimatedPressable = forwardRef<React.ElementRef<typeof Pressable>, Props>(
-  ({ pressScale = 0.96, style, onPressIn, onPressOut, ...rest }, ref) => {
+  ({ pressScale = 0.97, style, onPressIn, onPressOut, ...rest }, ref) => {
+    const target = Math.max(pressScale, MIN_PRESS_SCALE);
     const scale = useSharedValue(1);
     const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }), []);
 
@@ -27,7 +27,7 @@ export const AnimatedPressable = forwardRef<React.ElementRef<typeof Pressable>, 
       <AnimatedPressableBase
         ref={ref}
         onPressIn={(e) => {
-          scale.value = withSpring(pressScale, springs.snappy);
+          scale.value = withSpring(target, springs.snappy);
           onPressIn?.(e);
         }}
         onPressOut={(e) => {

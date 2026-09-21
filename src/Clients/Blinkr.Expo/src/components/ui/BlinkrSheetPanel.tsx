@@ -34,5 +34,5 @@ export function BlinkrSheetPanel({ children, maxHeightRatio = 0.9, style }: Prop
 
 const styles = StyleSheet.create({
   panel: { backgroundColor: colors.surface, borderColor: colors.border, borderTopLeftRadius: radii.panel, borderTopRightRadius: radii.panel, borderWidth: 1, borderBottomWidth: 0, paddingHorizontal: spacing.lg, paddingTop: spacing.md, ...shadow },
-  handle: { alignSelf: 'center', backgroundColor: colors.lineStrong, borderRadius: 3, height: 5, marginBottom: spacing.md, width: 44 },
+  handle: { alignSelf: 'center', backgroundColor: colors.lineStrong, borderRadius: 2, height: 4, marginBottom: spacing.md, width: 36 },
 });

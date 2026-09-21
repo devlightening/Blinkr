@@ -217,6 +217,7 @@ Sorumluluklar:
 - Like/comment gibi eventlerden bildirim uretme
 - Okunmamis sayisi ve read durumu
 - 1:1 sohbet (DM): konusma baslatma/listeleme, mesaj gonderme/okuma, kullanici aramasi IdentityService `/api/users/search` uzerinden yapilir
+- Snap (bir kez izlenip kaybolan foto/video): konusma icinde `kind: "snap"` mesajidir. Medya ozel diskte (`App_Data/snaps`, hicbir statik middleware sunmaz) tutulur; yalniz alici, `open` cagrisiyla durum `sent -> opened` gectikten sonra ve sunucunun zorladigi kisa izleme penceresi (sure + 30 sn; sureli olmayanlarda 3 dk) icinde `content` ile cekebilir. Acilis atomiktir (tek kazanan), ikinci acma 410 `SNAP_OPENED`, sure dolan 410 `SNAP_EXPIRED` (acilmayan snap 24 saatte biter), pencere bitince dosya hemen silinir (`SnapCleanupService` yedek supurucudur, hicbir istisnayi disari firlatmaz). Gonderen kendi snap'ini acamaz/cekemez, yabanci 403. Fotograflarin EXIF/APP segmentleri (konum dahil) saklanmadan once silinir; bayt imzasi bildirilen ture uymayan dosya 400. Acilmamis snap okunmamis sayilir, sohbeti acmak onu tuketmez (`MarkRead` snap'lere dokunmaz). Snap arkadas grafigi veya takip olusturmaz; hikaye, seri (streak) ve arkadas konumu (Snap Map) bilincli olarak YOKTUR (anayasa 2.2).
 
 Kod: `src/Services/NotificationsService`
 
@@ -443,6 +444,8 @@ Kurallar:
 
 `CurrentPlaceStateCalculator` yalniz `VERIFIED_LIVE` ve suresi dolmamis sinyalleri toplar. `NEARBY_PLACE_POST` place detail'de icerik olarak gorunebilir ancak kalabalik/sira gibi canli state'i degistiremez.
 
+Kisi basina tek ses: hesaplayici ayni yazarin ayni sinyal turundeki yalnizca en yeni dogrulanmis sinyalini sayar (`PlaceSignalDocument.AuthorId`, yalniz sunucuda tutulur, API cevaplarinda yoktur). Ayni degeri tekrarlamak guveni sismirmez; "degisti" eski degeri gercekten yerine koyar. `ActiveSignalCount` bu nedenle katki yapan kisi sayisidir. Yazari bilinmeyen eski sinyaller ayri ses sayilir.
+
 Confidence ve freshness, event sayisi ile birlikte zaman agirligi kullanilarak hesaplanir. Bu mekanizma ileride degisebilir ancak daha az guvenilir yayinlarin canli state'i zehirlememesi degismez kuraldir.
 
 ### 10.3 Privacy
@@ -481,20 +484,26 @@ Viewport requestlerinde eski cevap yeni state'i ezmemelidir. Generation/request 
 
 ### 12.1 Ana ekranlar
 
-- `App.tsx`: navigasyon kabugu. Kutuphanesiz `activeTab` (`chat | map | nearby | profile`); `MapScreen` her zaman monte kalir (viewport, katman ve marker'lar sekme degisince kaybolmaz), Sohbet, Yakinda ve Profil onun ustunde tam ekran katman olarak acilir. Tek alt bar `BlinkrBottomBar` (Sohbet | Harita | Kamera | Yakinda | Profil; kamera ortada ve sekme degil eylemdir); sheet/composer/acik konusma varken bar gizlenir. Kamera ve "kayitli yeri ac" tek seferlik istektir (`cameraRequested`/`focusPlace` + `on...Handled`), Android geri tusu sekmeyi haritaya dondurur.
+- `App.tsx`: navigasyon kabugu. Kutuphanesiz `activeTab` (`chat | map | nearby | profile`); `MapScreen` her zaman monte kalir (viewport, katman ve marker'lar sekme degisince kaybolmaz), Sohbet, Yakinda ve Profil onun ustunde tam ekran katman olarak acilir. Tek alt bar `BlinkrBottomBar` (Sohbet | Harita | Paylas | Yakinda | Profil; ortadaki "+" sekme degil eylemdir); sheet/composer/acik konusma/avatar secici varken bar gizlenir (native'de kardes zIndex sirasi yuzunden bar acik sheet'in ustune biner). Paylas ve "kayitli yeri ac" tek seferlik istektir (`shareRequested`/`focusPlace` + `on...Handled`), Android geri tusu sekmeyi haritaya dondurur.
+- Paylasim merkezi (`ShareHubSheet`): "+" dogrudan kamera acmaz; Kamera / Galeri / Sadece sinyal secenekleri sunar ve uc yol da ayni `SignalComposer`'a varir (yer, yakinlik ve sunucu guveni orada belirlenir).
+- Uygulama ici kamera (`camera/SignalCamera`, `expo-camera`): canli lensler (`cameraEffects.ts`: renk katmani + vignette), flas/cevirme/yakinlastirma, fotograf ve video. Fotograf `PhotoEditor`'da lens + cikartma ile `react-native-view-shot` ile dosyaya islenir; lenssiz/cikartmasiz fotograf oldugu gibi gecer. Video lenssiz kaydedilir (kayit sonradan islenemez) ve arayuz bunu soyler. Cikartmalar dekorasyondur, sinyal verisi degildir; sinyalin tur/degeri composer'da secilir ve sunucuda dogrulanir. Kamera eylemi yalniz dosya teslim eder (`onCapture`), yayin yolu degismez.
 - `AuthScreen`: register/login
 - `MapScreen`: harita state'i, layers, marker'lar, nearby ve composer orchestration. Ust krom `map/MapTopChrome` (header + `MapLayerBar` + tara/konum satiri), filtre mantigi `mapSelection.ts`.
 - `SignalComposer`: dort adimli yayin akisi; tam ekran katman, arkada gercek cekilen medya (sistem kamerasi, `expo-camera` yok)
 - `PlacePicker`: nearby ve extended Place secimi
-- `PostDetailSheet`: Place veya coordinate signal detayi (gercek medya seridi, sinyal sayisi/tazelik/guven/uzaklik, Kaydet/Paylas/Yol tarifi)
+- `PostDetailSheet`: Place veya coordinate signal detayi (gercek medya seridi, sinyal sayisi/tazelik/guven/uzaklik, Kaydet/Paylas/Yol tarifi). Taze ve yapilandirilmis (Doluluk, Bekleme, Durum, Etkinlik, Firsat) canli durumu olan Place'te "Hala boyle mi?" sorusu (`recheckSignal`): "Evet" composer'i son adimda ayni degerle, "Degisti" sinyal adiminda ayni turle acar. Cevap ozel bir olay degil, normal sinyaldir; canli duruma katkisini yine sunucu kisinin gercek konumundan karar verir.
 - `NearbyScreen` ("Yakinda" sekmesi): haritanin liste gorunumu. Cihaz konumunun 1,5 km cevresindeki taze ve suresi dolmamis Place durumlarini ve koordinat sinyallerini `GET /api/map/bounds` cevabindan `nearbyActivity.ts` ile siralar (once tazelik kovasi: son 15 dk / daha eski, sonra geodesic mesafe; en fazla 30 satir, sonsuz akis yok; katalog Place'i aktif durum olmadan listelenmez). Konum izni yalniz kisi butona basinca istenir; yenileme hatasinda son liste kalir. Satira basmak haritada Place/sinyal detayini acar (`focusPlace`/`focusSignal`). Canli rozeti yalniz sunucunun dogruladigi Place durumunda gorunur.
 - `ProfileScreen`: hesap, cihaz-yerel kayitli yerler (`savedPlaces.ts`, anahtarlar userId ile ad alanina alinir), gizlilik notu, cikis
-- `chat/ChatListScreen`, `chat/ConversationScreen`, `chat/UserSearchSheet`: 1:1 sohbet; gercek `unreadCount` rozeti
+- `chat/ChatListScreen`, `chat/ConversationScreen`, `chat/UserSearchSheet`: 1:1 sohbet, Snapchat duzeninde. Liste satiri durum cizgisi tasir (`snapPresentation.ts`): dolu kirmizi kare "Yeni Snap" (dokununca dogrudan izleyiciyi acar), dolu mavi kare "Yeni sohbet", ok "Gonderildi/Acildi", kontur "Acildi/Suresi doldu"; sagdaki kamera dugmesi o kisiye hizli Snap gonderir, uzun basma sohbeti acar. Konusma ekraninda mesajlar balonsuz, renkli sol cubuklu satirlardir (Ben mavi, karsi taraf pembe); snap satiri durumunu gosterir, bekleyen snap dokunulabilir. `snap/SnapViewer`: tam ekran, sure ilerleme cubugu (resim yuklenince baslar), dokun-kapat, video sonuna kadar, Android'de ekran goruntusu engeli (`expo-screen-capture`; iOS engellenemez), sunucu 410 verirse sade mesaj. `snap/SnapFlow` + `SnapSendStep`: kamera (lens/cikartma) -> yazi + sure + alicilar -> her kisiye tek tek gonder, basarisiz olanlar secili kalir. Paylasim merkezindeki "Snap gonder" Sohbet sekmesinde bu akisi acar.
+- Harita aramasi (`map/MapSearchOverlay`, `placeSearch.ts`): ust cubuk "Nereye gidiyorsun?" alanidir; tam ekran arama, yazmadan once kategori kisayollari + son aramalar + kayitli yerler, yazinca Turkce-duyarsiz siralanan sonuclar (ad eslesmesi > mesafe), canli rozeti, adres/bolge icin cihaz geocoder yedegi ("konumuna git"). Sonuca dokunmak haritayi ucurur ve detay sheet'ini acar.
 - `Sheet`: uygulama ici ortak bottom sheet yapisi; gorunum kabugu `ui/BlinkrSheetPanel`
-- `BlinkrMapMarker` (native sarmalayici) + `MapMarkerVisuals`, `PlaceSymbol`, `SignalSymbol`: semantik marker sunumu
+- `BlinkrMapMarker` (native sarmalayici) + `MapMarkerVisuals`, `PlaceSymbol`, `SignalSymbol`: semantik marker sunumu. Place = sivri uclu damla pin (uc, konumun kendisidir; `anchorOf` ile koordinata oturur), canli/dogrulanmis aktivitesi olan Place kategori renginde dolu, parlar ve ustunde NE oldugunu gosteren durum rozeti tasir; aktivitesiz katalog Place'i kucuk ve sessizdir. Koordinat sinyali = konusma balonu; etrafindaki halka sinyalin omru azaldikca kisalir (`lifetimeFraction`). Kume = koyu disk + lime halka + sayiyla buyuyen isi halesi. Geometri `markerGeometry.ts`'te test edilir; marker icinde animasyon yoktur (native marker bitmap'i).
+- `Avatar`, `AvatarPickerSheet` (`avatars.ts`): avatar cizilmis karakterdir (renk 8 x yuz 6 x aksesuar 6 = 288, anahtar uc hane, ornegin `253`), yuklenen fotograf degildir; kimsenin yuzu saklanmaz. Sunucu (`IdentityService AvatarCatalog`) tam ayni kumeyi kabul eder, gecersiz anahtar 400 `INVALID_AVATAR`. Secmeyenlere kullanici kimliginden kararli bir varsayilan cizilir. Avatar yalnizca profil, sohbet ve baslikta gorunur; harita pinlerinde yazar avatari YOKTUR (mahremiyet: anonim paylasimlar kisiye baglanamaz, surekli kisi takibi yapilmaz).
 - `ui/`: ortak tasarim bilesenleri (`BlinkrButton`, `BlinkrChip`, `BlinkrCard`, `BlinkrHeader`, `BlinkrEmptyState`, `BlinkrBottomBar`, `BlinkrSignalCard`, `BlinkrSheetPanel`)
 
-Tasarim token'lari tek kaynaktan gelir: `src/theme.ts`. Yeni kod semantik adlari (`background`, `text`, `textSecondary`, `primary`, `mint`, `categoryTone`) kullanir; eski adlar (`ink`, `muted`, `green`...) yeni palete baglidir. Tasarim referansi: `docs/blinkr_tema_kod`. Tasarim gorsellerindeki puan, "N kisi burada", rozet, kaydetme sayisi gibi ogeler ornek veridir; backend'de karsiligi olmadan uretim ekranina eklenmez.
+Tasarim token'lari tek kaynaktan gelir: `src/theme.ts`. Yeni kod semantik adlari (`background`, `text`, `textSecondary`, `primary`, `mint`, `categoryTone`) kullanir; eski adlar (`ink`, `muted`, `green`...) yeni palete baglidir. Gorsel dil ("Graphite & Mint"): soguk grafit notrler yapiyi tasir, tek bir sakin yesil marka rengidir (`primary` #5FD3A0), anlamsal vurgular (turuncu, kehribar, mor, pembe, mavi, mercan) soluk tutulur; hicbir sey parlamaz (neon lime, glow ve agir golge kullanilmaz). Olculer platform normlarindadir: tip olcegi 26 ekran basligi / 20 sheet basligi / 17 bolum / 15 govde / 13 aciklama / 12 etiket / 11 sekme etiketi, agirlik en fazla 700; dokunma hedefi 44, alt bar 56, kart yaricapi 14, sheet 20, `pill` yalniz chip ve avatar icindir. Hareket kisa ve sakindir (140-240 ms, yaylar overshoot yapmaz, basma olcegi en fazla 0.95'e iner, liste girislerinde kademeli gecikme yoktur). Sohbet ve Profil dusuk yogunluklu, duz satirli liste duzenindedir (WhatsApp/Instagram oranlari): baslik 26, satir adi 16, onizleme 14, saat 12, avatar 48/72. Yeni ekran bu token'lari kullanir, sabit `fontSize`/renk yazmaz; `npm run test:theme` kontrast (WCAG AA) ve bu olcek/hareket kurallarini otomatik denetler. Sheet icindeki liste ogelerine `entering` animasyonu verme (react-native-web'de sheet kapanirken `removeChild` hatasi uretir).
+
+Tasarim referansi: `docs/blinkr_tema_kod`. Tasarim gorsellerindeki puan, "N kisi burada", rozet, kaydetme sayisi gibi ogeler ornek veridir; backend'de karsiligi olmadan uretim ekranina eklenmez.
 
 Tarayicida gorsel inceleme: `node scripts/ui-shot.cjs <sahne> [genislik] [yukseklik] [sorgu]` (sahneler `scripts/ui-scenes.tsx`); ciktilar `.tmp/product-ui/`.
 
@@ -543,6 +552,7 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`
 - `GET /api/users/...`
+- `PUT /api/users/me/avatar` (`{ avatarKey }`, katalog disi anahtar 400 `INVALID_AVATAR`; `null` varsayilana doner). Login/register/refresh cevaplari, `GET /api/users/{id}` ve arama `avatarKey` tasir.
 
 ### Posts and signals
 
@@ -567,7 +577,7 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 - `GET /api/places/{id}`
 - `GET /api/places/{id}/signals`
 - `GET /api/places/nearby`
-- `GET /api/places/search`
+- `GET /api/places/search?q&lat&lon&radiusMeters` (varsayilan 1,5 km = composer; harita aramasi 30 km'ye kadar ister; gunluk kelimeler kategoriye eslenir: eczane, hastane, kafe, market, akaryakit, firin, mUze...; ad, kategori ve adrese bakar)
 - `GET /api/places/bounds`
 - `POST /api/places` yetkili write
 
@@ -594,6 +604,10 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 - `GET /api/chat/conversations/{id}/messages`
 - `POST /api/chat/conversations/{id}/messages`
 - `POST /api/chat/conversations/{id}/read`
+- `POST /api/chat/conversations/{id}/snaps?durationSeconds=&caption=` (govde ham medya, `Content-Type` = medya turu; foto 3/5/10 sn, video 0 = sonuna kadar; en fazla 41 MB)
+- `POST /api/chat/conversations/{id}/messages/{messageId}/open` (alici; 200 `{ contentUrl, mediaType, durationSeconds, caption, viewUntilUtc }`, 410 `SNAP_OPENED`/`SNAP_EXPIRED`)
+- `GET /api/chat/snaps/{messageId}/content` (yalniz alici, yalniz pencere icinde, `Cache-Control: no-store`)
+- Konusma ogeleri `lastMessageKind`, `lastMessageState` (`sent|opened|expired`), `lastMessageId` tasir; mesajlar `kind` ve `snap` (medya veya depolama anahtari asla) tasir.
 
 API contract degisikligi yaparken mobil type'lari, Gateway route'larini, integration event consumer'larini ve smoke testlerini birlikte kontrol et.
 

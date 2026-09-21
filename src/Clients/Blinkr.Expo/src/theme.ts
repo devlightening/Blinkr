@@ -6,57 +6,60 @@
  * semantic names (`background`, `text`, `textSecondary`, `primary`, `mint`, ...).
  */
 export const colors = {
-  // --- Palette ---------------------------------------------------------------------------
-  background: '#101714',
-  surface: '#19221F',
-  surfaceElevated: '#202B26',
-  glass: 'rgba(15, 23, 20, 0.94)',
-  primary: '#D9FF57',
-  primaryPressed: '#C5F13D',
-  mint: '#65E6B5',
-  darkGreen: '#159B72',
-  text: '#FFFFFF',
-  textSecondary: '#A2ADA7',
+  // --- Palette: "Graphite & Mint" ---------------------------------------------------------
+  // Cool graphite neutrals carry the structure; one calm green is the brand; the semantic
+  // accents are muted so nothing on screen glows. Every text pair is checked in
+  // scripts/theme-contrast.test.ts.
+  background: '#0F1316',
+  surface: '#171C20',
+  surfaceElevated: '#1F262B',
+  glass: 'rgba(20, 25, 28, 0.94)',
+  primary: '#5FD3A0',
+  primaryPressed: '#4EBE8E',
+  mint: '#6FDDB4',
+  darkGreen: '#1F8F6B',
+  text: '#F3F6F7',
+  textSecondary: '#9BA6AC',
   /** Decorative / large text only - it does not reach 4.5:1 on `surface`. */
-  textMuted: '#6B7871',
-  border: 'rgba(255, 255, 255, 0.10)',
-  orange: '#FFB45E',
-  purple: '#BA8BFF',
-  pink: '#FF74B8',
-  danger: '#FF675C',
+  textMuted: '#6E7A81',
+  border: 'rgba(255, 255, 255, 0.08)',
+  orange: '#F0B267',
+  purple: '#AB98EF',
+  pink: '#EE9EC0',
+  danger: '#EE7C71',
 
   // --- Legacy names, mapped onto the palette ---------------------------------------------
-  ink: '#101714',
-  inkSoft: '#C4CCC6',
-  textPrimary: '#FFFFFF',
-  muted: '#A2ADA7',
-  mutedSoft: '#6B7871',
-  line: 'rgba(255, 255, 255, 0.10)',
-  lineStrong: 'rgba(255, 255, 255, 0.18)',
-  surfaceSoft: '#141C18',
-  surfaceTint: '#16241E',
-  mapCanvas: '#0B0F0C',
-  green: '#159B72',
-  greenDark: '#65E6B5',
-  greenSoft: '#12241D',
-  greenLine: '#1F3A2E',
-  lime: '#D9FF57',
-  coral: '#FF675C',
-  coralSoft: '#2A1712',
-  coralLine: '#4A2B22',
-  blue: '#5AA7FF',
+  ink: '#0A1F18',
+  inkSoft: '#C6CFD3',
+  textPrimary: '#F3F6F7',
+  muted: '#9BA6AC',
+  mutedSoft: '#6E7A81',
+  line: 'rgba(255, 255, 255, 0.08)',
+  lineStrong: 'rgba(255, 255, 255, 0.14)',
+  surfaceSoft: '#13181B',
+  surfaceTint: '#15211D',
+  mapCanvas: '#0B0F11',
+  green: '#1F8F6B',
+  greenDark: '#6FDDB4',
+  greenSoft: '#12251F',
+  greenLine: '#1E3A30',
+  lime: '#5FD3A0',
+  coral: '#EE7C71',
+  coralSoft: '#2A1816',
+  coralLine: '#4A2B26',
+  blue: '#7FAEF0',
   blueSoft: '#E9F2FC',
-  teal: '#2BD4C6',
-  amber: '#FFD25E',
-  warning: '#FFB45E',
-  error: '#FF675C',
-  errorSoft: '#2B1613',
-  errorLine: '#4A2521',
+  teal: '#5CCBC0',
+  amber: '#E8C86A',
+  warning: '#F0B267',
+  error: '#EE7C71',
+  errorSoft: '#2B1714',
+  errorLine: '#4A2622',
   white: '#FFFFFF',
-  scrim: 'rgba(3, 7, 5, 0.52)',
+  scrim: 'rgba(3, 6, 8, 0.55)',
   shadow: '#000000',
-  mutedOnDark: '#A2ADA7',
-  surfaceOnDark: '#202B26',
+  mutedOnDark: '#9BA6AC',
+  surfaceOnDark: '#1F262B',
   lineOnDark: 'rgba(255, 255, 255, 0.14)',
 };
 
@@ -74,32 +77,34 @@ export const signalColors: Record<
   NewOpening: colors.pink,
 };
 
+/** Elevation is quiet: a low, soft shadow on floating surfaces only (bar, sheets). Cards use a border instead. */
 export const shadow = {
   shadowColor: colors.shadow,
-  shadowOffset: { width: 0, height: 8 },
-  shadowOpacity: 0.28,
-  shadowRadius: 18,
-  elevation: 8,
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.2,
+  shadowRadius: 12,
+  elevation: 4,
 };
 
 export const shadowSoft = {
   shadowColor: colors.shadow,
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.18,
-  shadowRadius: 10,
-  elevation: 4,
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.14,
+  shadowRadius: 6,
+  elevation: 2,
 };
 
+/** Corner radii follow the platform norm (HIG 10-14, Material 12-16 for cards); `pill` is for chips and avatars only. */
 export const radii = {
-  sm: 12,
-  md: 18,
-  lg: 26,
-  xl: 34,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
   pill: 999,
   // Legacy names
-  control: 18,
-  card: 22,
-  panel: 30,
+  control: 12,
+  card: 14,
+  panel: 20,
 };
 
 export const spacing = {
@@ -111,29 +116,36 @@ export const spacing = {
   xxl: 32,
 };
 
+/**
+ * Type scale on the system font (SF Pro / Roboto), the same steps social and messaging apps use:
+ * 26 screen title, 20 sheet title, 17 section, 15 body, 13 caption, 12 label, 11 tab label.
+ * Weights stop at 700; nothing is set in extra-bold.
+ */
 export const typography = {
-  headline: { fontSize: 30, lineHeight: 36, fontWeight: '800' as const, letterSpacing: 0 },
-  title: { fontSize: 24, lineHeight: 30, fontWeight: '800' as const, letterSpacing: 0 },
-  heading: { fontSize: 20, lineHeight: 26, fontWeight: '700' as const, letterSpacing: 0 },
-  body: { fontSize: 16, lineHeight: 22, fontWeight: '400' as const, letterSpacing: 0 },
-  bodyStrong: { fontSize: 16, lineHeight: 22, fontWeight: '700' as const, letterSpacing: 0 },
-  caption: { fontSize: 13, lineHeight: 18, fontWeight: '500' as const, letterSpacing: 0 },
-  label: { fontSize: 12, lineHeight: 16, fontWeight: '700' as const, letterSpacing: 0.4 },
+  headline: { fontSize: 26, lineHeight: 32, fontWeight: '700' as const, letterSpacing: -0.2 },
+  title: { fontSize: 20, lineHeight: 26, fontWeight: '700' as const, letterSpacing: -0.1 },
+  heading: { fontSize: 17, lineHeight: 22, fontWeight: '600' as const, letterSpacing: 0 },
+  body: { fontSize: 15, lineHeight: 21, fontWeight: '400' as const, letterSpacing: 0 },
+  bodyStrong: { fontSize: 15, lineHeight: 21, fontWeight: '600' as const, letterSpacing: 0 },
+  caption: { fontSize: 13, lineHeight: 18, fontWeight: '400' as const, letterSpacing: 0 },
+  label: { fontSize: 12, lineHeight: 16, fontWeight: '600' as const, letterSpacing: 0.1 },
+  micro: { fontSize: 11, lineHeight: 14, fontWeight: '600' as const, letterSpacing: 0.1 },
 };
-export const motion = { fast: 160, sheet: 240 };
+/** Short and quiet: things ease into place, they do not bounce. */
+export const motion = { fast: 140, base: 200, sheet: 240 };
 
-/** Reanimated spring configs - shared so every animated surface moves with the same feel. */
+/** Reanimated spring configs - shared so every animated surface moves with the same feel. All are (near) critically damped. */
 export const springs = {
-  /** Buttons, chips, marker taps - quick, decisive settle. */
-  snappy: { damping: 16, stiffness: 280, mass: 0.7 },
-  /** Sheets, cards entering - playful overshoot, BeReal/Snapchat-style bounce. */
-  bouncy: { damping: 13, stiffness: 190, mass: 0.9 },
+  /** Press feedback on buttons, chips, rows. */
+  snappy: { damping: 32, stiffness: 380, mass: 0.8 },
+  /** Sheets and panels settling - a soft landing, no overshoot. */
+  bouncy: { damping: 30, stiffness: 240, mass: 1 },
   /** Backdrop fades, large panel transitions - no overshoot. */
-  gentle: { damping: 22, stiffness: 170, mass: 1 },
+  gentle: { damping: 26, stiffness: 180, mass: 1 },
 };
 
-/** `touch` is the minimum interactive size (HIG 44pt / Material 48dp). */
-export const sizes = { touch: 44, icon: 20, marker: 38, bottomBar: 70, camera: 64 };
+/** `touch` is the minimum interactive size (HIG 44pt / Material 48dp). The tab bar is 56 (HIG 49 + breathing room for a floating bar); `camera` is the share action in it. */
+export const sizes = { touch: 44, icon: 20, marker: 38, bottomBar: 56, camera: 44 };
 
 /** Same tokens under the names used in the design package's reference code. */
 export const blinkrTheme = { colors, spacing, radius: radii, typography } as const;

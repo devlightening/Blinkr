@@ -40,6 +40,7 @@ module.exports = ({ config }) => ({
   plugins: [
     ...(config.plugins ?? []),
     'expo-secure-store',
+    ['expo-camera', { cameraPermission: 'Blinkr sinyaline fotoğraf veya video eklemek için kamera erişimi kullanılır.', microphonePermission: 'Blinkr video sinyali oluştururken ses kaydı için mikrofon erişimi kullanılır.', recordAudioAndroid: true }],
     'expo-image-picker',
     'expo-status-bar',
     'expo-video',

@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 
-import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, CreateSignalInput, MediaKind, UnifiedMapResponse, PlacePresence, UserSummary, AuthoredPost } from './types';
+import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, CreateSignalInput, MediaKind, UnifiedMapResponse, PlacePresence, SnapOpenResult, UserSummary, AuthoredPost } from './types';
 import { resolveUploadContentType, safeUploadFileName } from './mediaContentType';
 
 type NearbyPlacesResponse = Array<BlinkrPlace & { distanceMeters?: number }> & {
@@ -212,6 +212,13 @@ export const authenticate = async (
   return auth;
 };
 
+export const setMyAvatar = (
+  auth: AuthResponse,
+  avatarKey: string | null,
+  onAuthRefresh?: (auth: AuthResponse) => void,
+  onSessionExpired?: () => void,
+) => requestJson<{ avatarKey: string | null }>('/api/users/me/avatar', { auth, body: { avatarKey }, method: 'PUT', onAuthRefresh, onSessionExpired });
+
 export const getPlacesInBounds = async (bounds: Bounds, signal?: AbortSignal) => {
   const params = new URLSearchParams({
     minLat: bounds.minLat.toString(),
@@ -269,8 +276,9 @@ export const getSignalContent = async (postId: string, signal?: AbortSignal) => 
   return { content: post.content, media: (post.media ?? []).map(item => ({ url: item.url, mediaType: item.type === 1 || item.type === 'Video' || item.mediaType === 'Video' ? 'Video' : 'Image' })) };
 };
 
-export const searchPlaces = (query: string, latitude: number, longitude: number, signal?: AbortSignal) =>
-  requestJson<BlinkrPlace[]>(`/api/places/search?${new URLSearchParams({ q: query, lat: String(latitude), lon: String(longitude) })}`, { signal });
+/** `radiusMeters` defaults to the server's 1.5 km (composer); the map's "where to?" search asks for up to 30 km. */
+export const searchPlaces = (query: string, latitude: number, longitude: number, signal?: AbortSignal, radiusMeters?: number) =>
+  requestJson<BlinkrPlace[]>(`/api/places/search?${new URLSearchParams({ q: query, lat: String(latitude), lon: String(longitude), ...(radiusMeters ? { radiusMeters: String(radiusMeters) } : {}) })}`, { signal });
 
 export const previewPresence = (auth: AuthResponse, body: { placeId: string; latitude: number; longitude: number; accuracyMeters: number }, onAuthRefresh: (auth: AuthResponse) => void, onSessionExpired: () => void) =>
   requestJson<PlacePresence>('/api/posts/place-presence', { auth, body, method: 'POST', onAuthRefresh, onSessionExpired });
@@ -388,6 +396,31 @@ export const markConversationRead = (
 ) =>
   request(`/api/chat/conversations/${conversationId}/read`, { auth, method: 'POST', onAuthRefresh, onSessionExpired });
 
+type LocalMedia = { uri: string; fileName?: string | null; mimeType?: string | null; type?: string | null };
+
+/**
+ * Reads a picked/captured file into a Blob and settles ONE content type for it (picker, Blob and file extension
+ * disagree often enough to matter). The Blob is re-wrapped in that type because the HTTP stack sends a Blob body
+ * with the Blob's own type, which must not drift from what was declared to the server.
+ */
+const readLocalMedia = async (asset: LocalMedia, mediaType: MediaKind) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  let blob: Blob;
+  try {
+    const response = await fetch(asset.uri, { signal: controller.signal });
+    blob = await response.blob();
+  } catch (err) {
+    if (isDev) console.log('[Blinkr Media]', { failedStage: 'local-read', errorCode: err instanceof Error ? err.name : 'Unknown' });
+    throw controller.signal.aborted ? new Error('Medya dosyası okunamadı (zaman aşımı). Tekrar dene.') : err;
+  } finally {
+    clearTimeout(timer);
+  }
+  const contentType = resolveUploadContentType(mediaType, asset.mimeType, blob.type, asset.fileName ?? asset.uri);
+  if (blob.type !== contentType) blob = new Blob([blob], { type: contentType });
+  return { blob, contentType };
+};
+
 export const uploadMedia = async (
   auth: AuthResponse,
   asset: {
@@ -402,24 +435,8 @@ export const uploadMedia = async (
 ) => {
   const mediaType: MediaKind = asset.type === 'video' ? 'Video' : 'Image';
 
-  // Read the file first: a file that cannot be read must not leave a presign record behind, and the
-  // Blob's own type is one of the inputs to the content type we declare.
-  const localController = new AbortController();
-  const localTimer = setTimeout(() => localController.abort(), 10000);
-  let blob: Blob;
-  try {
-    const localResponse = await fetch(asset.uri, { signal: localController.signal });
-    blob = await localResponse.blob();
-  } catch (err) {
-    if (isDev) console.log('[Blinkr Media]', { failedStage: 'local-read', errorCode: err instanceof Error ? err.name : 'Unknown' });
-    throw localController.signal.aborted
-      ? new Error('Medya dosyası okunamadı (zaman aşımı). Tekrar dene.')
-      : err;
-  } finally {
-    clearTimeout(localTimer);
-  }
-
-  const contentType = resolveUploadContentType(mediaType, asset.mimeType, blob.type, asset.fileName ?? asset.uri);
+  // Read the file first: a file that cannot be read must not leave a presign record behind.
+  const { blob, contentType } = await readLocalMedia(asset, mediaType);
   const sizeBytes = Math.max(1, blob.size || asset.fileSize || 1);
   const presign = await requestJson<PresignResponse>('/api/v1/media/presign', {
     auth,
@@ -433,10 +450,6 @@ export const uploadMedia = async (
     onAuthRefresh,
     onSessionExpired,
   });
-
-  // The HTTP stack sends a Blob body with the Blob's own type; make that type the declared one so the
-  // Content-Type header cannot drift from the presign request.
-  if (blob.type !== contentType) blob = new Blob([blob], { type: contentType });
 
   const uploadPath = presign.uploadUrl.startsWith('http')
     ? presign.uploadUrl.replace(API_BASE_URL, '')
@@ -464,3 +477,47 @@ export const uploadMedia = async (
     previewUrl: toAbsoluteUrl(presign.publicUrl),
   };
 };
+
+/**
+ * Sends a view-once photo or video into a conversation. The body is the raw media (its Content-Type is the media
+ * type); the timer and caption travel in the query. Videos always play to their end (timer 0).
+ */
+export const sendSnap = async (
+  auth: AuthResponse,
+  conversationId: string,
+  media: LocalMedia,
+  options: { durationSeconds: number; caption?: string },
+  onAuthRefresh?: (auth: AuthResponse) => void,
+  onSessionExpired?: () => void,
+) => {
+  const mediaType: MediaKind = media.type === 'video' ? 'Video' : 'Image';
+  const { blob, contentType } = await readLocalMedia(media, mediaType);
+  const query = new URLSearchParams({ durationSeconds: String(mediaType === 'Video' ? 0 : options.durationSeconds) });
+  if (options.caption) query.set('caption', options.caption);
+  const response = await request(`/api/chat/conversations/${conversationId}/snaps?${query}`, {
+    auth,
+    headers: { 'Content-Type': contentType },
+    method: 'POST',
+    onAuthRefresh,
+    onSessionExpired,
+    rawBody: blob,
+    timeoutMs: 90000,
+  });
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json() as Promise<ChatMessage>;
+};
+
+/** Opens a waiting snap for good (one time only). Fails with 410 once it was opened or has expired. */
+export const openSnap = (
+  auth: AuthResponse,
+  conversationId: string,
+  messageId: string,
+  onAuthRefresh?: (auth: AuthResponse) => void,
+  onSessionExpired?: () => void,
+) => requestJson<SnapOpenResult>(`/api/chat/conversations/${conversationId}/messages/${messageId}/open`, { auth, method: 'POST', onAuthRefresh, onSessionExpired });
+
+/** Where and how to load the media of an opened snap: only the recipient's token is accepted, and only briefly. */
+export const snapMediaSource = (auth: AuthResponse, contentUrl: string) => ({
+  uri: toAbsoluteUrl(contentUrl) as string,
+  headers: { Authorization: `Bearer ${auth.token}` },
+});

@@ -26,8 +26,8 @@ export function BlinkrEmptyState({ icon, title, description, action, style }: Pr
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.xl },
-  iconTile: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, height: 72, justifyContent: 'center', marginBottom: spacing.sm, width: 72 },
+  iconTile: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, height: 56, justifyContent: 'center', marginBottom: spacing.xs, width: 56 },
   title: { ...typography.heading, color: colors.text, textAlign: 'center' },
   description: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
-  action: { marginTop: spacing.md, paddingHorizontal: 24 },
+  action: { marginTop: spacing.md, paddingHorizontal: 20 },
 });

@@ -35,7 +35,7 @@ export function BlinkrSignalCard({ signalType, tone, typeLabel, ageLabel, title,
       <View style={styles.body}>
         <View style={styles.copy}>
           <View style={[styles.badge, { borderColor: tone }]}>
-            <SignalSymbol color={tone} size={16} type={signalType} />
+            <SignalSymbol color={tone} size={14} type={signalType} />
             <Text style={[styles.badgeText, { color: tone }]}>{typeLabel}</Text>
           </View>
           {title ? <Text style={styles.title}>{title}</Text> : null}
@@ -50,16 +50,16 @@ export function BlinkrSignalCard({ signalType, tone, typeLabel, ageLabel, title,
 const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, gap: spacing.md, padding: spacing.lg },
   author: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
-  avatar: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 40, justifyContent: 'center', width: 40 },
+  avatar: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 34, justifyContent: 'center', width: 34 },
   avatarText: { ...typography.bodyStrong, color: colors.text },
   authorCopy: { flex: 1 },
   authorName: { ...typography.bodyStrong, color: colors.text },
   meta: { ...typography.caption, color: colors.textSecondary },
   body: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.md },
   copy: { flex: 1, gap: spacing.sm },
-  badge: { alignItems: 'center', alignSelf: 'flex-start', borderRadius: radii.pill, borderWidth: 1, flexDirection: 'row', gap: 6, paddingHorizontal: 10, paddingVertical: 5 },
+  badge: { alignItems: 'center', alignSelf: 'flex-start', borderRadius: radii.pill, borderWidth: 1, flexDirection: 'row', gap: 5, paddingHorizontal: 9, paddingVertical: 3 },
   badgeText: { ...typography.label, letterSpacing: 0 },
-  title: { ...typography.heading, color: colors.text, fontSize: 18 },
+  title: { ...typography.heading, color: colors.text, fontSize: 16, lineHeight: 21 },
   text: { ...typography.body, color: colors.textSecondary },
   media: { borderRadius: radii.md, overflow: 'hidden' },
 });

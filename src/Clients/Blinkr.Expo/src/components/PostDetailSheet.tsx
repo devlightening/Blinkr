@@ -1,20 +1,20 @@
-import { Bookmark, Camera, Clock3, Compass, Image as ImageIcon, MapPin, MessageCircle, Share2, ShieldCheck, X } from 'lucide-react-native';
+import { Bookmark, Camera, Check, Clock3, Compass, Image as ImageIcon, MapPin, MessageCircle, RefreshCw, Share2, ShieldCheck, X } from 'lucide-react-native';
 import { ActivityIndicator, Alert, Image, Linking, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useEffect, useMemo, useState } from 'react';
-import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { toAbsoluteUrl } from '../api';
 import { formatAge, formatCategory, formatDistance, signalLabels } from '../presentation';
 import { isPlaceSaved, savePlace, unsavePlace } from '../savedPlaces';
 import { categoryTone, colors, radii, signalColors, spacing, typography } from '../theme';
-import type { BlinkrMedia, BlinkrPlace, CoordinateSignal, RecentSignal } from '../types';
-import { signalValueLabel, trustLabel } from '../productPresentation';
+import type { BlinkrMedia, BlinkrPlace, CoordinateSignal, RecentSignal, SignalType } from '../types';
+import { recheckSignal, signalValueLabel, trustLabel } from '../productPresentation';
 import { AnimatedPressable } from './AnimatedPressable';
 import { Sheet } from './Sheet';
 import { SignalSymbol } from './SignalSymbol';
 import { PlaceSymbol } from './PlaceSymbol';
 import { VideoPreview } from './VideoPreview';
 import { BlinkrButton } from './ui/BlinkrButton';
+import { BlinkrChip } from './ui/BlinkrChip';
 import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
 import { BlinkrSheetPanel } from './ui/BlinkrSheetPanel';
 import { BlinkrSignalCard } from './ui/BlinkrSignalCard';
@@ -23,6 +23,8 @@ type Props = {
   isLoading: boolean;
   onClose: () => void;
   onCreateSignal: () => void;
+  /** Answer to "Hâlâ böyle mi?": confirm the current value, or say it changed. Both open the composer pre-filled. */
+  onRecheck?: (mode: 'confirm' | 'changed', signal: { type: SignalType; value: string }) => void;
   place: BlinkrPlace | null;
   signal?: CoordinateSignal | null;
   /** Saved places are stored per user on this device. */
@@ -111,7 +113,7 @@ const SignalItem = ({ signal, index }: { signal: RecentSignal; index: number }) 
   const type = signal.signalType ?? 'GeneralObservation';
   const firstMedia = signal.media?.[0];
   return (
-    <Animated.View entering={FadeInUp.duration(320).delay(Math.min(index, 6) * 45)}>
+    <View>
       <BlinkrSignalCard
         ageLabel={formatAge(signal.createdAtUtc)}
         authorLabel={signal.authorName || 'Topluluk üyesi'}
@@ -123,12 +125,13 @@ const SignalItem = ({ signal, index }: { signal: RecentSignal; index: number }) 
         trustLabel={trustLabel(signal.publicationTrust)}
         typeLabel={signalLabels[type] ?? 'Sinyal'}
       />
-    </Animated.View>
+    </View>
   );
 };
 
-export function PostDetailSheet({ isLoading, onClose, onCreateSignal, place, signal, userId }: Props) {
+export function PostDetailSheet({ isLoading, onClose, onCreateSignal, onRecheck, place, signal, userId }: Props) {
   const state = place?.currentState;
+  const recheck = onRecheck ? recheckSignal(state) : null;
   const recentSignals = place?.recentSignals ?? [];
   const visible = Boolean(place || signal);
   const [saved, setSaved] = useState(false);
@@ -242,6 +245,17 @@ export function PostDetailSheet({ isLoading, onClose, onCreateSignal, place, sig
               ) : null}
             </View>
 
+            {recheck && onRecheck ? (
+              <View style={styles.recheck}>
+                <Text style={styles.recheckTitle}>Hâlâ böyle mi?</Text>
+                <Text style={styles.recheckHint}>Buradaysan cevabın bu yerin canlı durumunu güncel tutar.</Text>
+                <View style={styles.recheckRow}>
+                  <BlinkrChip accessibilityLabel="Evet, hâlâ böyle" selected={false} icon={(color) => <Check color={color} size={18} />} label="Evet, hâlâ böyle" onPress={() => onRecheck('confirm', recheck)} />
+                  <BlinkrChip accessibilityLabel="Değişti" selected={false} icon={(color) => <RefreshCw color={color} size={18} />} label="Değişti" onPress={() => onRecheck('changed', recheck)} />
+                </View>
+              </View>
+            ) : null}
+
             <View style={styles.actions}>
               <BlinkrButton
                 icon={<Camera color={colors.ink} size={22} />}
@@ -289,7 +303,7 @@ export function PostDetailSheet({ isLoading, onClose, onCreateSignal, place, sig
 }
 
 const styles = StyleSheet.create({
-  photoRail: { flexDirection: 'row', gap: spacing.sm, height: 148, marginBottom: spacing.lg },
+  photoRail: { flexDirection: 'row', gap: spacing.sm, height: 128, marginBottom: spacing.lg },
   photo: { backgroundColor: colors.surfaceElevated, borderRadius: radii.card, height: '100%' },
   photoMain: { flex: 2.4 },
   photoSide: { flex: 1 },
@@ -297,17 +311,17 @@ const styles = StyleSheet.create({
   photoMoreText: { ...typography.heading, color: colors.text },
   photoMoreLabel: { ...typography.caption, color: colors.textSecondary },
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
-  placeIcon: { alignItems: 'center', backgroundColor: colors.background, borderRadius: radii.md, borderWidth: 2, height: 52, justifyContent: 'center', width: 52 },
-  signalIcon: { alignItems: 'center', backgroundColor: colors.background, borderRadius: radii.pill, borderWidth: 2, height: 52, justifyContent: 'center', width: 52 },
+  placeIcon: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.md, height: 44, justifyContent: 'center', width: 44 },
+  signalIcon: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 44, justifyContent: 'center', width: 44 },
   headerText: { flex: 1 },
   title: { ...typography.title, color: colors.text },
   subtitle: { ...typography.caption, color: colors.textSecondary },
-  close: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.pill, borderWidth: 1, height: 44, justifyContent: 'center', width: 44 },
+  close: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 36, justifyContent: 'center', width: 36 },
   body: { marginTop: spacing.lg },
   loading: { marginBottom: spacing.md },
   loadingRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   statusBanner: { alignItems: 'center', backgroundColor: colors.greenSoft, borderColor: colors.greenLine, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg, padding: spacing.md },
-  statusIcon: { alignItems: 'center', backgroundColor: colors.background, borderRadius: radii.md, height: 44, justifyContent: 'center', width: 44 },
+  statusIcon: { alignItems: 'center', backgroundColor: colors.background, borderRadius: radii.md, height: 38, justifyContent: 'center', width: 38 },
   statusCopy: { flex: 1 },
   statusTitle: { ...typography.bodyStrong, color: colors.mint },
   stats: { alignItems: 'stretch', backgroundColor: colors.background, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', marginTop: spacing.md, paddingVertical: spacing.md },
@@ -317,13 +331,17 @@ const styles = StyleSheet.create({
   statDivider: { backgroundColor: colors.border, width: 1 },
   // One row like the design: a wide lime CTA plus three fixed tiles. On very narrow screens the tiles
   // wrap under the CTA instead of squeezing its label.
+  recheck: { backgroundColor: colors.background, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, gap: spacing.xs, marginTop: spacing.md, padding: spacing.md },
+  recheckTitle: { ...typography.heading, color: colors.text, fontSize: 16, lineHeight: 21 },
+  recheckHint: { ...typography.caption, color: colors.textSecondary },
+  recheckRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
   actions: { alignItems: 'stretch', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg },
   primaryAction: { flexBasis: 146, flexGrow: 1, minWidth: 146, paddingHorizontal: 10 },
-  actionTile: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, gap: 4, justifyContent: 'center', minHeight: 64, width: 56 },
-  actionLabel: { ...typography.caption, color: colors.text, fontWeight: '600' },
-  sectionHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md, marginTop: spacing.xl },
+  actionTile: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, gap: 4, justifyContent: 'center', minHeight: 56, width: 54 },
+  actionLabel: { ...typography.micro, color: colors.text },
+  sectionHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm, marginTop: spacing.lg },
   sectionLabel: { ...typography.heading, color: colors.text },
-  sectionCount: { ...typography.caption, backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, color: colors.textSecondary, overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 4 },
+  sectionCount: { ...typography.caption, color: colors.textSecondary },
   signalList: { gap: spacing.md, paddingBottom: spacing.sm },
-  signalMedia: { backgroundColor: colors.surfaceElevated, height: 96, width: 96 },
+  signalMedia: { backgroundColor: colors.surfaceElevated, height: 80, width: 80 },
 });

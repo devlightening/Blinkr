@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ChevronRight, MessageCircle, SquarePen, WifiOff } from 'lucide-react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { Camera, MessageCircle, SquarePen, WifiOff } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getUser, listConversations, startConversation } from '../../api';
@@ -14,16 +14,26 @@ import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
 import { bottomBarClearance } from '../ui/BlinkrBottomBar';
 import { UserSearchSheet } from './UserSearchSheet';
 import { ConversationScreen } from './ConversationScreen';
-import { colors, radii, shadowSoft, spacing, typography } from '../../theme';
+import { colors, motion, radii, spacing, typography } from '../../theme';
 import type { AuthResponse, Conversation, UserSummary } from '../../types';
+import { Avatar } from '../Avatar';
+import { conversationLabel, conversationStatus } from '../../snapPresentation';
+import { SnapFlow, type SnapFlowRequest } from '../snap/SnapFlow';
+import type { SnapRecipient } from '../snap/SnapSendStep';
+import { SnapStatusIcon, statusColor } from '../snap/SnapStatusIcon';
+import { SnapViewer } from '../snap/SnapViewer';
 
 const POLL_INTERVAL_MS = 8000;
+const AVATAR_SIZE = 48;
+const ROW_GAP = spacing.md;
 const NAME_BATCH_SIZE = 30;
 const FALLBACK_NAME = 'Kullanıcı';
 
 // user id -> user name. Names are public and stable, so successful lookups are kept for the
 // whole app session and survive the tab being unmounted and remounted.
 const userNameCache = new Map<string, string>();
+// Chosen avatar per user id (null = none chosen, the client draws the default from the id).
+const userAvatarCache = new Map<string, string | null>();
 
 type Props = {
   auth: AuthResponse;
@@ -33,9 +43,12 @@ type Props = {
   onUnreadChange?: (hasUnread: boolean) => void;
   /** A conversation screen owns the whole tab, so the app shell hides its bar and shows the composer. */
   onConversationOpenChange?: (open: boolean) => void;
+  /** One-shot request from the share hub: start a new snap (camera, then recipients). */
+  snapRequested?: boolean;
+  onSnapHandled?: () => void;
 };
 
-export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadChange, onConversationOpenChange }: Props) {
+export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadChange, onConversationOpenChange, snapRequested = false, onSnapHandled }: Props) {
   const insets = useSafeAreaInsets();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setLoading] = useState(true);
@@ -43,6 +56,9 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
   const [error, setError] = useState<string | null>(null);
   const [isSearchOpen, setSearchOpen] = useState(false);
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+  const [flow, setFlow] = useState<SnapFlowRequest | null>(null);
+  const [viewing, setViewing] = useState<{ conversation: Conversation; messageId: string } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [names, setNames] = useState<Record<string, string>>(() => Object.fromEntries(userNameCache));
   const pollInFlight = useRef(false);
   const hasSettled = useRef(false);
@@ -62,6 +78,7 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
     results.forEach((result, index) => {
       if (result.status === 'fulfilled' && result.value.userName) {
         userNameCache.set(missing[index], result.value.userName);
+        userAvatarCache.set(missing[index], result.value.avatarKey ?? null);
         resolved = true;
       }
     });
@@ -112,14 +129,29 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
   }, [conversations, onUnreadChange]);
 
   useEffect(() => {
-    onConversationOpenChange?.(Boolean(activeConversation));
+    // The camera, the snap sender and the snap viewer each own the whole screen, like an open conversation.
+    onConversationOpenChange?.(Boolean(activeConversation) || Boolean(flow) || Boolean(viewing));
     return () => onConversationOpenChange?.(false);
-  }, [activeConversation, onConversationOpenChange]);
+  }, [activeConversation, flow, viewing, onConversationOpenChange]);
+
+  useEffect(() => {
+    if (!snapRequested) return;
+    onSnapHandled?.();
+    setFlow({ mode: 'compose' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapRequested]);
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = setTimeout(() => setNotice(null), 2600);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   const openConversationWith = async (user: UserSummary) => {
     setSearchOpen(false);
     // The search result already carries the name; no extra lookup is needed.
     userNameCache.set(user.id, user.userName);
+    userAvatarCache.set(user.id, user.avatarKey ?? null);
     setNames(Object.fromEntries(userNameCache));
     try {
       const conversation = await startConversation(auth, user.id, onAuthChange, onSessionExpired);
@@ -129,86 +161,122 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
     }
   };
 
+  const recipients: SnapRecipient[] = conversations.map((item) => ({ id: item.id, name: names[item.otherUserId] ?? FALLBACK_NAME, userId: item.otherUserId, avatarKey: userAvatarCache.get(item.otherUserId) }));
+  const overlays = (
+    <>
+      {viewing ? (
+        <SnapViewer
+          auth={auth}
+          conversationId={viewing.conversation.id}
+          messageId={viewing.messageId}
+          onAuthChange={onAuthChange}
+          onClose={() => { setViewing(null); refresh(true); }}
+          onReply={() => setFlow({ mode: 'reply', conversationId: viewing.conversation.id })}
+          onSessionExpired={onSessionExpired}
+          senderAvatarKey={userAvatarCache.get(viewing.conversation.otherUserId)}
+          senderId={viewing.conversation.otherUserId}
+          senderName={names[viewing.conversation.otherUserId] ?? FALLBACK_NAME}
+        />
+      ) : null}
+      {flow ? (
+        <SnapFlow
+          auth={auth}
+          onAuthChange={onAuthChange}
+          onClose={() => setFlow(null)}
+          onSent={(count) => { setFlow(null); setNotice(count > 1 ? `Snap ${count} kişiye gönderildi` : 'Snap gönderildi'); refresh(true); }}
+          onSessionExpired={onSessionExpired}
+          recipients={recipients}
+          request={flow}
+        />
+      ) : null}
+    </>
+  );
+
   if (activeConversation) {
-    return <ConversationScreen
+    return <View style={styles.screen}><ConversationScreen
       auth={auth}
       conversation={activeConversation}
       otherUserName={names[activeConversation.otherUserId] ?? FALLBACK_NAME}
+      otherAvatarKey={userAvatarCache.get(activeConversation.otherUserId)}
       onAuthChange={onAuthChange}
       onBack={() => { setActiveConversation(null); refresh(true); }}
+      onOpenSnap={(messageId) => setViewing({ conversation: activeConversation, messageId })}
+      onSendSnap={() => setFlow({ mode: 'reply', conversationId: activeConversation.id })}
       onSessionExpired={onSessionExpired}
-    />;
+    />{overlays}</View>;
   }
 
   const total = conversations.length;
 
   return <View style={styles.screen}>
     <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
-      <View style={styles.headerCopy}>
-        <Text accessibilityRole="header" style={styles.title}>Sohbet</Text>
-        {total > 0 && <Text style={styles.subtitle}>{total} konuşma</Text>}
-      </View>
-      <AnimatedPressable accessibilityLabel="Yeni mesaj" accessibilityRole="button" onPress={() => setSearchOpen(true)} pressScale={0.9} style={styles.newButton}>
-        <SquarePen color={colors.ink} size={26} strokeWidth={2.3} />
+      <Text accessibilityRole="header" style={styles.title}>Sohbetler</Text>
+      <AnimatedPressable accessibilityLabel="Yeni mesaj" accessibilityRole="button" onPress={() => setSearchOpen(true)} pressScale={0.95} style={styles.newButton}>
+        <SquarePen color={colors.primary} size={20} strokeWidth={2} />
       </AnimatedPressable>
     </View>
 
     {isLoading ? (
-      <View style={styles.centerFill}><ActivityIndicator accessibilityLabel="Yükleniyor" color={colors.mint} /></View>
+      <View style={styles.centerFill}><ActivityIndicator accessibilityLabel="Yükleniyor" color={colors.primary} /></View>
     ) : error ? (
       <View style={styles.centerFill}>
         <BlinkrEmptyState
           action={{ label: 'Tekrar dene', onPress: () => refresh() }}
           description={error}
-          icon={<WifiOff color={colors.textSecondary} size={32} />}
+          icon={<WifiOff color={colors.textSecondary} size={26} />}
           title="Sohbetler açılamadı"
         />
       </View>
     ) : !total ? (
       <View style={styles.centerFill}>
         <BlinkrEmptyState
-          action={{ label: 'Yeni mesaj', onPress: () => setSearchOpen(true), icon: <SquarePen color={colors.ink} size={20} /> }}
+          action={{ label: 'Yeni mesaj', onPress: () => setSearchOpen(true), icon: <SquarePen color={colors.ink} size={18} /> }}
           description="Bir kullanıcı bul ve konuşmaya başla."
-          icon={<MessageCircle color={colors.textSecondary} size={34} />}
+          icon={<MessageCircle color={colors.textSecondary} size={26} />}
           title="Henüz mesajın yok"
         />
       </View>
     ) : (
       <FlatList
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
         contentContainerStyle={[styles.list, { paddingBottom: bottomBarClearance(insets.bottom) + spacing.lg }]}
         data={conversations}
         keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl onRefresh={() => { setRefreshing(true); refresh(); }} refreshing={isRefreshing} tintColor={colors.mint} />}
-        renderItem={({ item, index }) => {
+        refreshControl={<RefreshControl onRefresh={() => { setRefreshing(true); refresh(); }} refreshing={isRefreshing} tintColor={colors.primary} />}
+        renderItem={({ item }) => {
           const name = names[item.otherUserId] ?? FALLBACK_NAME;
-          const unread = item.unreadCount ?? 0;
-          const mine = item.lastMessageSenderId === auth.userId;
+          const status = conversationStatus(item, auth.userId);
+          const when = formatAge(item.lastMessageAtUtc);
+          const openRow = () => {
+            // Like Snapchat: a waiting snap opens straight into the viewer; everything else opens the conversation.
+            if (status.opensSnap && item.lastMessageId) setViewing({ conversation: item, messageId: item.lastMessageId });
+            else setActiveConversation(item);
+          };
           return (
-            <Animated.View entering={FadeInDown.duration(220).delay(Math.min(index, 10) * 30)}>
-              <AnimatedPressable
-                accessibilityLabel={unread > 0 ? `${name} ile konuşma, ${unread} okunmamış mesaj` : `${name} ile konuşmayı aç`}
-                accessibilityRole="button"
-                onPress={() => setActiveConversation(item)}
-                pressScale={0.98}
-                style={[styles.card, unread > 0 && styles.cardUnread]}
-              >
-                <View style={[styles.avatar, unread > 0 && styles.avatarUnread]}>
-                  <Text style={styles.avatarText}>{name.slice(0, 1).toLocaleUpperCase('tr-TR')}</Text>
-                </View>
-                <View style={styles.cardBody}>
-                  <View style={styles.cardTop}>
+            <Animated.View entering={FadeIn.duration(motion.base)}>
+              <View style={styles.row}>
+                <AnimatedPressable
+                  accessibilityLabel={conversationLabel(name, status, when)}
+                  accessibilityRole="button"
+                  onLongPress={() => setActiveConversation(item)}
+                  onPress={openRow}
+                  pressScale={0.99}
+                  style={styles.rowMain}
+                >
+                  <Avatar avatarKey={userAvatarCache.get(item.otherUserId)} seed={item.otherUserId} size={AVATAR_SIZE} />
+                  <View style={styles.rowBody}>
                     <Text numberOfLines={1} style={styles.name}>{name}</Text>
-                    <Text style={styles.when}>{formatAge(item.lastMessageAtUtc)}</Text>
+                    <View style={styles.statusLine}>
+                      <SnapStatusIcon filled={status.filled} icon={status.icon} tone={status.tone} />
+                      <Text numberOfLines={1} style={[styles.status, { color: status.tone === 'quiet' ? colors.textSecondary : statusColor(status.tone) }, status.filled && styles.statusNew]}>{status.label}</Text>
+                      <Text style={styles.when}>· {when}</Text>
+                    </View>
                   </View>
-                  <Text numberOfLines={1} style={[styles.preview, unread > 0 && styles.previewUnread]}>
-                    {item.lastMessagePreview ? `${mine ? 'Sen: ' : ''}${item.lastMessagePreview}` : 'Yeni konuşma'}
-                  </Text>
-                </View>
-                <View style={styles.cardEnd}>
-                  {unread > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{unread > 99 ? '99+' : unread}</Text></View>}
-                  <ChevronRight color={colors.textSecondary} size={22} />
-                </View>
-              </AnimatedPressable>
+                </AnimatedPressable>
+                <AnimatedPressable accessibilityLabel={`${name} kişisine Snap gönder`} accessibilityRole="button" hitSlop={6} onPress={() => setFlow({ mode: 'reply', conversationId: item.id })} pressScale={0.95} style={styles.cameraButton}>
+                  <Camera color={colors.textSecondary} size={18} />
+                </AnimatedPressable>
+              </View>
             </Animated.View>
           );
         }}
@@ -216,6 +284,8 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
       />
     )}
 
+    {overlays}
+    {notice ? <Text accessibilityLiveRegion="polite" style={styles.notice}>{notice}</Text> : null}
     {isSearchOpen && <Sheet onClose={() => setSearchOpen(false)}>
       <BlinkrSheetPanel maxHeightRatio={0.88}>
         <UserSearchSheet auth={auth} onBack={() => setSearchOpen(false)} onSelect={openConversationWith} />
@@ -226,25 +296,20 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.background, flex: 1 },
-  header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingBottom: spacing.md, paddingHorizontal: spacing.lg },
-  headerCopy: { flex: 1 },
-  title: { ...typography.headline, color: colors.text, fontSize: 34, lineHeight: 40 },
-  subtitle: { ...typography.caption, color: colors.textSecondary },
-  newButton: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: radii.lg, height: 60, justifyContent: 'center', width: 60, ...shadowSoft },
+  header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingBottom: spacing.sm, paddingHorizontal: spacing.lg },
+  title: { ...typography.headline, color: colors.text },
+  newButton: { alignItems: 'center', backgroundColor: 'rgba(95, 211, 160, 0.14)', borderRadius: radii.pill, height: 40, justifyContent: 'center', width: 40 },
   centerFill: { flex: 1, justifyContent: 'center' },
-  list: { gap: spacing.md, paddingHorizontal: spacing.md, paddingTop: spacing.sm },
-  card: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 88, padding: spacing.md },
-  cardUnread: { borderColor: colors.primary },
-  avatar: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.pill, borderWidth: 2, height: 60, justifyContent: 'center', width: 60 },
-  avatarUnread: { borderColor: colors.primary },
-  avatarText: { ...typography.title, color: colors.text },
-  cardBody: { flex: 1, gap: 2 },
-  cardTop: { alignItems: 'baseline', flexDirection: 'row', gap: spacing.sm, justifyContent: 'space-between' },
-  name: { ...typography.heading, color: colors.text, flexShrink: 1 },
+  list: { paddingTop: spacing.xs },
+  separator: { backgroundColor: colors.border, height: StyleSheet.hairlineWidth, marginLeft: spacing.lg + AVATAR_SIZE + ROW_GAP },
+  row: { alignItems: 'center', flexDirection: 'row', minHeight: 68, paddingRight: spacing.md },
+  rowMain: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: ROW_GAP, minHeight: 68, paddingLeft: spacing.lg, paddingVertical: spacing.sm },
+  rowBody: { flex: 1, gap: 2 },
+  name: { ...typography.heading, color: colors.text, fontSize: 16, lineHeight: 21 },
+  statusLine: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+  status: { ...typography.caption, flexShrink: 1 },
+  statusNew: { fontWeight: '700' },
   when: { ...typography.caption, color: colors.textSecondary },
-  preview: { ...typography.body, color: colors.textSecondary },
-  previewUnread: { color: colors.text, fontWeight: '600' },
-  cardEnd: { alignItems: 'center', gap: spacing.xs },
-  badge: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: radii.pill, height: 26, justifyContent: 'center', minWidth: 26, paddingHorizontal: 7 },
-  badgeText: { ...typography.label, color: colors.ink, letterSpacing: 0 },
+  cameraButton: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 38, justifyContent: 'center', width: 38 },
+  notice: { ...typography.bodyStrong, alignSelf: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, bottom: 96, color: colors.text, overflow: 'hidden', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, position: 'absolute' },
 });

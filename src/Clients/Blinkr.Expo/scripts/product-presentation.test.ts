@@ -1,4 +1,4 @@
-import { canPublishAt, friendlyError, freshnessOpacity, isFresh, signalValueLabel, trustLabel } from '../src/productPresentation';
+import { canPublishAt, friendlyError, freshnessOpacity, isFresh, recheckSignal, signalValueLabel, trustLabel } from '../src/productPresentation';
 import { formatCategory } from '../src/presentation';
 import type { ComposerArea } from '../src/types';
 function check(value: unknown, message: string) { if (!value) throw new Error(message); }
@@ -18,4 +18,14 @@ check(isFresh(new Date(now - 60000).toISOString(), null, now), 'fresh marker rem
 check(!isFresh(new Date(now - 4 * 3600000).toISOString(), null, now), 'expired marker removed');
 check(!isFresh(new Date(now - 60000).toISOString(), new Date(now - 1000).toISOString(), now), 'explicit expiry removed');
 check(freshnessOpacity(new Date(now - 2 * 3600000).toISOString(), now) < 1, 'older marker fades');
+// "Hâlâ böyle mi?" only for a fresh, structured live state with a value the composer knows.
+const live = { signalType: 'Crowd' as const, signalValue: 'BUSY', freshness: 'FRESH', expiresAtUtc: new Date(now + 3600000).toISOString() };
+check(JSON.stringify(recheckSignal(live, now)) === JSON.stringify({ type: 'Crowd', value: 'Busy' }), 'legacy uppercase value is offered in its canonical spelling');
+check(recheckSignal({ ...live, freshness: 'RECENT' }, now) !== null, 'RECENT state can be rechecked');
+check(recheckSignal({ ...live, freshness: 'STALE' }, now) === null, 'stale state is not offered');
+check(recheckSignal({ ...live, freshness: 'NONE' }, now) === null, 'no live state is not offered');
+check(recheckSignal({ ...live, expiresAtUtc: new Date(now - 1000).toISOString() }, now) === null, 'expired state is not offered');
+check(recheckSignal({ ...live, signalType: 'GeneralObservation' }, now) === null, 'free-text observations have nothing to confirm');
+check(recheckSignal({ ...live, signalValue: 'SOMETHING_ELSE' }, now) === null, 'unknown values are not guessed');
+check(recheckSignal({ ...live, signalValue: null }, now) === null && recheckSignal(null, now) === null && recheckSignal(undefined, now) === null, 'missing state or value');
 console.log('product presentation tests passed');

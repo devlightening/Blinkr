@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { colors, radii, typography } from '../../theme';
+import { colors, radii, sizes, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 
 export type BlinkrButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -46,7 +46,7 @@ export function BlinkrButton({
       onPress={onPress}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
-      pressScale={variant === 'primary' && size === 'lg' ? 0.96 : 0.95}
+      pressScale={0.97}
       style={[styles.base, size === 'lg' && styles.large, { backgroundColor: bg, borderColor: border }, disabled && styles.inactive, style]}
     >
       {loading ? <ActivityIndicator color={fg} /> : icon ? <View style={styles.iconSlot}>{icon}</View> : null}
@@ -59,14 +59,14 @@ export function BlinkrButton({
 }
 
 const styles = StyleSheet.create({
-  base: { alignItems: 'center', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: 10, justifyContent: 'center', minHeight: 52, paddingHorizontal: 18 },
-  large: { borderRadius: radii.lg, gap: 8, minHeight: 64, paddingHorizontal: 16 },
+  base: { alignItems: 'center', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: 8, justifyContent: 'center', minHeight: sizes.touch, paddingHorizontal: 16 },
+  large: { borderRadius: radii.md, gap: 8, minHeight: 50, paddingHorizontal: 16 },
   inactive: { opacity: 0.48 },
   iconSlot: { flexShrink: 0 },
   text: { flexShrink: 1 },
   copy: { alignItems: 'flex-start' },
-  label: { ...typography.bodyStrong, fontWeight: '800' },
-  labelLarge: { ...typography.heading, fontSize: 18, lineHeight: 22, fontWeight: '800' },
+  label: { ...typography.bodyStrong },
+  labelLarge: { ...typography.heading, fontSize: 16, lineHeight: 21 },
   subtitle: { ...typography.caption, opacity: 0.78 },
-  subtitleLarge: { fontSize: 11 },
+  subtitleLarge: { fontSize: 12, lineHeight: 15 },
 });

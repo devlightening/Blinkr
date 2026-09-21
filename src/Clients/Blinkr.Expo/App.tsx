@@ -42,12 +42,14 @@ export default function App() {
   const [auth, setAuth] = useState<AuthResponse | null>(null);
   const [isRestoring, setIsRestoring] = useState(true);
   const [activeTab, setActiveTab] = useState<BlinkrTab>('map');
-  const [cameraRequested, setCameraRequested] = useState(false);
+  const [shareRequested, setShareRequested] = useState(false);
+  const [snapRequested, setSnapRequested] = useState(false);
   const [focusPlace, setFocusPlace] = useState<BlinkrPlace | null>(null);
   const [focusSignal, setFocusSignal] = useState<CoordinateSignal | null>(null);
   const [mapOverlayOpen, setMapOverlayOpen] = useState(false);
   const [chatUnread, setChatUnread] = useState(false);
   const [chatConversationOpen, setChatConversationOpen] = useState(false);
+  const [profileOverlayOpen, setProfileOverlayOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -75,7 +77,8 @@ export default function App() {
     setAuth(null);
     // Nothing of the previous user's session may survive into the next sign-in.
     setActiveTab('map');
-    setCameraRequested(false);
+    setShareRequested(false);
+    setSnapRequested(false);
     setFocusPlace(null);
     setFocusSignal(null);
     setMapOverlayOpen(false);
@@ -84,11 +87,16 @@ export default function App() {
     await clearAuth();
   }, []);
 
-  const openCamera = useCallback(() => {
+  const openShare = useCallback(() => {
     setActiveTab('map');
-    setCameraRequested(true);
+    setShareRequested(true);
   }, []);
-  const clearCameraRequest = useCallback(() => setCameraRequested(false), []);
+  const clearShareRequest = useCallback(() => setShareRequested(false), []);
+  const openSnapFlow = useCallback(() => {
+    setActiveTab('chat');
+    setSnapRequested(true);
+  }, []);
+  const clearSnapRequest = useCallback(() => setSnapRequested(false), []);
   const clearFocusPlace = useCallback(() => setFocusPlace(null), []);
   const clearFocusSignal = useCallback(() => setFocusSignal(null), []);
   const openNearbySignal = useCallback((signal: CoordinateSignal) => {
@@ -150,12 +158,13 @@ export default function App() {
                 >
                   <MapScreen
                     auth={auth}
-                    cameraRequested={cameraRequested}
+                    shareRequested={shareRequested}
                     focusPlace={focusPlace}
                     focusSignal={focusSignal}
                     onFocusSignalHandled={clearFocusSignal}
                     onAuthChange={acceptAuth}
-                    onCameraHandled={clearCameraRequest}
+                    onShareHandled={clearShareRequest}
+                    onStartSnap={openSnapFlow}
                     onFocusHandled={clearFocusPlace}
                     onLogout={logout}
                     onOpenProfile={() => setActiveTab('profile')}
@@ -168,6 +177,8 @@ export default function App() {
                       auth={auth}
                       onAuthChange={acceptAuth}
                       onConversationOpenChange={setChatConversationOpen}
+                      onSnapHandled={clearSnapRequest}
+                      snapRequested={snapRequested}
                       onSessionExpired={logout}
                       onUnreadChange={setChatUnread}
                     />
@@ -175,19 +186,19 @@ export default function App() {
                 )}
                 {activeTab === 'nearby' && (
                   <View style={styles.tabLayer}>
-                    <NearbyScreen onCreateSignal={openCamera} onOpenPlace={openSavedPlace} onOpenSignal={openNearbySignal} />
+                    <NearbyScreen onCreateSignal={openShare} onOpenPlace={openSavedPlace} onOpenSignal={openNearbySignal} />
                   </View>
                 )}
                 {activeTab === 'profile' && (
                   <View style={styles.tabLayer}>
-                    <ProfileScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={openCamera} onLogout={logout} onOpenPlace={openSavedPlace} />
+                    <ProfileScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={openShare} onLogout={logout} onOpenPlace={openSavedPlace} onOverlayOpenChange={setProfileOverlayOpen} />
                   </View>
                 )}
                 <BlinkrBottomBar
                   active={activeTab}
                   chatUnread={chatUnread}
-                  hidden={(activeTab === 'map' && mapOverlayOpen) || (activeTab === 'chat' && chatConversationOpen)}
-                  onCamera={openCamera}
+                  hidden={(activeTab === 'map' && mapOverlayOpen) || (activeTab === 'chat' && chatConversationOpen) || (activeTab === 'profile' && profileOverlayOpen)}
+                  onShare={openShare}
                   onTab={setActiveTab}
                 />
               </View>

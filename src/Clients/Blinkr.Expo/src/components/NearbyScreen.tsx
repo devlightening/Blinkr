@@ -2,14 +2,14 @@ import * as Location from 'expo-location';
 import { Compass, MapPin, Radio, WifiOff } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, FlatList, Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getUnifiedMapBounds } from '../api';
 import { ACTIVITY_RADIUS_METERS, boundsAround, buildNearbyActivity, filterActivity, type ActivityFilter, type ActivityItem } from '../nearbyActivity';
 import { formatAge, formatCategory, formatDistance, signalLabels } from '../presentation';
 import { friendlyError, signalValueLabel } from '../productPresentation';
-import { colors, radii, signalColors, spacing, typography } from '../theme';
+import { colors, motion, radii, signalColors, spacing, typography } from '../theme';
 import type { BlinkrPlace, CoordinateSignal } from '../types';
 import { AnimatedPressable } from './AnimatedPressable';
 import { SignalSymbol } from './SignalSymbol';
@@ -56,16 +56,16 @@ function ActivityRow({ item, index, onPress }: { item: ActivityItem; index: numb
   const category = item.place ? formatCategory(item.place.category) : 'Yaklaşık alan';
   const summary = describe(item);
   return (
-    <Animated.View entering={FadeInDown.duration(220).delay(Math.min(index, 8) * 30)}>
+    <Animated.View entering={FadeIn.duration(motion.base)}>
       <AnimatedPressable
         accessibilityLabel={`${item.title}, ${summary}, ${formatDistance(item.distanceMeters)}, ${formatAge(item.observedAtUtc)}. Haritada aç`}
         accessibilityRole="button"
         onPress={onPress}
-        pressScale={0.98}
+        pressScale={0.99}
         style={styles.card}
       >
-        <View style={[styles.symbol, { borderColor: tone }]}>
-          <SignalSymbol color={tone} size={26} type={item.signalType} />
+        <View style={styles.symbol}>
+          <SignalSymbol color={tone} size={20} type={item.signalType} />
         </View>
         <View style={styles.cardBody}>
           <Text numberOfLines={1} style={styles.cardTitle}>{item.title}</Text>
@@ -196,7 +196,7 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal }: Prop
       <View style={styles.screen}>
         {header}
         <View style={styles.centerFill}>
-          <ActivityIndicator accessibilityLabel="Yükleniyor" color={colors.mint} />
+          <ActivityIndicator accessibilityLabel="Yükleniyor" color={colors.primary} />
           <Text style={styles.status}>{phase === 'locating' ? 'Konumun alınıyor…' : phase === 'loading' ? 'Çevren taranıyor…' : ''}</Text>
         </View>
       </View>
@@ -266,7 +266,7 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal }: Prop
           contentContainerStyle={[styles.list, { paddingBottom: bottomBarClearance(insets.bottom) + spacing.lg }]}
           data={visible}
           keyExtractor={(item) => item.key}
-          refreshControl={<RefreshControl onRefresh={() => { setRefreshing(true); void load(true); }} refreshing={refreshing} tintColor={colors.mint} />}
+          refreshControl={<RefreshControl onRefresh={() => { setRefreshing(true); void load(true); }} refreshing={refreshing} tintColor={colors.primary} />}
           renderItem={({ item, index }) => (
             <ActivityRow
               index={index}
@@ -283,24 +283,24 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal }: Prop
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.background, flex: 1 },
   header: { gap: 2, paddingBottom: spacing.md, paddingHorizontal: spacing.lg },
-  title: { ...typography.headline, color: colors.text, fontSize: 34, lineHeight: 40 },
+  title: { ...typography.headline, color: colors.text },
   subtitle: { ...typography.caption, color: colors.textSecondary },
   centerFill: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center' },
   status: { ...typography.caption, color: colors.textSecondary },
   filterScroll: { flexGrow: 0 },
   filters: { gap: spacing.sm, paddingBottom: spacing.md, paddingHorizontal: spacing.lg },
   notice: { ...typography.caption, color: colors.textSecondary, paddingBottom: spacing.sm, paddingHorizontal: spacing.lg },
-  list: { gap: spacing.md, paddingHorizontal: spacing.md, paddingTop: spacing.xs },
-  card: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 88, padding: spacing.md },
-  symbol: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.md, borderWidth: 1.5, height: 56, justifyContent: 'center', width: 56 },
+  list: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
+  card: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 68, padding: spacing.md },
+  symbol: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.md, height: 44, justifyContent: 'center', width: 44 },
   cardBody: { flex: 1, gap: 2 },
-  cardTitle: { ...typography.heading, color: colors.text, fontSize: 18 },
-  cardSummary: { ...typography.bodyStrong },
+  cardTitle: { ...typography.heading, color: colors.text, fontSize: 16, lineHeight: 21 },
+  cardSummary: { ...typography.bodyStrong, fontSize: 14, lineHeight: 19 },
   metaRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   meta: { ...typography.caption, color: colors.textSecondary },
   metaDot: { ...typography.caption, color: colors.textSecondary },
   cardEnd: { alignItems: 'flex-end', gap: spacing.xs },
   liveChip: { alignItems: 'center', flexDirection: 'row', gap: 4 },
-  liveText: { ...typography.caption, color: colors.mint, fontWeight: '700' },
+  liveText: { ...typography.label, color: colors.primary },
   count: { ...typography.caption, color: colors.textSecondary },
 });

@@ -3,7 +3,24 @@ import type { ChatMessage } from '../src/types';
 
 const flag = (name: string) => typeof location !== 'undefined' && location.search.includes(name);
 
-export const searchPlaces = async (q: string) => nearby.filter(p => p.name.toLocaleLowerCase('tr').includes(q.toLocaleLowerCase('tr')));
+const catalogue = [
+  { id: 'kent', name: 'Kent Meydanı', category: 'PUBLIC', latitude: 37.075, longitude: 36.248, distanceMeters: 220, displayAddress: 'Osmaniye Merkez', currentState: { activeSignalCount: 2, freshness: 'FRESH', signalType: 'Crowd', signalValue: 'Busy' } },
+  { id: 'kent-ecz', name: 'Kent Eczanesi', category: 'PHARMACY', latitude: 37.076, longitude: 36.25, distanceMeters: 640, displayAddress: 'Raufbey Mh.', currentState: { activeSignalCount: 0, freshness: 'NONE' } },
+  { id: 'sifa-ecz', name: 'Şifa Eczanesi', category: 'PHARMACY', latitude: 37.07, longitude: 36.24, distanceMeters: 4200, displayAddress: 'Yıldırım Beyazıt Mh.', currentState: { activeSignalCount: 0, freshness: 'NONE' } },
+  { id: 'masal', name: 'Masal Parkı', category: 'PARK', latitude: 37.08, longitude: 36.26, distanceMeters: 1900, displayAddress: 'Alparslan Türkeş Bulvarı', currentState: { activeSignalCount: 1, freshness: 'RECENT', signalType: 'Crowd', signalValue: 'Calm' } },
+  { id: 'sehirkent', name: 'Şehirkent Market', category: 'SUPERMARKET', latitude: 37.06, longitude: 36.23, distanceMeters: 900, displayAddress: null, currentState: { activeSignalCount: 0, freshness: 'NONE' } },
+];
+// ?searchfail = the search request fails; ?emptysearch = nothing is found.
+export const searchPlaces = async (q: string) => {
+  if (flag('searchfail')) throw new Error('Network request failed');
+  if (flag('emptysearch')) return [];
+  const folded = q.toLocaleLowerCase('tr');
+  const category = ({ eczane: 'PHARMACY', park: 'PARK', market: 'SUPERMARKET' } as Record<string, string>)[folded];
+  if (category) return catalogue.filter(p => p.category === category);
+  const composerMatches = nearby.filter(p => p.name.toLocaleLowerCase('tr').includes(folded));
+  const mapMatches = catalogue.filter(p => p.name.toLocaleLowerCase('tr').includes(folded) || (p.displayAddress ?? '').toLocaleLowerCase('tr').includes(folded));
+  return [...composerMatches, ...mapMatches];
+};
 export const uploadMedia = async () => {
   if (flag('slowmedia')) return new Promise<never>(() => {}); // stays in "uploading" for visual review
   throw new Error('Media is covered by the Gateway smoke, not the browser harness.');
@@ -12,9 +29,12 @@ export const toAbsoluteUrl = (url?: string | null) => url ?? null;
 export const authenticate = async () => { throw new Error('Auth not stubbed for login tests.'); };
 
 // Chat: behaviour switches come from the page URL (?empty, ?failing) so one bundle covers every state.
+const opened = new Set<string>();
 export const listConversations = async () => {
   if (flag('failing')) throw new Error('Network request failed');
-  return flag('empty') ? [] : conversations;
+  if (flag('empty')) return [];
+  // Opening snap-1 in the viewer turns its row into "Açıldı", exactly what the server would report.
+  return conversations.map((item) => (item.lastMessageId && opened.has(item.lastMessageId) ? { ...item, lastMessageState: 'opened' as const, unreadCount: 0 } : item));
 };
 export const getUser = async (_auth: unknown, id: string) => {
   const user = chatUsers.find(u => u.id === id);
@@ -76,4 +96,26 @@ export const getUnifiedMapBounds = async () => {
       { postId: 's-old', title: 'Eski gözlem', textPreview: '', latitude: north(100), longitude: 36.2478, signalType: 'GeneralObservation', createdAtUtc: ago(400), expiresAt: ahead(10) },
     ],
   };
+};
+
+// Avatars: ?avatarfail = the server refuses (network error).
+export const setMyAvatar = async (_auth: unknown, avatarKey: string | null) => {
+  if (flag('avatarfail')) throw new Error('Network request failed');
+  return { avatarKey };
+};
+
+// Snaps: ?snapgone = the snap was already opened / expired; ?slowsnap = never loads; ?sendsnapfail = sending fails.
+const SNAP_IMAGE = 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200"><rect width="900" height="1200" fill="#3b5a4c"/><circle cx="450" cy="500" r="220" fill="#e9c46a"/></svg>');
+export const openSnap = async (_auth: unknown, _conversationId: string, messageId: string) => {
+  if (flag('snapgone')) throw new Error('Bu Snap zaten açıldı.');
+  opened.add(messageId);
+  return { contentUrl: SNAP_IMAGE, mediaType: 'Image' as const, durationSeconds: flag('untimed') ? 0 : 3, caption: 'Burası çok kalabalık', viewUntilUtc: new Date(Date.now() + 60_000).toISOString() };
+};
+export const snapMediaSource = (_auth: unknown, contentUrl: string) => ({ uri: flag('slowsnap') ? 'data:image/svg+xml;base64,' : contentUrl, headers: {} as Record<string, string> });
+export const sentSnaps: Array<{ conversationId: string; caption?: string; durationSeconds: number }> = [];
+export const sendSnap = async (_auth: unknown, conversationId: string, _media: unknown, options: { durationSeconds: number; caption?: string }) => {
+  if (flag('sendsnapfail')) throw new Error('Network request failed');
+  sentSnaps.push({ conversationId, ...options });
+  (window as unknown as { __sentSnaps?: unknown }).__sentSnaps = sentSnaps;
+  return { id: 'sent-' + sentSnaps.length, conversationId, senderId: 'qa', text: '', createdAtUtc: new Date().toISOString(), isRead: true, kind: 'snap', snap: { mediaType: 'Image', durationSeconds: options.durationSeconds, state: 'sent', expiresAtUtc: new Date(Date.now() + 86_400_000).toISOString() } };
 };

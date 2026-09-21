@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { ArrowLeft, ChevronRight, Search } from 'lucide-react-native';
 import { searchPlaces } from '../api';
 import { formatCategory, formatDistance } from '../presentation';
 import { friendlyError } from '../productPresentation';
 import { AnimatedPressable } from './AnimatedPressable';
 import { PlaceSymbol } from './PlaceSymbol';
-import { categoryTone, colors, radii, typography, sizes, spacing } from '../theme';
+import { categoryTone, colors, motion, radii, typography, sizes, spacing } from '../theme';
 import type { BlinkrPlace } from '../types';
 
 export function PlacePicker({ origin, nearby, onSelect, onBack }: {
@@ -52,7 +52,7 @@ export function PlacePicker({ origin, nearby, onSelect, onBack }: {
       {results.map((place, index) => {
         const tone = categoryTone(place.category);
         return (
-          <Animated.View entering={FadeInDown.duration(260).delay(Math.min(index, 8) * 35)} key={place.id}>
+          <Animated.View entering={FadeIn.duration(motion.base)} key={place.id}>
             <AnimatedPressable accessibilityLabel={`${place.name}, ${formatDistance(place.distanceMeters)}, seç`} accessibilityRole="button" onPress={() => onSelect(place)} pressScale={0.97} style={styles.row}>
               <View style={[styles.tile, { borderColor: tone }]}><PlaceSymbol category={place.category} color={tone} size={20} /></View>
               <View style={styles.flex}>
@@ -71,12 +71,12 @@ export function PlacePicker({ origin, nearby, onSelect, onBack }: {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   bar: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginVertical: spacing.md },
-  back: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.pill, borderWidth: 1, height: sizes.touch, justifyContent: 'center', width: sizes.touch },
-  heading: { ...typography.title, color: colors.text },
-  search: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg },
-  input: { ...typography.body, color: colors.text, flex: 1, minHeight: 54 },
-  row: { alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 68, paddingVertical: spacing.sm },
-  tile: { alignItems: 'center', backgroundColor: colors.background, borderRadius: radii.sm + 2, borderWidth: 2, height: 44, justifyContent: 'center', width: 44 },
+  back: { alignItems: 'center', height: sizes.touch, justifyContent: 'center', marginLeft: -spacing.sm, width: sizes.touch },
+  heading: { ...typography.heading, color: colors.text },
+  search: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md },
+  input: { ...typography.body, color: colors.text, flex: 1, minHeight: sizes.touch },
+  row: { alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 60, paddingVertical: spacing.sm },
+  tile: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.sm + 2, height: 40, justifyContent: 'center', width: 40 },
   name: { ...typography.bodyStrong, color: colors.text },
   caption: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
   progress: { marginTop: spacing.md },
