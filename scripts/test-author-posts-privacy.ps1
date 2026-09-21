@@ -90,6 +90,14 @@ $bounds = Invoke-Api -Method GET -Path "/api/posts-read/bounds?minLat=36.9&minLo
 $onMap = @($bounds.Json.items | ForEach-Object { $_ } | Where-Object { $_.title -eq "anonymous-$suffix" })
 Check "anonymous post is on the public map without its author" ($onMap.Count -eq 1 -and $onMap[0].authorId -eq "00000000-0000-0000-0000-000000000000" -and $onMap[0].authorName -ne $author.UserName) "found=$($onMap.Count) authorId=$($onMap[0].authorId) authorName=$($onMap[0].authorName)"
 
+# Single-post detail (used to 404 because the read model mapped _id as a binary GUID).
+$publicId = (@($owner.Json | ForEach-Object { $_ } | Where-Object { $_.title -eq "public-$suffix" })[0]).id
+$anonId = (@($owner.Json | ForEach-Object { $_ } | Where-Object { $_.title -eq "anonymous-$suffix" })[0]).id
+$publicDetail = Invoke-Api -Method GET -Path "/api/posts-read/$publicId"
+Check "public post detail is found and shows its author" ($publicDetail.Status -eq 200 -and $publicDetail.Json.authorId -eq $author.Id) "HTTP $($publicDetail.Status) authorId=$($publicDetail.Json.authorId)"
+$anonDetail = Invoke-Api -Method GET -Path "/api/posts-read/$anonId"
+Check "anonymous post detail is found but hides its author" ($anonDetail.Status -eq 200 -and $anonDetail.Json.authorId -eq "00000000-0000-0000-0000-000000000000" -and -not $anonDetail.Raw.Contains($author.Id)) "HTTP $($anonDetail.Status) authorId=$($anonDetail.Json.authorId)"
+
 if ($script:failures.Count -gt 0) {
     Write-Host "`nFAIL BLK-PRIVACY-01: $($script:failures.Count) check(s) failed" -ForegroundColor Red
     $script:failures | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }

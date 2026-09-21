@@ -8,8 +8,12 @@ namespace BlogService.Infrastructure.ReadModels;
 /// </summary>
 public class PostDocument
 {
+    /// <summary>
+    /// The projection worker stores _id as a string. Mapping it as a binary GUID made every Find(p => p.Id == id)
+    /// match nothing, so GET posts-read/{id} and query/posts/{id} answered 404 for posts that exist.
+    /// </summary>
     [BsonId]
-    [BsonGuidRepresentation(MongoDB.Bson.GuidRepresentation.Standard)]
+    [BsonRepresentation(MongoDB.Bson.BsonType.String)]
     public Guid Id { get; set; }
     
     /// <summary>
