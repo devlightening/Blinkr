@@ -4,7 +4,7 @@ namespace IdentityService.Application.Interfaces
 {
     public interface IUserService
     {
-        Task<AuthResponse?> RegisterAsync(RegisterRequest request);
+        Task<RegisterResult> RegisterAsync(RegisterRequest request);
         Task<AuthResponse?> LoginAsync(LoginRequest request);
         Task<AuthResponse?> RefreshTokenAsync(string refreshToken);
         Task<UserResponse?> GetUserByIdAsync(Guid userId);

@@ -18,9 +18,11 @@ namespace IdentityService.Api.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
-            var response = await _userService.RegisterAsync(request);
-            if (response == null) return BadRequest("User already exists.");
-            return Ok(response);
+            var result = await _userService.RegisterAsync(request);
+            if (result.Succeeded) return Ok(result.Auth);
+
+            var body = new { error = result.ErrorCode, message = result.ErrorMessage };
+            return result.ErrorCode is "USERNAME_TAKEN" or "EMAIL_TAKEN" ? Conflict(body) : BadRequest(body);
         }
 
         [HttpPost("login")]
