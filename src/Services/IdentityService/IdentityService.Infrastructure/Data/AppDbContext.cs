@@ -26,6 +26,8 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<User>().Property(u => u.AvatarKey).HasMaxLength(IdentityService.Domain.AvatarCatalog.MaxKeyLength);
+
         // Seed users
         modelBuilder.Entity<User>().HasData(
            

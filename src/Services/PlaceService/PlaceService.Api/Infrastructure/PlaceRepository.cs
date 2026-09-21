@@ -56,7 +56,7 @@ public sealed class PlaceRepository : IPlaceRepository
             var escaped = string.Concat(query.Trim().Select(c => c is 'i' or 'I' or 'İ' or 'ı'
                 ? "[iIİı]" : System.Text.RegularExpressions.Regex.Escape(c.ToString())));
             var pattern = new MongoDB.Bson.BsonRegularExpression(escaped, "i");
-            filter &= f.Regex(p => p.Name, pattern) | f.Regex(p => p.Category, pattern);
+            filter &= f.Regex(p => p.Name, pattern) | f.Regex(p => p.Category, pattern) | f.Regex(p => p.DisplayAddress, pattern);
         }
         // $nearSphere sorts before limit, so dense catalogs cannot hide the closest branch.
         return await _places.Find(filter).Limit(limit).ToListAsync(ct);

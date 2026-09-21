@@ -62,7 +62,7 @@ public sealed class SendMessageHandler : IRequestHandler<SendMessageCommand, Cha
 
         var inserted = await _messages.InsertAsync(message, ct);
         var preview = text.Length > 120 ? text[..117] + "..." : text;
-        await _conversations.UpdateLastMessageAsync(req.ConversationId, req.UserId, preview, inserted.CreatedAtUtc, ct);
+        await _conversations.UpdateLastMessageAsync(req.ConversationId, req.UserId, preview, inserted.CreatedAtUtc, "text", inserted.Id, ct);
 
         return inserted.ToDto(req.UserId);
     }
@@ -108,7 +108,21 @@ public sealed class ListConversationsHandler : IRequestHandler<ListConversations
         var list = await _conversations.ListForUserAsync(q.UserId, ct);
         var ids = list.Select(c => c.Id).OfType<string>().ToList();
         var unread = await _messages.CountUnreadAsync(ids, q.UserId, ct);
-        return list.Select(c => c.ToDto(q.UserId, c.Id is not null ? unread.GetValueOrDefault(c.Id) : 0)).ToList();
+
+        // A snap as the latest message needs its state (waiting / opened / expired) for the list; text does not.
+        var snapIds = list.Where(c => c.LastMessageKind == "snap" && c.LastMessageId is not null).Select(c => c.LastMessageId!).ToList();
+        var snaps = snapIds.Count == 0
+            ? new Dictionary<string, ChatMessage>()
+            : (await _messages.GetManyAsync(snapIds, ct)).Where(m => m.Id is not null).ToDictionary(m => m.Id!);
+        var now = DateTime.UtcNow;
+
+        return list.Select(c =>
+        {
+            string? state = c.LastMessageId is not null && snaps.TryGetValue(c.LastMessageId, out var message) && message.Snap is not null
+                ? message.Snap.EffectiveState(now)
+                : null;
+            return c.ToDto(q.UserId, c.Id is not null ? unread.GetValueOrDefault(c.Id) : 0, state);
+        }).ToList();
     }
 }
 

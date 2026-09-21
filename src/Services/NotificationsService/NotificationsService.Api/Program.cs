@@ -7,6 +7,7 @@ builder.Services
     .AddNotificationsControllers()
     .AddNotificationsMediatR()
     .AddNotificationsRepositories()
+    .AddNotificationsSnaps(builder.Configuration, builder.Environment)
     .AddNotificationsMessaging(builder.Configuration)
     .AddNotificationsAuthentication(builder.Configuration, builder.Environment.EnvironmentName)
     .AddNotificationsSwagger()

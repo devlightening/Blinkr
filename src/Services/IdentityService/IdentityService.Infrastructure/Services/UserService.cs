@@ -161,8 +161,19 @@ namespace IdentityService.Infrastructure.Services
             {
                 UserId = user.Id,
                 UserName = user.UserName,
-                Email = user.Email
+                Email = user.Email,
+                AvatarKey = user.AvatarKey
             };
+        }
+
+        public async Task<bool> SetAvatarAsync(Guid userId, string? avatarKey)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return false;
+
+            user.AvatarKey = string.IsNullOrEmpty(avatarKey) ? null : avatarKey;
+            await _context.SaveChangesAsync();
+            return true;
         }
 
         private async Task<AuthResponse> GenerateAuthResponseAsync(User user, bool persistRefreshToken = true)
@@ -242,7 +253,8 @@ namespace IdentityService.Infrastructure.Services
                 Email = user.Email,
                 Token = tokenHandler.WriteToken(token),
                 RefreshToken = refreshTokenValue,
-                ExpiresIn = (int)jwt.AccessTokenLifetime.TotalSeconds
+                ExpiresIn = (int)jwt.AccessTokenLifetime.TotalSeconds,
+                AvatarKey = user.AvatarKey
             };
         }
 

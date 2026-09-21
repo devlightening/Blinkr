@@ -107,21 +107,45 @@ public sealed class PlacesController : ControllerBase
 
     [HttpGet("search")]
     [AllowAnonymous]
+    /// <summary>
+    /// Text or category search around an origin. The composer keeps the 1.5 km default (publishing needs a nearby
+    /// Place); the map's "where to?" search passes a wider <paramref name="radiusMeters"/> (up to 30 km) so someone
+    /// can look at a neighbourhood they are about to go to.
+    /// </summary>
     public async Task<IActionResult> Search([FromQuery] string q, [FromQuery] double lat,
-        [FromQuery] double lon, CancellationToken ct)
+        [FromQuery] double lon, [FromQuery] int radiusMeters = DefaultSearchRadiusMeters, CancellationToken ct = default)
     {
         if (ValidateGeo(lat, lon) is not null || !double.IsFinite(lat) || !double.IsFinite(lon))
             return BadRequest("Invalid origin.");
         if (string.IsNullOrWhiteSpace(q) || q.Length > 80) return BadRequest("Query must contain 1-80 characters.");
-        var category = q.Trim().ToLowerInvariant() switch
-        {
-            "cami" => "MOSQUE", "park" => "PARK", "eczane" => "PHARMACY",
-            "kafe" => "CAFE", "restoran" => "RESTAURANT", "market" => "SUPERMARKET",
-            "okul" => "EDUCATION", _ => q
-        };
-        var places = await _repository.SearchAsync(category, lat, lon, 1500, 50, ct);
+        radiusMeters = Math.Clamp(radiusMeters, 200, MaxSearchRadiusMeters);
+        var limit = radiusMeters > DefaultSearchRadiusMeters * 2 ? 100 : 50;
+        var places = await _repository.SearchAsync(CategoryShortcut(q), lat, lon, radiusMeters, limit, ct);
         return Ok(await ToNearbySummariesAsync(places, lat, lon, ct));
     }
+
+    private const int DefaultSearchRadiusMeters = 1500;
+    private const int MaxSearchRadiusMeters = 30_000;
+
+    /// <summary>Everyday Turkish words for a kind of place map to the normalised category codes (CLAUDE.md 9.4).</summary>
+    private static string CategoryShortcut(string q) => q.Trim().ToLowerInvariant() switch
+    {
+        "cami" or "mescit" => "MOSQUE",
+        "park" => "PARK",
+        "eczane" => "PHARMACY",
+        "kafe" or "kahve" => "CAFE",
+        "restoran" or "lokanta" => "RESTAURANT",
+        "market" or "bakkal" => "SUPERMARKET",
+        "okul" => "EDUCATION",
+        "hastane" or "klinik" or "saglik" or "sağlık" => "HEALTH",
+        "benzin" or "akaryakit" or "akaryakıt" => "FUEL",
+        "firin" or "fırın" => "BAKERY",
+        "muze" or "müze" => "TOURISM",
+        "spor" => "SPORT",
+        "bar" => "BAR",
+        "durak" => "TRANSPORT",
+        _ => q
+    };
 
     [HttpGet("bounds")]
     [AllowAnonymous]

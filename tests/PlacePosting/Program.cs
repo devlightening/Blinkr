@@ -28,6 +28,25 @@ Check(calculator.Calculate([Signal(null, "Busy")], now).ActiveSignalCount == 0, 
 var state = calculator.Calculate([Signal("VERIFIED_LIVE", "Calm"), Signal("NEARBY_PLACE_POST", "Busy")], now);
 Check(state.ActiveSignalCount == 1 && state.SignalValue == "Calm", "verified state unaffected by nearby content");
 
+// One voice per person and signal type: repeating or re-confirming a value must not inflate the state.
+PlaceSignalDocument By(Guid? author, string value, int minutesAgo = 0, string type = "Crowd") =>
+    new() { PostId = Guid.NewGuid(), PlaceId = Guid.NewGuid(), AuthorId = author, PublicationTrust = "VERIFIED_LIVE", SignalType = type, SignalValue = value, CreatedAtUtc = now.AddMinutes(-minutesAgo), ExpiresAtUtc = now.AddHours(3) };
+var alice = Guid.NewGuid(); var bob = Guid.NewGuid();
+var spam = calculator.Calculate([By(alice, "Busy", 1), By(alice, "Busy", 2), By(alice, "Busy", 3)], now);
+Check(spam.ActiveSignalCount == 1, "one person repeating a value counts once");
+var single = calculator.Calculate([By(alice, "Busy", 1)], now);
+Check(spam.ConfidenceValue == single.ConfidenceValue, "repeating a value does not raise confidence");
+var changed = calculator.Calculate([By(alice, "Busy", 20), By(alice, "Calm", 1)], now);
+Check(changed.SignalValue == "Calm" && changed.ActiveSignalCount == 1, "a person's newest value replaces their older one");
+var two = calculator.Calculate([By(alice, "Busy", 2), By(bob, "Busy", 1)], now);
+Check(two.ActiveSignalCount == 2 && two.ConfidenceValue > single.ConfidenceValue, "two people agreeing raise confidence");
+var dims = calculator.Calculate([By(alice, "Busy", 2), By(alice, "Over15", 1, "Queue")], now);
+Check(dims.ActiveSignalCount == 2, "different signal types from one person both count");
+var legacy = calculator.Calculate([By(null, "Busy", 2), By(null, "Busy", 1)], now);
+Check(legacy.ActiveSignalCount == 2, "signals without a known author each stay their own voice");
+var outvoted = calculator.Calculate([By(alice, "Busy", 40), By(alice, "Busy", 30), By(bob, "Calm", 5), By(Guid.NewGuid(), "Calm", 4)], now);
+Check(outvoted.SignalValue == "Calm", "two people beat one person repeating themselves");
+
 if (args.Contains("--catalog"))
 {
     using var http = new HttpClient { BaseAddress = new Uri("http://localhost:5080"), Timeout = TimeSpan.FromSeconds(30) };

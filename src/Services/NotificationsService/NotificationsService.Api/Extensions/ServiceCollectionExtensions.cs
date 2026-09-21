@@ -49,6 +49,17 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>Snaps: limits from the "Snaps" section, private disk storage and the cleanup job.</summary>
+    public static IServiceCollection AddNotificationsSnaps(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
+    {
+        var settings = configuration.GetSection("Snaps").Get<NotificationsService.Application.Snaps.SnapSettings>() ?? new NotificationsService.Application.Snaps.SnapSettings();
+        services.AddSingleton(settings);
+        services.AddSingleton<ISnapStorage>(new NotificationsService.Infrastructure.Storage.LocalSnapStorage(settings.StorageRoot, environment.ContentRootPath));
+        services.AddHostedService<NotificationsService.Api.Services.SnapCleanupService>();
+
+        return services;
+    }
+
     public static IServiceCollection AddNotificationsMessaging(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<RabbitOptions>(configuration.GetSection("RabbitMQ"));

@@ -135,6 +135,64 @@ if ($detail.body.recentSignals | Where-Object { $_.postId -eq $expiredPostId }) 
     throw "Expired signal appeared in recent active signals."
 }
 
+# One voice per person and signal type: repeating or re-confirming a value must not inflate the live state, and a
+# second person agreeing must. (The state is computed by the server from verified signals only.)
+function Publish-Crowd {
+    param([hashtable]$AuthHeaders, [string]$Value)
+    $created = Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/posts" -Headers $AuthHeaders -ExpectedStatus @(201) -Body @{
+        title = "Crowd $Value"
+        content = ""
+        latitude = $catalogPlace.latitude
+        longitude = $catalogPlace.longitude
+        accuracyMeters = 20
+        observationLatitude = $catalogPlace.latitude
+        observationLongitude = $catalogPlace.longitude
+        observationAccuracyMeters = 20
+        locationName = "Blinkr Core Test Place"
+        placeId = $placeId
+        signalType = "Crowd"
+        signalValue = $Value
+        audienceType = "Public"
+        identityDisclosure = "LimitedProfile"
+        locationPrecision = "PlaceCenter"
+    }
+    return $created
+}
+function Wait-PlaceSignals {
+    param([int]$Count)
+    for ($i = 0; $i -lt 30; $i++) {
+        Start-Sleep -Seconds 2
+        $d = Invoke-Json -Method GET -Url "$GatewayBaseUrl/api/places/$placeId" -Headers $headers
+        if (@($d.body.recentSignals).Count -ge $Count) { return $d }
+    }
+    throw "Projection did not reach $Count signals for place $placeId."
+}
+
+$singleState = $detail.body.currentState
+Assert-Equal ([int]$singleState.activeSignalCount) 1 "One person's first signal should count once."
+Publish-Crowd -AuthHeaders $authHeaders -Value "BUSY" | Out-Null
+Publish-Crowd -AuthHeaders $authHeaders -Value "BUSY" | Out-Null
+$repeated = Wait-PlaceSignals -Count 3
+Assert-Equal ([int]$repeated.body.currentState.activeSignalCount) 1 "The same person repeating a value must still count once."
+Assert-Equal ([double]$repeated.body.currentState.confidenceValue) ([double]$singleState.confidenceValue) "Repeating a value must not raise confidence."
+
+$second = Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/auth/register" -Headers $headers -Body @{
+    userName = "place_smoke_b_$suffix"
+    email = "place_smoke_b_$suffix@blinkr.local"
+    password = $password
+}
+$secondHeaders = @{ Accept = "application/json"; Authorization = "Bearer $($second.body.token)" }
+Publish-Crowd -AuthHeaders $secondHeaders -Value "BUSY" | Out-Null
+$agreed = Wait-PlaceSignals -Count 4
+Assert-Equal ([int]$agreed.body.currentState.activeSignalCount) 2 "A second person agreeing should make two voices."
+Assert-Truthy ([double]$agreed.body.currentState.confidenceValue -gt [double]$singleState.confidenceValue) "Two people agreeing must raise confidence."
+
+# The first person now says it changed: their four earlier posts collapse into one voice, replaced by the newest.
+Publish-Crowd -AuthHeaders $authHeaders -Value "CALM" | Out-Null
+$changed = Wait-PlaceSignals -Count 5
+Assert-Equal ([int]$changed.body.currentState.activeSignalCount) 2 "A person changing their signal must still be one voice (2 people in total)."
+Write-Host "PASS one voice per person" -ForegroundColor Green
+
 Write-Host "PASS BLK-CORE-02 place/live signal smoke" -ForegroundColor Green
 Write-Host "PlaceId: $placeId"
 Write-Host "PostId: $postId"

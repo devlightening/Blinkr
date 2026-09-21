@@ -8,6 +8,8 @@ namespace IdentityService.Application.Interfaces
         Task<AuthResponse?> LoginAsync(LoginRequest request);
         Task<AuthResponse?> RefreshTokenAsync(string refreshToken);
         Task<UserResponse?> GetUserByIdAsync(Guid userId);
+        /// <summary>Sets (or clears, with null) the avatar. False when the user does not exist.</summary>
+        Task<bool> SetAvatarAsync(Guid userId, string? avatarKey);
     }
 
     public class UserResponse
@@ -15,5 +17,6 @@ namespace IdentityService.Application.Interfaces
         public Guid UserId { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
+        public string? AvatarKey { get; set; }
     }
 }

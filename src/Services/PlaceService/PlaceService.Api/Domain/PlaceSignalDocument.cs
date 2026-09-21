@@ -16,6 +16,9 @@ public sealed class PlaceSignalDocument
     public string? SignalValue { get; set; }
     public string? PublicationTrust { get; set; }
     public string? AuthorName { get; set; }
+    /// <summary>Server-side only (never exposed): lets the state calculator count one voice per person.</summary>
+    [BsonRepresentation(BsonType.String)]
+    public Guid? AuthorId { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? ExpiresAtUtc { get; set; }
     public string? LocationName { get; set; }

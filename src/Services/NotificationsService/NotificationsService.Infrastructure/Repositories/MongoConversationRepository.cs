@@ -66,12 +66,14 @@ public class MongoConversationRepository : IConversationRepository
             .ToListAsync(ct);
     }
 
-    public Task UpdateLastMessageAsync(string conversationId, Guid senderId, string preview, DateTime atUtc, CancellationToken ct)
+    public Task UpdateLastMessageAsync(string conversationId, Guid senderId, string preview, DateTime atUtc, string kind, string? messageId, CancellationToken ct)
     {
         var update = Builders<Conversation>.Update
             .Set(x => x.LastMessageAtUtc, atUtc)
             .Set(x => x.LastMessagePreview, preview)
-            .Set(x => x.LastMessageSenderId, senderId);
+            .Set(x => x.LastMessageSenderId, senderId)
+            .Set(x => x.LastMessageKind, kind)
+            .Set(x => x.LastMessageId, messageId);
 
         return _conversations.UpdateOneAsync(x => x.Id == conversationId, update, cancellationToken: ct);
     }

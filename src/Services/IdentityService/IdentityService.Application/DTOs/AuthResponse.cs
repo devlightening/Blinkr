@@ -14,5 +14,6 @@ namespace IdentityService.Application.DTOs
         public string Token { get; set; } = string.Empty;
         public string RefreshToken { get; set; } = string.Empty;
         public int ExpiresIn { get; set; } // seconds
+        public string? AvatarKey { get; set; }
     }
 }

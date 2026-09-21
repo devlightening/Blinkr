@@ -15,6 +15,10 @@ public sealed class CurrentPlaceStateCalculator : ICurrentPlaceStateCalculator
             .Where(s => s.PublicationTrust == "VERIFIED_LIVE")
             .Where(s => !s.ExpiresAtUtc.HasValue || s.ExpiresAtUtc > nowUtc)
             .OrderByDescending(s => s.CreatedAtUtc)
+            // One voice per person and signal type: a person's newest observation replaces their older ones, so
+            // repeating (or re-confirming) a value cannot inflate confidence, and "it changed" really replaces
+            // "it was busy". Signals without a known author (older events) each stay their own voice.
+            .DistinctBy(s => s.AuthorId.HasValue ? $"{s.AuthorId}:{s.SignalType}" : s.PostId.ToString())
             .Take(20)
             .ToList();
 

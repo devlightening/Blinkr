@@ -45,8 +45,10 @@ public class MongoChatMessageRepository : IChatMessageRepository
 
     public async Task MarkReadAsync(string conversationId, Guid userId, CancellationToken ct)
     {
+        // Opening a conversation reads its text; a snap stays "new" until the person actually opens it.
         var filter = Builders<ChatMessage>.Filter.Eq(x => x.ConversationId, conversationId) &
                      Builders<ChatMessage>.Filter.Ne(x => x.SenderId, userId) &
+                     Builders<ChatMessage>.Filter.Ne(x => x.Kind, "snap") &
                      Builders<ChatMessage>.Filter.Not(Builders<ChatMessage>.Filter.AnyEq(x => x.ReadByUserIds, userId));
 
         var update = Builders<ChatMessage>.Update.AddToSet(x => x.ReadByUserIds, userId);
@@ -57,10 +59,13 @@ public class MongoChatMessageRepository : IChatMessageRepository
     {
         if (conversationIds.Count == 0) return new Dictionary<string, int>();
 
-        // Same predicate MarkReadAsync clears, so "unread" and "mark read" can never disagree.
-        var filter = Builders<ChatMessage>.Filter.In(x => x.ConversationId, conversationIds) &
-                     Builders<ChatMessage>.Filter.Ne(x => x.SenderId, userId) &
-                     Builders<ChatMessage>.Filter.Not(Builders<ChatMessage>.Filter.AnyEq(x => x.ReadByUserIds, userId));
+        // Text counts as MarkReadAsync clears it; a snap counts while it is still waiting and not expired.
+        var f = Builders<ChatMessage>.Filter;
+        var filter = f.In(x => x.ConversationId, conversationIds) &
+                     f.Ne(x => x.SenderId, userId) &
+                     f.Not(f.AnyEq(x => x.ReadByUserIds, userId)) &
+                     (f.Ne(x => x.Kind, "snap") |
+                      (f.Eq("Snap.State", SnapStates.Sent) & f.Gt("Snap.ExpiresAtUtc", DateTime.UtcNow)));
 
         var groups = await _messages.Aggregate()
             .Match(filter)
@@ -68,5 +73,60 @@ public class MongoChatMessageRepository : IChatMessageRepository
             .ToListAsync(ct);
 
         return groups.ToDictionary(x => x.ConversationId, x => x.Count);
+    }
+
+    private static bool IsObjectId(string id) => ObjectId.TryParse(id, out _);
+
+    public async Task<ChatMessage?> GetByIdAsync(string messageId, CancellationToken ct)
+    {
+        if (!IsObjectId(messageId)) return null;
+        return await _messages.Find(x => x.Id == messageId).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<ChatMessage>> GetManyAsync(IReadOnlyCollection<string> messageIds, CancellationToken ct)
+    {
+        var valid = messageIds.Where(IsObjectId).Select(id => ObjectId.Parse(id)).ToList();
+        if (valid.Count == 0) return Array.Empty<ChatMessage>();
+        return await _messages.Find(Builders<ChatMessage>.Filter.In("_id", valid)).ToListAsync(ct);
+    }
+
+    public async Task<ChatMessage?> TryOpenSnapAsync(string messageId, Guid viewerId, DateTime nowUtc, CancellationToken ct)
+    {
+        if (!IsObjectId(messageId)) return null;
+        var f = Builders<ChatMessage>.Filter;
+        var filter = f.Eq(x => x.Id, messageId) &
+                     f.Eq(x => x.Kind, "snap") &
+                     f.Ne(x => x.SenderId, viewerId) &
+                     f.Eq("Snap.State", SnapStates.Sent) &
+                     f.Gt("Snap.ExpiresAtUtc", nowUtc);
+        var update = Builders<ChatMessage>.Update
+            .Set("Snap.State", SnapStates.Opened)
+            .Set("Snap.OpenedAtUtc", nowUtc)
+            .AddToSet(x => x.ReadByUserIds, viewerId);
+        // Exactly one caller flips sent -> opened; everyone else gets null.
+        return await _messages.FindOneAndUpdateAsync(filter, update, new FindOneAndUpdateOptions<ChatMessage> { ReturnDocument = ReturnDocument.After }, ct);
+    }
+
+    public async Task<IReadOnlyList<ChatMessage>> ListPurgeableSnapsAsync(DateTime openedBeforeUtc, DateTime nowUtc, int limit, CancellationToken ct)
+    {
+        var f = Builders<ChatMessage>.Filter;
+        var filter = f.Eq(x => x.Kind, "snap") &
+                     f.Ne("Snap.ObjectKey", BsonNull.Value) &
+                     f.Exists("Snap.ObjectKey") &
+                     ((f.Eq("Snap.State", SnapStates.Opened) & f.Lt("Snap.OpenedAtUtc", openedBeforeUtc)) |
+                      (f.Eq("Snap.State", SnapStates.Sent) & f.Lt("Snap.ExpiresAtUtc", nowUtc)) |
+                      f.Eq("Snap.State", SnapStates.Expired));
+        return await _messages.Find(filter).Limit(limit).ToListAsync(ct);
+    }
+
+    public async Task MarkSnapPurgedAsync(string messageId, CancellationToken ct)
+    {
+        if (!IsObjectId(messageId)) return;
+        var f = Builders<ChatMessage>.Filter;
+        // Never-opened snaps become "expired"; opened ones stay "opened" but lose their file.
+        await _messages.UpdateOneAsync(f.Eq(x => x.Id, messageId) & f.Eq("Snap.State", SnapStates.Sent),
+            Builders<ChatMessage>.Update.Set("Snap.State", SnapStates.Expired).Unset("Snap.ObjectKey"), cancellationToken: ct);
+        await _messages.UpdateOneAsync(f.Eq(x => x.Id, messageId),
+            Builders<ChatMessage>.Update.Unset("Snap.ObjectKey"), cancellationToken: ct);
     }
 }
