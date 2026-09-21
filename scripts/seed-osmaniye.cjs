@@ -5,6 +5,7 @@
  *
  *   node scripts/seed-osmaniye.cjs [--gateway http://localhost:5080] [--ahmet-total 20030]
  *                                  [--concurrency 4] [--places 24] [--free-signals 250] [--skip-bulk]
+ *                                  [--refresh-map]   create a fresh set of map posts (they age out of the map after 3 hours)
  *
  * What it creates
  *   1. Synthetic users sentetik_01..sentetik_08 (password below).
@@ -142,7 +143,7 @@ async function createPost(user, post) {
   console.log(`Logged in as ${ahmet.userName} (${ahmet.userId})`);
 
   // 1-3) supporting map data (skipped when already present in the manifest)
-  if (manifest.synthetic.length === 0) {
+  if (manifest.synthetic.length === 0 || args['refresh-map']) {
     const users = [];
     for (let i = 1; i <= 8; i += 1) users.push(await ensureUser(`sentetik_${String(i).padStart(2, '0')}`));
     console.log(`Synthetic users ready: ${users.length} (password ${SYNTHETIC_PASSWORD})`);

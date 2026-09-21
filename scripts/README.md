@@ -83,6 +83,9 @@ node .\scripts\seed-osmaniye.cjs --ahmet-total 20030 --concurrency 6
 - Free-coordinate signals across the city.
 - Bulk posts for the existing user `ahmet@gmail.com` until he has `--ahmet-total` posts. These expire after 30 minutes so the live map is not flooded; the profile list keeps them. Post text ends in a running number `(#00042)` so ordering can be checked in the app.
 
+The map only shows posts from the last 3 hours (freshness over volume), so synthetic map data ages out. Create a fresh
+set any time with `node .scriptsseed-osmaniye.cjs --refresh-map --skip-bulk` (about 3 minutes, leaves ahmet's posts alone).
+
 It is resumable and writes `artifacts/synthetic/osmaniye-manifest.json` (git-ignored) with every created id.
 The projection lags the API by a few minutes for large runs (about 25 posts/s); the profile total catches up on its own.
 
