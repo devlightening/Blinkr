@@ -105,3 +105,10 @@ node .\scripts\cleanup-synthetic.cjs --concurrency 6      # same rate-limit note
 
 `test-author-posts-privacy.ps1` checks that listing posts by author works for the author and never reveals which
 anonymous posts belong to whom.
+
+`seed-chat.cjs` gives ahmet 20 synthetic Osmaniye contacts (`<name>@blinkr.local`, password `Sentetik!2026`, the same convention as `seed-osmaniye.cjs`) with place-decision style conversations through the public chat API; 8 of them end with unread messages (13 in total) so the Sohbet badge can be tested. It is idempotent (`--force` re-sends), lists everything in `artifacts/synthetic/chat-manifest.json`, and `--print-cleanup` prints the conversation ids because the chat API has no delete endpoint.
+
+`test-auth-registration.ps1` (BLK-AUTH-02) checks that registration keeps usernames and e-mails unique regardless of
+case, rejects bad input with stable `{ error, message }` bodies (409 `USERNAME_TAKEN` / `EMAIL_TAKEN`, 400
+`INVALID_USERNAME` / `INVALID_EMAIL` / `INVALID_PASSWORD`) and that login ignores the case of the e-mail. It creates
+one throw-away `reg_user_*@blinkr.local` account per run.

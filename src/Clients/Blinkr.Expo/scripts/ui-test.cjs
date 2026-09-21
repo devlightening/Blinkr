@@ -65,7 +65,7 @@ async function main() {
     // Shared design-system components (BlinkrButton/Chip/BottomBar/...).
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(url + '?scene=kit');
-    await expect(page.getByRole('tab')).toHaveCount(3);
+    await expect(page.getByRole('tab')).toHaveCount(4);
     await expect(page.getByLabel('Sohbet, okunmamış mesaj var')).toBeVisible();
     await page.getByLabel('Sinyal bırak', { exact: true }).click();
     await expect(page.getByLabel('Tap count')).toHaveText('1');
@@ -76,7 +76,7 @@ async function main() {
 
     // Map chrome: four layers, exactly one selected, tab bar present, scan + locate reachable.
     await page.goto(url + '?scene=map');
-    await expect(page.getByRole('tab')).toHaveCount(3 + 4);
+    await expect(page.getByRole('tab')).toHaveCount(4 + 4);
     await expect(page.getByLabel('Bu alanı tara')).toBeVisible();
     await expect(page.getByLabel('Konumuma git')).toBeVisible();
     await page.getByRole('tab', { name: 'Canlı', exact: true }).click();
@@ -128,6 +128,47 @@ async function main() {
     await expect(page.getByText('Network request failed')).toHaveCount(0);
     await page.getByRole('button', { name: 'Tekrar dene' }).click();
     await expect(page.getByText('Sohbetler açılamadı')).toBeVisible();
+
+    // Yakında: fresh, close, capped list of what is happening around the device; five-item bottom bar.
+    await page.goto(url + '?scene=nearby');
+    await expect(page.getByRole('heading', { name: 'Yakında' })).toBeVisible();
+    await expect(page.getByLabel(/Kent Meydanı, .*Haritada aç/)).toBeVisible();
+    await expect(page.getByText(/5 taze sinyal/)).toBeVisible();
+    const rowLabels = await page.getByLabel(/Haritada aç/).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label').split(',')[0]));
+    // Freshest bucket (< 15 min) by distance, then the older bucket by distance.
+    if (rowLabels.join('|') !== 'Kent Meydanı|Yol çalışması|Masal Parkı|Yıldırım Beyazıt Kafe|Merkez Eczanesi') throw new Error('Yakında order wrong: ' + rowLabels.join('|'));
+    await expect(page.getByText('Çok uzak yer')).toHaveCount(0);
+    await expect(page.getByText('Sessiz Market')).toHaveCount(0);
+    await expect(page.getByText('Eski gözlem')).toHaveCount(0);
+    await expect(page.getByRole('tab')).toHaveCount(4);
+    await expect(page.getByRole('tab', { name: 'Yakında' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tab', { name: 'Harita' })).toHaveAttribute('aria-selected', 'false');
+    await page.waitForTimeout(420); await page.screenshot({ path: path.join(out, 'nearby.png') });
+    await page.getByRole('button', { name: /Tümü, 5 sonuç/ }).waitFor();
+    await page.getByRole('button', { name: /Bekleme, 2 sonuç/ }).click();
+    await expect(page.getByLabel(/Haritada aç/)).toHaveCount(2);
+    await page.getByRole('button', { name: /Canlı, 4 sonuç/ }).click();
+    await expect(page.getByLabel(/Haritada aç/)).toHaveCount(4);
+    await page.getByRole('button', { name: /Tümü, 5 sonuç/ }).click();
+    await page.getByLabel(/Kent Meydanı, .*Haritada aç/).click();
+    await expect(page.getByLabel('opened')).toHaveText('place:p1');
+    await page.getByLabel(/Yol çalışması, .*Haritada aç/).click();
+    await expect(page.getByLabel('opened')).toHaveText('signal:s1');
+    await page.goto(url + '?scene=nearby&nearbyempty');
+    await expect(page.getByText('Çevrende taze sinyal yok')).toBeVisible();
+    await page.getByRole('button', { name: 'Sinyal paylaş', exact: true }).click();
+    await expect(page.getByLabel('opened')).toHaveText('camera');
+    await page.goto(url + '?scene=nearby&nearbyfail');
+    await expect(page.getByText('Yakındakiler açılamadı')).toBeVisible();
+    await expect(page.getByText('Network request failed')).toHaveCount(0);
+    await page.goto(url + '?scene=nearby&needperm');
+    await expect(page.getByText('Yakındakileri görmek için konum gerekli')).toBeVisible();
+    await expect(page.getByLabel(/Kent Meydanı, .*Haritada aç/)).toHaveCount(0);
+    await page.screenshot({ path: path.join(out, 'nearby-permission.png') });
+    await page.getByRole('button', { name: 'Konumu kullan' }).click();
+    await expect(page.getByLabel(/Kent Meydanı, .*Haritada aç/)).toBeVisible();
+    await page.goto(url + '?scene=nearby&blockedperm');
+    await expect(page.getByRole('button', { name: 'Ayarları aç' })).toBeVisible();
 
     // Conversation: newest message at the bottom, send clears the draft, a failed send keeps it and shows a plain message.
     await page.goto(url + '?scene=conversation');

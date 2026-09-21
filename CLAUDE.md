@@ -481,12 +481,13 @@ Viewport requestlerinde eski cevap yeni state'i ezmemelidir. Generation/request 
 
 ### 12.1 Ana ekranlar
 
-- `App.tsx`: navigasyon kabugu. Kutuphanesiz `activeTab` (`chat | map | profile`); `MapScreen` her zaman monte kalir (viewport, katman ve marker'lar sekme degisince kaybolmaz), Sohbet ve Profil onun ustunde tam ekran katman olarak acilir. Tek alt bar `BlinkrBottomBar` (Sohbet | Harita | Kamera | Profil); sheet/composer/acik konusma varken bar gizlenir. Kamera ve "kayitli yeri ac" tek seferlik istektir (`cameraRequested`/`focusPlace` + `on...Handled`), Android geri tusu sekmeyi haritaya dondurur.
+- `App.tsx`: navigasyon kabugu. Kutuphanesiz `activeTab` (`chat | map | nearby | profile`); `MapScreen` her zaman monte kalir (viewport, katman ve marker'lar sekme degisince kaybolmaz), Sohbet, Yakinda ve Profil onun ustunde tam ekran katman olarak acilir. Tek alt bar `BlinkrBottomBar` (Sohbet | Harita | Kamera | Yakinda | Profil; kamera ortada ve sekme degil eylemdir); sheet/composer/acik konusma varken bar gizlenir. Kamera ve "kayitli yeri ac" tek seferlik istektir (`cameraRequested`/`focusPlace` + `on...Handled`), Android geri tusu sekmeyi haritaya dondurur.
 - `AuthScreen`: register/login
 - `MapScreen`: harita state'i, layers, marker'lar, nearby ve composer orchestration. Ust krom `map/MapTopChrome` (header + `MapLayerBar` + tara/konum satiri), filtre mantigi `mapSelection.ts`.
 - `SignalComposer`: dort adimli yayin akisi; tam ekran katman, arkada gercek cekilen medya (sistem kamerasi, `expo-camera` yok)
 - `PlacePicker`: nearby ve extended Place secimi
 - `PostDetailSheet`: Place veya coordinate signal detayi (gercek medya seridi, sinyal sayisi/tazelik/guven/uzaklik, Kaydet/Paylas/Yol tarifi)
+- `NearbyScreen` ("Yakinda" sekmesi): haritanin liste gorunumu. Cihaz konumunun 1,5 km cevresindeki taze ve suresi dolmamis Place durumlarini ve koordinat sinyallerini `GET /api/map/bounds` cevabindan `nearbyActivity.ts` ile siralar (once tazelik kovasi: son 15 dk / daha eski, sonra geodesic mesafe; en fazla 30 satir, sonsuz akis yok; katalog Place'i aktif durum olmadan listelenmez). Konum izni yalniz kisi butona basinca istenir; yenileme hatasinda son liste kalir. Satira basmak haritada Place/sinyal detayini acar (`focusPlace`/`focusSignal`). Canli rozeti yalniz sunucunun dogruladigi Place durumunda gorunur.
 - `ProfileScreen`: hesap, cihaz-yerel kayitli yerler (`savedPlaces.ts`, anahtarlar userId ile ad alanina alinir), gizlilik notu, cikis
 - `chat/ChatListScreen`, `chat/ConversationScreen`, `chat/UserSearchSheet`: 1:1 sohbet; gercek `unreadCount` rozeti
 - `Sheet`: uygulama ici ortak bottom sheet yapisi; gorunum kabugu `ui/BlinkrSheetPanel`

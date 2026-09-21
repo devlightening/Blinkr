@@ -2,6 +2,7 @@ import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 
 import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, CreateSignalInput, MediaKind, UnifiedMapResponse, PlacePresence, UserSummary, AuthoredPost } from './types';
+import { resolveUploadContentType, safeUploadFileName } from './mediaContentType';
 
 type NearbyPlacesResponse = Array<BlinkrPlace & { distanceMeters?: number }> & {
   coverageState?: string | null;
@@ -400,13 +401,31 @@ export const uploadMedia = async (
   onSessionExpired?: () => void,
 ) => {
   const mediaType: MediaKind = asset.type === 'video' ? 'Video' : 'Image';
-  const contentType = asset.mimeType || (mediaType === 'Video' ? 'video/mp4' : 'image/jpeg');
-  const sizeBytes = Math.max(1, asset.fileSize ?? 1);
+
+  // Read the file first: a file that cannot be read must not leave a presign record behind, and the
+  // Blob's own type is one of the inputs to the content type we declare.
+  const localController = new AbortController();
+  const localTimer = setTimeout(() => localController.abort(), 10000);
+  let blob: Blob;
+  try {
+    const localResponse = await fetch(asset.uri, { signal: localController.signal });
+    blob = await localResponse.blob();
+  } catch (err) {
+    if (isDev) console.log('[Blinkr Media]', { failedStage: 'local-read', errorCode: err instanceof Error ? err.name : 'Unknown' });
+    throw localController.signal.aborted
+      ? new Error('Medya dosyası okunamadı (zaman aşımı). Tekrar dene.')
+      : err;
+  } finally {
+    clearTimeout(localTimer);
+  }
+
+  const contentType = resolveUploadContentType(mediaType, asset.mimeType, blob.type, asset.fileName ?? asset.uri);
+  const sizeBytes = Math.max(1, blob.size || asset.fileSize || 1);
   const presign = await requestJson<PresignResponse>('/api/v1/media/presign', {
     auth,
     body: {
       contentType,
-      fileName: asset.fileName || (mediaType === 'Video' ? 'blinkr-video.mp4' : 'blinkr-photo.jpg'),
+      fileName: safeUploadFileName(asset.fileName, mediaType, contentType),
       mediaType,
       sizeBytes,
     },
@@ -415,20 +434,9 @@ export const uploadMedia = async (
     onSessionExpired,
   });
 
-  const localController = new AbortController();
-  const localTimer = setTimeout(() => localController.abort(), 10000);
-  let blob: Blob;
-  try {
-    const localResponse = await fetch(asset.uri, { signal: localController.signal });
-    blob = await localResponse.blob();
-  } catch (err) {
-    if (isDev) console.log('[Blinkr Media]', { mime: contentType, failedStage: 'local-read', errorCode: err instanceof Error ? err.name : 'Unknown' });
-    throw localController.signal.aborted
-      ? new Error('Medya dosyası okunamadı (zaman aşımı). Tekrar dene.')
-      : err;
-  } finally {
-    clearTimeout(localTimer);
-  }
+  // The HTTP stack sends a Blob body with the Blob's own type; make that type the declared one so the
+  // Content-Type header cannot drift from the presign request.
+  if (blob.type !== contentType) blob = new Blob([blob], { type: contentType });
 
   const uploadPath = presign.uploadUrl.startsWith('http')
     ? presign.uploadUrl.replace(API_BASE_URL, '')

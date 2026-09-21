@@ -58,6 +58,9 @@ type Props = {
   /** A saved Place to bring into view and open; cleared through `onFocusHandled`. */
   focusPlace?: BlinkrPlace | null;
   onFocusHandled?: () => void;
+  /** A coordinate signal (from the Yakında list) to bring into view and open; cleared through `onFocusSignalHandled`. */
+  focusSignal?: CoordinateSignal | null;
+  onFocusSignalHandled?: () => void;
   /** Reports whether a sheet or the composer currently owns the screen (the app shell hides its tab bar). */
   onOverlayOpenChange?: (open: boolean) => void;
 };
@@ -76,7 +79,7 @@ const MAX_NEARBY_LOCATION_AGE_MS = 30_000;
 const LOCATION_TIMEOUT_MS = 8_000;
 
 
-export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, cameraRequested = false, onCameraHandled, focusPlace = null, onFocusHandled, onOverlayOpenChange }: Props) {
+export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, cameraRequested = false, onCameraHandled, focusPlace = null, onFocusHandled, focusSignal = null, onFocusSignalHandled, onOverlayOpenChange }: Props) {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const activeRequest = useRef<AbortController | null>(null);
@@ -705,6 +708,21 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, cameraR
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusPlace]);
+
+  useEffect(() => {
+    if (!focusSignal) return undefined;
+    const target: Region = { latitude: focusSignal.latitude, longitude: focusSignal.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 };
+    const signal = focusSignal;
+    onFocusSignalHandled?.();
+    currentRegion.current = target;
+    setRegion(target);
+    ignoreRegionChangeUntil.current = Date.now() + 1200;
+    const timer = setTimeout(() => mapRef.current?.animateToRegion(target, 450), 350);
+    void loadPlaces(target, true, mapLayerRef.current === 'places');
+    openSignalDetailAfterTouch(signal);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusSignal]);
 
   const overlayOpen = isComposerOpen || Boolean(selectedPlace) || Boolean(selectedSignal);
   useEffect(() => { onOverlayOpenChange?.(overlayOpen); }, [overlayOpen, onOverlayOpenChange]);

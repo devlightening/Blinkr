@@ -50,3 +50,30 @@ export const getMyPosts = async (_auth: unknown, page: number, pageSize: number)
   });
   return { items, total };
 };
+
+// Yakında: a small live neighbourhood around 37.0742, 36.2478 (?nearbyempty = nothing fresh, ?nearbyfail = server error).
+const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+const ahead = (minutes: number) => new Date(Date.now() + minutes * 60_000).toISOString();
+const north = (meters: number) => 37.0742 + meters / 111_320;
+const activePlace = (id: string, name: string, category: string, meters: number, signalType: string, signalValue: string, minutes: number, freshness: string, count: number) => ({
+  id, name, category, latitude: north(meters), longitude: 36.2478,
+  currentState: { signalType, signalValue, freshness, observedAtUtc: ago(minutes), expiresAtUtc: ahead(90), confidence: 'HIGH', confidenceValue: 0.8, activeSignalCount: count },
+});
+export const getUnifiedMapBounds = async () => {
+  if (flag('nearbyfail')) throw new Error('Network request failed');
+  if (flag('nearbyempty')) return { places: [], signals: [] };
+  return {
+    places: [
+      activePlace('p1', 'Kent Meydanı', 'PUBLIC', 220, 'Crowd', 'Busy', 4, 'FRESH', 3),
+      activePlace('p2', 'Masal Parkı', 'PARK', 640, 'Crowd', 'Calm', 12, 'FRESH', 1),
+      activePlace('p3', 'Merkez Eczanesi', 'PHARMACY', 410, 'Queue', 'Over15', 35, 'RECENT', 2),
+      activePlace('p4', 'Yıldırım Beyazıt Kafe', 'CAFE', 90, 'Queue', 'None', 70, 'RECENT', 1),
+      activePlace('far', 'Çok uzak yer', 'SHOP', 4000, 'Crowd', 'Busy', 2, 'FRESH', 1),
+      { id: 'catalog', name: 'Sessiz Market', category: 'SUPERMARKET', latitude: north(150), longitude: 36.2478, currentState: null },
+    ],
+    signals: [
+      { postId: 's1', title: 'Yol çalışması', textPreview: 'İki şeritten biri kapalı', latitude: north(330), longitude: 36.2478, signalType: 'GeneralObservation', createdAtUtc: ago(8), expiresAt: ahead(120) },
+      { postId: 's-old', title: 'Eski gözlem', textPreview: '', latitude: north(100), longitude: 36.2478, signalType: 'GeneralObservation', createdAtUtc: ago(400), expiresAt: ahead(10) },
+    ],
+  };
+};

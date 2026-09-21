@@ -10,10 +10,11 @@ import { clearAuth, listConversations, loadAuth, saveAuth } from './src/api';
 import { AuthScreen } from './src/components/AuthScreen';
 import { MapScreen } from './src/components/MapScreen';
 import { ChatListScreen } from './src/components/chat/ChatListScreen';
+import { NearbyScreen } from './src/components/NearbyScreen';
 import { ProfileScreen } from './src/components/ProfileScreen';
 import { BlinkrBottomBar, type BlinkrTab } from './src/components/ui/BlinkrBottomBar';
 import { colors } from './src/theme';
-import type { AuthResponse, BlinkrPlace } from './src/types';
+import type { AuthResponse, BlinkrPlace, CoordinateSignal } from './src/types';
 
 // While Sohbet is not on screen the tab-bar dot is refreshed at this gentle interval, foreground only.
 const UNREAD_POLL_MS = 30_000;
@@ -43,6 +44,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<BlinkrTab>('map');
   const [cameraRequested, setCameraRequested] = useState(false);
   const [focusPlace, setFocusPlace] = useState<BlinkrPlace | null>(null);
+  const [focusSignal, setFocusSignal] = useState<CoordinateSignal | null>(null);
   const [mapOverlayOpen, setMapOverlayOpen] = useState(false);
   const [chatUnread, setChatUnread] = useState(false);
   const [chatConversationOpen, setChatConversationOpen] = useState(false);
@@ -75,6 +77,7 @@ export default function App() {
     setActiveTab('map');
     setCameraRequested(false);
     setFocusPlace(null);
+    setFocusSignal(null);
     setMapOverlayOpen(false);
     setChatUnread(false);
     setChatConversationOpen(false);
@@ -87,6 +90,11 @@ export default function App() {
   }, []);
   const clearCameraRequest = useCallback(() => setCameraRequested(false), []);
   const clearFocusPlace = useCallback(() => setFocusPlace(null), []);
+  const clearFocusSignal = useCallback(() => setFocusSignal(null), []);
+  const openNearbySignal = useCallback((signal: CoordinateSignal) => {
+    setFocusSignal(signal);
+    setActiveTab('map');
+  }, []);
   const openSavedPlace = useCallback((place: BlinkrPlace) => {
     setFocusPlace(place);
     setActiveTab('map');
@@ -144,6 +152,8 @@ export default function App() {
                     auth={auth}
                     cameraRequested={cameraRequested}
                     focusPlace={focusPlace}
+                    focusSignal={focusSignal}
+                    onFocusSignalHandled={clearFocusSignal}
                     onAuthChange={acceptAuth}
                     onCameraHandled={clearCameraRequest}
                     onFocusHandled={clearFocusPlace}
@@ -161,6 +171,11 @@ export default function App() {
                       onSessionExpired={logout}
                       onUnreadChange={setChatUnread}
                     />
+                  </View>
+                )}
+                {activeTab === 'nearby' && (
+                  <View style={styles.tabLayer}>
+                    <NearbyScreen onCreateSignal={openCamera} onOpenPlace={openSavedPlace} onOpenSignal={openNearbySignal} />
                   </View>
                 )}
                 {activeTab === 'profile' && (

@@ -13,6 +13,7 @@ import { BlinkrSignalCard } from '../src/components/ui/BlinkrSignalCard';
 import { PostDetailSheet } from '../src/components/PostDetailSheet';
 import { ProfileScreen } from '../src/components/ProfileScreen';
 import { ChatListScreen } from '../src/components/chat/ChatListScreen';
+import { NearbyScreen } from '../src/components/NearbyScreen';
 import { ConversationScreen } from '../src/components/chat/ConversationScreen';
 import { UserSearchSheet } from '../src/components/chat/UserSearchSheet';
 import { BlinkrSheetPanel } from '../src/components/ui/BlinkrSheetPanel';
@@ -182,6 +183,17 @@ function Chat() {
     </View>
   );
 }
+function Nearby() {
+  const [tab, setTab] = useState<BlinkrTab>('nearby');
+  const [opened, setOpened] = useState('');
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <NearbyScreen onCreateSignal={() => setOpened('camera')} onOpenPlace={(place) => setOpened(`place:${place.id}`)} onOpenSignal={(signal) => setOpened(`signal:${signal.postId}`)} />
+      <Text accessibilityLabel="opened" style={{ height: 0, opacity: 0, position: 'absolute' }}>{opened}</Text>
+      <BlinkrBottomBar active={tab} chatUnread onCamera={() => {}} onTab={setTab} />
+    </View>
+  );
+}
 function Conversation() {
   return (
     <View style={{ backgroundColor: colors.background, flex: 1 }}>
@@ -230,7 +242,7 @@ function ComposerWithMedia() {
 
 function Auth() { return <AuthScreen onAuthenticated={() => {}} />; }
 
-const scenes: Record<string, () => React.JSX.Element> = { auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, conversation: Conversation, search: UserSearch };
+const scenes: Record<string, () => React.JSX.Element> = { auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, conversation: Conversation, search: UserSearch };
 
 export function SceneHost({ name }: { name: string }) {
   const Scene = scenes[name];

@@ -16,7 +16,7 @@ async function buildPreview(out) {
       const web = path.resolve(args.resolveDir, args.path.replace(/\.js$/, '.web.js'));
       try { await fs.access(web); return { path: web }; } catch { return undefined; }
     });
-    build.onResolve({ filter: /^(expo-video|expo-haptics|expo-image-picker|expo-secure-store)$/ }, () => ({ path: path.resolve('scripts/ui-native-stub.tsx') }));
+    build.onResolve({ filter: /^(expo-video|expo-haptics|expo-image-picker|expo-secure-store|expo-location)$/ }, () => ({ path: path.resolve('scripts/ui-native-stub.tsx') }));
     build.onResolve({ filter: /\/api$/ }, () => ({ path: path.resolve('scripts/ui-api-stub.ts') }));
   } }] });
 }

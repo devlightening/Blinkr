@@ -21,11 +21,12 @@ public sealed class MediaAttachmentService : IMediaAttachmentService
 
     public async Task<MediaUploadAuthorization> CreateUploadAsync(Guid ownerUserId, CreateMediaUploadRequest request, CancellationToken ct)
     {
-        var mediaType = ResolveMediaType(request.ContentType);
+        var contentType = NormalizeContentType(request.ContentType);
+        var mediaType = ResolveMediaType(contentType);
         ValidateRequest(request, mediaType);
 
         var id = Guid.NewGuid();
-        var extension = GetSafeExtension(request.ContentType);
+        var extension = GetSafeExtension(contentType);
         var key = $"u/{ownerUserId:N}/{id:N}{extension}";
         var expiresAt = DateTime.UtcNow.AddMinutes(_options.PresignExpiryMinutes);
         var publicUrl = $"{_options.PublicBasePath}/{id}";
@@ -37,7 +38,7 @@ public sealed class MediaAttachmentService : IMediaAttachmentService
             MediaType = mediaType,
             ObjectKey = key,
             PublicUrl = publicUrl,
-            ContentType = request.ContentType,
+            ContentType = contentType,
             SizeBytes = request.SizeBytes,
             Width = request.Width,
             Height = request.Height,
@@ -54,7 +55,7 @@ public sealed class MediaAttachmentService : IMediaAttachmentService
             $"/api/v1/media/uploads/{id}/content",
             new DateTimeOffset(expiresAt, TimeSpan.Zero),
             publicUrl,
-            new Dictionary<string, string> { ["Content-Type"] = request.ContentType });
+            new Dictionary<string, string> { ["Content-Type"] = contentType });
     }
 
     public async Task MarkUploadedAsync(Guid ownerUserId, Guid mediaId, Stream content, string contentType, CancellationToken ct)
@@ -64,7 +65,8 @@ public sealed class MediaAttachmentService : IMediaAttachmentService
         if (doc.OwnerUserId != ownerUserId) throw new UnauthorizedAccessException("Media belongs to another user.");
         if (doc.Status != "PENDING") throw new InvalidOperationException("Media is not waiting for upload.");
         if (doc.ExpiresAtUtc <= DateTime.UtcNow) throw new InvalidOperationException("Upload authorization expired.");
-        if (!string.Equals(doc.ContentType, contentType, StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Content-Type does not match presign request.");
+        if (!UploadContentTypeAccepted(doc, contentType))
+            throw new ArgumentException("Content-Type does not match presign request.");
 
         var maxBytes = doc.MediaType == MediaType.Video ? _options.MaxVideoBytes : _options.MaxImageBytes;
 
@@ -141,6 +143,32 @@ public sealed class MediaAttachmentService : IMediaAttachmentService
 
     private MediaUploadAuthorization ToAuthorization(MediaUploadDocument doc) =>
         new(doc.Id, $"/api/v1/media/uploads/{doc.Id}/content", new DateTimeOffset(doc.ExpiresAtUtc, TimeSpan.Zero), doc.PublicUrl, new Dictionary<string, string> { ["Content-Type"] = doc.ContentType });
+
+    /// <summary>
+    /// The presigned type and the PUT header can legitimately differ in spelling (image/jpg vs image/jpeg) or be
+    /// rewritten by a mobile HTTP stack (a Blob body carries its own type; some file URIs report none). The bytes
+    /// are still checked against the declared type by <see cref="SanitizeAndValidate"/>, so the header only has to
+    /// agree on the kind of media: an image upload must not arrive as a video, and vice versa.
+    /// </summary>
+    private bool UploadContentTypeAccepted(MediaUploadDocument doc, string headerContentType)
+    {
+        var declared = NormalizeContentType(doc.ContentType);
+        var actual = NormalizeContentType(headerContentType);
+        if (string.Equals(declared, actual, StringComparison.OrdinalIgnoreCase)) return true;
+        if (actual.Length == 0 || actual == "application/octet-stream") return true;
+
+        var sameKind = doc.MediaType == MediaType.Video
+            ? _options.AllowedVideoContentTypes.Contains(actual, StringComparer.OrdinalIgnoreCase)
+            : _options.AllowedImageContentTypes.Contains(actual, StringComparer.OrdinalIgnoreCase);
+        return sameKind;
+    }
+
+    private static string NormalizeContentType(string? contentType) => (contentType ?? string.Empty).Split(';')[0].Trim().ToLowerInvariant() switch
+    {
+        "image/jpg" or "image/pjpeg" => "image/jpeg",
+        "video/x-m4v" => "video/mp4",
+        var other => other
+    };
 
     private MediaType ResolveMediaType(string contentType)
     {

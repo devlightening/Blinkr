@@ -124,6 +124,30 @@ Create-Post -Headers $headersA -ExpectedStatus @(400) -Body ($base + @{ title = 
 Create-Post -Headers $headersA -ExpectedStatus @(403) -Body ($base + @{ title = ""; content = ""; signalType = "GeneralObservation"; media = @(@{ mediaId = $otherImageId; mediaType = "Image" }) }) | Out-Null
 Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/v1/media/presign" -Headers $headersA -ExpectedStatus @(400) -Body @{ fileName = "bad.txt"; contentType = "text/plain"; sizeBytes = 10 } | Out-Null
 
+# Upload Content-Type contract: mobile HTTP stacks respell or rewrite the header (image/jpg, octet-stream, the Blob's own
+# type). The declared type is still enforced by checking the bytes, so only a different KIND of media is rejected.
+function Put-MediaStatus {
+    param([hashtable]$Headers, [string]$PresignType, [string]$HeaderType, [byte[]]$Bytes)
+    $presign = Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/v1/media/presign" -Headers $Headers -Body @{ fileName = "ct.bin"; contentType = $PresignType; sizeBytes = $Bytes.Length }
+    $uploadUrl = $presign.body.uploadUrl
+    if ($uploadUrl.StartsWith("/")) { $uploadUrl = "$GatewayBaseUrl$uploadUrl" }
+    try {
+        $response = Invoke-WebRequest -Method PUT -Uri $uploadUrl -Headers $Headers -ContentType $HeaderType -Body $Bytes -UseBasicParsing -TimeoutSec 30
+        return [int]$response.StatusCode
+    } catch {
+        if ($null -eq $_.Exception.Response) { throw }
+        return [int]$_.Exception.Response.StatusCode
+    }
+}
+$jpeg = [byte[]](0xFF,0xD8,0xFF,0xDB,0x00,0x04,0x00,0x00,0xFF,0xD9)
+Assert-Truthy ((Put-MediaStatus $headersA "image/jpg" "image/jpeg" $jpeg) -eq 200) "presign image/jpg must be accepted as image/jpeg."
+Assert-Truthy ((Put-MediaStatus $headersA "image/jpeg" "image/jpg" $jpeg) -eq 200) "PUT header image/jpg must match a presigned image/jpeg."
+Assert-Truthy ((Put-MediaStatus $headersA "image/jpeg" "application/octet-stream" $jpeg) -eq 200) "A generic octet-stream PUT must be accepted; the bytes are validated."
+Assert-Truthy ((Put-MediaStatus $headersA "image/png" "image/jpeg" $png) -eq 200) "Another image type in the header must not block a valid upload."
+Assert-Truthy ((Put-MediaStatus $headersA "image/png" "video/mp4" $png) -eq 400) "An image upload sent as video must be rejected."
+Assert-Truthy ((Put-MediaStatus $headersA "image/png" "image/png" $jpeg) -eq 400) "Bytes that do not match the declared type must be rejected."
+Write-Host "PASS upload Content-Type contract"
+
 $detail = $null
 $placeDetail = $null
 for ($i = 0; $i -lt 30; $i++) {
