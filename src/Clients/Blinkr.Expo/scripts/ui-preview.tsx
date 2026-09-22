@@ -7,7 +7,12 @@ import { PostDetailSheet } from '../src/components/PostDetailSheet';
 import { BlinkrMark } from '../src/components/BlinkrMark';
 import { nearby, area as initialArea } from './ui-fixtures';
 import { SceneHost } from './ui-scenes';
+import { initI18n } from '../src/i18n';
 import type { ComposerArea } from '../src/types';
+
+// Mirrors App.tsx: the harness renders the same components production does, so it needs the same
+// i18next init, or every `useTranslation()` call (e.g. the bottom tab bar) would render raw keys.
+initI18n();
 function Preview() {
   const [area, setArea] = useState<ComposerArea>(initialArea);
   const [open, setOpen] = useState(true);

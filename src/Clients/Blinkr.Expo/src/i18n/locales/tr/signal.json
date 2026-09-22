@@ -1,0 +1,18 @@
+{
+  "type": {
+    "crowd": "Doluluk",
+    "wait": "Bekleme",
+    "status": "Geçici durum",
+    "event": "Etkinlik",
+    "offer": "Fırsat",
+    "newOpening": "Yeni açılış",
+    "observation": "Gözlem"
+  },
+  "verify": {
+    "question": "Hâlâ böyle mi?",
+    "yes": "Evet, hâlâ böyle",
+    "changed": "Değişti"
+  },
+  "live": "Canlı",
+  "drop": "Sinyal bırak"
+}

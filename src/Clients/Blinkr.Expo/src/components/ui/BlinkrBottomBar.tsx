@@ -1,4 +1,5 @@
 import { Compass, Map as MapIcon, MessageCircle, Plus, UserRound } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -25,14 +26,17 @@ type Props = {
 const tabIcons = { chat: MessageCircle, map: MapIcon, nearby: Compass, profile: UserRound } as const;
 // "nearby" still points at the existing Yakında screen for now (sinyal-mvp-plan 00_START_HERE §1: Keşfet
 // "şimdilik mevcut 'Yakında' ekranını gösterir"); only the tab's own label has moved to the plan's name.
-const tabLabels: Record<BlinkrTab, string> = { chat: 'Sohbet', map: 'Harita', nearby: 'Keşfet', profile: 'Profil' };
+// Maps to common.json's tab.* keys (P1.4): the first real, end-to-end i18n usage in the app.
+const tabLabelKeys: Record<BlinkrTab, string> = { chat: 'tab.chat', map: 'tab.map', nearby: 'tab.explore', profile: 'tab.profile' };
 
 function TabItem({ tab, active, unread, onPress }: { tab: BlinkrTab; active: boolean; unread?: boolean; onPress: () => void }) {
+  const { t } = useTranslation('common');
+  const label = t(tabLabelKeys[tab]);
   const Icon = tabIcons[tab];
   const color = active ? colors.primary : colors.textSecondary;
   return (
     <AnimatedPressable
-      accessibilityLabel={unread ? `${tabLabels[tab]}, ${tab === 'profile' ? 'bekleyen arkadaş isteği var' : 'okunmamış mesaj var'}` : tabLabels[tab]}
+      accessibilityLabel={unread ? `${label}, ${tab === 'profile' ? 'bekleyen arkadaş isteği var' : 'okunmamış mesaj var'}` : label}
       accessibilityRole="tab"
       aria-selected={active}
       onPress={onPress}
@@ -43,7 +47,7 @@ function TabItem({ tab, active, unread, onPress }: { tab: BlinkrTab; active: boo
         <Icon color={color} size={22} strokeWidth={active ? 2.3 : 2} />
         {unread ? <View style={styles.unreadDot} /> : null}
       </View>
-      <Text style={[styles.label, { color }]}>{tabLabels[tab]}</Text>
+      <Text style={[styles.label, { color }]}>{label}</Text>
     </AnimatedPressable>
   );
 }

@@ -1,0 +1,18 @@
+{
+  "type": {
+    "crowd": "Crowd",
+    "wait": "Wait",
+    "status": "Status",
+    "event": "Event",
+    "offer": "Offer",
+    "newOpening": "New opening",
+    "observation": "Observation"
+  },
+  "verify": {
+    "question": "Still like this?",
+    "yes": "Yes, still true",
+    "changed": "It changed"
+  },
+  "live": "Live",
+  "drop": "Drop a signal"
+}

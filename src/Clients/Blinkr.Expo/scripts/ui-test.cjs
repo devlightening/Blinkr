@@ -668,6 +668,20 @@ async function main() {
     await page.goto(url + '?scene=detail&stale');
     await expect(page.getByText('Örnek Lokanta')).toBeVisible();
     await expect(page.getByText('Hâlâ böyle mi?')).toHaveCount(0);
+
+    // P1.4 (sinyal-mvp-plan): i18n actually switches, not just "happens to already say the right thing in tr".
+    // ?lang=en picks English (this is the *only* thing in the app that reads a translation key so far -
+    // the bottom tab bar; everything else is still plain Turkish text, exactly as before this phase).
+    await page.goto(url + '?scene=kit&lang=en');
+    await expect(page.getByRole('tab', { name: 'Chat' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Explore' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Profile' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Sohbet' })).toHaveCount(0);
+    await page.goto(url + '?scene=kit&lang=de');
+    await expect(page.getByRole('tab', { name: 'Chat' })).toBeVisible(); // unsupported device language falls back to en, not tr
+    await page.goto(url + '?scene=kit');
+    await expect(page.getByRole('tab', { name: 'Sohbet' })).toBeVisible(); // default (no ?lang) is the device's own tr
+
     if(errors.length) throw new Error(errors.join('\n'));
     console.log('PASS browser-rendered components: selection, collapse, nearby/coordinate publish, submitting lock, value selection, branch search, save, close, responsive detail. Native map/media/iOS gestures require physical retest.');
   } finally { await browser.close(); server.close(); }

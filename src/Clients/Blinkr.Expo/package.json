@@ -10,13 +10,16 @@
     "expo-constants": "~57.0.19",
     "expo-haptics": "~57.0.3",
     "expo-image-picker": "~57.0.19",
+    "expo-localization": "~57.0.2",
     "expo-location": "~57.0.19",
     "expo-screen-capture": "~57.0.3",
     "expo-secure-store": "~57.0.4",
     "expo-status-bar": "~57.0.1",
     "expo-video": "~57.0.4",
+    "i18next": "^26.4.2",
     "lucide-react-native": "^1.27.0",
     "react": "19.2.3",
+    "react-i18next": "^17.0.15",
     "react-native": "0.86.3",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-maps": "1.27.2",
@@ -48,7 +51,8 @@
     "brand:build": "node scripts/build-brand.cjs",
     "test:ui": "node scripts/ui-test.cjs",
     "test:product": "tsc --ignoreConfig --ignoreDeprecations 6.0 --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --outDir .tmp/product-tests scripts/product-presentation.test.ts scripts/media-content-type.test.ts src/mediaContentType.ts && node .tmp/product-tests/scripts/product-presentation.test.js && node .tmp/product-tests/scripts/media-content-type.test.js",
-    "test:theme": "tsc --ignoreConfig --ignoreDeprecations 6.0 --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --outDir .tmp/theme-tests scripts/theme-contrast.test.ts src/theme.ts && node .tmp/theme-tests/scripts/theme-contrast.test.js"
+    "test:theme": "tsc --ignoreConfig --ignoreDeprecations 6.0 --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --outDir .tmp/theme-tests scripts/theme-contrast.test.ts src/theme.ts && node .tmp/theme-tests/scripts/theme-contrast.test.js",
+    "test:i18n": "tsc --ignoreConfig --ignoreDeprecations 6.0 --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --resolveJsonModule --outDir .tmp/i18n-tests scripts/i18n-keys.test.ts && node .tmp/i18n-tests/scripts/i18n-keys.test.js"
   },
   "private": true
 }

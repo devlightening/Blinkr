@@ -1,0 +1,6 @@
+{
+  "title": "Settings",
+  "section": { "account": "Account", "security": "Security", "privacy": "Privacy", "about": "About", "developer": "Developer" },
+  "blockedUsers": "Blocked people",
+  "version": "Version"
+}

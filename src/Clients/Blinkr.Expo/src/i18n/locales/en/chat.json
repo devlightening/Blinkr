@@ -1,0 +1,5 @@
+{
+  "title": "Chats",
+  "empty": { "title": "No messages yet", "description": "Find someone and start talking." },
+  "newMessage": "New message"
+}

@@ -55,3 +55,15 @@ export const geocodeAsync = async (address: string) => (locFlag('geocode') && ad
 // expo-screen-capture: the viewer asks the OS to block screenshots while a snap is on screen.
 export const preventScreenCaptureAsync = async () => {};
 export const allowScreenCaptureAsync = async () => {};
+
+// expo-localization: ?lang=en simulates an English device; anything else (default) stays Turkish, so
+// every existing test's Turkish-text assertions are unaffected unless a test opts into ?lang=en.
+export const getLocales = () => {
+  const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
+  const languageCode = params?.get('lang') ?? 'tr';
+  return [{ languageTag: languageCode, languageCode, languageScriptCode: null, regionCode: null, currencyCode: null, decimalSeparator: '.', digitGroupingSeparator: ',', measurementSystem: 'metric', temperatureUnit: 'celsius', textDirection: 'ltr' }];
+};
+
+// expo-font: the harness never loads the real font file - it just needs `useFonts` to settle immediately
+// so App.tsx-style loading gates never hang (only reachable if a scene imports App.tsx, which none do today).
+export const useFonts = () => [true, null] as const;

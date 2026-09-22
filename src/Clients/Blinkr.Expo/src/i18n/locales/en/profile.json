@@ -1,0 +1,6 @@
+{
+  "title": "Profile",
+  "stat": { "signals": "Signals", "friends": "Friends", "saved": "Saved" },
+  "editProfile": "Edit profile",
+  "logout": "Log out"
+}

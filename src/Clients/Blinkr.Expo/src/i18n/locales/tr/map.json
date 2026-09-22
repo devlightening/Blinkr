@@ -1,0 +1,10 @@
+{
+  "search": {
+    "placeholder": "Nereye gidiyorsun?"
+  },
+  "scan": {
+    "action": "Bu alanı tara",
+    "inProgress": "Taranıyor"
+  },
+  "locate": "Konumuma git"
+}

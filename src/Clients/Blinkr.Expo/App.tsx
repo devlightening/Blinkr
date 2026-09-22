@@ -10,6 +10,11 @@ import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, w
 
 import { clearAuth, getMyProfile, listConversations, loadAuth, saveAuth } from './src/api';
 import { AuthScreen } from './src/components/AuthScreen';
+import { initI18n } from './src/i18n';
+
+// Idempotent and synchronous-enough to use immediately (resources are inline, not fetched) - called once
+// at module load so every component, including this file's own JSX below, can already translate.
+initI18n();
 import { MapScreen } from './src/components/MapScreen';
 import { ChatListScreen } from './src/components/chat/ChatListScreen';
 import { NearbyScreen } from './src/components/NearbyScreen';

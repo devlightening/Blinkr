@@ -1,0 +1,6 @@
+{
+  "title": "Ayarlar",
+  "section": { "account": "Hesap", "security": "Güvenlik", "privacy": "Gizlilik", "about": "Hakkında", "developer": "Geliştirici" },
+  "blockedUsers": "Engellenen kişiler",
+  "version": "Sürüm"
+}

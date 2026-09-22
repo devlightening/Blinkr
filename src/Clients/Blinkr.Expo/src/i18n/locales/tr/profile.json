@@ -1,0 +1,6 @@
+{
+  "title": "Profil",
+  "stat": { "signals": "Sinyal", "friends": "Arkadaş", "saved": "Kaydedilen" },
+  "editProfile": "Profili düzenle",
+  "logout": "Oturumu kapat"
+}

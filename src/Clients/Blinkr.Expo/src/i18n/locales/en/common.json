@@ -1,0 +1,19 @@
+{
+  "tab": {
+    "map": "Map",
+    "explore": "Explore",
+    "chat": "Chat",
+    "profile": "Profile"
+  },
+  "action": {
+    "retry": "Try again",
+    "close": "Close",
+    "back": "Back",
+    "save": "Save",
+    "cancel": "Cancel",
+    "send": "Send"
+  },
+  "empty": {
+    "noResults": "No results found"
+  }
+}

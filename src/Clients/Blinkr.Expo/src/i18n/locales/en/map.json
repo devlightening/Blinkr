@@ -1,0 +1,10 @@
+{
+  "search": {
+    "placeholder": "Where are you headed?"
+  },
+  "scan": {
+    "action": "Scan this area",
+    "inProgress": "Scanning"
+  },
+  "locate": "Go to my location"
+}

@@ -1,0 +1,19 @@
+{
+  "tab": {
+    "map": "Harita",
+    "explore": "Keşfet",
+    "chat": "Sohbet",
+    "profile": "Profil"
+  },
+  "action": {
+    "retry": "Tekrar dene",
+    "close": "Kapat",
+    "back": "Geri dön",
+    "save": "Kaydet",
+    "cancel": "Vazgeç",
+    "send": "Gönder"
+  },
+  "empty": {
+    "noResults": "Sonuç bulunamadı"
+  }
+}
