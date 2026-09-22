@@ -1,10 +1,11 @@
 import * as Location from 'expo-location';
-import { ArrowLeft, Bookmark, Clock3, MapPin, Search, Trash2, WifiOff, X } from 'lucide-react-native';
+import { ArrowLeft, Bookmark, Clock3, MapPin, Search, Trash2, UserRound, WifiOff, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { searchPlaces } from '../../api';
+import { listFriends, searchPlaces, searchUsers } from '../../api';
+import { orderPeople, relationLabel } from '../../friends';
 import { distanceMeters } from '../../nearbyRequestOwnership';
 import { formatCategory, formatDistance } from '../../presentation';
 import { friendlyError } from '../../productPresentation';
@@ -15,22 +16,27 @@ import {
 import { clearRecentSearches, listRecentSearches, rememberSearch } from '../../recentSearches';
 import { listSavedPlaces, toPlace, type SavedPlace } from '../../savedPlaces';
 import { colors, radii, sizes, spacing, typography } from '../../theme';
-import type { BlinkrPlace } from '../../types';
+import type { AuthResponse, BlinkrPlace, UserSummary } from '../../types';
 import { AnimatedPressable } from '../AnimatedPressable';
+import { Avatar } from '../Avatar';
 import { PlaceSymbol } from '../PlaceSymbol';
 import { BlinkrChip } from '../ui/BlinkrChip';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
+import { SegmentedControl } from '../ui/BlinkrSegmentedControl';
 
 type Origin = { latitude: number; longitude: number };
+type SearchMode = 'places' | 'people';
 
 type Props = {
-  userId: string;
+  auth: AuthResponse;
   /** The map centre: results are ranked around what the person is looking at, not only around the device. */
   origin: Origin;
   onClose: () => void;
   onSelectPlace: (place: BlinkrPlace) => void;
   /** An address or district that is not a catalogue Place: the map just moves there. */
   onSelectLocation: (target: Origin & { label: string }) => void;
+  /** 04 §1.1/P3.13: "Kişiler" is the other half of this screen's Yerler|Kişiler tabs. */
+  onSelectPerson: (user: UserSummary) => void;
 };
 
 type Status = 'idle' | 'loading' | 'ready' | 'error';
@@ -39,6 +45,7 @@ const SEARCH_RADIUS_METERS = 30_000;
 /** When the map is looking somewhere else than the person is, both places are searched. */
 const SECOND_ORIGIN_MIN_METERS = 25_000;
 const TIER_TITLES = ['Yakınında', 'Şehirde', 'Diğer şehirler'];
+const MIN_PEOPLE_QUERY_LENGTH = 2;
 
 function Highlighted({ text, query }: { text: string; query: string }) {
   return (
@@ -82,8 +89,10 @@ function SimpleRow({ icon, title, subtitle, onPress, label }: { icon: React.Reac
  * there. Before typing it offers recent searches, saved places and one-tap categories. Results are ranked by how
  * well the name matches, then by distance from the map centre, and show what is live right now.
  */
-export function MapSearchOverlay({ userId, origin, onClose, onSelectPlace, onSelectLocation }: Props) {
+export function MapSearchOverlay({ auth, origin, onClose, onSelectPlace, onSelectLocation, onSelectPerson }: Props) {
+  const userId = auth.userId;
   const insets = useSafeAreaInsets();
+  const [mode, setMode] = useState<SearchMode>('places');
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<Status>('idle');
   const [results, setResults] = useState<RankedPlace[]>([]);
@@ -92,6 +101,10 @@ export function MapSearchOverlay({ userId, origin, onClose, onSelectPlace, onSel
   const [recents, setRecents] = useState<RecentSearch[]>([]);
   const [saved, setSaved] = useState<SavedPlace[]>([]);
   const [device, setDevice] = useState<Origin | null>(null);
+  const [friends, setFriends] = useState<UserSummary[]>([]);
+  const [people, setPeople] = useState<UserSummary[]>([]);
+  const [peopleLoading, setPeopleLoading] = useState(false);
+  const [peopleError, setPeopleError] = useState<string | null>(null);
   const deviceRef = useRef<Origin | null>(null);
   const generation = useRef(0);
   const inFlight = useRef<AbortController | null>(null);
@@ -126,6 +139,39 @@ export function MapSearchOverlay({ userId, origin, onClose, onSelectPlace, onSel
     return () => { mounted.current = false; generation.current += 1; inFlight.current?.abort(); back.remove(); };
   }, [userId]);
 
+  // Kişiler: before anything is typed, the people you are most likely to look for - your friends -
+  // same shortcut UserSearchSheet.tsx (chat's "Yeni mesaj") offers, kept separate here since this
+  // screen's frame (full-screen, Yerler tab alongside it) does not match that sheet's.
+  useEffect(() => {
+    const controller = new AbortController();
+    listFriends(auth, controller.signal)
+      .then((list) => { if (!controller.signal.aborted) setFriends(list.map((friend) => ({ id: friend.id, userName: friend.userName, avatarKey: friend.avatarKey, relation: 'friends' as const }))); })
+      .catch(() => { /* the search still works without the shortcut list */ });
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  useEffect(() => {
+    if (mode !== 'people') return undefined;
+    const controller = new AbortController();
+    setPeopleError(null);
+    const trimmed = query.trim();
+    if (trimmed.length < MIN_PEOPLE_QUERY_LENGTH) { setPeople([]); setPeopleLoading(false); return undefined; }
+    setPeopleLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const next = await searchUsers(auth, trimmed, controller.signal);
+        if (!controller.signal.aborted) setPeople(orderPeople(next.filter((user) => user.id !== userId)));
+      } catch (err) {
+        if (!controller.signal.aborted) setPeopleError(friendlyError(err, 'Kullanıcılar aranamadı. Tekrar dene.'));
+      } finally {
+        if (!controller.signal.aborted) setPeopleLoading(false);
+      }
+    }, DEBOUNCE_MS);
+    return () => { clearTimeout(timer); controller.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, query, userId]);
+
   const runSearch = useCallback(async (text: string) => {
     const mine = ++generation.current;
     inFlight.current?.abort();
@@ -158,9 +204,10 @@ export function MapSearchOverlay({ userId, origin, onClose, onSelectPlace, onSel
     }
   }, []);
 
-  // Debounced typing; an unusable query clears the list instead of asking the server.
+  // Debounced typing; an unusable query clears the list instead of asking the server. Only runs in the
+  // Yerler tab - the Kişiler tab has its own debounce effect above.
   useEffect(() => {
-    if (!isSearchableQuery(query)) {
+    if (mode !== 'places' || !isSearchableQuery(query)) {
       generation.current += 1;
       inFlight.current?.abort();
       setStatus('idle');
@@ -170,7 +217,7 @@ export function MapSearchOverlay({ userId, origin, onClose, onSelectPlace, onSel
     }
     const timer = setTimeout(() => { void runSearch(query); }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [query, runSearch]);
+  }, [mode, query, runSearch]);
 
   const choose = (target: BlinkrPlace) => {
     void rememberSearch(userId, toRecentSearch(target));
@@ -189,13 +236,13 @@ export function MapSearchOverlay({ userId, origin, onClose, onSelectPlace, onSel
         <View style={styles.field}>
           <Search color={colors.textSecondary} size={18} />
           <TextInput
-            accessibilityLabel="Yer ara"
+            accessibilityLabel={mode === 'places' ? 'Yer ara' : 'Kullanıcı ara'}
             autoCapitalize="none"
             autoCorrect={false}
             autoFocus
             maxLength={80}
             onChangeText={setQuery}
-            placeholder="Nereye gidiyorsun?"
+            placeholder={mode === 'places' ? 'Nereye gidiyorsun?' : 'Kullanıcı adı ara'}
             placeholderTextColor={colors.textSecondary}
             returnKeyType="search"
             style={styles.input}
@@ -208,9 +255,45 @@ export function MapSearchOverlay({ userId, origin, onClose, onSelectPlace, onSel
           ) : null}
         </View>
       </View>
+      <View style={styles.tabsRow}>
+        <SegmentedControl accessibilityLabel="Yerler veya kişiler" onChange={setMode} options={[{ value: 'places', label: 'Yerler' }, { value: 'people', label: 'Kişiler' }]} value={mode} />
+      </View>
 
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        {!searching ? (
+        {mode === 'people' ? (
+          peopleError ? (
+            <BlinkrEmptyState
+              description={peopleError}
+              icon={<WifiOff color={colors.textSecondary} size={26} />}
+              style={styles.empty}
+              title="Arama açılamadı"
+            />
+          ) : (
+            <>
+              {!typed && friends.length > 0 ? <Text style={styles.section}>Arkadaşların</Text> : null}
+              {(typed ? people : friends).map((user) => (
+                <SimpleRow
+                  icon={<Avatar avatarKey={user.avatarKey} seed={user.id} size={40} />}
+                  key={user.id}
+                  label={`${user.userName} profilini aç`}
+                  onPress={() => onSelectPerson(user)}
+                  subtitle={typed ? relationLabel(user.relation) : undefined}
+                  title={user.userName}
+                />
+              ))}
+              {peopleLoading && people.length === 0 ? <ActivityIndicator accessibilityLabel="Aranıyor" color={colors.primary} style={styles.loading} /> : null}
+              {!peopleLoading && typed && query.trim().length >= MIN_PEOPLE_QUERY_LENGTH && people.length === 0 ? (
+                <BlinkrEmptyState
+                  description="Yazımı kontrol et ya da başka bir kullanıcı adı dene."
+                  icon={<UserRound color={colors.textSecondary} size={26} />}
+                  style={styles.empty}
+                  title="Kullanıcı bulunamadı"
+                />
+              ) : null}
+              {typed && query.trim().length < MIN_PEOPLE_QUERY_LENGTH ? <Text style={styles.hint}>Aramak için en az {MIN_PEOPLE_QUERY_LENGTH} harf yaz.</Text> : null}
+            </>
+          )
+        ) : !searching ? (
           <>
             {typed ? <Text style={styles.hint}>Aramak için en az {MIN_QUERY_LENGTH} harf yaz.</Text> : null}
             <Text style={styles.section}>Yakınında ara</Text>
@@ -297,6 +380,7 @@ const styles = StyleSheet.create({
   back: { alignItems: 'center', height: sizes.touch, justifyContent: 'center', width: sizes.touch },
   field: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flex: 1, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md },
   input: { ...typography.body, color: colors.text, flex: 1, minHeight: sizes.touch },
+  tabsRow: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
   section: { ...typography.label, color: colors.textSecondary, marginBottom: spacing.sm, marginTop: spacing.lg },
   sectionRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },

@@ -345,6 +345,27 @@ async function main() {
     await expect(page.getByLabel('kadirli konumuna git')).toBeVisible();
     await page.getByLabel('kadirli konumuna git').click();
     await expect(page.getByLabel('chosen')).toHaveText('location:kadirli');
+    // Kişiler tab (P3.13): friends shortcut, a real search, selecting a person.
+    await page.goto(url + '?scene=mapSearch');
+    await page.getByRole('tab', { name: 'Kişiler' }).click();
+    await expect(page.getByText('Arkadaşların')).toBeVisible();
+    await expect(page.getByLabel('zeynep profilini aç')).toBeVisible();
+    await expect(page.getByLabel('ece profilini aç')).toBeVisible();
+    await page.getByLabel('Kullanıcı ara').fill('a');
+    await expect(page.getByText('Aramak için en az 2 harf yaz.')).toBeVisible();
+    await page.getByLabel('Kullanıcı ara').fill('arda');
+    await expect(page.getByLabel('arda profilini aç')).toBeVisible();
+    await page.getByLabel('arda profilini aç').click();
+    await expect(page.getByLabel('chosen')).toHaveText('person:arda');
+    await page.goto(url + '?scene=mapSearch');
+    await page.getByRole('tab', { name: 'Kişiler' }).click();
+    await page.getByLabel('Kullanıcı ara').fill('zzzz');
+    await expect(page.getByText('Kullanıcı bulunamadı')).toBeVisible();
+    // Switching back to Yerler keeps the place-search behaviour untouched (the query box is shared,
+    // so it is cleared first - each tab searches its own thing, not a stale query from the other).
+    await page.getByLabel('Kullanıcı ara').fill('');
+    await page.getByRole('tab', { name: 'Yerler' }).click();
+    await expect(page.getByText('Yakınında ara')).toBeVisible();
     // Friends: profile numbers, requests, adding people, a person's public profile, bio editing and honest empty/error states.
     await page.goto(url + '?scene=profile');
     await expect(page.getByText('Kahve ve yürüyüş.')).toBeVisible();

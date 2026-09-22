@@ -297,7 +297,7 @@ function MapSearch() {
   const [chosen, setChosen] = useState('');
   return (
     <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
-      <MapSearchOverlay onClose={() => setChosen('closed')} onSelectLocation={(target) => setChosen(`location:${target.label}`)} onSelectPlace={(place) => setChosen(`place:${place.id}`)} origin={{ latitude: 37.0742, longitude: 36.2478 }} userId="scene" />
+      <MapSearchOverlay auth={qaAuth} onClose={() => setChosen('closed')} onSelectLocation={(target) => setChosen(`location:${target.label}`)} onSelectPerson={(user) => setChosen(`person:${user.userName}`)} onSelectPlace={(place) => setChosen(`place:${place.id}`)} origin={{ latitude: 37.0742, longitude: 36.2478 }} />
       <Text accessibilityLabel="chosen" style={{ height: 0, opacity: 0, position: 'absolute' }}>{chosen}</Text>
     </View>
   );

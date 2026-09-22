@@ -22,6 +22,7 @@ import { BlinkrMapMarker, BlinkrClusterMarker } from './BlinkrMapMarker';
 import { bottomBarClearance } from './ui/BlinkrBottomBar';
 import { MapTopChrome } from './map/MapTopChrome';
 import { MapSearchOverlay } from './map/MapSearchOverlay';
+import { UserProfileSheet } from './friends/UserProfileSheet';
 import { selectMapData, filterBySignalTypes, type MapLayer } from '../mapSelection';
 import { loadTypeFilter, saveTypeFilter } from '../mapTypeFilterStorage';
 import { MapTypeFilterBar } from './map/MapTypeFilterBar';
@@ -46,6 +47,7 @@ import type {
   LocationReadiness,
   NearbyStatus,
   SignalType,
+  UserSummary,
 } from '../types';
 import { ISTANBUL_REGION } from '../types';
 import { PostDetailSheet } from './PostDetailSheet';
@@ -72,6 +74,8 @@ type Props = {
   onFocusSignalHandled?: () => void;
   /** Reports whether a sheet or the composer currently owns the screen (the app shell hides its tab bar). */
   onOverlayOpenChange?: (open: boolean) => void;
+  /** "Kişiler" search result → "Mesaj gönder" (P3.13): the app shell switches to the Sohbet tab. */
+  onMessageUser?: (user: UserSummary) => void;
 };
 
 const getBounds = (region: Region): Bounds => ({
@@ -88,7 +92,7 @@ const MAX_NEARBY_LOCATION_AGE_MS = 30_000;
 const LOCATION_TIMEOUT_MS = 8_000;
 
 
-export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRequested = false, onShareHandled, onStartSnap, focusPlace = null, onFocusHandled, focusSignal = null, onFocusSignalHandled, onOverlayOpenChange }: Props) {
+export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRequested = false, onShareHandled, onStartSnap, focusPlace = null, onFocusHandled, focusSignal = null, onFocusSignalHandled, onOverlayOpenChange, onMessageUser }: Props) {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const activeRequest = useRef<AbortController | null>(null);
@@ -128,6 +132,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
   const [pendingCapture, setPendingCapture] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchProfileUser, setSearchProfileUser] = useState<UserSummary | null>(null);
   const [searchOrigin, setSearchOrigin] = useState({ latitude: 0, longitude: 0 });
   const [cameraOpen, setCameraOpen] = useState(false);
   const [composerInitialStep, setComposerInitialStep] = useState(0);
@@ -811,7 +816,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusSignal]);
 
-  const overlayOpen = isComposerOpen || shareOpen || searchOpen || cameraOpen || Boolean(selectedPlace) || Boolean(selectedSignal);
+  const overlayOpen = isComposerOpen || shareOpen || searchOpen || cameraOpen || Boolean(selectedPlace) || Boolean(selectedSignal) || Boolean(searchProfileUser);
   useEffect(() => { onOverlayOpenChange?.(overlayOpen); }, [overlayOpen, onOverlayOpenChange]);
 
   const chromeTop = insets.top + 140;
@@ -903,7 +908,27 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
         pendingCapture={pendingCapture}
         visible={isComposerOpen}
       />}
-      {searchOpen && <MapSearchOverlay onClose={() => setSearchOpen(false)} onSelectLocation={flyToLocation} onSelectPlace={flyToPlace} origin={searchOrigin} userId={auth.userId} />}
+      {searchOpen && (
+        <MapSearchOverlay
+          auth={auth}
+          onClose={() => setSearchOpen(false)}
+          onSelectLocation={flyToLocation}
+          onSelectPerson={(user) => { setSearchOpen(false); setSearchProfileUser(user); }}
+          onSelectPlace={flyToPlace}
+          origin={searchOrigin}
+        />
+      )}
+
+      {searchProfileUser ? (
+        <UserProfileSheet
+          auth={auth}
+          onAuthChange={onAuthChange}
+          onClose={() => setSearchProfileUser(null)}
+          onMessage={(user) => { setSearchProfileUser(null); onMessageUser?.(user); }}
+          onSessionExpired={onLogout}
+          user={searchProfileUser}
+        />
+      ) : null}
       {shareOpen && <ShareHubSheet onCamera={startCamera} onClose={() => setShareOpen(false)} onGallery={() => { void startGallery(); }} onSignalOnly={startSignalOnly} onSnap={onStartSnap ? startSnap : undefined} />}
       {cameraOpen && <View style={styles.cameraLayer}><SignalCamera onCapture={handleCaptured} onClose={() => setCameraOpen(false)} /></View>}
       {!isComposerOpen && <PostDetailSheet

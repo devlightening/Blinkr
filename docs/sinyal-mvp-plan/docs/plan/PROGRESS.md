@@ -7,10 +7,10 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz 3 — backend'e bağımlı olmayan alt maddeler bitti |
-| Son tamamlanan görev | P3.1/P3.2/P3.3/P3.4/P3.8 doğrulandı/tamamlandı |
+| Aktif faz | Faz 3 — backend'e bağımlı olmayan tüm alt maddeler bitti |
+| Son tamamlanan görev | P3.13 (harita aramasına Kişiler sekmesi eklendi) |
 | Son güncelleme | 2026-09-23 |
-| Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı; P3.13 (arama Yerler\|Kişiler) ayrı, bağımsız bir iş olarak açık. Sıradaki mantıklı adım: Faz 4'ün backend'i (yorum/beğeni uç noktaları) ya da P3.13. |
+| Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
 
 
 ## Faz 0 — Keşif ve denetim
@@ -142,16 +142,10 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
   "önemli kapsam notu"na bkz.: kök CLAUDE.md'nin "haritada yazar avatarı yok" kuralıyla çelişiyor).
 - [x] P3.4 supercluster entegrasyonu — zaten var (`mapClusters.ts`, `clusterMapPoints`), testli
   (`map-clusters.test.ts`).
-- [ ] P3.5 `CenterModal` + `SignalCard modal`: başlık, MediaCarousel (kırpmasız), TypeBadge, yer satırı, açıklama, HealthNotice, VerifyBar, ActionRow, yorum önizleme, yorum ekle alanı
-- [ ] P3.6 Açılış/kapanış animasyonu (pinden merkeze), aşağı kaydırarak kapatma, overlay + blur
-- [ ] P3.7 Kart içi yatay kaydırma (küme/yer sinyalleri), medya carousel önceliği
-- [ ] P3.8 Doğrulama akışı: Evet (optimistic), Değişti (seviye alt sayfası → yeni sinyal), uzaklık kontrolü ve pasif durum
-- [ ] P3.9 Tepki (çift dokunma ❤️, uzun basma ReactionBar), kaydet, paylaş sayfası, ⋯ menüsü (Bildir/Engelle/Sil)
-- [ ] P3.10 Realtime: `geo:` abonelikleri, yeni pin nabızla belirir, süresi dolan pin kaybolur; açık kart için `signal:` odası
-- [ ] P3.11 Görüntülenme toplu gönderimi
-- [ ] P3.12 Yer sayfası (04 §5): canlı durum, StatRow, takip et, yol tarifi, soru sor (UI + API), son sinyaller ızgarası, geçmiş
-- [ ] P3.13 Arama ekranı (Yerler | Kişiler), sonuçtan haritaya uçma
-
+- [ ] P3.5-P3.7, P3.9, P3.11-P3.12 (Sinyal Kartı yenileme — `CenterModal`, ActionRow/tepki, görüntülenme
+  sayacı, yer sayfasının Takip et/Soru sor kısmı) — **Faz 4/6/9'un backend'ine bağımlı, henüz yok**,
+  sahte veriyle inşa edilmeyecek. Yer sayfasının temel kısmı (canlı durum, yol tarifi) zaten mevcut
+  `PostDetailSheet` akışında var; yalnız "Takip et"/"Soru sor" gibi backend'i olmayan kısımlar eksik.
 - [x] P3.8 Doğrulama akışı (Evet/Değişti) — **zaten var**, bu oturumda doğrulandı. `PostDetailSheet.tsx`
   + `recheckSignal()` (`productPresentation.ts`): yalnız taze/yapılandırılmış canlı durumda "Hâlâ böyle
   mi?" sorusu, "Evet" composer'ı son adımda aynı değerle açıyor, "Değişti" sinyal adımından. Uzaklık
@@ -159,14 +153,16 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
   — **bilinçli, küçük bir UX eksiği**: sunucu zaten gerçek konumdan kararı tekrar hesaplıyor (`trust is
   server-owned`), yani yanlış davranış riski yok, yalnız uzaktaki biri butona basıp sunucudan ret alıyor
   (kaba bir hata yerine daha iyi bir UX olurdu). Küçük, ayrı bir iş olarak kalıyor.
-- [ ] P3.13 Arama ekranı (Yerler | Kişiler) — **kısmen var, gerçek bir boşluk bulundu.** `map/
-  MapSearchOverlay` yalnız Yer aramasını kapsıyor; kişi araması ayrı bir yerde var (sohbetin "Yeni
-  mesaj" akışı, `UserSearchSheet`) ama harita aramasına entegre değil. Sekmeli birleşik arama ekranı
-  henüz yok — bu oturumda yapılmadı, ayrı bir iş olarak kalıyor.
-- [ ] P3.5-P3.7, P3.9, P3.11-P3.12 (Sinyal Kartı yenileme, tepki/beğeni, görüntülenme sayacı, yer
-  sayfasının Takip et/Soru sor kısmı) — **Faz 4/6/9'un backend'ine bağımlı, henüz yok**, sahte veriyle
-  inşa edilmeyecek. Yer sayfasının temel kısmı (canlı durum, yol tarifi) zaten mevcut `PostDetailSheet`
-  akışında var; yalnız "Takip et"/"Soru sor" gibi backend'i olmayan kısımlar eksik.
+- [x] P3.13 Arama ekranı (Yerler | Kişiler) — **tamamlandı.** `map/MapSearchOverlay` artık iki sekmeli
+  (`ui/BlinkrSegmentedControl`): Yerler (değişmedi) ve Kişiler (yeni) — arkadaşlar önce (kısayol,
+  `UserSearchSheet`'teki desenle aynı: `listFriends`+`searchUsers`+`orderPeople`), gerçek arama, seçilen
+  kişi `friends/UserProfileSheet`'i açıyor (yeni `MapScreen`'de `searchProfileUser` state'i), oradan
+  "Mesaj gönder" `onMessageUser` → `App.tsx`'in zaten var olan `openChatWith` (Sohbet sekmesine geçiş +
+  hedef kullanıcı) ile Sohbet sekmesine taşıyor — yeni bir cross-tab mekanizma icat edilmedi, mevcut
+  desen (`ProfileScreen`'in zaten kullandığı) yeniden kullanıldı. `test:ui`'ye gerçek assertion'lar
+  eklendi (arkadaş kısayolu, arama, boş durum, sekmeler arası geçişte diğer sekmenin bozulmaması).
+  `typecheck`/`test:nearby`/`test:ui` yeşil; `expo export --platform ios/android` yeşil; tam backend
+  kabul paketi sıfır FAIL.
 
 ## Faz 4 — Gönderi detayı, yorumlar, medya görüntüleyici
 

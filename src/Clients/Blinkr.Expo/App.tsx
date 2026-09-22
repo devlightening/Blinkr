@@ -231,6 +231,7 @@ export default function App() {
                     onStartSnap={openSnapFlow}
                     onFocusHandled={clearFocusPlace}
                     onLogout={logout}
+                    onMessageUser={openChatWith}
                     onOpenProfile={() => setActiveTab('profile')}
                     onOverlayOpenChange={setMapOverlayOpen}
                   />
