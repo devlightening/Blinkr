@@ -7,10 +7,10 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz 2 (D-004 ile yeniden kapsamlandı) |
-| Son tamamlanan görev | P2.7 (sinyal TTL bug'ı düzeltildi) |
-| Son güncelleme | 2026-09-22 |
-| Engelleyici | — (D-005 ile çözüldü: P2.10 realtime gateway'e dokunulmuyor, REST polling korunuyor) |
+| Aktif faz | Faz 3 (harita/pin — yalnız backend'e bağımlı olmayan alt maddeler) |
+| Son tamamlanan görev | P3.2 (otomatik bbox yükleme, "Bu alanı tara"/"N görünür" kaldırıldı) |
+| Son güncelleme | 2026-09-23 |
+| Engelleyici | Faz 3'ün çoğu (Sinyal Kartı ActionRow/yorum) Faz 4 backend'ine bağımlı — bkz. Faz 3 başlığındaki kapsam notu. Bloklamıyor, yalnız sıralamayı belirliyor. |
 
 
 ## Faz 0 — Keşif ve denetim
@@ -96,10 +96,41 @@ gerekçenin özetidir; tam gerekçe için D-004'e bakın.
 
 ## Faz 3 — Harita, pinler, Sinyal Kartı
 
-- [ ] P3.1 Harita ekranı yeniden yerleşim: glass üst bar (arama, bildirim zili, avatar), filtre çipleri, konumuma dön, katmanlar sayfası, alt mini özet
-- [ ] P3.2 Otomatik bbox yükleme (debounce), "Bu alanı tara" ve "0 görünür" kaldırıldı; boş durum mini özette
-- [ ] P3.3 MapPin (FreshnessRing, tip ikonu, avatar varyantı, yaşlanma opaklığı, canlı nabız), ClusterPin, PlacePin
-- [ ] P3.4 supercluster entegrasyonu; zoom<12 sunucu kümeleri
+→ **Önemli kapsam notu:** Faz 3'ün büyük kısmı (§2 Sinyal Kartı'ndaki tepki/yorum/beğeni — ActionRow,
+CommentInput vb.) Faz 4'ün backend'ine (yorum/beğeni uç noktaları) bağımlı; o backend henüz yok. Aynı
+şekilde §1.1'deki StoryTray Faz 7'ye, "takip edilen kullanıcı avatarı pinde" Faz 6'ya bağımlı. Bu
+maddeler backend/özellik hazır olmadan sahte veriyle inşa edilmeyecek (kural: gerçek olmayan veriyi
+üretim ekranına sokma). Bu yüzden Faz 3 şimdilik yalnız **backend'e bağımlı olmayan, güvenle
+uygulanabilir** alt maddelerle ilerliyor; kalan alt maddeler ilgili backend fazı bittiğinde tamamlanacak.
+**Ayrıca gerçek bir çelişki bulundu:** plan §1.3 "Takip edilen kullanıcı / arkadaş sinyali: Pin içinde
+tip ikonu yerine kullanıcının avatarı" diyor — bu, kök CLAUDE.md §12.1'in "Avatar... harita pinlerinde
+yazar avatari YOKTUR (mahremiyet: anonim paylasimlar kisiye baglanamaz, surekli kisi takibi yapilmaz)"
+kuralıyla doğrudan çelişiyor. §2.3 pivot notu bu kuralı gevşetmedi. Bu madde uygulanmayacak; Faz 6'da
+takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
+
+- [~] P3.1 Harita ekranı yeniden yerleşim — **kısmen zaten var/kısmen bu oturumda tamamlandı.** Glass üst
+  bar (arama, avatar), katman çipleri, konumuma dön zaten vardı. Bildirim zili YOK (bildirim ekranı henüz
+  plan kapsamında yeniden tasarlanmadı, Faz 9'un işi). Filtre çipleri (Doluluk/Bekleme/... çoklu seçim)
+  henüz yok — bu ayrı, gerçek bir alt iş olarak kalıyor.
+- [x] P3.2 Otomatik bbox yükleme (debounce) — **tamamlandı.** Önceden harita hareket edince kullanıcı
+  elle "Bu alanı tara"ya basmak zorundaydı (`mapDirty` yalnız bayrak set ediyordu, hiçbir şey otomatik
+  yeniden yüklemiyordu). Artık `MapScreen.tsx`'te 400ms debounce'lu bir efekt viewport oturduğunda
+  (`mapDirty` ve `!isLoading`) otomatik `loadPlaces` çağırıyor — aynı `distanceMeters > 40m` eşiği
+  korunuyor, yani anlamsız küçük kaymalarda tekrar tekrar istek atılmıyor (kök CLAUDE.md §16/kural 10).
+  "Bu alanı tara" butonu ve her zaman görünen "N görünür" rozeti kaldırıldı (`MapTopChrome.tsx`); buton
+  artık yalnız gerçek bir yükleme hatası olduğunda (`Boolean(error) && mapDirty`) elle yeniden deneme
+  seçeneği olarak görünüyor — dayaniklilik kuralı "eski gecerli marker'lari... kucuk hata/retry durumu
+  gosterilir" burada korunuyor. **Boş durum mini özeti zaten vardı** (`emptyMap`: "Bu bölgede henüz taze
+  sinyal yok · İlk sinyali bırak") — bu oturumda dokunulmadı, plan'ın istediğiyle zaten örtüşüyordu.
+  `typecheck`/`test:nearby`/`test:ui` yeşil; `expo export --platform ios/android` yeşil.
+- [~] P3.3 MapPin (FreshnessRing, tip ikonu, yaşlanma opaklığı, canlı nabız), ClusterPin, PlacePin —
+  **büyük ölçüde zaten var, bu oturumda incelendi.** `MapMarkerVisuals.tsx`: tip ikonlu/tip renkli
+  pin, canlı durumda dolgun+parlayan+durum rozetli Place pin, sinyal balonunda ömür azaldıkça kısalan
+  halka (`ringDash`+`lifetimeFraction`), yaşlanma opaklığı (`freshnessOpacity`), heat-halolu cluster —
+  hepsi zaten `markerGeometry.ts`'te testli. **Avatar varyantı bilinçli olarak uygulanmadı** (yukarıdaki
+  "önemli kapsam notu"na bkz.: kök CLAUDE.md'nin "haritada yazar avatarı yok" kuralıyla çelişiyor).
+- [x] P3.4 supercluster entegrasyonu — zaten var (`mapClusters.ts`, `clusterMapPoints`), testli
+  (`map-clusters.test.ts`).
 - [ ] P3.5 `CenterModal` + `SignalCard modal`: başlık, MediaCarousel (kırpmasız), TypeBadge, yer satırı, açıklama, HealthNotice, VerifyBar, ActionRow, yorum önizleme, yorum ekle alanı
 - [ ] P3.6 Açılış/kapanış animasyonu (pinden merkeze), aşağı kaydırarak kapatma, overlay + blur
 - [ ] P3.7 Kart içi yatay kaydırma (küme/yer sinyalleri), medya carousel önceliği

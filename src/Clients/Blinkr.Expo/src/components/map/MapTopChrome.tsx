@@ -12,14 +12,16 @@ type Props = {
   userId: string;
   userName: string;
   avatarKey?: string | null;
-  /** Markers currently shown by the selected layer (places + coordinate signals). */
-  visibleCount: number;
   layer: MapLayer;
   onLayerChange: (layer: MapLayer) => void;
   onOpenProfile: () => void;
   /** Opens the full-screen "Nereye gidiyorsun?" search. */
   onOpenSearch: () => void;
-  /** "Bu alanı tara" appears only after the viewport moved away from the loaded data. */
+  /**
+   * "Bu alanı tara" is a manual fallback only — the viewport auto-loads once it settles
+   * (sinyal-mvp-plan 04 §1.2). This shows only when that auto-load actually failed, so there is
+   * still a way to retry; it is not offered on every pan any more.
+   */
   scanAvailable: boolean;
   isLoading: boolean;
   onScan: () => void;
@@ -31,7 +33,7 @@ type Props = {
 };
 
 /** Header, layer filter and the scan / locate row that float over the map. */
-export function MapTopChrome({ userId, userName, avatarKey, visibleCount, layer, onLayerChange, onOpenProfile, onOpenSearch, scanAvailable, isLoading, onScan, onLocate, topInset }: Props) {
+export function MapTopChrome({ userId, userName, avatarKey, layer, onLayerChange, onOpenProfile, onOpenSearch, scanAvailable, isLoading, onScan, onLocate, topInset }: Props) {
   return (
     <View pointerEvents="box-none" style={[styles.overlay, { paddingTop: Math.max(topInset, spacing.sm) }]}>
       <View style={styles.searchBar}>
@@ -56,11 +58,7 @@ export function MapTopChrome({ userId, userName, avatarKey, visibleCount, layer,
             <ActivityIndicator color={colors.primary} size="small" />
             <Text style={styles.loadingText}>Çevre güncelleniyor</Text>
           </View>
-        ) : (
-          <View style={styles.loadingBadge}>
-            <Text style={styles.loadingText}>{visibleCount} görünür</Text>
-          </View>
-        )}
+        ) : null}
         <AnimatedPressable accessibilityLabel="Konumuma git" accessibilityRole="button" onPress={onLocate} pressScale={0.95} style={styles.locateButton}>
           <Navigation2 color={colors.text} fill={colors.text} size={19} strokeWidth={2} />
         </AnimatedPressable>

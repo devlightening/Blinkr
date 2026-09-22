@@ -215,7 +215,6 @@ function MapChrome() {
         onOpenSearch={() => {}}
         userId="scene"
         userName="alper"
-        visibleCount={80}
       />
       <BlinkrBottomBar active={tab} chatUnread onShare={() => {}} onTab={setTab} />
     </View>

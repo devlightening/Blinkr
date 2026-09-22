@@ -309,6 +309,16 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
     if (moved && Date.now() > ignoreRegionChangeUntil.current) setMapDirty(true);
   }, []);
 
+  // Auto-load the viewport once it settles (sinyal-mvp-plan 04 §1.2: "Bu alanı tara" is no longer a
+  // required tap). Debounced so a long pan/zoom gesture does not fire a request per intermediate
+  // frame; only a genuinely settled, moved viewport (mapDirty) triggers it, and a request already in
+  // flight is left alone rather than piled on top of.
+  useEffect(() => {
+    if (!mapDirty || isLoading) return undefined;
+    const timer = setTimeout(() => { void loadPlaces(region, true, mapLayer === 'places'); }, 400);
+    return () => clearTimeout(timer);
+  }, [mapDirty, isLoading, region, mapLayer, loadPlaces]);
+
   const expandCluster = useCallback((item: { latitude: number; longitude: number; expansionZoom: number }) => {
     const longitudeDelta = zoomToLongitudeDelta(item.expansionZoom);
     const target: Region = {
@@ -834,13 +844,12 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
         onLocate={() => moveToDeviceLocation(true).catch((err) => setError(friendlyError(err)))}
         onOpenProfile={onOpenProfile}
         onScan={scanVisibleArea}
-        scanAvailable={mapDirty}
+        scanAvailable={Boolean(error) && mapDirty}
         avatarKey={auth.avatarKey}
         onOpenSearch={() => { setSearchOrigin({ latitude: currentRegion.current.latitude, longitude: currentRegion.current.longitude }); setSearchOpen(true); }}
         topInset={insets.top}
         userId={auth.userId}
         userName={auth.userName}
-        visibleCount={visibleItemCount}
       />
 
       {(success || error) && (
