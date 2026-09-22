@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 
-import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, CreateSignalInput, MediaKind, UnifiedMapResponse, PlacePresence, SnapOpenResult, UserSummary, AuthoredPost } from './types';
+import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, CreateSignalInput, MediaKind, UnifiedMapResponse, PlacePresence, SnapOpenResult, UserSummary, AuthoredPost, Friend, FriendRequests, MyProfile, PublicProfile, Relation, BlockedUser } from './types';
 import { resolveUploadContentType, safeUploadFileName } from './mediaContentType';
 
 type NearbyPlacesResponse = Array<BlinkrPlace & { distanceMeters?: number }> & {
@@ -277,8 +277,8 @@ export const getSignalContent = async (postId: string, signal?: AbortSignal) => 
 };
 
 /** `radiusMeters` defaults to the server's 1.5 km (composer); the map's "where to?" search asks for up to 30 km. */
-export const searchPlaces = (query: string, latitude: number, longitude: number, signal?: AbortSignal, radiusMeters?: number) =>
-  requestJson<BlinkrPlace[]>(`/api/places/search?${new URLSearchParams({ q: query, lat: String(latitude), lon: String(longitude), ...(radiusMeters ? { radiusMeters: String(radiusMeters) } : {}) })}`, { signal });
+export const searchPlaces = (query: string, latitude: number, longitude: number, signal?: AbortSignal, radiusMeters?: number, expand = false) =>
+  requestJson<BlinkrPlace[]>(`/api/places/search?${new URLSearchParams({ q: query, lat: String(latitude), lon: String(longitude), ...(radiusMeters ? { radiusMeters: String(radiusMeters) } : {}), ...(expand ? { expand: 'true' } : {}) })}`, { signal });
 
 export const previewPresence = (auth: AuthResponse, body: { placeId: string; latitude: number; longitude: number; accuracyMeters: number }, onAuthRefresh: (auth: AuthResponse) => void, onSessionExpired: () => void) =>
   requestJson<PlacePresence>('/api/posts/place-presence', { auth, body, method: 'POST', onAuthRefresh, onSessionExpired });
@@ -313,8 +313,10 @@ export const createSignal = async (
 export const searchUsers = (auth: AuthResponse, query: string, signal?: AbortSignal) =>
   requestJson<UserSummary[]>(`/api/users/search?${new URLSearchParams({ q: query })}`, { auth, signal });
 
-export const getMyPosts = async (
+/** A person's published signals, newest first. Anonymous ones only ever come back to their own author. */
+export const getUserPosts = async (
   auth: AuthResponse,
+  userId: string,
   page: number,
   pageSize: number,
   signal?: AbortSignal,
@@ -322,12 +324,75 @@ export const getMyPosts = async (
   onSessionExpired?: () => void,
 ) => {
   const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
-  const response = await request(`/api/posts-read/author/${auth.userId}?${query}`, { auth, onAuthRefresh, onSessionExpired, signal });
+  const response = await request(`/api/posts-read/author/${userId}?${query}`, { auth, onAuthRefresh, onSessionExpired, signal });
   if (!response.ok) throw new Error(await readError(response));
   const items = await response.json() as AuthoredPost[];
   const total = Number(response.headers.get('X-Total-Count'));
   return { items, total: Number.isFinite(total) ? total : items.length };
 };
+
+export const getMyPosts = (
+  auth: AuthResponse,
+  page: number,
+  pageSize: number,
+  signal?: AbortSignal,
+  onAuthRefresh?: (auth: AuthResponse) => void,
+  onSessionExpired?: () => void,
+) => getUserPosts(auth, auth.userId, page, pageSize, signal, onAuthRefresh, onSessionExpired);
+
+type Refresh = { onAuthRefresh?: (auth: AuthResponse) => void; onSessionExpired?: () => void };
+
+export const getMyProfile = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<MyProfile>('/api/users/me', { auth, signal, ...refresh });
+
+export const setMyBio = (auth: AuthResponse, bio: string | null, refresh: Refresh = {}) =>
+  requestJson<{ bio: string | null }>('/api/users/me/profile', { auth, body: { bio }, method: 'PUT', ...refresh });
+
+export const getPublicProfile = (auth: AuthResponse, userId: string, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<PublicProfile>(`/api/users/${userId}`, { auth, signal, ...refresh });
+
+export const listFriends = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<Friend[]>('/api/friends', { auth, signal, ...refresh });
+
+export const listFriendRequests = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<FriendRequests>('/api/friends/requests', { auth, signal, ...refresh });
+
+type RelationResult = { userId: string; relation: Relation };
+
+export const sendFriendRequest = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<RelationResult>('/api/friends/requests', { auth, body: { userId }, method: 'POST', ...refresh });
+
+export const acceptFriendRequest = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<RelationResult>(`/api/friends/requests/${userId}/accept`, { auth, method: 'POST', ...refresh });
+
+export const declineFriendRequest = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<RelationResult>(`/api/friends/requests/${userId}/decline`, { auth, method: 'POST', ...refresh });
+
+export const cancelFriendRequest = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<RelationResult>(`/api/friends/requests/${userId}`, { auth, method: 'DELETE', ...refresh });
+
+export const listBlocks = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<BlockedUser[]>('/api/blocks', { auth, signal, ...refresh });
+
+export const blockUser = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<RelationResult>('/api/blocks', { auth, body: { userId }, method: 'POST', ...refresh });
+
+export const unblockUser = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<RelationResult>(`/api/blocks/${userId}`, { auth, method: 'DELETE', ...refresh });
+
+/** Reports are stored for moderation; the same report twice is answered the same calm way. */
+export const sendReport = (
+  auth: AuthResponse,
+  report: { targetType: 'user' | 'signal'; targetId: string; reason: string; note?: string },
+  refresh: Refresh = {},
+) => requestJson<{ reported: boolean }>('/api/reports', { auth, body: report, method: 'POST', ...refresh });
+
+/** Up to 20 places by id with their current state: how the places a person saved are doing right now. */
+export const getPlacesByIds = (ids: string[], signal?: AbortSignal) =>
+  requestJson<BlinkrPlace[]>(`/api/places/batch?${new URLSearchParams({ ids: ids.slice(0, 20).join(',') })}`, { signal });
+
+export const removeFriend = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<RelationResult>(`/api/friends/${userId}`, { auth, method: 'DELETE', ...refresh });
 
 export const getUser = (
   auth: AuthResponse,

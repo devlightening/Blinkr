@@ -44,7 +44,7 @@ export function ShareHubSheet({ onClose, onCamera, onGallery, onSignalOnly, onSn
           <Option icon={<Camera color={colors.ink} size={22} />} onPress={onCamera} primary subtitle="Efektlerle fotoğraf çek veya video kaydet" title="Kamera" />
           <Option icon={<Images color={colors.mint} size={22} />} onPress={onGallery} subtitle="Arşivinden bir fotoğraf ya da video seç" title="Galeri" />
           <Option icon={<PenLine color={colors.mint} size={22} />} onPress={onSignalOnly} subtitle="Doluluk, sıra veya durum bilgisini yaz" title="Sadece sinyal" />
-          {onSnap ? <Option icon={<Send color={colors.mint} size={22} />} onPress={onSnap} subtitle="Arkadaşına bir kez izlenip kaybolan fotoğraf veya video" title="Snap gönder" /> : null}
+          {onSnap ? <Option icon={<Send color={colors.flare} size={22} />} onPress={onSnap} subtitle="Arkadaşına bir kez izlenip kaybolan bir fotoğraf gönder" title="Snap gönder" /> : null}
         </View>
       </BlinkrSheetPanel>
     </Sheet>

@@ -45,8 +45,8 @@ const styles = StyleSheet.create({
   row: { gap: spacing.md, paddingHorizontal: spacing.lg },
   item: { alignItems: 'center', gap: 4, minWidth: 60 },
   ring: { alignItems: 'center', borderColor: 'rgba(255, 255, 255, 0.35)', borderRadius: radii.pill, borderWidth: 2, height: 52, justifyContent: 'center', width: 52 },
-  ringSelected: { borderColor: colors.primary, borderWidth: 3 },
+  ringSelected: { borderColor: colors.flare, borderWidth: 3 },
   swatch: { borderRadius: radii.pill, height: 40, width: 40 },
-  name: { ...typography.caption, color: colors.textSecondary, fontWeight: '600' },
-  nameSelected: { color: colors.primary, fontWeight: '800' },
+  name: { ...typography.caption, color: 'rgba(255, 255, 255, 0.7)', fontWeight: '600' },
+  nameSelected: { color: colors.flare, fontWeight: '800' },
 });

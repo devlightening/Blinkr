@@ -21,7 +21,7 @@ const formatClock = (iso: string) => {
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 };
 
-export function ConversationScreen({ auth, conversation, otherUserName, otherAvatarKey, onAuthChange, onSessionExpired, onBack, onOpenSnap, onSendSnap }: {
+export function ConversationScreen({ auth, conversation, otherUserName, otherAvatarKey, onAuthChange, onSessionExpired, onBack, onOpenSnap, onSendSnap, onOpenProfile }: {
   auth: AuthResponse;
   conversation: Conversation;
   otherUserName: string;
@@ -29,6 +29,8 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
   otherAvatarKey?: string | null;
   onAuthChange: (auth: AuthResponse) => void;
   onBack: () => void;
+  /** Opens the other person's profile (block, report, friend actions live there). */
+  onOpenProfile?: () => void;
   /** Opens a waiting snap in the full-screen viewer. */
   onOpenSnap?: (messageId: string) => void;
   /** Opens the camera to send a snap to this person. */
@@ -105,8 +107,10 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
       <AnimatedPressable accessibilityLabel="Geri dön" accessibilityRole="button" onPress={onBack} pressScale={0.95} style={styles.back}>
         <ArrowLeft color={colors.text} size={22} />
       </AnimatedPressable>
-      <Avatar avatarKey={otherAvatarKey} seed={conversation.otherUserId} size={36} />
-      <Text accessibilityRole="header" numberOfLines={1} style={styles.heading}>{otherUserName}</Text>
+      <AnimatedPressable accessibilityLabel={`${otherUserName}, profili aç`} accessibilityRole="button" disabled={!onOpenProfile} onPress={() => onOpenProfile?.()} pressScale={0.98} style={styles.identity}>
+        <Avatar avatarKey={otherAvatarKey} seed={conversation.otherUserId} size={36} />
+        <Text accessibilityRole="header" numberOfLines={1} style={styles.heading}>{otherUserName}</Text>
+      </AnimatedPressable>
       {onSendSnap ? (
         <AnimatedPressable accessibilityLabel={`${otherUserName} kişisine Snap gönder`} accessibilityRole="button" onPress={onSendSnap} pressScale={0.95} style={styles.headerCamera}>
           <Camera color={colors.text} size={20} />
@@ -207,6 +211,7 @@ const styles = StyleSheet.create({
   heading: { ...typography.heading, color: colors.text, flex: 1, fontSize: 16, lineHeight: 21 },
   centerFill: { flex: 1, justifyContent: 'center' },
   listContent: { gap: 6, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  identity: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: spacing.sm, minHeight: 44 },
   headerCamera: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 38, justifyContent: 'center', width: 38 },
   cameraButton: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: sizes.touch - 4, justifyContent: 'center', width: sizes.touch - 4 },
   line: { alignItems: 'stretch', flexDirection: 'row', gap: spacing.md, paddingVertical: 3 },

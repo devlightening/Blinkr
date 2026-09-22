@@ -1,22 +1,28 @@
-import { Bookmark, Camera, EyeOff, Image as ImageIcon, LogOut, MapPin, Pencil, Radio, ShieldCheck } from 'lucide-react-native';
+import { Bookmark, Camera, LogOut, Pencil, Radio, Settings, ShieldCheck, Users } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getMyPosts } from '../api';
-import { formatAge, formatCategory, signalLabels } from '../presentation';
-import { friendlyError, signalValueLabel } from '../productPresentation';
+import { getMyPosts, getMyProfile, getPlacesByIds } from '../api';
+import { badgeText } from '../friends';
+import { formatAge, formatCategory } from '../presentation';
+import { friendlyError } from '../productPresentation';
 import { listSavedPlaces, toPlace, type SavedPlace } from '../savedPlaces';
-import { categoryTone, colors, radii, signalColors, sizes, spacing, typography } from '../theme';
-import type { AuthoredPost, AuthResponse, BlinkrPlace } from '../types';
+import { liveLookupIds, mergeLive, orderSavedByLive, type SavedLive } from '../savedLive';
+import { categoryTone, colors, radii, sizes, spacing, typography } from '../theme';
+import type { AuthoredPost, AuthResponse, BlinkrPlace, UserSummary } from '../types';
 import { AnimatedPressable } from './AnimatedPressable';
 import { Avatar } from './Avatar';
 import { AvatarPickerSheet } from './AvatarPickerSheet';
+import { EditProfileSheet } from './EditProfileSheet';
+import { FriendsScreen } from './friends/FriendsScreen';
 import { PlaceSymbol } from './PlaceSymbol';
-import { SignalSymbol } from './SignalSymbol';
+import { PostRow } from './PostRow';
+import { SettingsScreen } from './SettingsScreen';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { bottomBarClearance } from './ui/BlinkrBottomBar';
 import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
+import { SkeletonList } from './ui/BlinkrSkeleton';
 
 // 50 per page keeps the request count low, and the server refuses page numbers above 1000 (an abuse
 // guard), so 50 x 1000 = 50,000 posts stay reachable; 20 per page would strand posts past 20,000.
@@ -34,40 +40,18 @@ type Props = {
   onCreateSignal?: () => void;
   /** True while a sheet (avatar picker) covers the screen, so the tab bar can step aside. */
   onOverlayOpenChange?: (open: boolean) => void;
+  /** Opens a 1:1 conversation from a profile or the friends list. */
+  onMessageUser?: (user: UserSummary) => void;
+  /** Number of friend requests waiting for an answer (drives the dot on the Profil tab). */
+  onRequestsChange?: (waiting: number) => void;
 };
-
-function PostRow({ post }: { post: AuthoredPost }) {
-  const tone = signalColors[post.signalType] ?? colors.mint;
-  const expired = post.expiresAt ? Date.parse(post.expiresAt) < Date.now() : false;
-  const anonymous = post.identityDisclosure === 'AnonymousMap';
-  const value = signalValueLabel(post.signalType, post.signalValue);
-  return (
-    <View style={styles.post}>
-      <View style={styles.postIcon}><SignalSymbol color={tone} size={18} type={post.signalType} /></View>
-      <View style={styles.postBody}>
-        <View style={styles.postTop}>
-          <Text numberOfLines={1} style={styles.postTitle}>{post.title}</Text>
-          <Text style={styles.postAge}>{formatAge(post.createdAtUtc)}</Text>
-        </View>
-        {post.content ? <Text numberOfLines={2} style={styles.postText}>{post.content}</Text> : null}
-        <View style={styles.postMeta}>
-          <Text style={[styles.chip, { backgroundColor: `${tone}24`, color: tone }]}>{signalLabels[post.signalType] ?? 'Sinyal'}{value ? ` · ${value}` : ''}</Text>
-          {anonymous ? <View style={styles.chipRow}><EyeOff color={colors.textSecondary} size={12} /><Text style={styles.chipMuted}>Anonim</Text></View> : null}
-          {post.mediaUrls?.length ? <View style={styles.chipRow}><ImageIcon color={colors.textSecondary} size={12} /><Text style={styles.chipMuted}>{post.mediaUrls.length}</Text></View> : null}
-          {post.locationName ? <View style={styles.chipRow}><MapPin color={colors.textSecondary} size={12} /><Text numberOfLines={1} style={[styles.chipMuted, styles.place]}>{post.locationName}</Text></View> : null}
-          {expired ? <Text style={styles.chipMuted}>Sona erdi</Text> : <View style={styles.chipRow}><Radio color={colors.primary} size={12} /><Text style={styles.chipLive}>Canlı</Text></View>}
-        </View>
-      </View>
-    </View>
-  );
-}
 
 /**
  * Profile shows only what the app really knows: who is signed in, the places saved on this device,
  * the user's own posts (paged from the server, so thousands of them never freeze the screen) and the
  * privacy promise. Nothing here is decorative data.
  */
-export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCreateSignal, onOverlayOpenChange }: Props) {
+export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCreateSignal, onOverlayOpenChange, onMessageUser, onRequestsChange }: Props) {
   const insets = useSafeAreaInsets();
   const [saved, setSaved] = useState<SavedPlace[] | null>(null);
   const [savedError, setSavedError] = useState<string | null>(null);
@@ -77,6 +61,13 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [postsError, setPostsError] = useState<string | null>(null);
+  const [bio, setBio] = useState<string | null>(null);
+  const [friendCount, setFriendCount] = useState<number | null>(null);
+  const [incoming, setIncoming] = useState(0);
+  const [friendsOpen, setFriendsOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [live, setLive] = useState<Record<string, SavedLive | undefined>>({});
   const nextPage = useRef(1);
   const inFlight = useRef<AbortController | null>(null);
 
@@ -123,22 +114,48 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
     }
   }, [auth, onAuthChange, onLogout]);
 
+  // Bio and friend numbers come from the account; a failure keeps what is shown (they are not worth an error banner).
+  const loadProfile = useCallback(async () => {
+    try {
+      const mine = await getMyProfile(auth, undefined, { onAuthRefresh: onAuthChange, onSessionExpired: onLogout });
+      setBio(mine.bio ?? null);
+      setFriendCount(mine.friendCount);
+      setIncoming(mine.incomingRequestCount);
+      onRequestsChange?.(mine.incomingRequestCount);
+    } catch { /* keep the previous numbers */ }
+  }, [auth, onAuthChange, onLogout, onRequestsChange]);
+
+  // How the saved places are doing right now. A failed lookup keeps whatever was shown; it never blanks the list.
+  const loadLive = useCallback(async (places: SavedPlace[]) => {
+    const ids = liveLookupIds(places);
+    if (ids.length === 0) return;
+    let found: BlinkrPlace[] | null = null;
+    try { found = await getPlacesByIds(ids); } catch { found = null; }
+    setLive((current) => mergeLive(current, found, ids));
+  }, []);
+
   useEffect(() => { void loadSaved(); }, [loadSaved]);
+  useEffect(() => { if (saved && saved.length > 0) void loadLive(saved); }, [saved, loadLive]);
+  useEffect(() => { void loadProfile(); }, [auth.userId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { void loadPosts(true); return () => inFlight.current?.abort(); }, [auth.userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const reachable = nextPage.current <= MAX_PAGE;
   const hasMore = total !== null && posts.length < total && reachable;
   const capped = total !== null && posts.length < total && !reachable;
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const overlayOpen = avatarOpen || friendsOpen || editOpen || settingsOpen;
   useEffect(() => {
-    onOverlayOpenChange?.(avatarOpen);
+    onOverlayOpenChange?.(overlayOpen);
     return () => onOverlayOpenChange?.(false);
-  }, [avatarOpen, onOverlayOpenChange]);
+  }, [overlayOpen, onOverlayOpenChange]);
 
   const header = (
     <View style={styles.headerBlock}>
       <View style={[styles.topBar, { paddingTop: insets.top + spacing.md }]}>
         <Text accessibilityRole="header" style={styles.screenTitle}>Profil</Text>
+        <AnimatedPressable accessibilityLabel="Ayarlar" accessibilityRole="button" onPress={() => setSettingsOpen(true)} pressScale={0.92} style={styles.settingsButton}>
+          <Settings color={colors.text} size={22} />
+        </AnimatedPressable>
       </View>
 
       <View style={styles.identity}>
@@ -152,6 +169,10 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
               <Text accessibilityLabel={total === null ? 'Sinyal sayısı yükleniyor' : `${formatCount(total)} sinyal`} style={styles.statValue}>{total === null ? '–' : formatCount(total)}</Text>
               <Text style={styles.statLabel}>Sinyal</Text>
             </View>
+            <AnimatedPressable accessibilityLabel={friendCount === null ? 'Arkadaşlar' : `${friendCount} arkadaş, listeyi aç`} accessibilityRole="button" onPress={() => setFriendsOpen(true)} pressScale={0.95} style={styles.stat}>
+              <Text style={styles.statValue}>{friendCount === null ? '–' : formatCount(friendCount)}</Text>
+              <Text style={styles.statLabel}>Arkadaş</Text>
+            </AnimatedPressable>
             <View style={styles.stat}>
               <Text style={styles.statValue}>{saved ? saved.length : '–'}</Text>
               <Text style={styles.statLabel}>Kaydedilen</Text>
@@ -162,7 +183,24 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
           <Text accessibilityRole="header" numberOfLines={1} style={styles.name}>{auth.userName}</Text>
           <Text numberOfLines={1} style={styles.email}>{auth.email}</Text>
         </View>
-        <BlinkrButton label="Avatarı düzenle" onPress={() => setAvatarOpen(true)} style={styles.editButton} variant="secondary" />
+        {bio
+          ? <Text style={styles.bio}>{bio}</Text>
+          : (
+            <AnimatedPressable accessibilityLabel="Kendini kısaca tanıt" accessibilityRole="button" onPress={() => setEditOpen(true)} pressScale={0.99}>
+              <Text style={styles.bioEmpty}>Kendini kısaca tanıt…</Text>
+            </AnimatedPressable>
+          )}
+        <View style={styles.buttonRow}>
+          <BlinkrButton label="Profili düzenle" onPress={() => setEditOpen(true)} style={styles.flex} variant="secondary" />
+          <BlinkrButton
+            accessibilityLabel={incoming > 0 ? `Arkadaşlar, ${incoming} yeni istek` : 'Arkadaşlar'}
+            icon={<Users color={colors.text} size={16} />}
+            label={incoming > 0 ? `Arkadaşlar · ${badgeText(incoming)}` : 'Arkadaşlar'}
+            onPress={() => setFriendsOpen(true)}
+            style={styles.flex}
+            variant="secondary"
+          />
+        </View>
       </View>
 
       <View style={styles.group}>
@@ -172,7 +210,7 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
         </View>
 
         {saved === null ? (
-          <ActivityIndicator accessibilityLabel="Yükleniyor" color={colors.primary} style={styles.loading} />
+          <SkeletonList rows={2} style={styles.savedSkeleton} />
         ) : savedError ? (
           <View style={styles.inline}>
             <Text accessibilityRole="alert" style={styles.error}>{savedError}</Text>
@@ -187,8 +225,9 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
           />
         ) : (
           <View>
-            {saved.map((place) => {
+            {orderSavedByLive(saved, live).map((place) => {
               const tone = categoryTone(place.category);
+              const status = live[place.id];
               return (
                 <AnimatedPressable
                   accessibilityLabel={`${place.name}, haritada aç`}
@@ -204,6 +243,12 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
                   <View style={styles.rowCopy}>
                     <Text numberOfLines={1} style={styles.rowTitle}>{place.name}</Text>
                     <Text numberOfLines={1} style={styles.rowSub}>{formatCategory(place.category)}</Text>
+                    {status ? (
+                      <View style={styles.liveLine}>
+                        <Radio color={colors.primary} size={12} />
+                        <Text numberOfLines={1} style={styles.liveText}>Canlı · {status.headline}{status.observedAtUtc ? ` · ${formatAge(status.observedAtUtc)}` : ''}</Text>
+                      </View>
+                    ) : null}
                   </View>
                 </AnimatedPressable>
               );
@@ -270,12 +315,35 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
         maxToRenderPerBatch={10}
         onEndReached={() => { if (hasMore && !postsError) void loadPosts(false); }}
         onEndReachedThreshold={0.6}
-        refreshControl={<RefreshControl onRefresh={() => { setRefreshing(true); void loadSaved(); void loadPosts(true); }} refreshing={refreshing} tintColor={colors.mint} />}
+        refreshControl={<RefreshControl onRefresh={() => { setRefreshing(true); void loadSaved(); void loadProfile(); void loadPosts(true); }} refreshing={refreshing} tintColor={colors.mint} />}
         removeClippedSubviews
         renderItem={({ item }) => <PostRow post={item} />}
         showsVerticalScrollIndicator={false}
         windowSize={7}
       />
+      {friendsOpen ? (
+        <FriendsScreen
+          auth={auth}
+          initialTab={incoming > 0 ? 'requests' : 'friends'}
+          onAuthChange={onAuthChange}
+          onBack={() => { setFriendsOpen(false); void loadProfile(); }}
+          onCountsChange={({ friends, incoming: waiting }) => { setFriendCount(friends); setIncoming(waiting); onRequestsChange?.(waiting); }}
+          onMessage={(user) => { setFriendsOpen(false); onMessageUser?.(user); }}
+          onSessionExpired={onLogout}
+        />
+      ) : null}
+      {editOpen ? (
+        <EditProfileSheet
+          auth={auth}
+          bio={bio ?? ''}
+          onAuthChange={onAuthChange}
+          onChangeAvatar={() => { setEditOpen(false); setAvatarOpen(true); }}
+          onClose={() => setEditOpen(false)}
+          onSaved={setBio}
+          onSessionExpired={onLogout}
+        />
+      ) : null}
+      {settingsOpen ? <SettingsScreen auth={auth} onAuthChange={onAuthChange} onBack={() => setSettingsOpen(false)} onLogout={onLogout} onSessionExpired={onLogout} /> : null}
       {avatarOpen ? <AvatarPickerSheet auth={auth} onAuthChange={onAuthChange} onClose={() => setAvatarOpen(false)} onSessionExpired={onLogout} /> : null}
     </View>
   );
@@ -297,6 +365,14 @@ const styles = StyleSheet.create({
   statLabel: { ...typography.caption, color: colors.textSecondary },
   name: { ...typography.heading, color: colors.text },
   email: { ...typography.caption, color: colors.textSecondary },
+  settingsButton: { alignItems: 'center', height: sizes.touch, justifyContent: 'center', marginRight: -spacing.sm, width: sizes.touch },
+  savedSkeleton: { padding: spacing.lg },
+  liveLine: { alignItems: 'center', flexDirection: 'row', gap: 4, marginTop: 1 },
+  liveText: { ...typography.label, color: colors.primary, flexShrink: 1 },
+  bio: { ...typography.body, color: colors.text },
+  bioEmpty: { ...typography.body, color: colors.textSecondary },
+  buttonRow: { flexDirection: 'row', gap: spacing.sm },
+  flex: { flex: 1 },
   editButton: { minHeight: 36 },
   group: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, overflow: 'hidden' },
   groupHeader: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xs },
@@ -318,18 +394,5 @@ const styles = StyleSheet.create({
   postsHeading: { alignItems: 'baseline', flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
   postsTitle: { ...typography.heading, color: colors.text },
   postsCount: { ...typography.caption, color: colors.textSecondary },
-  post: { alignItems: 'flex-start', borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
-  postIcon: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.sm + 2, height: 36, justifyContent: 'center', width: 36 },
-  postBody: { flex: 1, gap: 3 },
-  postTop: { alignItems: 'baseline', flexDirection: 'row', gap: spacing.sm, justifyContent: 'space-between' },
-  postTitle: { ...typography.bodyStrong, color: colors.text, flexShrink: 1 },
-  postAge: { ...typography.label, color: colors.textSecondary, fontWeight: '400' },
-  postText: { ...typography.caption, color: colors.textSecondary },
-  postMeta: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: 2 },
-  chip: { ...typography.label, borderRadius: radii.sm, overflow: 'hidden', paddingHorizontal: 8, paddingVertical: 2 },
-  chipRow: { alignItems: 'center', flexDirection: 'row', gap: 4 },
-  chipMuted: { ...typography.label, color: colors.textSecondary, fontWeight: '400' },
-  chipLive: { ...typography.label, color: colors.primary },
-  place: { maxWidth: 140 },
   endText: { ...typography.caption, color: colors.textSecondary, paddingVertical: spacing.lg, textAlign: 'center' },
 });

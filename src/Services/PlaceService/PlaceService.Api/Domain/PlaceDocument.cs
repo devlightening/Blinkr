@@ -24,4 +24,8 @@ public sealed class PlaceDocument
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAtUtc { get; set; }
     public bool IsActive { get; set; } = true;
+
+    /// <summary>Folded name words for search (see PlaceSearchText). Null until the backfill has seen the document.</summary>
+    [BsonIgnoreIfNull]
+    public List<string>? SearchTokens { get; set; }
 }

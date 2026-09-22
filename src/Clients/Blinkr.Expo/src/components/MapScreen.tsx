@@ -16,7 +16,7 @@ import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { createSignal, getNearbyPlaces, getPlace, getUnifiedMapBounds, previewPresence, getSignalContent } from '../api';
+import { createSignal, getNearbyPlaces, getPlace, getUnifiedMapBounds, previewPresence, getSignalContent, sendReport } from '../api';
 import { friendlyError } from '../productPresentation';
 import { BlinkrMapMarker, BlinkrClusterMarker } from './BlinkrMapMarker';
 import { bottomBarClearance } from './ui/BlinkrBottomBar';
@@ -837,6 +837,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
         scanAvailable={mapDirty}
         avatarKey={auth.avatarKey}
         onOpenSearch={() => { setSearchOrigin({ latitude: currentRegion.current.latitude, longitude: currentRegion.current.longitude }); setSearchOpen(true); }}
+        topInset={insets.top}
         userId={auth.userId}
         userName={auth.userName}
         visibleCount={visibleItemCount}
@@ -888,6 +889,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
         onCreateSignal={() => openComposer(selectedDetail ?? selectedPlace)}
         // Confirming goes straight to the last step with the same value; "changed" asks for the new value.
         onRecheck={(mode, current) => openComposer(selectedDetail ?? selectedPlace, mode === 'confirm' ? 3 : 1, { type: current.type, value: mode === 'confirm' ? current.value : null })}
+        onReportSignal={async (postId, reason, note) => { await sendReport(auth, { targetType: 'signal', targetId: postId, reason, note }, { onAuthRefresh: onAuthChange, onSessionExpired: onLogout }); }}
         place={selectedDetail ?? selectedPlace}
         signal={selectedSignal}
         userId={auth.userId}

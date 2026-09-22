@@ -162,7 +162,8 @@ namespace IdentityService.Infrastructure.Services
                 UserId = user.Id,
                 UserName = user.UserName,
                 Email = user.Email,
-                AvatarKey = user.AvatarKey
+                AvatarKey = user.AvatarKey,
+                Bio = user.Bio
             };
         }
 

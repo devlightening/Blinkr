@@ -131,7 +131,7 @@ export function PhotoEditor({ photo, lensId, onLensChange, onRetake, onDone, sub
           loading={rendering}
           onPress={use}
           size="lg"
-          style={styles.use}
+          style={[styles.use, styles.flareButton]}
         />
       </View>
     </View>
@@ -153,4 +153,5 @@ const styles = StyleSheet.create({
   stickerLabel: { ...typography.caption, color: colors.text, fontWeight: '700' },
   error: { ...typography.caption, color: colors.danger, paddingHorizontal: spacing.lg },
   use: { marginHorizontal: spacing.lg },
+  flareButton: { backgroundColor: colors.flare },
 });

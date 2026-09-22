@@ -85,7 +85,8 @@ export function SnapFlow({ auth, request, recipients, onClose, onSent, onAuthCha
     }
   };
 
-  if (!asset) return <SignalCamera onCapture={setAsset} onClose={onClose} submitLabel="İleri" />;
+  // Snap is always a photo, taken and sent the same way you already know: tap to capture, no video option.
+  if (!asset) return <SignalCamera onCapture={setAsset} onClose={onClose} photoOnly submitLabel="İleri" />;
 
   return (
     <>

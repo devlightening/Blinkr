@@ -1,4 +1,4 @@
-import { colors, motion, radii, sizes, springs, typography } from '../src/theme';
+import { colors, motion, radii, resolveThemeMode, semanticColors, sizes, springs, typography } from '../src/theme';
 
 const channel = (value: number) => {
   const c = value / 255;
@@ -35,6 +35,8 @@ const readable: Array<[string, string, string]> = [
   ['primary on surfaceElevated', colors.primary, colors.surfaceElevated],
   ['text on own chat bubble', colors.text, '#1D3D33'],
   ['white on darkGreen (marker glyph, 3:1 large/graphic)', colors.white, colors.darkGreen],
+  ['ink on flare (camera/snap actions)', colors.ink, colors.flare],
+  ['flare on camera black', colors.flare, '#000000'],
 ];
 
 let failed = 0;
@@ -70,4 +72,11 @@ for (const [name, spring] of Object.entries(springs)) {
   const dampingRatio = spring.damping / (2 * Math.sqrt(spring.stiffness * spring.mass));
   guard(`spring "${name}" does not overshoot (damping ratio >= 0.9)`, dampingRatio >= 0.9, dampingRatio.toFixed(2));
 }
+// ---- P1.2 theme mode resolution: "system" follows the device; a null/unknown scheme never crashes into light.
+guard('an explicit preference always wins over the system scheme', resolveThemeMode('dark', 'light') === 'dark' && resolveThemeMode('light', 'dark') === 'light');
+guard('"system" follows a known device scheme', resolveThemeMode('system', 'light') === 'light' && resolveThemeMode('system', 'dark') === 'dark');
+guard('"system" with an unreported scheme (null/undefined) defaults to dark, not light', resolveThemeMode('system', null) === 'dark' && resolveThemeMode('system', undefined) === 'dark');
+guard('both palettes define every semantic token the same shape', JSON.stringify(Object.keys(semanticColors.dark).sort()) === JSON.stringify(Object.keys(semanticColors.light).sort()));
+guard('every semantic colour is a real colour string, not left blank', [...Object.values(semanticColors.dark), ...Object.values(semanticColors.light)].every((value) => typeof value === 'string' && value.length > 0));
+
 console.log('theme contrast tests passed');

@@ -3,7 +3,8 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { ArrowLeft, Search, UserRound } from 'lucide-react-native';
 
-import { searchUsers } from '../../api';
+import { listFriends, searchUsers } from '../../api';
+import { orderPeople, relationLabel } from '../../friends';
 import { friendlyError } from '../../productPresentation';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { colors, motion, radii, typography, sizes, spacing } from '../../theme';
@@ -19,6 +20,16 @@ export function UserSearchSheet({ auth, onBack, onSelect }: {
   const [results, setResults] = useState<UserSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [friends, setFriends] = useState<UserSummary[]>([]);
+
+  // Before anything is typed, the people you are most likely to message: your friends.
+  useEffect(() => {
+    const controller = new AbortController();
+    listFriends(auth, controller.signal)
+      .then((list) => { if (!controller.signal.aborted) setFriends(list.map((friend) => ({ id: friend.id, userName: friend.userName, avatarKey: friend.avatarKey, relation: 'friends' as const }))); })
+      .catch(() => { /* the search still works without the shortcut list */ });
+    return () => controller.abort();
+  }, [auth]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -29,7 +40,7 @@ export function UserSearchSheet({ auth, onBack, onSelect }: {
       try {
         const next = await searchUsers(auth, query.trim(), controller.signal);
         // You cannot start a conversation with yourself, so you are never offered as a result.
-        if (!controller.signal.aborted) setResults(next.filter((user) => user.id !== auth.userId));
+        if (!controller.signal.aborted) setResults(orderPeople(next.filter((user) => user.id !== auth.userId)));
       } catch (err) {
         if (!controller.signal.aborted) setError(friendlyError(err, 'Kullanıcılar aranamadı. Tekrar dene.'));
       } finally { if (!controller.signal.aborted) setLoading(false); }
@@ -64,11 +75,13 @@ export function UserSearchSheet({ auth, onBack, onSelect }: {
     {loading && <ActivityIndicator accessibilityLabel="Aranıyor" style={styles.progress} color={colors.primary} />}
     {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      {results.map((user) => (
+      {!searched && friends.length > 0 ? <Text style={styles.section}>Arkadaşların</Text> : null}
+      {(searched ? results : friends).map((user) => (
         <Animated.View entering={FadeIn.duration(motion.base)} key={user.id}>
           <AnimatedPressable accessibilityLabel={`${user.userName} ile mesajlaş`} accessibilityRole="button" onPress={() => onSelect(user)} pressScale={0.97} style={styles.row}>
             <Avatar avatarKey={user.avatarKey} seed={user.id} size={44} />
             <Text numberOfLines={1} style={styles.name}>{user.userName}</Text>
+            {searched && relationLabel(user.relation) ? <Text style={styles.relation}>{relationLabel(user.relation)}</Text> : null}
           </AnimatedPressable>
         </Animated.View>
       ))}
@@ -98,5 +111,7 @@ const styles = StyleSheet.create({
   name: { ...typography.bodyStrong, color: colors.text, flex: 1 },
   empty: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxl },
   emptyText: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
+  section: { ...typography.label, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md },
+  relation: { ...typography.label, color: colors.textSecondary },
   hint: { ...typography.caption, color: colors.textSecondary, paddingVertical: spacing.xl, textAlign: 'center' },
 });

@@ -16,13 +16,15 @@ public sealed class SendSnapHandler : IRequestHandler<SendSnapCommand, ChatMessa
     private readonly IChatMessageRepository _messages;
     private readonly ISnapStorage _storage;
     private readonly SnapSettings _settings;
+    private readonly IBlockGuard _blocks;
 
-    public SendSnapHandler(IConversationRepository conversations, IChatMessageRepository messages, ISnapStorage storage, SnapSettings settings)
+    public SendSnapHandler(IConversationRepository conversations, IChatMessageRepository messages, ISnapStorage storage, SnapSettings settings, IBlockGuard blocks)
     {
         _conversations = conversations;
         _messages = messages;
         _storage = storage;
         _settings = settings;
+        _blocks = blocks;
     }
 
     public async Task<ChatMessageDto> Handle(SendSnapCommand req, CancellationToken ct)
@@ -45,6 +47,7 @@ public sealed class SendSnapHandler : IRequestHandler<SendSnapCommand, ChatMessa
             ?? throw new ChatNotFoundException("Konuşma bulunamadı.");
         if (!conversation.ParticipantIds.Contains(req.UserId))
             throw new ChatForbiddenException("Bu konuşmaya erişimin yok.");
+        await _blocks.EnsureAllowedAsync(req.UserId, conversation.ParticipantIds.OtherParticipant(req.UserId), ct);
 
         // A photo without a timer would stay open forever; a video plays to its end.
         var duration = isVideo ? 0 : Math.Max(1, req.DurationSeconds);

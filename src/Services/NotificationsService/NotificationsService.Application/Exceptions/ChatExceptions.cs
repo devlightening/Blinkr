@@ -27,6 +27,12 @@ public sealed class ChatGoneException : ChatException
     public ChatGoneException(string code, string message) : base(code, message) { }
 }
 
+/// <summary>A dependency needed for a safety decision is down; HTTP 503. Chat fails closed rather than skip a block check.</summary>
+public sealed class ChatUnavailableException : ChatException
+{
+    public ChatUnavailableException() : base("CHAT_UNAVAILABLE", "Şu anda mesaj gönderilemiyor. Biraz sonra tekrar dene.") { }
+}
+
 public sealed class ChatNotFoundException : ChatException
 {
     public ChatNotFoundException(string message) : base("CHAT_CONVERSATION_NOT_FOUND", message) { }

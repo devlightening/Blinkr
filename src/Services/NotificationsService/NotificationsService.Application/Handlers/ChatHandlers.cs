@@ -12,7 +12,8 @@ namespace NotificationsService.Application.Handlers;
 public sealed class StartOrGetConversationHandler : IRequestHandler<StartOrGetConversationCommand, ConversationDto>
 {
     private readonly IConversationRepository _conversations;
-    public StartOrGetConversationHandler(IConversationRepository conversations) => _conversations = conversations;
+    private readonly IBlockGuard _blocks;
+    public StartOrGetConversationHandler(IConversationRepository conversations, IBlockGuard blocks) { _conversations = conversations; _blocks = blocks; }
 
     public async Task<ConversationDto> Handle(StartOrGetConversationCommand req, CancellationToken ct)
     {
@@ -21,6 +22,7 @@ public sealed class StartOrGetConversationHandler : IRequestHandler<StartOrGetCo
         if (req.UserId == req.TargetUserId)
             throw new ChatValidationException("Kendinle konuşma başlatılamaz.");
 
+        await _blocks.EnsureAllowedAsync(req.UserId, req.TargetUserId, ct);
         var conversation = await _conversations.GetOrCreateAsync(req.UserId, req.TargetUserId, ct);
         return conversation.ToDto(req.UserId);
     }
@@ -30,11 +32,13 @@ public sealed class SendMessageHandler : IRequestHandler<SendMessageCommand, Cha
 {
     private readonly IConversationRepository _conversations;
     private readonly IChatMessageRepository _messages;
+    private readonly IBlockGuard _blocks;
 
-    public SendMessageHandler(IConversationRepository conversations, IChatMessageRepository messages)
+    public SendMessageHandler(IConversationRepository conversations, IChatMessageRepository messages, IBlockGuard blocks)
     {
         _conversations = conversations;
         _messages = messages;
+        _blocks = blocks;
     }
 
     public async Task<ChatMessageDto> Handle(SendMessageCommand req, CancellationToken ct)
@@ -50,6 +54,7 @@ public sealed class SendMessageHandler : IRequestHandler<SendMessageCommand, Cha
 
         if (!conversation.ParticipantIds.Contains(req.UserId))
             throw new ChatForbiddenException("Bu konuşmaya erişimin yok.");
+        await _blocks.EnsureAllowedAsync(req.UserId, conversation.ParticipantIds.OtherParticipant(req.UserId), ct);
 
         var message = new ChatMessage
         {

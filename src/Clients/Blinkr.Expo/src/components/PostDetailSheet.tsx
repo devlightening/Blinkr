@@ -1,14 +1,16 @@
-import { Bookmark, Camera, Check, Clock3, Compass, Image as ImageIcon, MapPin, MessageCircle, RefreshCw, Share2, ShieldCheck, X } from 'lucide-react-native';
+import { Bookmark, Camera, Check, Clock3, Compass, Flag, Image as ImageIcon, MapPin, MessageCircle, RefreshCw, Share2, ShieldCheck, X } from 'lucide-react-native';
 import { ActivityIndicator, Alert, Image, Linking, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useEffect, useMemo, useState } from 'react';
 
 import { toAbsoluteUrl } from '../api';
-import { formatAge, formatCategory, formatDistance, signalLabels } from '../presentation';
+import { formatAge, formatCategory, formatDistance, meaningfulTitle, signalLabels } from '../presentation';
 import { isPlaceSaved, savePlace, unsavePlace } from '../savedPlaces';
 import { categoryTone, colors, radii, signalColors, spacing, typography } from '../theme';
 import type { BlinkrMedia, BlinkrPlace, CoordinateSignal, RecentSignal, SignalType } from '../types';
+import type { ReportReasonId } from '../friends';
 import { recheckSignal, signalValueLabel, trustLabel } from '../productPresentation';
 import { AnimatedPressable } from './AnimatedPressable';
+import { ReportPanel } from './ReportPanel';
 import { Sheet } from './Sheet';
 import { SignalSymbol } from './SignalSymbol';
 import { PlaceSymbol } from './PlaceSymbol';
@@ -18,6 +20,7 @@ import { BlinkrChip } from './ui/BlinkrChip';
 import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
 import { BlinkrSheetPanel } from './ui/BlinkrSheetPanel';
 import { BlinkrSignalCard } from './ui/BlinkrSignalCard';
+import { StatRow } from './ui/BlinkrStatRow';
 
 type Props = {
   isLoading: boolean;
@@ -25,6 +28,8 @@ type Props = {
   onCreateSignal: () => void;
   /** Answer to "Hâlâ böyle mi?": confirm the current value, or say it changed. Both open the composer pre-filled. */
   onRecheck?: (mode: 'confirm' | 'changed', signal: { type: SignalType; value: string }) => void;
+  /** Files a report about one signal (wrong or inappropriate content). Rejects with the failure to show. */
+  onReportSignal?: (postId: string, reason: ReportReasonId, note: string) => Promise<void>;
   place: BlinkrPlace | null;
   signal?: CoordinateSignal | null;
   /** Saved places are stored per user on this device. */
@@ -33,8 +38,9 @@ type Props = {
 
 const MAX_PHOTOS = 3;
 
+// The axis name ("güven") is the StatRow label, shown once; the value never repeats it (sinyal-mvp-plan AUDIT #1: "Orta güven güven").
 const formatConfidence = (label?: string | null) =>
-  label?.toUpperCase() === 'HIGH' ? 'Yüksek güven' : label?.toUpperCase() === 'MEDIUM' ? 'Orta güven' : 'Yeni sinyal';
+  label?.toUpperCase() === 'HIGH' ? 'Yüksek' : label?.toUpperCase() === 'MEDIUM' ? 'Orta' : 'Yeni';
 
 const formatFreshness = (freshness?: string | null) => {
   if (freshness?.toUpperCase() === 'FRESH') return 'Taze';
@@ -101,15 +107,14 @@ const ActionTile = ({ label, icon, onPress, accessibilityLabel, selected }: { la
   </AnimatedPressable>
 );
 
-const Stat = ({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) => (
-  <View style={styles.stat}>
-    {icon}
-    <Text numberOfLines={1} style={styles.statValue}>{value}</Text>
-    <Text numberOfLines={1} style={styles.statLabel}>{label}</Text>
-  </View>
+const ReportLink = ({ onPress }: { onPress: () => void }) => (
+  <AnimatedPressable accessibilityLabel="Bu sinyali bildir" accessibilityRole="button" onPress={onPress} pressScale={0.97} style={styles.reportLink}>
+    <Flag color={colors.textSecondary} size={14} />
+    <Text style={styles.reportText}>Bildir</Text>
+  </AnimatedPressable>
 );
 
-const SignalItem = ({ signal, index }: { signal: RecentSignal; index: number }) => {
+const SignalItem = ({ signal, index, onReport }: { signal: RecentSignal; index: number; onReport?: () => void }) => {
   const type = signal.signalType ?? 'GeneralObservation';
   const firstMedia = signal.media?.[0];
   return (
@@ -120,21 +125,26 @@ const SignalItem = ({ signal, index }: { signal: RecentSignal; index: number }) 
         media={firstMedia ? <MediaThumb media={firstMedia} style={styles.signalMedia} /> : undefined}
         signalType={type}
         text={signal.text}
-        title={signal.title || 'Yeni yer sinyali'}
+        title={meaningfulTitle(signal.title, signalLabels[type])}
         tone={signalColors[type] ?? colors.mint}
         trustLabel={trustLabel(signal.publicationTrust)}
         typeLabel={signalLabels[type] ?? 'Sinyal'}
       />
+      {onReport ? <ReportLink onPress={onReport} /> : null}
     </View>
   );
 };
 
-export function PostDetailSheet({ isLoading, onClose, onCreateSignal, onRecheck, place, signal, userId }: Props) {
+export function PostDetailSheet({ isLoading, onClose, onCreateSignal, onRecheck, onReportSignal, place, signal, userId }: Props) {
   const state = place?.currentState;
   const recheck = onRecheck ? recheckSignal(state) : null;
   const recentSignals = place?.recentSignals ?? [];
   const visible = Boolean(place || signal);
   const [saved, setSaved] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ postId: string; label: string } | null>(null);
+
+  // A different place or signal closes any half-filled report.
+  useEffect(() => { setReportTarget(null); }, [place?.id, signal?.postId]);
 
   useEffect(() => {
     let active = true;
@@ -162,7 +172,17 @@ export function PostDetailSheet({ isLoading, onClose, onCreateSignal, onRecheck,
 
   return (
     <Sheet onClose={onClose}>
-      {signal && !place && (
+      {reportTarget && onReportSignal ? (
+        <BlinkrSheetPanel maxHeightRatio={0.9}>
+          <ReportPanel
+            onDone={() => setReportTarget(null)}
+            onSubmit={(reason, note) => onReportSignal(reportTarget.postId, reason, note)}
+            subject={reportTarget.label}
+            target="signal"
+          />
+        </BlinkrSheetPanel>
+      ) : null}
+      {!reportTarget && signal && !place && (
         <BlinkrSheetPanel maxHeightRatio={0.88}>
           <View style={styles.header}>
             <View style={[styles.signalIcon, { borderColor: signalColors[signal.signalType] ?? colors.mint }]}>
@@ -188,15 +208,16 @@ export function PostDetailSheet({ isLoading, onClose, onCreateSignal, onRecheck,
                   : undefined}
               signalType={signal.signalType}
               text={signal.content ?? signal.textPreview}
-              title={signal.title || 'Yeni sinyal'}
+              title={meaningfulTitle(signal.title, signalLabels[signal.signalType ?? 'GeneralObservation'])}
               tone={signalColors[signal.signalType] ?? colors.mint}
               typeLabel={signalLabels[signal.signalType ?? 'GeneralObservation'] ?? 'Sinyal'}
             />
+            {onReportSignal && signal.postId ? <ReportLink onPress={() => setReportTarget({ postId: signal.postId, label: signal.title || 'Yaklaşık konum sinyali' })} /> : null}
           </ScrollView>
         </BlinkrSheetPanel>
       )}
 
-      {place && (
+      {!reportTarget && place && (
         <BlinkrSheetPanel maxHeightRatio={0.9}>
           <ScrollView showsVerticalScrollIndicator={false}>
             <PhotoRail signals={recentSignals} />
@@ -231,19 +252,15 @@ export function PostDetailSheet({ isLoading, onClose, onCreateSignal, onRecheck,
               </View>
             </View>
 
-            <View style={styles.stats}>
-              <Stat icon={<MessageCircle color={colors.mint} size={22} />} label="sinyal" value={String(state?.activeSignalCount ?? recentSignals.length)} />
-              <View style={styles.statDivider} />
-              <Stat icon={<Clock3 color={colors.mint} size={22} />} label="tazelik" value={formatFreshness(state?.freshness)} />
-              <View style={styles.statDivider} />
-              <Stat icon={<ShieldCheck color={colors.mint} size={22} />} label="güven" value={formatConfidence(state?.confidence)} />
-              {distance ? (
-                <>
-                  <View style={styles.statDivider} />
-                  <Stat icon={<MapPin color={colors.mint} size={22} />} label="uzaklık" value={distance} />
-                </>
-              ) : null}
-            </View>
+            <StatRow
+              items={[
+                { key: 'signals', icon: <MessageCircle color={colors.mint} size={22} />, label: 'sinyal', value: String(state?.activeSignalCount ?? recentSignals.length) },
+                { key: 'freshness', icon: <Clock3 color={colors.mint} size={22} />, label: 'tazelik', value: formatFreshness(state?.freshness) },
+                { key: 'confidence', icon: <ShieldCheck color={colors.mint} size={22} />, label: 'güven', value: formatConfidence(state?.confidence) },
+                ...(distance ? [{ key: 'distance', icon: <MapPin color={colors.mint} size={22} />, label: 'uzaklık', value: distance }] : []),
+              ]}
+              style={styles.stats}
+            />
 
             {recheck && onRecheck ? (
               <View style={styles.recheck}>
@@ -292,7 +309,7 @@ export function PostDetailSheet({ isLoading, onClose, onCreateSignal, onRecheck,
               />
             ) : (
               <View style={styles.signalList}>
-                {recentSignals.map((item, index) => <SignalItem index={index} key={item.postId} signal={item} />)}
+                {recentSignals.map((item, index) => <SignalItem index={index} key={item.postId} onReport={onReportSignal ? () => setReportTarget({ postId: item.postId, label: item.title || `${place.name} sinyali` }) : undefined} signal={item} />)}
               </View>
             )}
           </ScrollView>
@@ -324,11 +341,7 @@ const styles = StyleSheet.create({
   statusIcon: { alignItems: 'center', backgroundColor: colors.background, borderRadius: radii.md, height: 38, justifyContent: 'center', width: 38 },
   statusCopy: { flex: 1 },
   statusTitle: { ...typography.bodyStrong, color: colors.mint },
-  stats: { alignItems: 'stretch', backgroundColor: colors.background, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', marginTop: spacing.md, paddingVertical: spacing.md },
-  stat: { alignItems: 'center', flex: 1, gap: 2, paddingHorizontal: 4 },
-  statValue: { ...typography.bodyStrong, color: colors.text, fontSize: 15 },
-  statLabel: { ...typography.caption, color: colors.textSecondary },
-  statDivider: { backgroundColor: colors.border, width: 1 },
+  stats: { marginTop: spacing.md },
   // One row like the design: a wide lime CTA plus three fixed tiles. On very narrow screens the tiles
   // wrap under the CTA instead of squeezing its label.
   recheck: { backgroundColor: colors.background, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, gap: spacing.xs, marginTop: spacing.md, padding: spacing.md },
@@ -339,6 +352,8 @@ const styles = StyleSheet.create({
   primaryAction: { flexBasis: 146, flexGrow: 1, minWidth: 146, paddingHorizontal: 10 },
   actionTile: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, gap: 4, justifyContent: 'center', minHeight: 56, width: 54 },
   actionLabel: { ...typography.micro, color: colors.text },
+  reportLink: { alignItems: 'center', alignSelf: 'flex-end', flexDirection: 'row', gap: 4, minHeight: 36, paddingHorizontal: spacing.sm },
+  reportText: { ...typography.label, color: colors.textSecondary, fontWeight: '400' },
   sectionHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm, marginTop: spacing.lg },
   sectionLabel: { ...typography.heading, color: colors.text },
   sectionCount: { ...typography.caption, color: colors.textSecondary },

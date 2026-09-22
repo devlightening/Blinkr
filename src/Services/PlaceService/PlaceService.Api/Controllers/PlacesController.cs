@@ -35,6 +35,25 @@ public sealed class PlacesController : ControllerBase
         _logger = logger;
     }
 
+    /// <summary>
+    /// GET /api/places/batch?ids=a,b,c - up to 20 places by id with their current state. The app uses it to show how the
+    /// places a person saved are doing right now. Unknown or inactive ids are simply left out, order is not promised.
+    /// </summary>
+    [HttpGet("batch")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Batch([FromQuery] string? ids, CancellationToken ct)
+    {
+        const int MaxIds = 20;
+        var wanted = (ids ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(raw => Guid.TryParse(raw, out var id) ? id : Guid.Empty)
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .Take(MaxIds)
+            .ToList();
+        if (wanted.Count == 0) return Ok(Array.Empty<object>());
+        return Ok(await ToSummariesAsync(await _repository.GetManyAsync(wanted, ct), ct));
+    }
+
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
     public async Task<IActionResult> Get(Guid id, CancellationToken ct)
@@ -113,14 +132,31 @@ public sealed class PlacesController : ControllerBase
     /// can look at a neighbourhood they are about to go to.
     /// </summary>
     public async Task<IActionResult> Search([FromQuery] string q, [FromQuery] double lat,
-        [FromQuery] double lon, [FromQuery] int radiusMeters = DefaultSearchRadiusMeters, CancellationToken ct = default)
+        [FromQuery] double lon, [FromQuery] int radiusMeters = DefaultSearchRadiusMeters, [FromQuery] bool expand = false, CancellationToken ct = default)
     {
         if (ValidateGeo(lat, lon) is not null || !double.IsFinite(lat) || !double.IsFinite(lon))
             return BadRequest("Invalid origin.");
         if (string.IsNullOrWhiteSpace(q) || q.Length > 80) return BadRequest("Query must contain 1-80 characters.");
         radiusMeters = Math.Clamp(radiusMeters, 200, MaxSearchRadiusMeters);
         var limit = radiusMeters > DefaultSearchRadiusMeters * 2 ? 100 : 50;
-        var places = await _repository.SearchAsync(CategoryShortcut(q), lat, lon, radiusMeters, limit, ct);
+        var places = (await _repository.SearchAsync(CategoryShortcut(q), lat, lon, radiusMeters, limit, ct)).ToList();
+
+        // The map's "where to?" search (expand=true) never dead-ends: when the neighbourhood has few matches it also
+        // looks at the whole catalogue by name, and when there is nothing at all it rescues small typos.
+        if (expand)
+        {
+            var tokens = PlaceSearchText.QueryTokens(q);
+            if (places.Count < 10 && tokens.Any(t => t.Length >= 3))
+            {
+                var known = places.Select(p => p.Id).ToHashSet();
+                places.AddRange((await _repository.SearchByTokensAsync(tokens, 60, ct)).Where(p => known.Add(p.Id)));
+            }
+
+            var longest = tokens.OrderByDescending(t => t.Length).FirstOrDefault();
+            if (places.Count == 0 && longest is { Length: >= 4 })
+                places.AddRange(await _repository.SearchNearPrefixAsync(longest[..2], lat, lon, radiusMeters, 200, ct));
+        }
+
         return Ok(await ToNearbySummariesAsync(places, lat, lon, ct));
     }
 

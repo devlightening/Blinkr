@@ -112,6 +112,14 @@ anonymous posts belong to whom.
 
 `test-place-search.ps1` (BLK-SEARCH-01) checks the map search: wide radius, nearest first, everyday category words, Turkish dotted I, clamping and bad input.
 
+BLK-SEARCH-01 also proves search v2 against the real catalogue: a cafe about 1 km from the Adana test origin is found by its name (`soulmate`, `soul mate`, mixed case, without Turkish letters, one-letter typos such as `soulmte`), it ranks first inside 1.5 km, `expand=true` reaches other cities, and without `expand` the result stays local.
+
+`test-friends.ps1` (BLK-FRIENDS-01, 33 checks) covers friends and the public profile through the Gateway: request / idempotent re-request / accept / decline / cancel / remove, only the addressee can answer, asking back someone who asked you means yes, the 7-day cooldown after a decline, the `relation` on search and profile lookups, `/api/users/me` counts, the bio (trim, 160-character limit, clear), and privacy (a public profile has no e-mail, friend list or friend count, and nobody sees another person's friendships). It creates three throw-away users per run.
+
+`test-safety.ps1` (BLK-SAFETY-01, 33 checks) covers block and report through the Gateway: blocking ends the friendship, hides both people from each other in search and profiles (404 for the blocked person, "blocked" for the blocker), stops friend requests, and stops chat in both directions (existing conversation, new conversation, snaps) with a refusal that never says who blocked whom; unblocking restores chat but not the friendship; chat with everybody else is untouched; reports are accepted once per reporter and target, validated (reason, type, malformed signal id, 300-character note) and never let you report yourself. It creates three throw-away users per run and needs IdentityService and NotificationsService both running (chat asks Identity about blocks).
+
+`test-place-batch.ps1` (BLK-BATCH-01) checks `GET /api/places/batch`: real catalogue places come back in one call with their state, junk ids and repeats are ignored, no ids is an empty list, and 40 unknown ids are answered calmly.
+
 `test-avatar.ps1` (BLK-AVATAR-01) checks the avatar catalogue: a catalogue key is accepted and returned by login, user lookup and search, invalid keys (`999`, `abc`, `2533`, markup) are a 400 `INVALID_AVATAR` and change nothing, and `null` restores the default. It creates one throw-away user per run.
 
 `test-auth-registration.ps1` (BLK-AUTH-02) checks that registration keeps usernames and e-mails unique regardless of

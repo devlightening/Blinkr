@@ -1,3 +1,5 @@
+import { BricolageGrotesque_600SemiBold, BricolageGrotesque_700Bold } from '@expo-google-fonts/bricolage-grotesque';
+import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { BlinkrMark } from './src/components/BlinkrMark';
 import { useCallback, useEffect, useState } from 'react';
@@ -6,18 +8,23 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, Easing } from 'react-native-reanimated';
 
-import { clearAuth, listConversations, loadAuth, saveAuth } from './src/api';
+import { clearAuth, getMyProfile, listConversations, loadAuth, saveAuth } from './src/api';
 import { AuthScreen } from './src/components/AuthScreen';
 import { MapScreen } from './src/components/MapScreen';
 import { ChatListScreen } from './src/components/chat/ChatListScreen';
 import { NearbyScreen } from './src/components/NearbyScreen';
+import { OnboardingScreen } from './src/components/OnboardingScreen';
 import { ProfileScreen } from './src/components/ProfileScreen';
+import { ThemeProvider } from './src/components/ThemeProvider';
 import { BlinkrBottomBar, type BlinkrTab } from './src/components/ui/BlinkrBottomBar';
+import { hasSeenOnboarding, markOnboardingSeen } from './src/onboardingStore';
 import { colors } from './src/theme';
-import type { AuthResponse, BlinkrPlace, CoordinateSignal } from './src/types';
+import type { AuthResponse, BlinkrPlace, CoordinateSignal, UserSummary } from './src/types';
 
 // While Sohbet is not on screen the tab-bar dot is refreshed at this gentle interval, foreground only.
 const UNREAD_POLL_MS = 30_000;
+// Friend requests are slower news than messages.
+const REQUESTS_POLL_MS = 60_000;
 
 const PulsingMark = () => {
   const pulse = useSharedValue(1);
@@ -39,6 +46,11 @@ const PulsingMark = () => {
 };
 
 export default function App() {
+  // P1.3 (sinyal-mvp-plan): loading never blocks on this - `fontsSettled` is true whether the font
+  // loaded or genuinely failed, so a slow/broken font file can never strand someone on the splash
+  // screen. Text simply renders in the system font until (or unless) it settles true with `fontsLoaded`.
+  const [fontsLoaded, fontError] = useFonts({ BricolageGrotesque_600SemiBold, BricolageGrotesque_700Bold });
+  const fontsSettled = fontsLoaded || Boolean(fontError);
   const [auth, setAuth] = useState<AuthResponse | null>(null);
   const [isRestoring, setIsRestoring] = useState(true);
   const [activeTab, setActiveTab] = useState<BlinkrTab>('map');
@@ -50,6 +62,10 @@ export default function App() {
   const [chatUnread, setChatUnread] = useState(false);
   const [chatConversationOpen, setChatConversationOpen] = useState(false);
   const [profileOverlayOpen, setProfileOverlayOpen] = useState(false);
+  const [chatTarget, setChatTarget] = useState<UserSummary | null>(null);
+  const [requestsWaiting, setRequestsWaiting] = useState(false);
+  // null while the flag is being read; the introduction is shown once per signed-in person.
+  const [onboardingSeen, setOnboardingSeen] = useState<boolean | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -65,6 +81,19 @@ export default function App() {
       mounted = false;
     };
   }, []);
+
+  const userId = auth?.userId ?? null;
+  useEffect(() => {
+    if (!userId) { setOnboardingSeen(null); return undefined; }
+    let cancelled = false;
+    setOnboardingSeen(null);
+    void hasSeenOnboarding(userId).then((seen) => { if (!cancelled) setOnboardingSeen(seen); });
+    return () => { cancelled = true; };
+  }, [userId]);
+  const finishOnboarding = useCallback(() => {
+    setOnboardingSeen(true);
+    if (userId) void markOnboardingSeen(userId);
+  }, [userId]);
 
   // Stable identities: screens list these as effect dependencies, so a fresh function on every
   // App render used to restart their polling and loading state.
@@ -84,6 +113,9 @@ export default function App() {
     setMapOverlayOpen(false);
     setChatUnread(false);
     setChatConversationOpen(false);
+    setChatTarget(null);
+    setRequestsWaiting(false);
+    setProfileOverlayOpen(false);
     await clearAuth();
   }, []);
 
@@ -97,6 +129,12 @@ export default function App() {
     setSnapRequested(true);
   }, []);
   const clearSnapRequest = useCallback(() => setSnapRequested(false), []);
+  const openChatWith = useCallback((user: UserSummary) => {
+    setChatTarget(user);
+    setActiveTab('chat');
+  }, []);
+  const clearChatTarget = useCallback(() => setChatTarget(null), []);
+  const onRequestsChange = useCallback((waiting: number) => setRequestsWaiting(waiting > 0), []);
   const clearFocusPlace = useCallback(() => setFocusPlace(null), []);
   const clearFocusSignal = useCallback(() => setFocusSignal(null), []);
   const openNearbySignal = useCallback((signal: CoordinateSignal) => {
@@ -127,6 +165,24 @@ export default function App() {
     return () => { cancelled = true; clearInterval(timer); };
   }, [auth, activeTab, acceptAuth, logout]);
 
+  // Friend requests: while Profil is closed, look now and then so its dot shows a real waiting request.
+  useEffect(() => {
+    if (!auth || activeTab === 'profile') return undefined;
+    let cancelled = false;
+    const check = async () => {
+      if (AppState.currentState !== 'active') return;
+      try {
+        const mine = await getMyProfile(auth, undefined, { onAuthRefresh: acceptAuth, onSessionExpired: logout });
+        if (!cancelled) setRequestsWaiting(mine.incomingRequestCount > 0);
+      } catch {
+        // A failed check keeps the previous dot.
+      }
+    };
+    void check();
+    const timer = setInterval(check, REQUESTS_POLL_MS);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [auth, activeTab, acceptAuth, logout]);
+
   // Android back: leave Sohbet/Profil for the map before it would close the app. Sheets and the
   // open conversation register their own handlers later, so theirs run first.
   useEffect(() => {
@@ -138,8 +194,9 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.flex}>
       <SafeAreaProvider>
+      <ThemeProvider>
         <StatusBar style="light" />
-        {isRestoring
+        {isRestoring || !fontsSettled || (auth && onboardingSeen === null)
           ? (
             <View style={styles.loading}>
               <PulsingMark />
@@ -147,6 +204,8 @@ export default function App() {
               <ActivityIndicator color={colors.lime} size="small" style={styles.spinner} />
             </View>
           )
+          : auth && onboardingSeen === false
+            ? <OnboardingScreen onDone={finishOnboarding} />
           : auth
             ? (
               <View style={styles.flex}>
@@ -181,6 +240,8 @@ export default function App() {
                       snapRequested={snapRequested}
                       onSessionExpired={logout}
                       onUnreadChange={setChatUnread}
+                      onOpenWithHandled={clearChatTarget}
+                      openWith={chatTarget}
                     />
                   </View>
                 )}
@@ -191,12 +252,13 @@ export default function App() {
                 )}
                 {activeTab === 'profile' && (
                   <View style={styles.tabLayer}>
-                    <ProfileScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={openShare} onLogout={logout} onOpenPlace={openSavedPlace} onOverlayOpenChange={setProfileOverlayOpen} />
+                    <ProfileScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={openShare} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOverlayOpenChange={setProfileOverlayOpen} onRequestsChange={onRequestsChange} />
                   </View>
                 )}
                 <BlinkrBottomBar
                   active={activeTab}
                   chatUnread={chatUnread}
+                  profileDot={requestsWaiting}
                   hidden={(activeTab === 'map' && mapOverlayOpen) || (activeTab === 'chat' && chatConversationOpen) || (activeTab === 'profile' && profileOverlayOpen)}
                   onShare={openShare}
                   onTab={setActiveTab}
@@ -204,6 +266,7 @@ export default function App() {
               </View>
             )
             : <AuthScreen onAuthenticated={acceptAuth} />}
+      </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -1,5 +1,5 @@
 import {
-  CATEGORY_SHORTCUTS, MAX_RECENT_SEARCHES, addRecentSearch, foldSearchText, highlightSegments, isLiveResult, isSearchableQuery, rankPlaces, recentToPlace, scorePlace, toRecentSearch, type RecentSearch,
+  CATEGORY_SHORTCUTS, MAX_RECENT_SEARCHES, addRecentSearch, distanceTier, editDistance, foldSearchText, fuzzyMatches, isCategoryQuery, typoBudget, highlightSegments, isLiveResult, isSearchableQuery, rankPlaces, recentToPlace, scorePlace, toRecentSearch, type RecentSearch,
 } from '../src/placeSearch';
 import type { BlinkrPlace } from '../src/types';
 
@@ -19,24 +19,50 @@ run('scoring: exact > prefix > word prefix > contains > address/category', () =>
   check(scorePlace('meydan', p('Kent Meydanı')) === 70, 'word prefix');
   check(scorePlace('ydan', p('Kent Meydanı')) === 50, 'contains');
   check(scorePlace('bulvar', p('Sessiz Market', { displayAddress: 'Alparslan Türkeş Bulvarı' })) === 20, 'address');
-  check(scorePlace('eczane', p('Şifa', { category: 'PHARMACY' })) === 10, 'category word answered by the server');
+  check(scorePlace('eczane', p('Şifa', { category: 'PHARMACY' })) === 20, 'category word answered by the server');
+  check(scorePlace('zzz', p('Şifa', { category: 'PHARMACY' })) === 10, 'an accidental server match is noise');
+  check(scorePlace('soul mate', p('Soulmate Coffee')) === 55 && scorePlace('soulmate', p('Soul Mate Cafe')) === 55, 'joined and split spellings meet');
+  check(scorePlace('soulmte', p('Soulmate Coffee & Bakery')) === 40, 'a one-letter typo is still a good match');
   check(scorePlace('   ', p('Kent')) === 0, 'blank query');
   check(scorePlace('ECZANESİ', p('Kent Eczanesi')) === 70, 'Turkish capitals still match a word prefix');
 });
-run('ranking: best name first, then nearest; duplicates and junk dropped', () => {
+run('ranking: near tier first (best name, then nearest), then the city, then far away; junk dropped', () => {
   const ranked = rankPlaces('kent', [
     place('far-exact', 'Kent', 9000),
     place('near-contains', 'Şehirkent Market', 100),
     place('near-prefix', 'Kent Eczanesi', 400),
     place('near-prefix-2', 'Kent Meydanı', 200),
     place('far-exact', 'Kent', 9000),
+    place('other-city', 'Kent', 400_000),
     { ...place('', 'no id', 1) },
   ]);
-  check(ranked.map((item) => item.place.id).join() === 'far-exact,near-prefix-2,near-prefix,near-contains', `order: ${ranked.map((item) => item.place.id).join()}`);
+  check(ranked.map((item) => item.place.id).join() === 'near-prefix-2,near-prefix,near-contains,far-exact,other-city', `order: ${ranked.map((item) => item.place.id).join()}`);
+});
+run('a distant exact match never outranks a close partial one', () => {
+  const ranked = rankPlaces('soulmate', [place('exact-far', 'Soulmate', 300_000), place('partial-near', 'Soulmate Coffee & Bakery', 900)]);
+  check(ranked[0].place.id === 'partial-near', 'the cafe 900 m away comes first');
+});
+run('distances are measured from the person, not taken from the server', () => {
+  const near = { ...place('a', 'Kafe A', 999_999), latitude: 37.0311, longitude: 35.3157 };
+  const ranked = rankPlaces('kafe', [near], { origin: { latitude: 37.0306, longitude: 35.3157 } });
+  check(ranked[0].distanceMeters < 100 && distanceTier(ranked[0].distanceMeters) === 0, 'measured from the origin');
+});
+run('typos: edit distance, budgets and fuzzy matching', () => {
+  check(editDistance('soulmte', 'soulmate') === 1 && editDistance('soulmtae', 'soulmate') === 1 && editDistance('kitten', 'sitting') === 3, 'distance and transposition');
+  check(typoBudget(3) === 0 && typoBudget(5) === 1 && typoBudget(8) === 2, 'budget grows with length');
+  check(fuzzyMatches('soulmte', 'Soulmate Coffee') && fuzzyMatches('sulmate', 'Soulmate') && fuzzyMatches('kentt', 'Kent Meydanı'), 'typos still match');
+  check(!fuzzyMatches('kafe', 'Kale') && !fuzzyMatches('abc', 'Xyz') && !fuzzyMatches('', 'Kent'), 'short words and strangers do not');
+  check(fuzzyMatches('soulmt cof', 'Soulmate Coffee'), 'every typed word may carry a typo');
+});
+run('when a real match exists, accidental server matches are dropped; category queries keep theirs', () => {
+  const noisy = rankPlaces('soulmate', [place('good', 'Soulmate', 100), place('noise', 'Sultan Kebap', 50, { category: 'RESTAURANT' })]);
+  check(noisy.map((item) => item.place.id).join() === 'good', 'noise dropped');
+  const category = rankPlaces('eczane', [place('a', 'Şifa', 100, { category: 'PHARMACY' }), place('b', 'Kent Eczanesi', 200, { category: 'PHARMACY' })]);
+  check(category.length === 2 && isCategoryQuery('Eczane') && !isCategoryQuery('soulmate'), 'a pharmacy without "eczane" in its name still shows for "eczane"');
 });
 run('ranking is deterministic, caps the list and tolerates missing distances', () => {
   const many = Array.from({ length: 60 }, (_, index) => place(`p${index}`, `Kafe ${index}`, index));
-  check(rankPlaces('kafe', many).length === 30 && rankPlaces('kafe', many, 5).length === 5, 'limit');
+  check(rankPlaces('kafe', many).length === 30 && rankPlaces('kafe', many, { limit: 5 }).length === 5, 'limit');
   const a = rankPlaces('kafe', many).map((item) => item.place.id).join();
   const b = rankPlaces('kafe', [...many].reverse()).map((item) => item.place.id).join();
   check(a === b, 'input order must not change the ranking');

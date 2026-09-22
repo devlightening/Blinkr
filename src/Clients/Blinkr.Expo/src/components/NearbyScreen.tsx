@@ -16,6 +16,7 @@ import { SignalSymbol } from './SignalSymbol';
 import { bottomBarClearance } from './ui/BlinkrBottomBar';
 import { BlinkrChip } from './ui/BlinkrChip';
 import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
+import { SkeletonList } from './ui/BlinkrSkeleton';
 
 type Props = {
   /** Opens a Place with live state on the map, with its detail sheet. */
@@ -195,9 +196,9 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal }: Prop
     return (
       <View style={styles.screen}>
         {header}
-        <View style={styles.centerFill}>
-          <ActivityIndicator accessibilityLabel="Yükleniyor" color={colors.primary} />
-          <Text style={styles.status}>{phase === 'locating' ? 'Konumun alınıyor…' : phase === 'loading' ? 'Çevren taranıyor…' : ''}</Text>
+        <View style={styles.loadingBlock}>
+          <Text accessibilityLiveRegion="polite" style={styles.status}>{phase === 'locating' ? 'Konumun alınıyor…' : phase === 'loading' ? 'Çevren taranıyor…' : ''}</Text>
+          <SkeletonList rows={4} variant="card" />
         </View>
       </View>
     );
@@ -286,6 +287,7 @@ const styles = StyleSheet.create({
   title: { ...typography.headline, color: colors.text },
   subtitle: { ...typography.caption, color: colors.textSecondary },
   centerFill: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center' },
+  loadingBlock: { gap: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   status: { ...typography.caption, color: colors.textSecondary },
   filterScroll: { flexGrow: 0 },
   filters: { gap: spacing.sm, paddingBottom: spacing.md, paddingHorizontal: spacing.lg },

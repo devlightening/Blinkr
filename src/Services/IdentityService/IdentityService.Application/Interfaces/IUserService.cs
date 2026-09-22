@@ -18,5 +18,8 @@ namespace IdentityService.Application.Interfaces
         public string UserName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string? AvatarKey { get; set; }
+        public string? Bio { get; set; }
+        public int FriendCount { get; set; }
+        public int IncomingRequestCount { get; set; }
     }
 }

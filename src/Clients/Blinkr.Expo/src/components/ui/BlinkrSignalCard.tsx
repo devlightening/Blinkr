@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, radii, spacing, typography } from '../../theme';
 import type { SignalType } from '../../types';
-import { SignalSymbol } from '../SignalSymbol';
+import { TypeBadge } from './BlinkrTypeBadge';
 
 type Props = {
   signalType?: SignalType | null;
@@ -34,10 +34,7 @@ export function BlinkrSignalCard({ signalType, tone, typeLabel, ageLabel, title,
       </View>
       <View style={styles.body}>
         <View style={styles.copy}>
-          <View style={[styles.badge, { borderColor: tone }]}>
-            <SignalSymbol color={tone} size={14} type={signalType} />
-            <Text style={[styles.badgeText, { color: tone }]}>{typeLabel}</Text>
-          </View>
+          <TypeBadge signalType={signalType} tone={tone} typeLabel={typeLabel} />
           {title ? <Text style={styles.title}>{title}</Text> : null}
           {text ? <Text style={styles.text}>{text}</Text> : null}
         </View>
@@ -57,8 +54,6 @@ const styles = StyleSheet.create({
   meta: { ...typography.caption, color: colors.textSecondary },
   body: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.md },
   copy: { flex: 1, gap: spacing.sm },
-  badge: { alignItems: 'center', alignSelf: 'flex-start', borderRadius: radii.pill, borderWidth: 1, flexDirection: 'row', gap: 5, paddingHorizontal: 9, paddingVertical: 3 },
-  badgeText: { ...typography.label, letterSpacing: 0 },
   title: { ...typography.heading, color: colors.text, fontSize: 16, lineHeight: 21 },
   text: { ...typography.body, color: colors.textSecondary },
   media: { borderRadius: radii.md, overflow: 'hidden' },

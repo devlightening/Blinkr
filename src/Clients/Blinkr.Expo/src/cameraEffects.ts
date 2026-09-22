@@ -74,9 +74,12 @@ const FLASH_ORDER: FlashMode[] = ['off', 'on', 'auto'];
 export const nextFlash = (mode: FlashMode): FlashMode => FLASH_ORDER[(FLASH_ORDER.indexOf(mode) + 1) % FLASH_ORDER.length];
 export const flashLabel = (mode: FlashMode) => (mode === 'on' ? 'Flaş açık' : mode === 'auto' ? 'Flaş otomatik' : 'Flaş kapalı');
 
-/** Zoom presets shown as 1x / 2x; expo-camera zoom is a 0..1 fraction of the device maximum. */
-export const ZOOM_PRESETS = [{ label: '1x', value: 0 }, { label: '2x', value: 0.25 }] as const;
+/** expo-camera zoom is a 0..1 fraction of the device maximum; people pinch to change it. */
 export const clampZoom = (value: number) => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
+
+/** A friendly "1.0x".."5.0x" readout for the zoom pill. Cosmetic only - the real optical range differs per device. */
+const ZOOM_LABEL_SPAN = 4;
+export const zoomMultiplierLabel = (zoom: number) => `${(1 + clampZoom(zoom) * ZOOM_LABEL_SPAN).toFixed(1)}x`;
 
 /** Keeps a sticker centre inside the picture so it can always be grabbed again. */
 export const clampToFrame = (value: number, size: number, margin = 24) => Math.min(size - margin, Math.max(margin, value));

@@ -10,9 +10,10 @@ $ErrorActionPreference = "Stop"
 $script:failures = New-Object System.Collections.Generic.List[string]
 
 function Get-Search {
-    param([string]$Query, [double]$Lat = 37.0742, [double]$Lon = 36.2478, $Radius = $null)
+    param([string]$Query, [double]$Lat = 37.0742, [double]$Lon = 36.2478, $Radius = $null, [switch]$Expand)
     $uri = "$GatewayBaseUrl/api/places/search?q=$([uri]::EscapeDataString($Query))&lat=$Lat&lon=$Lon"
     if ($null -ne $Radius) { $uri += "&radiusMeters=$Radius" }
+    if ($Expand) { $uri += "&expand=true" }
     $status = 0; $raw = ""
     try { $r = Invoke-WebRequest -UseBasicParsing -Uri $uri -TimeoutSec 30; $status = [int]$r.StatusCode; $raw = [string]$r.Content }
     catch {
@@ -67,6 +68,25 @@ $blank = Get-Search -Query "  "
 Check "a blank query is a 400" ($blank.Status -eq 400)
 $badOrigin = Get-Search -Query "kafe" -Lat 999 -Lon 36
 Check "an impossible origin is a 400" ($badOrigin.Status -eq 400)
+
+# ---- the map search never dead-ends: folding, joined words, nationwide fallback, typo rescue
+$adana = @{ Lat = 37.0306; Lon = 35.3157 }   # a Soulmate cafe is right here
+$istanbul = @{ Lat = 41.0082; Lon = 28.9784 }
+$soul = Get-Search -Query 'soulmate' -Lat $adana.Lat -Lon $adana.Lon -Radius 30000 -Expand
+Check 'a cafe 0-1 km away is found by its name and ranks first' ($soul.Items.Count -gt 0 -and $soul.Items[0].name -match '(?i)soulmate' -and $soul.Items[0].distanceMeters -lt 1500) "first: $($soul.Items[0].name) at $($soul.Items[0].distanceMeters) m"
+$spaced = Get-Search -Query 'soul mate' -Lat $adana.Lat -Lon $adana.Lon -Radius 30000 -Expand
+Check 'a query typed with a space finds a name written as one word' ($spaced.Items.Count -gt 0 -and @($spaced.Items | Where-Object { $_.name -match '(?i)soul\s*mate' }).Count -gt 0)
+$upper = Get-Search -Query 'SOULMATE' -Lat $adana.Lat -Lon $adana.Lon -Radius 30000 -Expand
+Check 'the query is case-insensitive' ($upper.Items.Count -eq $soul.Items.Count)
+$sIfa = [string][char]0x15F
+$noTurkish = Get-Search -Query 'sifa' -Radius 30000 -Expand
+Check 'Turkish characters can be left out (sifa finds the pharmacy with a dotted name)' (@($noTurkish.Items | Where-Object { $_.name -match "(?i)(s|$sIfa)ifa" }).Count -gt 0) "count $($noTurkish.Items.Count)"
+$far = Get-Search -Query 'soulmate' -Lat $istanbul.Lat -Lon $istanbul.Lon -Radius 30000 -Expand
+Check 'when the neighbourhood has no match the whole catalogue is searched' ($far.Items.Count -gt 0 -and ($far.Items | Measure-Object distanceMeters -Maximum).Maximum -gt 100000) "count $($far.Items.Count)"
+$plain = Get-Search -Query 'soulmate' -Lat $istanbul.Lat -Lon $istanbul.Lon -Radius 30000
+Check 'without expand the search stays local (composer contract)' ($plain.Items.Count -eq 0)
+$typo = Get-Search -Query 'soulmte' -Lat $adana.Lat -Lon $adana.Lon -Radius 30000 -Expand
+Check 'a small typo still returns the candidates (soulmte)' (@($typo.Items | Where-Object { $_.name -match '(?i)soulmate' }).Count -gt 0) "count $($typo.Items.Count)"
 
 if ($script:failures.Count -gt 0) {
     Write-Host "`nFAIL BLK-SEARCH-01: $($script:failures.Count) check(s) failed" -ForegroundColor Red

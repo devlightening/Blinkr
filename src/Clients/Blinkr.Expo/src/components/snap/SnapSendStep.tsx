@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, Play, Timer, UserPlus } from 'lucide-react-native';
+import { Check, ChevronLeft, Timer, UserPlus } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ import { BlinkrButton } from '../ui/BlinkrButton';
 export type SnapRecipient = { id: string; name: string; userId: string; avatarKey?: string | null };
 
 type Props = {
+  /** Always a photo: Snap is sent as a photo only, the same as the camera it comes from. */
   asset: CapturedMedia;
   recipients: SnapRecipient[];
   /** Conversation ids that will receive the snap (owned by the parent so a retry keeps the caption). */
@@ -28,14 +29,13 @@ type Props = {
 };
 
 /**
- * The last step before a snap leaves: type a short caption, pick how long it can be looked at (photos), choose who
+ * The last step before a snap leaves: type a short caption, pick how long it can be looked at, choose who
  * gets it, send. The picture itself is already final (lens and stickers were baked in by the camera).
  */
 export function SnapSendStep({ asset, recipients, selected, onSelectedChange, fixedRecipient = null, sending, error, onBack, onAddPerson, onSend }: Props) {
   const insets = useSafeAreaInsets();
   const [caption, setCaption] = useState('');
   const [timer, setTimer] = useState(DEFAULT_TIMER);
-  const isVideo = asset.type === 'video';
   const firstName = useMemo(() => recipients.find((item) => item.id === selected[0])?.name ?? fixedRecipient?.name, [recipients, selected, fixedRecipient]);
   const disabled = selected.length === 0 || sending;
 
@@ -46,18 +46,14 @@ export function SnapSendStep({ asset, recipients, selected, onSelectedChange, fi
           <ChevronLeft color={colors.text} size={24} />
         </AnimatedPressable>
         <Text accessibilityRole="header" style={styles.title}>Snap gönder</Text>
-        {isVideo ? <View style={styles.round} /> : (
-          <AnimatedPressable accessibilityLabel={`Süre ${timerLabel(timer)}, değiştir`} accessibilityRole="button" disabled={sending} onPress={() => setTimer(nextTimer(timer))} pressScale={0.95} style={styles.timerChip}>
-            <Timer color={colors.text} size={16} />
-            <Text style={styles.timerText}>{timerLabel(timer)}</Text>
-          </AnimatedPressable>
-        )}
+        <AnimatedPressable accessibilityLabel={`Süre ${timerLabel(timer)}, değiştir`} accessibilityRole="button" disabled={sending} onPress={() => setTimer(nextTimer(timer))} pressScale={0.95} style={styles.timerChip}>
+          <Timer color={colors.flare} size={16} />
+          <Text style={styles.timerText}>{timerLabel(timer)}</Text>
+        </AnimatedPressable>
       </View>
 
       <View style={styles.preview}>
-        {isVideo
-          ? <View style={styles.videoTile}><Play color={colors.text} size={30} /><Text style={styles.videoText}>Video hazır</Text></View>
-          : <Image accessibilityLabel="Snap önizleme" resizeMode="cover" source={{ uri: asset.uri }} style={StyleSheet.absoluteFill} />}
+        <Image accessibilityLabel="Snap önizleme" resizeMode="cover" source={{ uri: asset.uri }} style={StyleSheet.absoluteFill} />
         <View pointerEvents="box-none" style={styles.captionWrap}>
           <TextInput
             accessibilityLabel="Snap yazısı"
@@ -77,7 +73,7 @@ export function SnapSendStep({ asset, recipients, selected, onSelectedChange, fi
             <Text style={styles.recipientsTitle}>Kime?</Text>
             {onAddPerson ? (
               <AnimatedPressable accessibilityLabel="Yeni kişi ekle" accessibilityRole="button" onPress={onAddPerson} pressScale={0.97} style={styles.addPerson}>
-                <UserPlus color={colors.primary} size={16} />
+                <UserPlus color={colors.flare} size={16} />
                 <Text style={styles.addPersonText}>Yeni kişi</Text>
               </AnimatedPressable>
             ) : null}
@@ -113,8 +109,9 @@ export function SnapSendStep({ asset, recipients, selected, onSelectedChange, fi
           disabled={disabled}
           label={sendButtonLabel(selected.length, firstName)}
           loading={sending}
-          onPress={() => onSend(selected, { caption: cleanCaption(caption), durationSeconds: isVideo ? 0 : timer })}
+          onPress={() => onSend(selected, { caption: cleanCaption(caption), durationSeconds: timer })}
           size="lg"
+          style={!disabled && styles.flareButton}
         />
       </View>
     </KeyboardAvoidingView>
@@ -129,21 +126,20 @@ const styles = StyleSheet.create({
   timerChip: { alignItems: 'center', backgroundColor: 'rgba(32, 38, 43, 0.85)', borderRadius: radii.pill, flexDirection: 'row', gap: 6, height: 40, paddingHorizontal: spacing.md },
   timerText: { ...typography.bodyStrong, color: colors.text, fontVariant: ['tabular-nums'] },
   preview: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.lg, flex: 1, justifyContent: 'flex-end', marginHorizontal: spacing.md, marginVertical: spacing.md, overflow: 'hidden' },
-  videoTile: { ...StyleSheet.absoluteFill, alignItems: 'center', gap: spacing.sm, justifyContent: 'center' },
-  videoText: { ...typography.bodyStrong, color: colors.text },
   captionWrap: { bottom: spacing.xl, left: 0, position: 'absolute', right: 0 },
   caption: { ...typography.body, backgroundColor: 'rgba(0, 0, 0, 0.55)', color: colors.text, minHeight: 44, paddingHorizontal: spacing.lg, textAlign: 'center', width: '100%' },
   recipients: { maxHeight: 210, paddingHorizontal: spacing.md },
   recipientsHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   recipientsTitle: { ...typography.heading, color: colors.text, fontSize: 16, lineHeight: 21 },
   addPerson: { alignItems: 'center', flexDirection: 'row', gap: 6, minHeight: 36 },
-  addPersonText: { ...typography.bodyStrong, color: colors.primary },
+  addPersonText: { ...typography.bodyStrong, color: colors.flare },
   recipientList: { paddingBottom: spacing.sm },
   empty: { ...typography.caption, color: colors.textSecondary, paddingVertical: spacing.md },
   recipient: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: 52 },
   recipientName: { ...typography.bodyStrong, color: colors.text, flex: 1 },
   check: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 2, height: 22, justifyContent: 'center', width: 22 },
-  checkOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  checkOn: { backgroundColor: colors.flare, borderColor: colors.flare },
   bottom: { gap: spacing.sm, paddingHorizontal: spacing.md, paddingTop: spacing.sm },
   error: { ...typography.caption, color: colors.danger, textAlign: 'center' },
+  flareButton: { backgroundColor: colors.flare },
 });

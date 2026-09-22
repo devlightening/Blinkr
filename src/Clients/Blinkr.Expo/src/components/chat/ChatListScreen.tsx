@@ -1,17 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Camera, MessageCircle, SquarePen, WifiOff } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getUser, listConversations, startConversation } from '../../api';
+import { getUser, listBlocks, listConversations, startConversation } from '../../api';
 import { formatAge } from '../../presentation';
 import { friendlyError } from '../../productPresentation';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Sheet } from '../Sheet';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
+import { SkeletonList } from '../ui/BlinkrSkeleton';
 import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
 import { bottomBarClearance } from '../ui/BlinkrBottomBar';
+import { UserProfileSheet } from '../friends/UserProfileSheet';
 import { UserSearchSheet } from './UserSearchSheet';
 import { ConversationScreen } from './ConversationScreen';
 import { colors, motion, radii, spacing, typography } from '../../theme';
@@ -46,11 +48,18 @@ type Props = {
   /** One-shot request from the share hub: start a new snap (camera, then recipients). */
   snapRequested?: boolean;
   onSnapHandled?: () => void;
+  /** One-shot request from a profile: open (or start) the conversation with this person. */
+  openWith?: UserSummary | null;
+  onOpenWithHandled?: () => void;
 };
 
-export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadChange, onConversationOpenChange, snapRequested = false, onSnapHandled }: Props) {
+export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadChange, onConversationOpenChange, snapRequested = false, onSnapHandled, openWith = null, onOpenWithHandled }: Props) {
   const insets = useSafeAreaInsets();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [allConversations, setConversations] = useState<Conversation[]>([]);
+  // People I blocked stay out of my list; the server refuses their messages anyway.
+  const [blockedIds, setBlockedIds] = useState<Set<string>>(() => new Set());
+  const [profileUser, setProfileUser] = useState<UserSummary | null>(null);
+  const conversations = useMemo(() => allConversations.filter((item) => !blockedIds.has(item.otherUserId)), [allConversations, blockedIds]);
   const [isLoading, setLoading] = useState(true);
   const [isRefreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +104,9 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
       const items = await listConversations(auth, onAuthChange, onSessionExpired);
       setConversations(items);
       setError(null);
+      listBlocks(auth, undefined, { onAuthRefresh: onAuthChange, onSessionExpired })
+        .then((rows) => setBlockedIds(new Set(rows.map((row) => row.id))))
+        .catch(() => { /* the list still works; sending is refused by the server anyway */ });
       console.log('[Blinkr Chat]', { status: 'ready', resultCount: items.length });
       void resolveNames(items);
     } catch (err) {
@@ -130,9 +142,9 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
 
   useEffect(() => {
     // The camera, the snap sender and the snap viewer each own the whole screen, like an open conversation.
-    onConversationOpenChange?.(Boolean(activeConversation) || Boolean(flow) || Boolean(viewing));
+    onConversationOpenChange?.(Boolean(activeConversation) || Boolean(flow) || Boolean(viewing) || Boolean(profileUser));
     return () => onConversationOpenChange?.(false);
-  }, [activeConversation, flow, viewing, onConversationOpenChange]);
+  }, [activeConversation, flow, viewing, profileUser, onConversationOpenChange]);
 
   useEffect(() => {
     if (!snapRequested) return;
@@ -161,9 +173,33 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
     }
   };
 
+  useEffect(() => {
+    if (!openWith) return;
+    onOpenWithHandled?.();
+    void openConversationWith(openWith);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openWith]);
+
   const recipients: SnapRecipient[] = conversations.map((item) => ({ id: item.id, name: names[item.otherUserId] ?? FALLBACK_NAME, userId: item.otherUserId, avatarKey: userAvatarCache.get(item.otherUserId) }));
   const overlays = (
     <>
+      {profileUser ? (
+        <UserProfileSheet
+          auth={auth}
+          onAuthChange={onAuthChange}
+          onClose={() => setProfileUser(null)}
+          onMessage={(user) => { setProfileUser(null); if (!activeConversation) void openConversationWith(user); }}
+          onRelationChange={(userId, relation) => {
+            if (relation !== 'blocked') return;
+            // Blocked from inside the conversation: leave it, and keep them out of the list from now on.
+            setBlockedIds((current) => new Set(current).add(userId));
+            setProfileUser(null);
+            setActiveConversation(null);
+          }}
+          onSessionExpired={onSessionExpired}
+          user={profileUser}
+        />
+      ) : null}
       {viewing ? (
         <SnapViewer
           auth={auth}
@@ -200,6 +236,7 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
       otherAvatarKey={userAvatarCache.get(activeConversation.otherUserId)}
       onAuthChange={onAuthChange}
       onBack={() => { setActiveConversation(null); refresh(true); }}
+      onOpenProfile={() => setProfileUser({ id: activeConversation.otherUserId, userName: names[activeConversation.otherUserId] ?? FALLBACK_NAME, avatarKey: userAvatarCache.get(activeConversation.otherUserId) })}
       onOpenSnap={(messageId) => setViewing({ conversation: activeConversation, messageId })}
       onSendSnap={() => setFlow({ mode: 'reply', conversationId: activeConversation.id })}
       onSessionExpired={onSessionExpired}
@@ -217,7 +254,7 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
     </View>
 
     {isLoading ? (
-      <View style={styles.centerFill}><ActivityIndicator accessibilityLabel="Yükleniyor" color={colors.primary} /></View>
+      <SkeletonList rows={6} style={styles.skeleton} />
     ) : error ? (
       <View style={styles.centerFill}>
         <BlinkrEmptyState
@@ -300,6 +337,7 @@ const styles = StyleSheet.create({
   title: { ...typography.headline, color: colors.text },
   newButton: { alignItems: 'center', backgroundColor: 'rgba(95, 211, 160, 0.14)', borderRadius: radii.pill, height: 40, justifyContent: 'center', width: 40 },
   centerFill: { flex: 1, justifyContent: 'center' },
+  skeleton: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   list: { paddingTop: spacing.xs },
   separator: { backgroundColor: colors.border, height: StyleSheet.hairlineWidth, marginLeft: spacing.lg + AVATAR_SIZE + ROW_GAP },
   row: { alignItems: 'center', flexDirection: 'row', minHeight: 68, paddingRight: spacing.md },

@@ -29,6 +29,20 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>The identity service owns blocks; chat asks it before a conversation, message or snap goes out.</summary>
+    public static IServiceCollection AddNotificationsBlockGuard(this IServiceCollection services, IConfiguration configuration)
+    {
+        var baseUrl = configuration["Services:IdentityBaseUrl"] ?? "http://localhost:5188";
+        services.AddHttpContextAccessor();
+        services.AddHttpClient(NotificationsService.Api.Services.IdentityBlockGuard.ClientName, client =>
+        {
+            client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromSeconds(3);
+        });
+        services.AddScoped<IBlockGuard, NotificationsService.Api.Services.IdentityBlockGuard>();
+        return services;
+    }
+
     public static IServiceCollection AddNotificationsMediatR(this IServiceCollection services)
     {
         services.AddMediatR(cfg =>

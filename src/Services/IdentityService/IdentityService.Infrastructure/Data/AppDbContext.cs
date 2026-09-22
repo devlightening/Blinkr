@@ -9,6 +9,9 @@ public class AppDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Friendship> Friendships => Set<Friendship>();
+    public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
+    public DbSet<Report> Reports => Set<Report>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,6 +30,36 @@ public class AppDbContext : DbContext
         });
 
         modelBuilder.Entity<User>().Property(u => u.AvatarKey).HasMaxLength(IdentityService.Domain.AvatarCatalog.MaxKeyLength);
+        modelBuilder.Entity<User>().Property(u => u.Bio).HasMaxLength(FriendshipRules.MaxBioLength);
+
+        modelBuilder.Entity<UserBlock>(entity =>
+        {
+            entity.HasKey(b => b.Id);
+            entity.HasIndex(b => new { b.BlockerId, b.BlockedId }).IsUnique();
+            entity.HasIndex(b => b.BlockedId);
+            entity.HasOne<User>().WithMany().HasForeignKey(b => b.BlockerId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(b => b.BlockedId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Report>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.TargetId).IsRequired().HasMaxLength(SafetyRules.MaxTargetIdLength);
+            entity.Property(r => r.Note).HasMaxLength(SafetyRules.MaxNoteLength);
+            entity.HasIndex(r => new { r.ReporterId, r.TargetType, r.TargetId }).IsUnique();
+            entity.HasIndex(r => new { r.TargetType, r.TargetId });
+            entity.HasOne<User>().WithMany().HasForeignKey(r => r.ReporterId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Friendship>(entity =>
+        {
+            entity.HasKey(f => f.Id);
+            entity.HasIndex(f => new { f.UserAId, f.UserBId }).IsUnique();
+            entity.HasIndex(f => new { f.AddresseeId, f.Status });
+            entity.HasIndex(f => new { f.RequesterId, f.Status });
+            entity.HasOne<User>().WithMany().HasForeignKey(f => f.RequesterId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(f => f.AddresseeId).OnDelete(DeleteBehavior.Cascade);
+        });
 
         // Seed users
         modelBuilder.Entity<User>().HasData(

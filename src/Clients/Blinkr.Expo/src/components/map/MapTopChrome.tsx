@@ -24,12 +24,16 @@ type Props = {
   isLoading: boolean;
   onScan: () => void;
   onLocate: () => void;
+  /** Status bar / notch height (`useSafeAreaInsets().top`). Without it the search bar sits under the
+   * status bar on a real device - invisible in the browser harness, which has no notch to reproduce it
+   * (sinyal-mvp-plan AUDIT #11). */
+  topInset: number;
 };
 
 /** Header, layer filter and the scan / locate row that float over the map. */
-export function MapTopChrome({ userId, userName, avatarKey, visibleCount, layer, onLayerChange, onOpenProfile, onOpenSearch, scanAvailable, isLoading, onScan, onLocate }: Props) {
+export function MapTopChrome({ userId, userName, avatarKey, visibleCount, layer, onLayerChange, onOpenProfile, onOpenSearch, scanAvailable, isLoading, onScan, onLocate, topInset }: Props) {
   return (
-    <View pointerEvents="box-none" style={styles.overlay}>
+    <View pointerEvents="box-none" style={[styles.overlay, { paddingTop: Math.max(topInset, spacing.sm) }]}>
       <View style={styles.searchBar}>
         <AnimatedPressable accessibilityLabel="Yer ara: nereye gidiyorsun?" accessibilityRole="search" onPress={onOpenSearch} pressScale={0.99} style={styles.searchField}>
           <Search color={colors.textSecondary} size={18} />

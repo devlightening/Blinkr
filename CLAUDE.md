@@ -16,6 +16,16 @@ Urunun merkezi nesnesi kullanici profili veya genel sosyal medya gonderisi degil
 
 Blinkr'in basarisi ekranda gecirilen sureyle degil, yer kararinin kalitesi ve kullaniciya kazandirdigi zamanla olculmelidir.
 
+> **2026-09-22 pivot notu:** Kullanicinin bilincli kararıyla Blinkr, yukaridaki "yer karari" cekirdeginin
+> uzerine Snapchat (kamera-oncelikli paylasim, hikayeler, harita) ve Instagram (profil, takip/takipci,
+> yorum/tepki, kesfet akisi) tarzi bir sosyal katman ekleyerek genisliyor. Bu genisleme icin tam,
+> ayrintili yürütme plani `docs/sinyal-mvp-plan/` altindadir (kendi `CLAUDE.md`'si var; `docs/plan/00_START_HERE.md`'den baslar). §2.2'deki bazi maddeler bu pivotla bilincli olarak gevsetildi;
+> hangileri ve hangi korumalarla, §2.3'te yazili. Bu genisleme calisirken bile asagidaki §3-27'de
+> tarif edilen mevcut mimari (EventStoreDB+Mongo CQRS/ES, .NET mikroservisleri, server-owned trust,
+> privacy-by-default) **degismedi**; `docs/sinyal-mvp-plan/docs/plan/DECISIONS.md` D-001 geregi
+> korunuyor ve yeni sosyal ozellikler bu mimariye uyarlanarak insa ediliyor, yerine yeni bir mimari
+> yazilmiyor.
+
 ## 2. Product Constitution
 
 Depodaki en ust urun kaynagi `docs/Product_Constitution_Blinkr_Urun_Anayasasi.docx` dosyasidir. Tum ADR'ler, mimari kararlar, roadmap ve ozellik talepleri bu anayasaya uymak zorundadir.
@@ -37,7 +47,7 @@ Bu sorularla uyumu gosterilemeyen bir ozellik MVP kapsaminda degildir. Guvenlik,
 - `Freshness over volume`: Az ama taze ve anlamli sinyal, cok ama eski icerikten degerlidir.
 - `Trust is server-owned`: Mesafe, yakinlik ve yayin guveni istemcinin iddiasiyla degil sunucu politikasi ile belirlenir.
 - `Reliability is product value`: Kaybolan event, geciken projection veya eski marker yalniz teknik sorun degil, yanlis yer karari uretebilen urun sorunudur.
-- `Decision utility over engagement`: Ozellikler kullaniciyi daha uzun tutmak icin degil, karari kolaylastirmak icin vardir.
+- `Decision utility over engagement`: Ozellikler kullaniciyi daha uzun tutmak icin degil, karari kolaylastirmak icin vardir. **(2026-09-22: sinyal-mvp-plan kapsamindaki sosyal/kesfet/hikaye yuzeyleri icin bu ilke §2.3'teki kosullarla gevsetildi; cekirdek harita/sinyal/yer akisi icin degismez kaliyor.)**
 
 ### 2.2 Bilincli olarak yapilmayanlar
 
@@ -52,7 +62,39 @@ Blinkr su anda genel bir sosyal medya urunune donusturulmemelidir:
 
 Medya, yorum, begeni veya bildirim ancak yer karari dongusunu destekledigi olcude anlamlidir. Bunlar urunun merkezi degildir.
 
-Bilincli urun karariyla eklenen tek istisna 1:1 DM/chat'tir (bkz. 6.5): kullanici arama ile baslatilir, kalici arkadas grafigi veya takip mekanigi olusturmaz, urunun ana giris ekrani degildir ve map-first kimligi degistirmez.
+Bilincli urun karariyla eklenen istisnalar:
+
+1. 1:1 DM/chat (bkz. 6.5): kullanici arama ile baslatilir, urunun ana giris ekrani degildir ve map-first kimligi degistirmez.
+2. Arkadaslik (bkz. 6.1): kullanici talebiyle ("profil biraz sosyal olsun, arkadas ekleme olsun") eklendi. Bu, "kalici arkadas grafigi olusturmaz" ilkesini bilincli olarak gevsetir; risk su korumalarla sinirlidir ve bu korumalar degismez kuraldir:
+   - Arkadaslik yalniz birbirini bulmak ve mesajlasmak icindir. Konum paylasmaz, canli konum izlemez, bir sinyalin kime gorunecegini degistirmez (`AnonymousMap` her durumda anonim kalir).
+   - Baskasinin arkadas listesi, arkadas sayisi ve e-postasi hicbir yerde gosterilmez; herkese acik profil yalniz avatar, ad, kisa "hakkinda", katilim ayi ve herkese acik (anonim olmayan) sinyalleri gosterir.
+   - Feed, "arkadaslarin ne yapiyor" akisi, takip/takipci, begeni-sayisi ekonomisi ve arkadas onerisi YOKTUR ve eklenmemelidir. Arkadaslar yalniz sohbet ve arama sonuclarinda one alinir. **(2026-09-22: bu satir §2.3'teki pivotla iliskili olarak yeniden degerlendirilmeli — sinyal-mvp-plan takip/takipci ve Kesfet akisini MVP'ye ekliyor. Mevcut "Arkadaslik" ozelligi (karsilikli onayli, kapali) ile planin "takip" modeli (tek yonlu, acik) farkli kavramlardir; hangisinin/ikisinin birlikte nasil yasayacagi Faz 6 P6.1'de netlestirilecek ve burada guncellenecek. O karara kadar bu satirin geri kalani gecerlidir: arkadaslik listesi/sayisi hala herkese acik degildir.)**
+   - Kotuye kullanim siniri: ayni anda en fazla 50 bekleyen giden istek; reddedilen istek 7 gun boyunca ayni kisiden tekrar gonderilemez (reddeden kisi istedigi zaman isteyebilir; gonderene reddedildigi acikca soylenmez).
+   - Guvenlik zorunludur: kullanici icerigi ve kisiler arasi temas olan her yuzeyde engelleme ve bildirme vardir (bkz. 6.1, 6.5). Engel iki yonludur, karsi tarafa bildirilmez ve mesajin kimin tarafindan engellendigini soylemez.
+   - Bu ozellik cekirdek harita dongusunun onune gecemez; P0 dongusu bozuksa genisletilmez.
+
+### 2.3 2026-09-22 pivot: sinyal-mvp-plan ile gevsetilen kurallar
+
+Kullanici, `docs/sinyal-mvp-plan/` planinin **aynen** uygulanmasina ve mevcut backend mimarisinin
+**korunmasina** (PostgreSQL+PostGIS'e gecis YOK) acikca karar verdi
+(`docs/sinyal-mvp-plan/docs/plan/DECISIONS.md` D-002 ve D-001). Bu, yukaridaki §2.2 listesindeki asagidaki
+maddeleri **MVP kapsaminda** bilincli olarak gevsetir:
+
+- **"Sonsuz ve eglence merkezli genel feed"** → Kesfet akisi (Yakinimda/Takip, `02_INFORMATION_ARCHITECTURE.md`) artik MVP'nin bir parcasidir. Fark: bu feed rastgele eglence icin degil, place-first sinyallerden olusur (post'lar hala bir Place/koordinata bagli, hala TTL'li); "eglence merkezli" olmayan bu nitelik korunmalidir — feed'e sinyal disi, yer-bagimsiz "genel gonderi" turu eklenmemelidir.
+- **"Kullanici tutma amacli story veya kisa video akisi"** → Hikayeler (`05_SCREENS_CREATE_FEED_STORIES.md`) artik MVP'nin bir parcasidir.
+- **"Genis ve gosterisli profil ekonomisi"** → Instagram-tarzi profil izgarasi, takip/takipci sayaclari, rozet/seviye/guven puani (`06_SCREENS_PROFILE_SOCIAL_CHAT.md`) artik MVP'nin bir parcasidir.
+- **"Surekli kisi takibi veya canli konum izleme"** → **KISMEN, dar bir istisnayla:** yalniz Faz 13 (V1.1, MVP DISI) "Arkadaş konumu (Ghost Mode)" icin — plan'in kendi tanimiyla varsayilan KAPALI, opt-in, sureli paylasim, yalniz arkadaslar. MVP'de (Faz 0-12) surekli/varsayilan-acik konum izleme YOKTUR ve bu turden bir ozellik en erken Faz 13'te, ayrica ele alinarak yapilir.
+
+**Degismeyenler (bu pivotla degismedi, hala mutlak kural):**
+- `Privacy by default`, `Trust is server-owned`, `Reliability is product value` (§2.1) aynen gecerli: yeni sosyal katman da kesin konum sizdirmaz, yakinlik/guven hesaplarini istemciye birakmaz.
+- "Reklami dogrulanmis yer sinyali gibi gosteren yuzeyler" ve "Mahremiyet veya guvenligi engagement icin zayiflatan mekanikler" **hala YASAKTIR** — plan bunlari zaten istemiyor.
+- Mimari: backend .NET mikroservisleri + EventStoreDB (authoritative) + MongoDB kaliyor (D-001). Plan'in Faz 2 backend gorevleri bu mimariye uyarlanarak yapilir, PostgreSQL+PostGIS'e tam gecis yapilmaz.
+- Bu bolumdeki her genisleme, `docs/sinyal-mvp-plan/docs/plan/13_ROADMAP_PHASES.md`'deki faz sirasina gore, faz faz, her faz sonunda calisir durumda kod ile yapilir — tek seferde "hepsi" yazilmaz.
+
+Ilerleyen fazlarda bu dosyanin (ozellikle §6 Bounded Context haritasi ve §11-13) yeni sosyal
+context'leri (Feed/Discovery, Stories, Social Graph/Follow, genisletilmis Notifications, Moderation)
+yansitacak sekilde **faz tamamlandikca** guncellenmesi gerekir; bu, sinyal-mvp-plan'in kendi "Bitti
+tanimi" kuralidir (`00_START_HERE.md` §6: "README/CLAUDE gibi yasayan dokumanlar guncellendi").
 
 ## 3. Hedef Kullanici Problemi
 
@@ -163,6 +205,9 @@ Sorumluluklar:
 - Refresh token
 - Kullanici kimligi ve roller
 - JWT uretimi
+- Profil: avatar (`AvatarCatalog`), kisa `Bio` (en fazla 160 karakter; bosluklar/satir sonlari sunucuda toparlanir)
+- Arkadaslik: `Friendship` tablosu (cift basina tek satir, `UserAId < UserBId` ile normalize; durum `Pending|Accepted|Declined`), istek gonder/kabul/reddet/geri al, arkadasi cikar. Karsilikli istek otomatik kabuldur.
+- Guvenlik: `UserBlock` (kim kimi engelledi; engel arkadasligi bitirir, arama ve profilde iki tarafi birbirinden gizler, arkadaslik istegini ve sohbeti durdurur; engellenen kisi bilgilendirilmez) ve `Report` (kullanici veya sinyal bildirimi: `spam|harassment|inappropriate|wrong_info|other`, en fazla 300 karakter not, ayni hedef icin tek kayit, kisi basina gunde en fazla 20). Bildirimler bir moderasyon kuyrugu icin saklanir; moderator araci henuz YOKTUR (bkz. 20.1).
 
 Kod: `src/Services/IdentityService`
 
@@ -218,6 +263,7 @@ Sorumluluklar:
 - Okunmamis sayisi ve read durumu
 - 1:1 sohbet (DM): konusma baslatma/listeleme, mesaj gonderme/okuma, kullanici aramasi IdentityService `/api/users/search` uzerinden yapilir
 - Snap (bir kez izlenip kaybolan foto/video): konusma icinde `kind: "snap"` mesajidir. Medya ozel diskte (`App_Data/snaps`, hicbir statik middleware sunmaz) tutulur; yalniz alici, `open` cagrisiyla durum `sent -> opened` gectikten sonra ve sunucunun zorladigi kisa izleme penceresi (sure + 30 sn; sureli olmayanlarda 3 dk) icinde `content` ile cekebilir. Acilis atomiktir (tek kazanan), ikinci acma 410 `SNAP_OPENED`, sure dolan 410 `SNAP_EXPIRED` (acilmayan snap 24 saatte biter), pencere bitince dosya hemen silinir (`SnapCleanupService` yedek supurucudur, hicbir istisnayi disari firlatmaz). Gonderen kendi snap'ini acamaz/cekemez, yabanci 403. Fotograflarin EXIF/APP segmentleri (konum dahil) saklanmadan once silinir; bayt imzasi bildirilen ture uymayan dosya 400. Acilmamis snap okunmamis sayilir, sohbeti acmak onu tuketmez (`MarkRead` snap'lere dokunmaz). Snap arkadas grafigi veya takip olusturmaz; hikaye, seri (streak) ve arkadas konumu (Snap Map) bilincli olarak YOKTUR (anayasa 2.2).
+- Engel denetimi: blok verisinin sahibi IdentityService'tir. Sohbet baslatma, mesaj ve snap gonderme oncesi `IBlockGuard` (Api: `IdentityBlockGuard`) kisinin kendi bearer token'i ile `GET /api/blocks/status/{userId}` sorar (paylasilan sir yoktur; `Services:IdentityBaseUrl`, varsayilan `http://localhost:5188`). Cevap alinamazsa sohbet KAPALI basarisiz olur (503 `CHAT_UNAVAILABLE`), engelli biri sessizce gecirilmez. Mevcut snap'i acmak/cekmek etkilenmez.
 
 Kod: `src/Services/NotificationsService`
 
@@ -418,6 +464,14 @@ Yerel sonuc yoksa ve synchronous provider fallback kapaliysa:
 
 Provider timeout veya failure basarili bos coverage olarak cache'lenmemelidir. Daha once import edilmis Place'ler provider kesintisinde kaybolmamalidir.
 
+### 9.6 Yer arama (harita "Nereye gidiyorsun?")
+
+Kullanici "yakinimdaki 1 km'deki Soulmate kafe" gibi bir sey yazdiginda bulunmalidir. Kurallar:
+
+- Sunucu (`GET /api/places/search?q&lat&lon&radiusMeters&expand`): ad, kelime onekleri ve tek kelime birlestirmesi (`Soul Mate` = `Soulmate`) Turkce duyarsiz (`PlaceSearchText.Fold`) `SearchTokens` uzerinden eslesir; `PlaceSearchBackfillService` eski kayitlara arka planda token ekler ve asla exception firlatmaz (host'u durdurur). `expand=true`: yakinda 10'dan az sonuc varsa Turkiye geneli token aramasi ve sonuc yoksa 2 harfli onek ile yazim hatasi kurtarma eklenir. Ozel kategori kelimeleri (eczane, kafe, market, park, cami...) kategoriye eslenir.
+- Istemci (`placeSearch.ts`): mesafe kisinin kendi konumundan hesaplanir (sunucudaki mesafe harita merkezindendir); harita baska bir sehre bakiyorsa (>25 km) iki merkez de aranir. Siralama once mesafe bandi (Yakininda <=3 km, Sehirde <=30 km, Diger sehirler), band icinde ad skoru, sonra mesafedir. Uzaktaki tam eslesme yakindaki kismi eslesmenin onune gecemez. Yazim hatasi: 5-7 harfte 1, 8+ harfte 2 duzenleme mesafesi.
+- `test-place-search.ps1` (BLK-SEARCH-01) gercek katalogla bunu kanitlar; fixture testi yerine gecmez.
+
 ## 10. Yakinlik, Guven ve Mahremiyet
 
 ### 10.1 Sunucu tarafli proximity
@@ -486,22 +540,25 @@ Viewport requestlerinde eski cevap yeni state'i ezmemelidir. Generation/request 
 
 - `App.tsx`: navigasyon kabugu. Kutuphanesiz `activeTab` (`chat | map | nearby | profile`); `MapScreen` her zaman monte kalir (viewport, katman ve marker'lar sekme degisince kaybolmaz), Sohbet, Yakinda ve Profil onun ustunde tam ekran katman olarak acilir. Tek alt bar `BlinkrBottomBar` (Sohbet | Harita | Paylas | Yakinda | Profil; ortadaki "+" sekme degil eylemdir); sheet/composer/acik konusma/avatar secici varken bar gizlenir (native'de kardes zIndex sirasi yuzunden bar acik sheet'in ustune biner). Paylas ve "kayitli yeri ac" tek seferlik istektir (`shareRequested`/`focusPlace` + `on...Handled`), Android geri tusu sekmeyi haritaya dondurur.
 - Paylasim merkezi (`ShareHubSheet`): "+" dogrudan kamera acmaz; Kamera / Galeri / Sadece sinyal secenekleri sunar ve uc yol da ayni `SignalComposer`'a varir (yer, yakinlik ve sunucu guveni orada belirlenir).
-- Uygulama ici kamera (`camera/SignalCamera`, `expo-camera`): canli lensler (`cameraEffects.ts`: renk katmani + vignette), flas/cevirme/yakinlastirma, fotograf ve video. Fotograf `PhotoEditor`'da lens + cikartma ile `react-native-view-shot` ile dosyaya islenir; lenssiz/cikartmasiz fotograf oldugu gibi gecer. Video lenssiz kaydedilir (kayit sonradan islenemez) ve arayuz bunu soyler. Cikartmalar dekorasyondur, sinyal verisi degildir; sinyalin tur/degeri composer'da secilir ve sunucuda dogrulanir. Kamera eylemi yalniz dosya teslim eder (`onCapture`), yayin yolu degismez.
+- Uygulama ici kamera (`camera/SignalCamera`, `expo-camera`): tam ekran canli onizleme (Snapchat gibi kenardan kenara; onceki kutulanmis/kisa onizleme "kamera yarim aciliyor" hissi veriyordu), canli lensler (`cameraEffects.ts`: renk katmani + vignette), flas/cevirme, iki parmakla yakinlastirma (`zoomMultiplierLabel`; pill dokununca 1.0x'e sifirlanir), fotograf ve video (`photoOnly` prop'u video modunu tamamen kaldirir). `onCameraReady` bazi Android cihazlarda hic tetiklenmeyebilir; ~1.2 sn sonra deklanşör otomatik acilir (donuk kamera hissi vermesin diye), izin durumu cozulene kadar da bos ekran yerine yukleniyor gostergesi vardir. Fotograf `PhotoEditor`'da lens + cikartma ile `react-native-view-shot` ile dosyaya islenir; lenssiz/cikartmasiz fotograf oldugu gibi gecer. Video lenssiz kaydedilir (kayit sonradan islenemez) ve arayuz bunu soyler. Cikartmalar dekorasyondur, sinyal verisi degildir; sinyalin tur/degeri composer'da secilir ve sunucuda dogrulanir. Kamera eylemi yalniz dosya teslim eder (`onCapture`), yayin yolu degismez. Kamera ve Snap gonderme ekranlari `colors.flare` (sicak altin) vurgusunu kullanir; bu renk yalniz cekim akisina ozeldir, uygulamanin geri kalani sakin mint kimligini korur.
 - `AuthScreen`: register/login
 - `MapScreen`: harita state'i, layers, marker'lar, nearby ve composer orchestration. Ust krom `map/MapTopChrome` (header + `MapLayerBar` + tara/konum satiri), filtre mantigi `mapSelection.ts`.
 - `SignalComposer`: dort adimli yayin akisi; tam ekran katman, arkada gercek cekilen medya (sistem kamerasi, `expo-camera` yok)
 - `PlacePicker`: nearby ve extended Place secimi
 - `PostDetailSheet`: Place veya coordinate signal detayi (gercek medya seridi, sinyal sayisi/tazelik/guven/uzaklik, Kaydet/Paylas/Yol tarifi). Taze ve yapilandirilmis (Doluluk, Bekleme, Durum, Etkinlik, Firsat) canli durumu olan Place'te "Hala boyle mi?" sorusu (`recheckSignal`): "Evet" composer'i son adimda ayni degerle, "Degisti" sinyal adiminda ayni turle acar. Cevap ozel bir olay degil, normal sinyaldir; canli duruma katkisini yine sunucu kisinin gercek konumundan karar verir.
 - `NearbyScreen` ("Yakinda" sekmesi): haritanin liste gorunumu. Cihaz konumunun 1,5 km cevresindeki taze ve suresi dolmamis Place durumlarini ve koordinat sinyallerini `GET /api/map/bounds` cevabindan `nearbyActivity.ts` ile siralar (once tazelik kovasi: son 15 dk / daha eski, sonra geodesic mesafe; en fazla 30 satir, sonsuz akis yok; katalog Place'i aktif durum olmadan listelenmez). Konum izni yalniz kisi butona basinca istenir; yenileme hatasinda son liste kalir. Satira basmak haritada Place/sinyal detayini acar (`focusPlace`/`focusSignal`). Canli rozeti yalniz sunucunun dogruladigi Place durumunda gorunur.
-- `ProfileScreen`: hesap, cihaz-yerel kayitli yerler (`savedPlaces.ts`, anahtarlar userId ile ad alanina alinir), gizlilik notu, cikis
-- `chat/ChatListScreen`, `chat/ConversationScreen`, `chat/UserSearchSheet`: 1:1 sohbet, Snapchat duzeninde. Liste satiri durum cizgisi tasir (`snapPresentation.ts`): dolu kirmizi kare "Yeni Snap" (dokununca dogrudan izleyiciyi acar), dolu mavi kare "Yeni sohbet", ok "Gonderildi/Acildi", kontur "Acildi/Suresi doldu"; sagdaki kamera dugmesi o kisiye hizli Snap gonderir, uzun basma sohbeti acar. Konusma ekraninda mesajlar balonsuz, renkli sol cubuklu satirlardir (Ben mavi, karsi taraf pembe); snap satiri durumunu gosterir, bekleyen snap dokunulabilir. `snap/SnapViewer`: tam ekran, sure ilerleme cubugu (resim yuklenince baslar), dokun-kapat, video sonuna kadar, Android'de ekran goruntusu engeli (`expo-screen-capture`; iOS engellenemez), sunucu 410 verirse sade mesaj. `snap/SnapFlow` + `SnapSendStep`: kamera (lens/cikartma) -> yazi + sure + alicilar -> her kisiye tek tek gonder, basarisiz olanlar secili kalir. Paylasim merkezindeki "Snap gonder" Sohbet sekmesinde bu akisi acar.
+- `ProfileScreen`: hesap, kisa hakkinda (`EditProfileSheet`), gercek Sinyal/Arkadas/Kaydedilen sayilari, cihaz-yerel kayitli yerler (`savedPlaces.ts`, anahtarlar userId ile ad alanina alinir), gizlilik notu, cikis. Bekleyen arkadaslik istegi "Arkadaslar - N" dugmesinde ve alt cubukta Profil noktasinda gorunur.
+- `friends/FriendsScreen` (Arkadaslarim | Istekler | Ekle; kullanici adiyla arama, kabul/reddet/geri al), `friends/UserProfileSheet` (herkese acik profil: bio, katilim ayi, son 5 herkese acik sinyal, iliski dugmesi, Mesaj gonder, arkadasliktan cikar icin iki adimli onay). Saf mantik `friends.ts` (bio siniri, iliskiye gore eylem, siralama), API cagrilari `friendActions.ts`. Sohbet "Yeni mesaj" ekrani once arkadaslari listeler ve aramada iliski etiketi gosterir.
+- `SettingsScreen` (Profil ustundeki disli): hesap bilgisi, Engellenen kisiler (engeli kaldir), gizlilik ozeti, surum ve OpenStreetMap atfi (ODbL; yer verisi lisansi geregi), cikis. Yalniz gercek bilgi vardir; hicbir sey yapmayan anahtar yoktur. `ReportPanel`: sheet icinde rapor formu (sebep secimi, istege bagli not); profil ve sinyal detayi ayni sheet'te icerigi degistirir, ikinci bir sheet acmaz. Sohbette ust cubuktaki ad/avatar profili acar; oradan engellenen kisinin sohbeti listeden kalkar.
+- Kaydedilen yerlerde canli durum (`savedLive.ts`, `GET /api/places/batch`): yalniz dogrulanmis ve taze (FRESH/RECENT) aktivite "Canli" satiri olarak gorunur, canli olanlar uste alinir; bayat durum yeni gibi gosterilmez, arama basarisiz olursa onceki durum korunur. `OnboardingScreen` (`onboardingContent.ts`): ilk giriste bir kez, kisi basina uc kart; konum izni burada istenmez. `ui/BlinkrSkeleton`: liste yuklenirken satir sekilli soluk isik (Sohbet, Yakinda, Arkadaslar, Profil); `haptics.ts` sessiz onay titresimleri (arkadas ekleme/kabul, engelleme, bildirim gonderme, profil kaydi).
+- `chat/ChatListScreen`, `chat/ConversationScreen`, `chat/UserSearchSheet`: 1:1 sohbet, Snapchat duzeninde. Liste satiri durum cizgisi tasir (`snapPresentation.ts`): dolu kirmizi kare "Yeni Snap" (dokununca dogrudan izleyiciyi acar), dolu mavi kare "Yeni sohbet", ok "Gonderildi/Acildi", kontur "Acildi/Suresi doldu"; sagdaki kamera dugmesi o kisiye hizli Snap gonderir, uzun basma sohbeti acar. Konusma ekraninda mesajlar balonsuz, renkli sol cubuklu satirlardir (Ben mavi, karsi taraf pembe); snap satiri durumunu gosterir, bekleyen snap dokunulabilir. `snap/SnapViewer`: tam ekran, sure ilerleme cubugu (resim yuklenince baslar), dokun-kapat, video sonuna kadar, Android'de ekran goruntusu engeli (`expo-screen-capture`; iOS engellenemez), sunucu 410 verirse sade mesaj. `snap/SnapFlow` + `SnapSendStep`: kamera (`photoOnly`, lens/cikartma) -> yazi + sure + alicilar -> her kisiye tek tek gonder, basarisiz olanlar secili kalir. Snap gonderimi yalniz fotografdir (video kaydetme secenegi Snap akisinda yoktur); sunucu tarafi ve alici gorunumu (SnapViewer) daha once gonderilmis video snap'leri hala oynatabilir, bu geriye donuk uyumluluktur, yeni video Snap uretilmez. Paylasim merkezindeki "Snap gonder" Sohbet sekmesinde bu akisi acar.
 - Harita aramasi (`map/MapSearchOverlay`, `placeSearch.ts`): ust cubuk "Nereye gidiyorsun?" alanidir; tam ekran arama, yazmadan once kategori kisayollari + son aramalar + kayitli yerler, yazinca Turkce-duyarsiz siralanan sonuclar (ad eslesmesi > mesafe), canli rozeti, adres/bolge icin cihaz geocoder yedegi ("konumuna git"). Sonuca dokunmak haritayi ucurur ve detay sheet'ini acar.
 - `Sheet`: uygulama ici ortak bottom sheet yapisi; gorunum kabugu `ui/BlinkrSheetPanel`
 - `BlinkrMapMarker` (native sarmalayici) + `MapMarkerVisuals`, `PlaceSymbol`, `SignalSymbol`: semantik marker sunumu. Place = sivri uclu damla pin (uc, konumun kendisidir; `anchorOf` ile koordinata oturur), canli/dogrulanmis aktivitesi olan Place kategori renginde dolu, parlar ve ustunde NE oldugunu gosteren durum rozeti tasir; aktivitesiz katalog Place'i kucuk ve sessizdir. Koordinat sinyali = konusma balonu; etrafindaki halka sinyalin omru azaldikca kisalir (`lifetimeFraction`). Kume = koyu disk + lime halka + sayiyla buyuyen isi halesi. Geometri `markerGeometry.ts`'te test edilir; marker icinde animasyon yoktur (native marker bitmap'i).
 - `Avatar`, `AvatarPickerSheet` (`avatars.ts`): avatar cizilmis karakterdir (renk 8 x yuz 6 x aksesuar 6 = 288, anahtar uc hane, ornegin `253`), yuklenen fotograf degildir; kimsenin yuzu saklanmaz. Sunucu (`IdentityService AvatarCatalog`) tam ayni kumeyi kabul eder, gecersiz anahtar 400 `INVALID_AVATAR`. Secmeyenlere kullanici kimliginden kararli bir varsayilan cizilir. Avatar yalnizca profil, sohbet ve baslikta gorunur; harita pinlerinde yazar avatari YOKTUR (mahremiyet: anonim paylasimlar kisiye baglanamaz, surekli kisi takibi yapilmaz).
 - `ui/`: ortak tasarim bilesenleri (`BlinkrButton`, `BlinkrChip`, `BlinkrCard`, `BlinkrHeader`, `BlinkrEmptyState`, `BlinkrBottomBar`, `BlinkrSignalCard`, `BlinkrSheetPanel`)
 
-Tasarim token'lari tek kaynaktan gelir: `src/theme.ts`. Yeni kod semantik adlari (`background`, `text`, `textSecondary`, `primary`, `mint`, `categoryTone`) kullanir; eski adlar (`ink`, `muted`, `green`...) yeni palete baglidir. Gorsel dil ("Graphite & Mint"): soguk grafit notrler yapiyi tasir, tek bir sakin yesil marka rengidir (`primary` #5FD3A0), anlamsal vurgular (turuncu, kehribar, mor, pembe, mavi, mercan) soluk tutulur; hicbir sey parlamaz (neon lime, glow ve agir golge kullanilmaz). Olculer platform normlarindadir: tip olcegi 26 ekran basligi / 20 sheet basligi / 17 bolum / 15 govde / 13 aciklama / 12 etiket / 11 sekme etiketi, agirlik en fazla 700; dokunma hedefi 44, alt bar 56, kart yaricapi 14, sheet 20, `pill` yalniz chip ve avatar icindir. Hareket kisa ve sakindir (140-240 ms, yaylar overshoot yapmaz, basma olcegi en fazla 0.95'e iner, liste girislerinde kademeli gecikme yoktur). Sohbet ve Profil dusuk yogunluklu, duz satirli liste duzenindedir (WhatsApp/Instagram oranlari): baslik 26, satir adi 16, onizleme 14, saat 12, avatar 48/72. Yeni ekran bu token'lari kullanir, sabit `fontSize`/renk yazmaz; `npm run test:theme` kontrast (WCAG AA) ve bu olcek/hareket kurallarini otomatik denetler. Sheet icindeki liste ogelerine `entering` animasyonu verme (react-native-web'de sheet kapanirken `removeChild` hatasi uretir).
+Tasarim token'lari tek kaynaktan gelir: `src/theme.ts`. Yeni kod semantik adlari (`background`, `text`, `textSecondary`, `primary`, `mint`, `categoryTone`) kullanir; eski adlar (`ink`, `muted`, `green`...) yeni palete baglidir. Gorsel dil ("Graphite & Mint"): soguk grafit notrler yapiyi tasir, tek bir sakin yesil marka rengidir (`primary` #5FD3A0), anlamsal vurgular (turuncu, kehribar, mor, pembe, mavi, mercan) soluk tutulur; hicbir sey parlamaz (neon lime, glow ve agir golge kullanilmaz). Tek bilincli istisna `flare` (#FFC845, sicak altin): yalniz kamera ve Snap gonderme ekranlarinda deklansor/lens/gonder vurgusu olarak kullanilir, cekim akisina kendi kimligini verir; baska hicbir ekranda kullanilmaz. Olculer platform normlarindadir: tip olcegi 26 ekran basligi / 20 sheet basligi / 17 bolum / 15 govde / 13 aciklama / 12 etiket / 11 sekme etiketi, agirlik en fazla 700; dokunma hedefi 44, alt bar 56, kart yaricapi 14, sheet 20, `pill` yalniz chip ve avatar icindir. Hareket kisa ve sakindir (140-240 ms, yaylar overshoot yapmaz, basma olcegi en fazla 0.95'e iner, liste girislerinde kademeli gecikme yoktur). Sohbet ve Profil dusuk yogunluklu, duz satirli liste duzenindedir (WhatsApp/Instagram oranlari): baslik 26, satir adi 16, onizleme 14, saat 12, avatar 48/72. Yeni ekran bu token'lari kullanir, sabit `fontSize`/renk yazmaz; `npm run test:theme` kontrast (WCAG AA) ve bu olcek/hareket kurallarini otomatik denetler. Sheet icindeki liste ogelerine `entering` animasyonu verme (react-native-web'de sheet kapanirken `removeChild` hatasi uretir).
 
 Tasarim referansi: `docs/blinkr_tema_kod`. Tasarim gorsellerindeki puan, "N kisi burada", rozet, kaydetme sayisi gibi ogeler ornek veridir; backend'de karsiligi olmadan uretim ekranina eklenmez.
 
@@ -552,6 +609,8 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`
 - `GET /api/users/...`
+- `PUT /api/users/me/profile` (`{ bio }`; 160 karakter ustu 400 `BIO_TOO_LONG`; bos deger temizler)
+- `GET /api/users/me` (kendi e-postan, `bio`, `friendCount`, `incomingRequestCount`); `GET /api/users/{id}` herkese acik profil (`bio`, `joinedAtUtc`, `relation`; e-posta, arkadas listesi ve sayisi YOK); `GET /api/users/search` her sonucta `relation` (`none|self|friends|incoming|outgoing`) tasir
 - `PUT /api/users/me/avatar` (`{ avatarKey }`, katalog disi anahtar 400 `INVALID_AVATAR`; `null` varsayilana doner). Login/register/refresh cevaplari, `GET /api/users/{id}` ve arama `avatarKey` tasir.
 
 ### Posts and signals
@@ -579,6 +638,7 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 - `GET /api/places/nearby`
 - `GET /api/places/search?q&lat&lon&radiusMeters` (varsayilan 1,5 km = composer; harita aramasi 30 km'ye kadar ister; gunluk kelimeler kategoriye eslenir: eczane, hastane, kafe, market, akaryakit, firin, mUze...; ad, kategori ve adrese bakar)
 - `GET /api/places/bounds`
+- `GET /api/places/batch?ids=a,b,c` (en fazla 20 id; bilinmeyen/gecersiz id sessizce atlanir; cevap her yer icin `currentState` tasir; kaydedilen yerlerin canli durumu icin)
 - `POST /api/places` yetkili write
 
 ### Media
@@ -595,6 +655,19 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 - `POST /api/notifications/read`
 - `POST /api/subscriptions`
 - `POST /api/subscriptions/location`
+
+### Friends
+
+- `GET /api/friends` (arkadaslarim), `GET /api/friends/requests` (`{ incoming, outgoing }`)
+- `POST /api/friends/requests` (`{ userId }`; karsi taraf zaten istediyse kabul eder; 400 `SELF`, 404 `USER_NOT_FOUND`, 403 `REQUEST_NOT_ALLOWED` (reddedildikten sonra 7 gun), 429 `TOO_MANY_REQUESTS` (50 bekleyen))
+- `POST /api/friends/requests/{userId}/accept` ve `/decline` (yalniz istegin alicisi; 404 `REQUEST_NOT_FOUND`), `DELETE /api/friends/requests/{userId}` (gonderen geri alir), `DELETE /api/friends/{userId}` (iki taraf da bitirebilir; 404 `NOT_FRIENDS`)
+- Her eylem `{ userId, relation }` doner. Gateway: `/api/friends/{**catch-all}` IdentityService'e gider.
+
+### Safety
+
+- `GET /api/blocks` (engelledigim kisiler), `POST /api/blocks` (`{ userId }`, idempotent; arkadasligi bitirir; `{ userId, relation: "blocked" }`), `DELETE /api/blocks/{userId}` (arkadaslik geri gelmez), `GET /api/blocks/status/{userId}` (`{ blocked }`, iki yonlu; sohbet servisi sorar)
+- Engel etkileri: arama sonucunda ve `GET /api/users/{id}` ile iki taraf birbirini goremez (engellenen icin 404; engelleyen icin `relation: "blocked"` ve bos profil); arkadaslik istegi 403 `REQUEST_NOT_ALLOWED`; sohbet/mesaj/snap 403 `CHAT_FORBIDDEN`.
+- `POST /api/reports` (`{ targetType: user|signal, targetId, reason: spam|harassment|inappropriate|wrong_info|other, note? }`; ayni hedef tekrar bildirilirse 200; 400 `INVALID_REPORT`/`NOTE_TOO_LONG`/`SELF`, 404 `USER_NOT_FOUND`, 429 `TOO_MANY_REPORTS`). Gateway: `/api/blocks/**` ve `/api/reports/**` IdentityService'e gider.
 
 ### Chat
 
@@ -782,6 +855,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\test-nearby-distance-contract
 powershell -ExecutionPolicy Bypass -File .\scripts\test-nearby-place-ux-core.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\test-location-map-core.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\test-place-live-signal.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\test-place-search.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\test-friends.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\test-safety.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\test-place-batch.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\test-content-media-smoke.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\test-place-catalog-coverage.ps1 -Strict
 ```
@@ -838,14 +915,20 @@ Ancak `uygulandi` ile `uretimde tam dogrulandi` ayni sey degildir. `docs/BLK-PRO
 - Event delivery, reconciliation ve error queue operasyonlari load/failure altinda test edilmelidir.
 - MonitoringService ve dashboard/alerting uretim seviyesine getirilmelidir.
 - Backup, restore, disaster recovery ve data retention politikasi yazilmalidir.
-- Abuse reporting/moderation, rate limit ve safety operasyonlari tamamlanmalidir.
+- Bildirimler (`Report`) saklaniyor ama moderator araci, inceleme kuyrugu, denetim izi ve otomatik aksiyon YOK; engelleme ve bildirme calisiyor, moderasyon operasyonu tamamlanmalidir.
+- Hesap silme YOK: kullanici ve arkadaslik/engel/bildirim verisi Identity'de silinebilir, fakat EventStore'daki sinyaller, sohbet mesajlari ve snap dosyalari kullaniciya bagli kalir. Magaza yayini ve KVKK/GDPR icin uctan uca silme (event tombstone, sohbet ve medya temizligi) tasarlanmali; yarim silme yapilmamalidir.
+- Rate limit'ler hala eksiktir (arkadaslik/engel/rapor icin yalniz uygulama ici tavanlar var).
+- Push bildirimi yok: bekleyen arkadaslik istegi ve kaydedilen yerin canli durumu yalniz uygulama acikken gorunur.
 - Saved Place su anda cihaz-yerel olabilir; senkron hesap ozelligi ayri urun karari gerektirir.
 - OSM complex relation geometrilerinin tam destegi sinirlidir; nokta fallback devam eder.
 - GPS server tarafli hesaplanir ancak donanim attestation olmadigi icin mutlak spoof-proof degildir.
 
 ## 21. Oncelikli Yol Haritasi
 
-Yeni sosyal capability eklemeden su sirayi koru.
+**2026-09-22 notu:** §2.3'teki pivot kararindan sonra sosyal capability genisletme calismasi artik
+`docs/sinyal-mvp-plan/docs/plan/13_ROADMAP_PHASES.md`'deki Faz 1-13 sirasiyla, kendi PROGRESS.md'si
+uzerinden yurutuluyor; asagidaki P0/P1/P2 listeleri hala gecerlidir ve core loop guvenilirligi
+sinyal-mvp-plan'in fazlarindan bagimsiz olarak korunmalidir (bir sosyal ozellik ugruna P0 zayiflatilmaz).
 
 ### P0 Cekirdek dogrulama
 
@@ -853,7 +936,7 @@ Yeni sosyal capability eklemeden su sirayi koru.
 - `Yerler` katmaninda katalog Place'lerini kontrollu ve performansli goster.
 - Iki cihazda A yayinlar -> B gorur zincirini kayit altina al.
 - iOS touch lifecycle, loading settle ve stale request regresyonlarini fiziksel cihazda kapat.
-- Core loop yesil olmadan yeni business/DM/story capability acma.
+- Core loop yesil olmadan yeni business capability acma; sinyal-mvp-plan'in DM/story/sosyal fazlari bile bu satirin bir istisnasi degildir — core loop regresyona girerse o faz durur, once core loop duzeltilir.
 
 ### P1 Uretim guvenilirligi
 

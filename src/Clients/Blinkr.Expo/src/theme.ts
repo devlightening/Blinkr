@@ -27,6 +27,13 @@ export const colors = {
   purple: '#AB98EF',
   pink: '#EE9EC0',
   danger: '#EE7C71',
+  /**
+   * Warm flash-gold, used only by the camera and snap-sending screens (shutter ring, selected lens, zoom pill,
+   * send action). It gives capture its own distinct, energetic voice - the way Snapchat's yellow reads instantly
+   * as "camera" - while the rest of the app keeps the calm mint identity. Never used outside camera/snap chrome.
+   */
+  flare: '#FFC845',
+  flarePressed: '#F0B72E',
 
   // --- Legacy names, mapped onto the palette ---------------------------------------------
   ink: '#0A1F18',
@@ -61,7 +68,70 @@ export const colors = {
   mutedOnDark: '#9BA6AC',
   surfaceOnDark: '#1F262B',
   lineOnDark: 'rgba(255, 255, 255, 0.14)',
+
+  // --- Raw palette from docs/sinyal-mvp-plan/docs/plan/03_DESIGN_SYSTEM.md §2.1 (P1.1) -------------
+  // Additive only: nothing above is renamed or repointed, so every existing screen is unaffected.
+  // `flare`/`flarePressed` above already equal this palette's `sun500`/`sun600` (independently chosen
+  // for the camera/snap accent, then found to match the plan almost exactly - kept as the canonical
+  // names since 5 files already reference them; `sun*` are here so new work can use the plan's own
+  // vocabulary). Light-mode semantic tokens and a runtime ThemeProvider are P1.2, not yet built.
+  ink950: '#07090B', ink900: '#0C1014', ink850: '#11161B', ink800: '#171D23',
+  ink700: '#212932', ink600: '#2C3540', ink500: '#46515D', ink400: '#6B7682',
+  ink300: '#98A2AE', ink200: '#C4CBD3', ink100: '#E6EAEE', ink50: '#F4F6F8',
+  mint500: '#3DDC97', mint600: '#22B97A', mint400: '#6BE8B1', mint900: '#0E2A20',
+  sun500: '#FFC83D', sun600: '#E5A800', sun400: '#FFD86E',
+  red500: '#FF5A5F', orange500: '#FF8A4C', amber500: '#FFC83D',
+  pink500: '#F472B6', violet500: '#B98BFF', sky500: '#38BDF8',
+  indigo500: '#818CF8', slate500: '#8FA3BF', blue500: '#4DA3FF',
 };
+
+/**
+ * Occupancy/wait/traffic/parking level scale (03_DESIGN_SYSTEM.md §2.4): 0 = calm/plenty, 3 = packed.
+ * Parking reads the opposite way (plenty of spots = level 0 = still the calm colour); invert the count
+ * before indexing this array for that one signal, never the array itself.
+ */
+export const levelScale = [colors.mint500, '#D9E36B', colors.orange500, colors.red500] as const;
+
+/**
+ * Semantic dark/light tokens (03_DESIGN_SYSTEM.md §2.2), for `ThemeProvider`/`useTheme()` (P1.2). No
+ * screen reads this yet - the app stays visually dark-only (the flat `colors` above) until a screen is
+ * migrated to consume `useTheme().palette`; ships as infrastructure first, on purpose, rather than a
+ * "light mode" toggle that looks like it does something and does not.
+ */
+export type SemanticPalette = {
+  bgCanvas: string; bgSurface: string; bgSurfaceRaised: string; bgSurfaceSunken: string;
+  bgOverlay: string; bgGlass: string;
+  borderSubtle: string; borderDefault: string;
+  textPrimary: string; textSecondary: string; textTertiary: string; textOnAccent: string;
+  accentPrimary: string; accentPrimarySoft: string; accentCreate: string;
+  stateDanger: string; stateSuccess: string; stateInfo: string;
+};
+
+export const semanticColors: { dark: SemanticPalette; light: SemanticPalette } = {
+  dark: {
+    bgCanvas: colors.ink950, bgSurface: colors.ink900, bgSurfaceRaised: colors.ink850, bgSurfaceSunken: colors.ink800,
+    bgOverlay: 'rgba(7, 9, 11, 0.55)', bgGlass: 'rgba(17, 22, 27, 0.72)',
+    borderSubtle: 'rgba(255, 255, 255, 0.06)', borderDefault: colors.ink700,
+    textPrimary: colors.ink50, textSecondary: colors.ink300, textTertiary: colors.ink400, textOnAccent: colors.ink950,
+    accentPrimary: colors.mint500, accentPrimarySoft: colors.mint900, accentCreate: colors.sun500,
+    stateDanger: colors.red500, stateSuccess: colors.mint500, stateInfo: colors.blue500,
+  },
+  light: {
+    bgCanvas: colors.white, bgSurface: colors.ink50, bgSurfaceRaised: colors.white, bgSurfaceSunken: colors.ink100,
+    bgOverlay: 'rgba(7, 9, 11, 0.35)', bgGlass: 'rgba(255, 255, 255, 0.78)',
+    borderSubtle: 'rgba(7, 9, 11, 0.06)', borderDefault: colors.ink100,
+    textPrimary: colors.ink950, textSecondary: colors.ink500, textTertiary: colors.ink400, textOnAccent: colors.ink950,
+    accentPrimary: colors.mint600, accentPrimarySoft: '#DDF7EC', accentCreate: colors.sun500,
+    stateDanger: '#E5484D', stateSuccess: colors.mint600, stateInfo: '#2F7FE0',
+  },
+};
+
+export type ThemeMode = 'dark' | 'light';
+export type ThemePreference = ThemeMode | 'system';
+
+/** "system" follows the device; `systemScheme` is whatever `useColorScheme()` returned (RN can report `null`). */
+export const resolveThemeMode = (preference: ThemePreference, systemScheme: ThemeMode | null | undefined): ThemeMode =>
+  preference === 'system' ? (systemScheme === 'light' ? 'light' : 'dark') : preference;
 
 /** Per-signal-type accent, shared by the map pins, the composer's type picker and signal cards. */
 export const signalColors: Record<
@@ -130,6 +200,23 @@ export const typography = {
   caption: { fontSize: 13, lineHeight: 18, fontWeight: '400' as const, letterSpacing: 0 },
   label: { fontSize: 12, lineHeight: 16, fontWeight: '600' as const, letterSpacing: 0.1 },
   micro: { fontSize: 11, lineHeight: 14, fontWeight: '600' as const, letterSpacing: 0.1 },
+};
+
+/**
+ * P1.3 (sinyal-mvp-plan Faz 1): "Bricolage Grotesque" for large display text (03_DESIGN_SYSTEM.md §3).
+ * `displayFontFamily` is the loaded-font name; `App.tsx` loads the two weights via `useFonts` and only
+ * ever shows the app once loading has *settled* (loaded, or genuinely failed - never blocked forever).
+ * Google Fonts lists this family's subsets as `latin`/`latin-ext`/`vietnamese`; `latin-ext` is the block
+ * that carries Turkish ğ/ş/ı/İ/ç/ö/ü, so it should render correctly - **not yet visually confirmed on a
+ * physical device this session**, per this project's rule against claiming native-only results without
+ * one. `useDisplayFont` below reports whether the font actually loaded, so `BlinkrText` can fall back to
+ * the system font rather than show tofu glyphs if it did not.
+ */
+export const displayFontFamily = { semibold: 'BricolageGrotesque_600SemiBold', bold: 'BricolageGrotesque_700Bold' };
+export const displayTypography = {
+  display: { fontSize: 30, lineHeight: 36, fontFamily: displayFontFamily.bold, letterSpacing: -0.3 },
+  title1: { fontSize: 22, lineHeight: 28, fontFamily: displayFontFamily.bold, letterSpacing: -0.2 },
+  title2: { fontSize: 18, lineHeight: 24, fontFamily: displayFontFamily.semibold, letterSpacing: -0.1 },
 };
 /** Short and quiet: things ease into place, they do not bounce. */
 export const motion = { fast: 140, base: 200, sheet: 240 };

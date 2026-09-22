@@ -5,10 +5,11 @@ import { ActivityIndicator, BackHandler, ScrollView, StyleSheet, Text, TextInput
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { searchPlaces } from '../../api';
+import { distanceMeters } from '../../nearbyRequestOwnership';
 import { formatCategory, formatDistance } from '../../presentation';
 import { friendlyError } from '../../productPresentation';
 import {
-  CATEGORY_SHORTCUTS, MIN_QUERY_LENGTH, highlightSegments, isLiveResult, isSearchableQuery, rankPlaces, recentToPlace, toRecentSearch,
+  CATEGORY_SHORTCUTS, MIN_QUERY_LENGTH, distanceTier, highlightSegments, isLiveResult, isSearchableQuery, rankPlaces, recentToPlace, toRecentSearch,
   type RankedPlace, type RecentSearch,
 } from '../../placeSearch';
 import { clearRecentSearches, listRecentSearches, rememberSearch } from '../../recentSearches';
@@ -35,6 +36,9 @@ type Props = {
 type Status = 'idle' | 'loading' | 'ready' | 'error';
 const DEBOUNCE_MS = 250;
 const SEARCH_RADIUS_METERS = 30_000;
+/** When the map is looking somewhere else than the person is, both places are searched. */
+const SECOND_ORIGIN_MIN_METERS = 25_000;
+const TIER_TITLES = ['Yakınında', 'Şehirde', 'Diğer şehirler'];
 
 function Highlighted({ text, query }: { text: string; query: string }) {
   return (
@@ -87,6 +91,8 @@ export function MapSearchOverlay({ userId, origin, onClose, onSelectPlace, onSel
   const [error, setError] = useState<string | null>(null);
   const [recents, setRecents] = useState<RecentSearch[]>([]);
   const [saved, setSaved] = useState<SavedPlace[]>([]);
+  const [device, setDevice] = useState<Origin | null>(null);
+  const deviceRef = useRef<Origin | null>(null);
   const generation = useRef(0);
   const inFlight = useRef<AbortController | null>(null);
   const mounted = useRef(true);
@@ -99,6 +105,23 @@ export function MapSearchOverlay({ userId, origin, onClose, onSelectPlace, onSel
     mounted.current = true;
     void listRecentSearches(userId).then((items) => { if (mounted.current) setRecents(items); });
     void listSavedPlaces(userId).then((items) => { if (mounted.current) setSaved(items.slice(0, 4)); }).catch(() => {});
+    // Where the person is (when they allowed location): the search is about \"near ME\", not only about what the map shows.
+    void (async () => {
+      try {
+        const permission = await Location.getForegroundPermissionsAsync();
+        if (!permission.granted) return;
+        const known = await Location.getLastKnownPositionAsync({ maxAge: 15 * 60_000 });
+        const position = known ?? await Promise.race([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500)),
+        ]);
+        if (position && mounted.current) {
+          const here = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+          deviceRef.current = here;
+          setDevice(here);
+        }
+      } catch { /* no location: the map centre is used */ }
+    })();
     const back = BackHandler.addEventListener('hardwareBackPress', () => { closeRef.current(); return true; });
     return () => { mounted.current = false; generation.current += 1; inFlight.current?.abort(); back.remove(); };
   }, [userId]);
@@ -112,14 +135,19 @@ export function MapSearchOverlay({ userId, origin, onClose, onSelectPlace, onSel
     setStatus('loading');
     setError(null);
     try {
-      const at = originRef.current;
-      // The catalogue search and the address lookup run together; a failed address lookup is not an error.
-      const [found, geocoded] = await Promise.all([
-        searchPlaces(text.trim(), at.latitude, at.longitude, controller.signal, SEARCH_RADIUS_METERS),
+      // "Near me" comes first: the person's position when known, else the map centre. If the map is looking at
+      // another city, that area is searched too. The catalogue search and the address lookup run together;
+      // a failed address lookup is not an error.
+      const mapCenter = originRef.current;
+      const here = deviceRef.current;
+      const primary = here ?? mapCenter;
+      const origins = here && distanceMeters(here, mapCenter) > SECOND_ORIGIN_MIN_METERS ? [here, mapCenter] : [primary];
+      const [lists, geocoded] = await Promise.all([
+        Promise.all(origins.map((at) => searchPlaces(text.trim(), at.latitude, at.longitude, controller.signal, SEARCH_RADIUS_METERS, true))),
         text.trim().length >= 3 ? Location.geocodeAsync(text.trim()).catch(() => []) : Promise.resolve([]),
       ]);
       if (!current()) return;
-      setResults(rankPlaces(text, found));
+      setResults(rankPlaces(text, lists.flat(), { origin: primary }));
       const hit = geocoded[0];
       setPlace(hit ? { latitude: hit.latitude, longitude: hit.longitude, label: text.trim() } : null);
       setStatus('ready');
@@ -227,9 +255,18 @@ export function MapSearchOverlay({ userId, origin, onClose, onSelectPlace, onSel
         ) : (
           <>
             {status === 'loading' && results.length === 0 ? <ActivityIndicator accessibilityLabel="Aranıyor" color={colors.primary} style={styles.loading} /> : null}
-            {results.map(({ place: item, distanceMeters }) => (
-              <ResultRow distance={distanceMeters} key={item.id} onPress={() => choose(item)} place={item} query={query} />
-            ))}
+            {results.map(({ place: item, distanceMeters: meters }, index) => {
+              const tier = distanceTier(meters);
+              const startsTier = index === 0 || distanceTier(results[index - 1].distanceMeters) !== tier;
+              // Section titles only appear when the results really span more than one distance band.
+              const showTitle = startsTier && (tier > 0 || results.some((entry) => distanceTier(entry.distanceMeters) !== tier));
+              return (
+                <View key={item.id}>
+                  {showTitle ? <Text style={styles.tierTitle}>{TIER_TITLES[tier]}</Text> : null}
+                  <ResultRow distance={meters} onPress={() => choose(item)} place={item} query={query} />
+                </View>
+              );
+            })}
             {place ? (
               <SimpleRow
                 icon={<MapPin color={colors.primary} size={18} />}
@@ -241,7 +278,7 @@ export function MapSearchOverlay({ userId, origin, onClose, onSelectPlace, onSel
             ) : null}
             {status === 'ready' && results.length === 0 && !place ? (
               <BlinkrEmptyState
-                description="Yazımı kontrol et. Gideceğin bölge farklıysa haritayı oraya kaydırıp yeniden ara."
+                description="Yazımı kontrol et ya da daha kısa bir ad dene. Tüm Türkiye'de aradık."
                 icon={<Search color={colors.textSecondary} size={26} />}
                 style={styles.empty}
                 title="Sonuç bulunamadı"
@@ -275,5 +312,6 @@ const styles = StyleSheet.create({
   sub: { ...typography.caption, color: colors.textSecondary },
   live: { ...typography.label, color: colors.primary },
   loading: { marginTop: spacing.xl },
+  tierTitle: { ...typography.label, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md },
   empty: { marginTop: spacing.xxl },
 });

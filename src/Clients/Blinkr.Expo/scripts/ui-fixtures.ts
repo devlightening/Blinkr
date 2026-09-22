@@ -18,6 +18,7 @@ export const chatUsers: UserSummary[] = [
   { id: 'u-melis', userName: 'melis' },
   { id: 'u-ece', userName: 'ece' },
   { id: 'u-can', userName: 'can' },
+  { id: 'u-mert', userName: 'mert' },
 ];
 export const conversations: Conversation[] = [
   // A snap from zeynep is waiting (filled red square), arda got my text, melis opened my snap, ece has an unread chat.

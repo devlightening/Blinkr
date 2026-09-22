@@ -1,4 +1,5 @@
 import { distanceMeters } from './nearbyRequestOwnership';
+import { meaningfulTitle, signalLabels } from './presentation';
 import { isFresh } from './productPresentation';
 import type { BlinkrPlace, CoordinateSignal, SignalType, UnifiedMapResponse } from './types';
 
@@ -82,7 +83,9 @@ export const buildNearbyActivity = (
     items.push({
       key: `signal:${signal.postId}`,
       kind: 'signal',
-      title: signal.title || signal.locationName || 'Yaklaşık alan',
+      // A title that just repeats the type ("Gözlem") would sit directly above the same word in the
+      // summary line below it; fall back to where it is instead (sinyal-mvp-plan AUDIT #4).
+      title: meaningfulTitle(signal.title, signal.signalType ? signalLabels[signal.signalType] : null) ?? signal.locationName ?? 'Yaklaşık alan',
       distanceMeters: distance,
       signalType: signal.signalType ?? null,
       signalValue: signal.signalValue ?? null,

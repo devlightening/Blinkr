@@ -10,8 +10,22 @@ import { BlinkrChip } from '../src/components/ui/BlinkrChip';
 import { BlinkrEmptyState } from '../src/components/ui/BlinkrEmptyState';
 import { BlinkrHeader, HeaderAvatar } from '../src/components/ui/BlinkrHeader';
 import { BlinkrSignalCard } from '../src/components/ui/BlinkrSignalCard';
+import { FreshnessRing } from '../src/components/ui/BlinkrFreshnessRing';
+import { LevelMeter } from '../src/components/ui/BlinkrLevelMeter';
+import { Toast } from '../src/components/ui/BlinkrToast';
+import { TypeBadge } from '../src/components/ui/BlinkrTypeBadge';
+import { BlinkrText } from '../src/components/ui/BlinkrText';
+import { BlinkrErrorState } from '../src/components/ui/BlinkrErrorState';
+import { IconButton } from '../src/components/ui/BlinkrIconButton';
+import { SegmentedControl } from '../src/components/ui/BlinkrSegmentedControl';
+import { X } from 'lucide-react-native';
 import { PostDetailSheet } from '../src/components/PostDetailSheet';
 import { ProfileScreen } from '../src/components/ProfileScreen';
+import { FriendsScreen } from '../src/components/friends/FriendsScreen';
+import { OnboardingScreen } from '../src/components/OnboardingScreen';
+import { SettingsScreen } from '../src/components/SettingsScreen';
+import { sendReport } from '../src/api';
+import { UserProfileSheet } from '../src/components/friends/UserProfileSheet';
 import { ChatListScreen } from '../src/components/chat/ChatListScreen';
 import { Avatar } from '../src/components/Avatar';
 import { avatarKeyOf } from '../src/avatars';
@@ -36,6 +50,8 @@ function Kit() {
   const [tab, setTab] = useState<BlinkrTab>('map');
   const [layer, setLayer] = useState('all');
   const [taps, setTaps] = useState(0);
+  const [toast, setToast] = useState<string | null>(null);
+  const [segment, setSegment] = useState('nearby');
   return (
     <View style={{ backgroundColor: colors.background, flex: 1 }}>
       <ScrollView contentContainerStyle={{ gap: 16, padding: 16, paddingBottom: 140 }}>
@@ -81,7 +97,36 @@ function Kit() {
           icon={<MessageCircle color={colors.textSecondary} size={34} />}
           title="Henüz mesajın yok"
         />
+        {/* P1.5 (sinyal-mvp-plan Faz 1): the imza öğesi FreshnessRing, plus TypeBadge/LevelMeter/Toast. */}
+        <View accessibilityLabel="freshness-ring-row" style={{ flexDirection: 'row', gap: 16 }}>
+          <FreshnessRing color={signalColors.Crowd} live progress={0.85} size={56}><Avatar seed="ring-live" size={44} /></FreshnessRing>
+          <FreshnessRing color={signalColors.Queue} progress={0.4} size={56}><Avatar seed="ring-mid" size={44} /></FreshnessRing>
+          <FreshnessRing color={colors.textSecondary} progress={0.05} size={56}><Avatar seed="ring-low" size={44} /></FreshnessRing>
+        </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <TypeBadge signalType="Queue" tone={signalColors.Queue} typeLabel="Bekleme" valueLabel="5-15 dk" />
+          <TypeBadge signalType="TemporaryStatus" tone={signalColors.TemporaryStatus} typeLabel="Geçici durum" valueLabel="Kapalı" />
+        </View>
+        <LevelMeter accessibilityLabel="Doluluk seviyesi: kalabalık" level={2} />
+        {/* P1.3: Bricolage Grotesque display steps - Turkish diacritics for a layout/sizing sanity check
+            (this browser preview does not have the real font file, so it is not a glyph-rendering test). */}
+        <BlinkrText variant="display">Şişli'de İğneada Çığlığı</BlinkrText>
+        <BlinkrText variant="title1">Öğrenci Şöförü Çok Üşüyor</BlinkrText>
+        <BlinkrText color={colors.textSecondary} variant="title2">Ğüzel Çorlu Işığı</BlinkrText>
+        <BlinkrButton label="Toast göster" onPress={() => setToast('Paylaşıldı')} variant="secondary" />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <IconButton accessibilityLabel="Kapat" icon={<X color={colors.text} size={20} />} onPress={() => {}} variant="glass" />
+          <IconButton accessibilityLabel="Ayarlar" icon={<Users color={colors.text} size={20} />} onPress={() => {}} variant="surface" />
+        </View>
+        <SegmentedControl
+          accessibilityLabel="Görünüm"
+          onChange={setSegment}
+          options={[{ value: 'nearby', label: 'Yakınımda' }, { value: 'following', label: 'Takip' }]}
+          value={segment}
+        />
+        <BlinkrErrorState description="Sinyaller yüklenemedi. Bağlantını kontrol edip tekrar dene." onRetry={() => {}} />
       </ScrollView>
+      <Toast message={toast} onHide={() => setToast(null)} tone="success" />
       <BlinkrBottomBar active={tab} chatUnread onShare={() => setTaps(taps + 10)} onTab={setTab} />
     </View>
   );
@@ -163,6 +208,7 @@ function MapChrome() {
         layer={layer}
         onLayerChange={setLayer}
         onLocate={() => {}}
+        topInset={47}
         onOpenProfile={() => {}}
         onScan={() => {}}
         scanAvailable
@@ -309,7 +355,71 @@ function ComposerWithMedia() {
 
 function Auth() { return <AuthScreen onAuthenticated={() => {}} />; }
 
-const scenes: Record<string, () => React.JSX.Element> = { auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, mapSearch: MapSearch, avatars: AvatarGallery, share: ShareHub, camera: CameraScene, conversation: Conversation, search: UserSearch };
+// --- Friends: the full screen, and one person's profile sheet ---
+function Friends() {
+  const [chosen, setChosen] = useState('none');
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <FriendsScreen auth={qaAuth} onAuthChange={() => {}} onBack={() => setChosen('back')} onMessage={(user) => setChosen(`message:${user.userName}`)} onSessionExpired={() => {}} />
+      <Text accessibilityLabel="chosen" style={{ height: 0, opacity: 0, position: 'absolute' }}>{chosen}</Text>
+    </View>
+  );
+}
+function PersonProfile() {
+  const id = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('who') ?? 'u-zeynep' : 'u-zeynep';
+  const [chosen, setChosen] = useState('none');
+  const user = { id, userName: id.replace('u-', ''), relation: 'none' as const };
+  return (
+    <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
+      <UserProfileSheet auth={qaAuth} onAuthChange={() => {}} onClose={() => setChosen('closed')} onMessage={(target) => setChosen(`message:${target.userName}`)} onSessionExpired={() => {}} user={user} />
+      <Text accessibilityLabel="chosen" style={{ height: 0, opacity: 0, position: 'absolute' }}>{chosen}</Text>
+    </View>
+  );
+}
+
+function Onboarding() {
+  const [chosen, setChosen] = useState('none');
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <OnboardingScreen onDone={() => setChosen('done')} />
+      <Text accessibilityLabel="chosen" style={{ height: 0, opacity: 0, position: 'absolute' }}>{chosen}</Text>
+    </View>
+  );
+}
+function Settings() {
+  const [chosen, setChosen] = useState('none');
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <SettingsScreen auth={qaAuth} onAuthChange={() => {}} onBack={() => setChosen('back')} onLogout={() => setChosen('logout')} onSessionExpired={() => {}} />
+      <Text accessibilityLabel="chosen" style={{ height: 0, opacity: 0, position: 'absolute' }}>{chosen}</Text>
+    </View>
+  );
+}
+// A place with two signals, reportable (?reportfail makes the server refuse).
+function ReportableDetail() {
+  const place = {
+    id: 'rp', name: 'Kent Meydanı', category: 'PUBLIC', latitude: 37.07, longitude: 36.25, distanceMeters: 120,
+    currentState: { signalType: 'Crowd', signalValue: 'Busy', freshness: 'FRESH', activeSignalCount: 2, observedAtUtc: new Date().toISOString(), confidence: 'MEDIUM' },
+    recentSignals: [
+      { postId: 'post-a', title: 'Çok kalabalık', text: 'Kuyruk uzun', signalType: 'Crowd', createdAtUtc: new Date().toISOString(), authorName: 'deniz', publicationTrust: 'VERIFIED_LIVE' },
+      { postId: 'post-b', title: 'Sakinleşti', text: 'Yer var', signalType: 'Crowd', createdAtUtc: new Date().toISOString(), authorName: 'ece', publicationTrust: 'VERIFIED_LIVE' },
+    ],
+  } as never;
+  return (
+    <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
+      <PostDetailSheet
+        isLoading={false}
+        onClose={() => {}}
+        onCreateSignal={() => {}}
+        onReportSignal={async (postId, reason, note) => { await sendReport(qaAuth, { targetType: 'signal', targetId: postId, reason, note }); }}
+        place={place}
+        userId="qa"
+      />
+    </View>
+  );
+}
+
+const scenes: Record<string, () => React.JSX.Element> = { onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, mapSearch: MapSearch, avatars: AvatarGallery, share: ShareHub, camera: CameraScene, conversation: Conversation, search: UserSearch };
 
 export function SceneHost({ name }: { name: string }) {
   const Scene = scenes[name];

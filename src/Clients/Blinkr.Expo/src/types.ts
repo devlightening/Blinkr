@@ -208,11 +208,38 @@ export type LocationReadiness =
 export type UploadState = 'idle' | 'preparing' | 'uploading' | 'ready' | 'failed';
 export type NearbyStatus = 'LOADING' | 'READY' | 'EMPTY' | 'NOT_LOADED' | 'FAILED';
 
+/** How one person relates to another, from the viewer's side ("incoming" = they asked me, "outgoing" = I asked them). */
+export type Relation = 'none' | 'self' | 'friends' | 'incoming' | 'outgoing' | 'blocked';
+
 export type UserSummary = {
   id: string;
   userName: string;
   avatarKey?: string | null;
+  /** Present on search results; absent on older servers (= none). */
+  relation?: Relation;
 };
+
+/** What anyone may see of a person: no e-mail, no friend list. */
+export type PublicProfile = {
+  id: string;
+  userName: string;
+  avatarKey?: string | null;
+  bio?: string | null;
+  joinedAtUtc: string;
+  relation: Relation;
+};
+
+/** My own profile numbers (from /api/users/me). */
+export type MyProfile = {
+  bio?: string | null;
+  friendCount: number;
+  incomingRequestCount: number;
+};
+
+export type BlockedUser = { id: string; userName: string; avatarKey?: string | null; blockedAtUtc: string };
+export type Friend = { id: string; userName: string; avatarKey?: string | null; sinceUtc: string };
+export type FriendRequest = { id: string; userName: string; avatarKey?: string | null; createdAtUtc: string };
+export type FriendRequests = { incoming: FriendRequest[]; outgoing: FriendRequest[] };
 
 export type Conversation = {
   id: string;

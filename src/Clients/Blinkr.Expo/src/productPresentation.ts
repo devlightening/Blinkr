@@ -1,21 +1,36 @@
+import { SIGNAL_CATALOG } from './signalCatalog';
 import type { ComposerArea, SignalType } from './types';
 
 export const trustLabel = (trust?: string | null) => trust === 'VERIFIED_LIVE'
   ? 'Konum doğrulandı' : trust === 'NEARBY_PLACE_POST' ? 'Yakındaki yer paylaşımı' : 'Konum doğrulanamadı';
 export const canPublishAt = (area: ComposerArea | null) => Boolean(area && (!area.place || area.proximity?.allowed));
-export const signalOptions: Partial<Record<SignalType, Array<{ value: string; label: string }>>> = {
-  Crowd: [{ value: 'Calm', label: 'Sakin' }, { value: 'Moderate', label: 'Hareketli' }, { value: 'Busy', label: 'Kalabalık' }],
-  Queue: [{ value: 'None', label: 'Sıra yok' }, { value: '5To15', label: '5–15 dk' }, { value: 'Over15', label: '15 dk üzeri' }],
-  TemporaryStatus: [{ value: 'Closed', label: 'Kapalı' }, { value: 'Open', label: 'Açık' }],
-  Event: [{ value: 'Started', label: 'Başladı' }, { value: 'Ended', label: 'Bitti' }],
-  Offer: [{ value: 'Available', label: 'Devam ediyor' }, { value: 'Ended', label: 'Sona erdi' }],
-};
+// Source of truth moved to signalCatalog.ts (sinyal-mvp-plan P1.6); re-exported here as before.
+export const signalOptions: Partial<Record<SignalType, Array<{ value: string; label: string }>>> = Object.fromEntries(
+  Object.entries(SIGNAL_CATALOG).filter(([, entry]) => entry.options).map(([type, entry]) => [type, entry.options]),
+);
 export const signalValueLabel = (type?: SignalType | null, value?: string | null) =>
   signalOptions[type ?? 'GeneralObservation']?.find(item => item.value.toUpperCase() === value?.toUpperCase())?.label
     ?? ({ EMPTY: 'Sakin', LONG: 'Uzun sıra' } as Record<string, string>)[value?.toUpperCase() ?? ''] ?? value ?? '';
 export const freshnessOpacity = (created?: string | null, now = Date.now()) => {
   const age = created ? now - Date.parse(created) : 0;
   return age < 15 * 60_000 ? 1 : age < 60 * 60_000 ? 0.9 : 0.65;
+};
+/**
+ * How much of a signal's life is left, 1 (just posted) to 0 (expired) - what `FreshnessRing` draws
+ * (03_DESIGN_SYSTEM.md §6). Unlike `freshnessOpacity` (a coarse dim-with-age step for lists), this is
+ * the actual TTL window: without an `expiresAtUtc` there is nothing to draw a fraction of, so it
+ * returns 1 rather than guessing a lifetime.
+ */
+export const freshnessProgress = (createdAtUtc: string | null | undefined, expiresAtUtc: string | null | undefined, now = Date.now()) => {
+  const created = createdAtUtc ? Date.parse(createdAtUtc) : Number.NaN;
+  const expires = expiresAtUtc ? Date.parse(expiresAtUtc) : Number.NaN;
+  if (!Number.isFinite(created) || !Number.isFinite(expires) || expires <= created) return 1;
+  return Math.min(1, Math.max(0, (expires - now) / (expires - created)));
+};
+/** The pulse (03_DESIGN_SYSTEM.md §6) is only for signals genuinely still young, not merely "not yet expired". */
+export const isFreshnessPulseDue = (createdAtUtc: string | null | undefined, now = Date.now()) => {
+  const created = createdAtUtc ? Date.parse(createdAtUtc) : Number.NaN;
+  return Number.isFinite(created) && now - created < 15 * 60_000;
 };
 export const isFresh = (created?: string | null, expires?: string | null, now = Date.now()) =>
   Boolean(created && Number.isFinite(Date.parse(created)) && now - Date.parse(created) < 180 * 60_000

@@ -1,5 +1,5 @@
 import { chatMessages, chatUsers, conversations, nearby } from './ui-fixtures';
-import type { ChatMessage } from '../src/types';
+import type { ChatMessage, Relation } from '../src/types';
 
 const flag = (name: string) => typeof location !== 'undefined' && location.search.includes(name);
 
@@ -14,6 +14,10 @@ const catalogue = [
 export const searchPlaces = async (q: string) => {
   if (flag('searchfail')) throw new Error('Network request failed');
   if (flag('emptysearch')) return [];
+  if (flag('farsearch')) return [
+    { id: 'soul-ist', name: 'Soulmate Coffee', category: 'CAFE', latitude: 41.0082, longitude: 28.9784, distanceMeters: 800_000, displayAddress: null },
+    { id: 'soul-near', name: 'Soulmate Cafe', category: 'CAFE', latitude: 37.0760, longitude: 36.2480, distanceMeters: 900, displayAddress: null },
+  ];
   const folded = q.toLocaleLowerCase('tr');
   const category = ({ eczane: 'PHARMACY', park: 'PARK', market: 'SUPERMARKET' } as Record<string, string>)[folded];
   if (category) return catalogue.filter(p => p.category === category);
@@ -42,7 +46,91 @@ export const getUser = async (_auth: unknown, id: string) => {
   return user;
 };
 export const startConversation = async (_auth: unknown, targetUserId: string) => ({ id: `new-${targetUserId}`, otherUserId: targetUserId, lastMessageAtUtc: new Date().toISOString(), unreadCount: 0 });
-export const searchUsers = async (_auth: unknown, query: string) => chatUsers.filter(u => u.userName.includes(query.toLowerCase()));
+// Friends: an in-memory friendship book that behaves like the server (?nofriends = nobody, ?friendsfail, ?actionfail, ?profilefail, ?nobio, ?nosignals).
+const book: Record<string, Relation> = flag('nofriends') ? {} : { 'u-zeynep': 'friends', 'u-ece': 'friends', 'u-melis': 'incoming', 'u-can': 'outgoing' };
+let myBio: string | null = flag('nobio') ? null : 'Kahve ve yürüyüş.';
+const relationOf = (id: string): Relation => book[id] ?? 'none';
+const userOf = (id: string) => chatUsers.find((u) => u.id === id);
+const inState = (state: Relation) => chatUsers.filter((u) => relationOf(u.id) === state);
+export const searchUsers = async (_auth: unknown, query: string) =>
+  chatUsers.filter(u => u.userName.includes(query.toLowerCase()) && relationOf(u.id) !== 'blocked').map((u) => ({ ...u, relation: relationOf(u.id) }));
+export const getMyProfile = async () => ({ bio: myBio, friendCount: inState('friends').length, incomingRequestCount: inState('incoming').length });
+export const setMyBio = async (_auth: unknown, bio: string | null) => {
+  if (flag('biofail')) throw new Error('Network request failed');
+  myBio = bio;
+  return { bio };
+};
+export const getPublicProfile = async (_auth: unknown, id: string) => {
+  if (flag('profilefail')) throw new Error('Network request failed');
+  const user = userOf(id);
+  if (!user) throw new Error('not found');
+  return { ...user, bio: id === 'u-zeynep' ? 'Sabah kahvesi, akşam yürüyüşü.' : null, joinedAtUtc: '2026-03-10T09:00:00Z', relation: relationOf(id) };
+};
+export const getUserPosts = async (_auth: unknown, _id: string) => {
+  if (flag('nosignals')) return { items: [], total: 0 };
+  const items = ['Kahve Durağı', 'Kent Meydanı', 'Masal Parkı'].map((place, n) => ({
+    id: `up-${n}`, title: `${place}'nda gözlem`, content: 'Sakin.', createdAtUtc: new Date(Date.now() - (n + 1) * 3_600_000).toISOString(), expiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+    signalType: kinds[n % kinds.length], signalValue: null, locationName: place, identityDisclosure: 'LimitedProfile', mediaUrls: [],
+  }));
+  return { items, total: 12 };
+};
+export const listFriends = async () => {
+  if (flag('friendsfail')) throw new Error('Network request failed');
+  return inState('friends').map((u) => ({ id: u.id, userName: u.userName, avatarKey: u.avatarKey, sinceUtc: '2026-04-01T10:00:00Z' }));
+};
+export const listFriendRequests = async () => {
+  if (flag('friendsfail')) throw new Error('Network request failed');
+  const row = (u: { id: string; userName: string; avatarKey?: string | null }) => ({ id: u.id, userName: u.userName, avatarKey: u.avatarKey, createdAtUtc: '2026-09-20T10:00:00Z' });
+  return { incoming: inState('incoming').map(row), outgoing: inState('outgoing').map(row) };
+};
+const move = (from: Relation, to: Relation) => async (_auth: unknown, id: string) => {
+  if (flag('actionfail')) throw new Error('Network request failed');
+  if (relationOf(id) !== from) throw new Error('REQUEST_NOT_FOUND');
+  book[id] = to;
+  return { userId: id, relation: to };
+};
+export const sendFriendRequest = move('none', 'outgoing');
+export const acceptFriendRequest = move('incoming', 'friends');
+export const declineFriendRequest = move('incoming', 'none');
+export const cancelFriendRequest = move('outgoing', 'none');
+export const removeFriend = move('friends', 'none');
+
+// Safety: blocks and reports (?noblocks = nobody blocked, ?blockfail / ?reportfail = the server refuses).
+const blockedAt = new Map<string, string>(flag('noblocks') ? [] : [['u-mert', '2026-09-19T10:00:00Z']]);
+if (!flag('noblocks')) book['u-mert'] = 'blocked';
+export const listBlocks = async () => {
+  if (flag('blockfail')) throw new Error('Network request failed');
+  return [...blockedAt.entries()].map(([id, blockedAtUtc]) => ({ id, userName: userOf(id)?.userName ?? id, avatarKey: userOf(id)?.avatarKey, blockedAtUtc }));
+};
+export const blockUser = async (_auth: unknown, id: string) => {
+  if (flag('blockfail')) throw new Error('Network request failed');
+  book[id] = 'blocked';
+  blockedAt.set(id, new Date().toISOString());
+  return { userId: id, relation: 'blocked' as Relation };
+};
+export const unblockUser = async (_auth: unknown, id: string) => {
+  if (flag('blockfail')) throw new Error('Network request failed');
+  book[id] = 'none';
+  blockedAt.delete(id);
+  return { userId: id, relation: 'none' as Relation };
+};
+export const sendReport = async (_auth: unknown, report: { targetType: string; targetId: string; reason: string; note?: string }) => {
+  if (flag('reportfail')) throw new Error('Network request failed');
+  (globalThis as unknown as { __lastReport?: unknown }).__lastReport = report;
+  return { reported: true };
+};
+
+// Saved places, live: p1 is busy right now, p3 has a recent queue, p2 has only a stale state (?nolive = nothing, ?livefail = error).
+export const getPlacesByIds = async (ids: string[]) => {
+  if (flag('livefail')) throw new Error('Network request failed');
+  if (flag('nolive')) return [];
+  const states: Record<string, { signalType: string; signalValue: string; freshness: string; activeSignalCount: number; observedAtUtc: string } | undefined> = {
+    p1: { signalType: 'Crowd', signalValue: 'Busy', freshness: 'FRESH', activeSignalCount: 2, observedAtUtc: new Date(Date.now() - 5 * 60_000).toISOString() },
+    p2: { signalType: 'Crowd', signalValue: 'Calm', freshness: 'STALE', activeSignalCount: 1, observedAtUtc: new Date(Date.now() - 300 * 60_000).toISOString() },
+    p3: { signalType: 'Queue', signalValue: 'Over15', freshness: 'RECENT', activeSignalCount: 1, observedAtUtc: new Date(Date.now() - 35 * 60_000).toISOString() },
+  };
+  return ids.map((id) => ({ id, name: id, category: 'CAFE', latitude: 37, longitude: 36, currentState: states[id] ?? null }));
+};
 let sent: ChatMessage[] = [];
 export const getMessages = async () => ({ items: flag('emptychat') ? [] : [...sent, ...chatMessages] });
 export const sendMessage = async (_auth: unknown, conversationId: string, text: string): Promise<ChatMessage> => {

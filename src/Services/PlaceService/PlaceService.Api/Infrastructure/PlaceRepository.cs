@@ -9,8 +9,14 @@ namespace PlaceService.Api.Infrastructure;
 public interface IPlaceRepository
 {
     Task<PlaceDocument?> GetAsync(Guid id, CancellationToken ct);
+    Task<IReadOnlyList<PlaceDocument>> GetManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
     Task<IReadOnlyList<PlaceDocument>> GetNearbyAsync(double lat, double lon, int radiusMeters, int limit, CancellationToken ct);
     Task<IReadOnlyList<PlaceDocument>> SearchAsync(string query, double lat, double lon, int radiusMeters, int limit, CancellationToken ct);
+    /// <summary>Places whose name words start with every given token, anywhere in the catalogue.</summary>
+    Task<IReadOnlyList<PlaceDocument>> SearchByTokensAsync(IReadOnlyList<string> tokens, int limit, CancellationToken ct);
+    /// <summary>Typo rescue: places near an origin having a name word that starts with a short prefix.</summary>
+    Task<IReadOnlyList<PlaceDocument>> SearchNearPrefixAsync(string prefix, double lat, double lon, int radiusMeters, int limit, CancellationToken ct);
+    Task<int> BackfillSearchTokensAsync(int batchSize, CancellationToken ct);
     Task<IReadOnlyList<PlaceDocument>> GetBoundsAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, CancellationToken ct);
     Task<IReadOnlyList<PlaceDocument>> GetActiveBoundsAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, CancellationToken ct);
     Task<PlaceDocument> CreateAsync(CreatePlaceRequest request, CancellationToken ct);
@@ -41,6 +47,12 @@ public sealed class PlaceRepository : IPlaceRepository
         return await _places.Find(p => p.Id == id && p.IsActive).FirstOrDefaultAsync(ct);
     }
 
+    public async Task<IReadOnlyList<PlaceDocument>> GetManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0) return Array.Empty<PlaceDocument>();
+        return await _places.Find(p => ids.Contains(p.Id) && p.IsActive).ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<PlaceDocument>> GetNearbyAsync(double lat, double lon, int radiusMeters, int limit, CancellationToken ct)
     {
         return await SearchAsync("", lat, lon, radiusMeters, limit, ct);
@@ -56,10 +68,49 @@ public sealed class PlaceRepository : IPlaceRepository
             var escaped = string.Concat(query.Trim().Select(c => c is 'i' or 'I' or 'İ' or 'ı'
                 ? "[iIİı]" : System.Text.RegularExpressions.Regex.Escape(c.ToString())));
             var pattern = new MongoDB.Bson.BsonRegularExpression(escaped, "i");
-            filter &= f.Regex(p => p.Name, pattern) | f.Regex(p => p.Category, pattern) | f.Regex(p => p.DisplayAddress, pattern);
+            var byText = f.Regex(p => p.Name, pattern) | f.Regex(p => p.Category, pattern) | f.Regex(p => p.DisplayAddress, pattern);
+
+            // Folded name words: finds "Şifa" from "sifa" and "Soul Mate" from "soulmate". Words that were typed
+            // must each start a name word; documents the backfill has not reached yet still match by the regexes above.
+            var tokens = PlaceService.Api.Application.PlaceSearchText.QueryTokens(query);
+            filter &= tokens.Length == 0 ? byText : byText | TokenPrefixFilter(tokens);
         }
         // $nearSphere sorts before limit, so dense catalogs cannot hide the closest branch.
         return await _places.Find(filter).Limit(limit).ToListAsync(ct);
+    }
+
+    private static FilterDefinition<PlaceDocument> TokenPrefixFilter(IEnumerable<string> tokens) =>
+        Builders<PlaceDocument>.Filter.And(tokens.Select(token =>
+            Builders<PlaceDocument>.Filter.Regex("SearchTokens", new MongoDB.Bson.BsonRegularExpression("^" + System.Text.RegularExpressions.Regex.Escape(token)))));
+
+    public async Task<IReadOnlyList<PlaceDocument>> SearchByTokensAsync(IReadOnlyList<string> tokens, int limit, CancellationToken ct)
+    {
+        if (tokens.Count == 0) return Array.Empty<PlaceDocument>();
+        var filter = Builders<PlaceDocument>.Filter.Eq(p => p.IsActive, true) & TokenPrefixFilter(tokens);
+        return await _places.Find(filter).Limit(limit).ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<PlaceDocument>> SearchNearPrefixAsync(string prefix, double lat, double lon, int radiusMeters, int limit, CancellationToken ct)
+    {
+        if (prefix.Length < 2) return Array.Empty<PlaceDocument>();
+        var f = Builders<PlaceDocument>.Filter;
+        var filter = f.Eq(p => p.IsActive, true)
+            & f.NearSphere(p => p.Location, new GeoJsonPoint<GeoJson2DGeographicCoordinates>(new(lon, lat)), radiusMeters)
+            & TokenPrefixFilter(new[] { prefix });
+        return await _places.Find(filter).Limit(limit).ToListAsync(ct);
+    }
+
+    public async Task<int> BackfillSearchTokensAsync(int batchSize, CancellationToken ct)
+    {
+        var missing = await _places.Find(Builders<PlaceDocument>.Filter.Exists("SearchTokens", false)).Limit(batchSize).ToListAsync(ct);
+        if (missing.Count == 0) return 0;
+
+        // An empty list (not null) marks "seen", so a name without usable words is not visited again.
+        var writes = missing.Select(place => (WriteModel<PlaceDocument>)new UpdateOneModel<PlaceDocument>(
+            Builders<PlaceDocument>.Filter.Eq(p => p.Id, place.Id),
+            Builders<PlaceDocument>.Update.Set(p => p.SearchTokens, PlaceService.Api.Application.PlaceSearchText.NameTokens(place.Name)))).ToList();
+        await _places.BulkWriteAsync(writes, new BulkWriteOptions { IsOrdered = false }, ct);
+        return missing.Count;
     }
 
     private static double DistanceMeters(double lat1, double lon1, double lat2, double lon2)
@@ -116,7 +167,8 @@ public sealed class PlaceRepository : IPlaceRepository
             Source = string.IsNullOrWhiteSpace(request.Source) ? "Manual" : request.Source.Trim(),
             CreatedAtUtc = now,
             UpdatedAtUtc = now,
-            IsActive = true
+            IsActive = true,
+            SearchTokens = PlaceService.Api.Application.PlaceSearchText.NameTokens(request.Name)
         };
 
         await _places.InsertOneAsync(place, cancellationToken: ct);
@@ -242,6 +294,9 @@ public sealed class PlaceRepository : IPlaceRepository
             new CreateIndexModel<PlaceDocument>(
                 Builders<PlaceDocument>.IndexKeys.Ascending(p => p.IsActive).Ascending(p => p.Category),
                 new CreateIndexOptions { Name = "ix_places_active_category" }),
+            new CreateIndexModel<PlaceDocument>(
+                Builders<PlaceDocument>.IndexKeys.Ascending("SearchTokens"),
+                new CreateIndexOptions { Name = "ix_places_search_tokens" }),
             new CreateIndexModel<PlaceDocument>(
                 Builders<PlaceDocument>.IndexKeys.Ascending(p => p.ExternalProvider).Ascending(p => p.ExternalId),
                 new CreateIndexOptions { Name = "ux_places_external_identity", Unique = true, Sparse = true })

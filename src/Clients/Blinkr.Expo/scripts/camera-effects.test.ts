@@ -1,4 +1,4 @@
-import { CAMERA_LENSES, MAX_STICKERS, STICKERS, clampToFrame, clampZoom, clockLabel, flashLabel, formatRecording, lensById, lensChangesPicture, nextFlash, placeSticker, stickerText } from '../src/cameraEffects';
+import { CAMERA_LENSES, MAX_STICKERS, STICKERS, clampToFrame, clampZoom, clockLabel, flashLabel, formatRecording, lensById, lensChangesPicture, nextFlash, placeSticker, stickerText, zoomMultiplierLabel } from '../src/cameraEffects';
 
 function check(value: unknown, message: string) { if (!value) throw new Error(message); }
 const run = (name: string, fn: () => void) => { fn(); console.log('PASS', name); };
@@ -36,6 +36,11 @@ run('flash cycles off -> on -> auto -> off with readable labels', () => {
 });
 run('zoom is clamped to 0..1 and NaN-safe', () => {
   check(clampZoom(-1) === 0 && clampZoom(2) === 1 && clampZoom(0.3) === 0.3 && clampZoom(Number.NaN) === 0, 'clamp');
+});
+run('zoom multiplier label is a friendly "1.0x".."5.0x" readout', () => {
+  check(zoomMultiplierLabel(0) === '1.0x' && zoomMultiplierLabel(1) === '5.0x', 'range ends');
+  check(zoomMultiplierLabel(0.5) === '3.0x', 'midpoint');
+  check(zoomMultiplierLabel(-3) === '1.0x' && zoomMultiplierLabel(9) === '5.0x', 'out-of-range zoom is clamped first');
 });
 run('stickers stay inside the frame', () => {
   check(clampToFrame(-50, 300) === 24 && clampToFrame(999, 300) === 276 && clampToFrame(150, 300) === 150, 'clampToFrame');

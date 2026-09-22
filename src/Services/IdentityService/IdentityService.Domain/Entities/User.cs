@@ -10,6 +10,8 @@
         public string Role { get; set; } = "User";
         /// <summary>Chosen avatar (see AvatarCatalog); null = the client draws a default from the user id.</summary>
         public string? AvatarKey { get; set; }
+        /// <summary>Short public line about the person; null = none.</summary>
+        public string? Bio { get; set; }
         public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     }
 }

@@ -24,6 +24,7 @@ builder.Services.AddScoped<IPlaceDiscoveryService, PlaceDiscoveryService>();
 builder.Services.AddSingleton<PlaceDiscoveryRefreshQueue>();
 builder.Services.AddSingleton<IPlaceDiscoveryRefreshQueue>(sp => sp.GetRequiredService<PlaceDiscoveryRefreshQueue>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<PlaceDiscoveryRefreshQueue>());
+builder.Services.AddHostedService<PlaceService.Api.Infrastructure.PlaceSearchBackfillService>();
 builder.Services.AddHttpClient<IPlaceDiscoveryProvider, OverpassPlaceDiscoveryProvider>((sp, client) =>
 {
     var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<PlaceDiscoveryOptions>>().Value;

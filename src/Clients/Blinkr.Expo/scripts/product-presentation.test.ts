@@ -1,6 +1,7 @@
-import { canPublishAt, friendlyError, freshnessOpacity, isFresh, recheckSignal, signalValueLabel, trustLabel } from '../src/productPresentation';
-import { formatCategory } from '../src/presentation';
-import type { ComposerArea } from '../src/types';
+import { canPublishAt, friendlyError, freshnessOpacity, freshnessProgress, isFresh, isFreshnessPulseDue, recheckSignal, signalOptions, signalValueLabel, trustLabel } from '../src/productPresentation';
+import { formatCategory, meaningfulTitle, signalLabels } from '../src/presentation';
+import { SIGNAL_CATALOG } from '../src/signalCatalog';
+import type { ComposerArea, SignalType } from '../src/types';
 function check(value: unknown, message: string) { if (!value) throw new Error(message); }
 const area: ComposerArea = { name: 'Area', source: 'device', accuracyMeters: 22, region: { latitude: 40, longitude: 32, latitudeDelta: .01, longitudeDelta: .01 } };
 const place = { id: 'branch-a', name: 'BIM', latitude: 40, longitude: 32, distanceMeters: 352 };
@@ -28,4 +29,23 @@ check(recheckSignal({ ...live, expiresAtUtc: new Date(now - 1000).toISOString() 
 check(recheckSignal({ ...live, signalType: 'GeneralObservation' }, now) === null, 'free-text observations have nothing to confirm');
 check(recheckSignal({ ...live, signalValue: 'SOMETHING_ELSE' }, now) === null, 'unknown values are not guessed');
 check(recheckSignal({ ...live, signalValue: null }, now) === null && recheckSignal(null, now) === null && recheckSignal(undefined, now) === null, 'missing state or value');
+// A title that just restates the type badge ("Gözlem" next to "Gözlem") is dropped, not shown twice.
+check(meaningfulTitle('Gözlem', 'Gözlem') === null, 'exact match dropped');
+check(meaningfulTitle('  gözlem  ', 'Gözlem') === null, 'case/whitespace-insensitive match dropped');
+check(meaningfulTitle('Bekleme süresi 10 dakika', 'Gözlem') === 'Bekleme süresi 10 dakika', 'a real title is kept');
+check(meaningfulTitle('', 'Gözlem') === null && meaningfulTitle(null, 'Gözlem') === null && meaningfulTitle(undefined, 'Gözlem') === null, 'blank title is null, not a placeholder string');
+check(meaningfulTitle('Bir şey', null) === 'Bir şey', 'no type label to compare against still keeps a real title');
+// FreshnessRing's progress: 1 at the moment of posting, 0 once expired, and honest (1, not a guess) without a TTL.
+check(freshnessProgress(new Date(now - 30 * 60000).toISOString(), new Date(now + 30 * 60000).toISOString(), now) === 0.5, 'halfway through the window is 0.5');
+check(freshnessProgress(new Date(now).toISOString(), new Date(now + 60 * 60000).toISOString(), now) === 1, 'just posted is 1');
+check(freshnessProgress(new Date(now - 60 * 60000).toISOString(), new Date(now).toISOString(), now) === 0, 'right at expiry is 0');
+check(freshnessProgress(new Date(now - 2 * 60 * 60000).toISOString(), new Date(now - 60 * 60000).toISOString(), now) === 0, 'past expiry clamps to 0, not negative');
+check(freshnessProgress(null, null, now) === 1 && freshnessProgress(new Date(now).toISOString(), null, now) === 1, 'no TTL to draw a fraction of: shown as full rather than guessed');
+check(isFreshnessPulseDue(new Date(now - 5 * 60000).toISOString(), now) && !isFreshnessPulseDue(new Date(now - 20 * 60000).toISOString(), now) && !isFreshnessPulseDue(null, now), 'pulse only for genuinely young signals');
+// signalCatalog.ts is the single source; signalLabels/signalOptions (presentation.ts/productPresentation.ts) must
+// still answer exactly what they always did, for the many existing call sites that import them by those old names.
+const allTypes: SignalType[] = ['GeneralObservation', 'Crowd', 'Queue', 'TemporaryStatus', 'Event', 'Offer', 'NewOpening'];
+check(allTypes.every((type) => signalLabels[type] === SIGNAL_CATALOG[type].label), 'signalLabels matches the catalogue for every type');
+check(allTypes.every((type) => JSON.stringify(signalOptions[type]) === JSON.stringify(SIGNAL_CATALOG[type].options)), 'signalOptions matches the catalogue for every type, undefined where the catalogue has none');
+check(signalLabels.Crowd === 'Doluluk' && signalLabels.GeneralObservation === 'Gözlem', 'labels read as before');
 console.log('product presentation tests passed');
