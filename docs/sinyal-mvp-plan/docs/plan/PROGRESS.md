@@ -108,10 +108,21 @@ yazar avatari YOKTUR (mahremiyet: anonim paylasimlar kisiye baglanamaz, surekli 
 kuralıyla doğrudan çelişiyor. §2.3 pivot notu bu kuralı gevşetmedi. Bu madde uygulanmayacak; Faz 6'da
 takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 
-- [~] P3.1 Harita ekranı yeniden yerleşim — **kısmen zaten var/kısmen bu oturumda tamamlandı.** Glass üst
-  bar (arama, avatar), katman çipleri, konumuma dön zaten vardı. Bildirim zili YOK (bildirim ekranı henüz
-  plan kapsamında yeniden tasarlanmadı, Faz 9'un işi). Filtre çipleri (Doluluk/Bekleme/... çoklu seçim)
-  henüz yok — bu ayrı, gerçek bir alt iş olarak kalıyor.
+- [~] P3.1 Harita ekranı yeniden yerleşim — **büyük ölçüde tamam.** Glass üst bar (arama, avatar),
+  katman çipleri, konumuma dön zaten vardı. Bu oturumda eklenen: tip filtre çipleri (§1.2 "tip
+  çipleri") — yeni `mapTypeFilter.ts` (saf mantık: `parseTypeFilter`/`serializeTypeFilter`,
+  `SIGNAL_CATALOG`'tan türetilen 7 gerçek `SignalType`) + `mapTypeFilterStorage.ts` (SecureStore
+  kalıcılığı, `ThemeProvider`'daki desenle aynı) + yeni `map/MapTypeFilterBar.tsx` (çoklu seçim,
+  `MapLayerBar`'ın altında, yalnız `places` katmanında gizli — o katman aktiviteye değil katalog
+  taramasına bakıyor). `mapSelection.ts`'e yeni `filterBySignalTypes()` — boş seçim = filtre yok,
+  gerçek bir seçim varsa tip'i bilinmeyen bir Place elenir. **Plan'ın "Trafik"/"Hava" çipleri
+  uygulanmadı** — Blinkr'in `SignalType` kümesinde böyle değerler yok, uydurma tip eklenmedi.
+  **Bilinçli olarak dışarıda bırakılan:** "Takip ettiklerim" çipi (Faz 6'nın takip özelliği yok) ve
+  bildirim zili (Faz 9'un işi). `SecureStore` native binding'i düz Node pipeline'ını kırdığı için
+  (`lucide-react-native` ile aynı sınıf hata, P1.6'da da görüldü) saf mantık ve kalıcılık iki ayrı
+  dosyaya bölündü — testler yalnız saf dosyayı derliyor. `typecheck`/`test:nearby`/`test:ui` yeşil
+  (yeni testler: `map-selection.test.ts`'e filtre + kalıcılık round-trip testleri eklendi); `expo
+  export --platform ios/android` yeşil; tam backend kabul paketi yeniden çalıştırıldı, sıfır FAIL.
 - [x] P3.2 Otomatik bbox yükleme (debounce) — **tamamlandı.** Önceden harita hareket edince kullanıcı
   elle "Bu alanı tara"ya basmak zorundaydı (`mapDirty` yalnız bayrak set ediyordu, hiçbir şey otomatik
   yeniden yüklemiyordu). Artık `MapScreen.tsx`'te 400ms debounce'lu bir efekt viewport oturduğunda

@@ -1,4 +1,5 @@
-import { selectMapData } from '../src/mapSelection';
+import { selectMapData, filterBySignalTypes } from '../src/mapSelection';
+import { parseTypeFilter, serializeTypeFilter } from '../src/mapTypeFilter';
 import type { BlinkrPlace, CoordinateSignal } from '../src/types';
 
 const assert = {
@@ -58,5 +59,36 @@ assert.deepEqual(ids(result.signals), ['fresh']);
 const before = JSON.stringify(places);
 selectMapData('places', places, signals, now).places.pop();
 assert.equal(JSON.stringify(places), before);
+
+// filterBySignalTypes: an empty/missing selection is "no filter" - every type still shows.
+const typedPlaces = [
+  place('crowd-place', { currentState: { activeSignalCount: 1, observedAtUtc: minutesAgo(5), expiresAtUtc: inMinutes(60), signalType: 'Crowd' } }),
+  place('queue-place', { currentState: { activeSignalCount: 1, observedAtUtc: minutesAgo(5), expiresAtUtc: inMinutes(60), signalType: 'Queue' } }),
+  place('typeless-place', { currentState: { activeSignalCount: 1, observedAtUtc: minutesAgo(5), expiresAtUtc: inMinutes(60) } }),
+];
+const typedSignals = [
+  { ...signal('crowd-signal', 5), signalType: 'Crowd' as const },
+  { ...signal('event-signal', 5), signalType: 'Event' as const },
+];
+let selection = { places: typedPlaces, signals: typedSignals };
+assert.deepEqual(ids(filterBySignalTypes('all', selection, null).places), ids(typedPlaces));
+assert.deepEqual(ids(filterBySignalTypes('all', selection, new Set()).places), ids(typedPlaces));
+
+// A real filter keeps only matching types, and drops a Place with no signal type at all.
+let filtered = filterBySignalTypes('all', selection, new Set(['Crowd']));
+assert.deepEqual(ids(filtered.places), ['crowd-place']);
+assert.deepEqual(ids(filtered.signals), ['crowd-signal']);
+
+// The `places` (Yerler) layer is catalogue browsing, not an activity filter - it is left untouched.
+filtered = filterBySignalTypes('places', selection, new Set(['Crowd']));
+assert.deepEqual(ids(filtered.places), ids(typedPlaces));
+
+// mapTypeFilter persistence: round-trips, and drops anything that is not a real SignalType.
+assert.deepEqual(Array.from(parseTypeFilter('Crowd,Queue')).sort(), ['Crowd', 'Queue']);
+assert.deepEqual(Array.from(parseTypeFilter('Crowd,Bogus,Queue')).sort(), ['Crowd', 'Queue']);
+assert.deepEqual(Array.from(parseTypeFilter(null)), []);
+assert.deepEqual(Array.from(parseTypeFilter('')), []);
+assert.equal(serializeTypeFilter(new Set(['Crowd', 'Queue'])).split(',').sort().join(','), 'Crowd,Queue');
+assert.equal(serializeTypeFilter(new Set()), '');
 
 console.log('map selection tests passed');

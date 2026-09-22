@@ -4,9 +4,11 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 
 import type { MapLayer } from '../../mapSelection';
 import { colors, motion, radii, shadowSoft, sizes, spacing, typography } from '../../theme';
+import type { SignalType } from '../../types';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { HeaderAvatar } from '../ui/BlinkrHeader';
 import { MapLayerBar } from './MapLayerBar';
+import { MapTypeFilterBar } from './MapTypeFilterBar';
 
 type Props = {
   userId: string;
@@ -14,6 +16,10 @@ type Props = {
   avatarKey?: string | null;
   layer: MapLayer;
   onLayerChange: (layer: MapLayer) => void;
+  /** Multi-select type filter (04 §1.2); empty means no filter. Hidden on the `places` (Yerler)
+   * layer since that layer lists the whole catalogue regardless of activity type. */
+  activeTypeFilter: ReadonlySet<SignalType>;
+  onToggleTypeFilter: (type: SignalType) => void;
   onOpenProfile: () => void;
   /** Opens the full-screen "Nereye gidiyorsun?" search. */
   onOpenSearch: () => void;
@@ -33,7 +39,7 @@ type Props = {
 };
 
 /** Header, layer filter and the scan / locate row that float over the map. */
-export function MapTopChrome({ userId, userName, avatarKey, layer, onLayerChange, onOpenProfile, onOpenSearch, scanAvailable, isLoading, onScan, onLocate, topInset }: Props) {
+export function MapTopChrome({ userId, userName, avatarKey, layer, onLayerChange, activeTypeFilter, onToggleTypeFilter, onOpenProfile, onOpenSearch, scanAvailable, isLoading, onScan, onLocate, topInset }: Props) {
   return (
     <View pointerEvents="box-none" style={[styles.overlay, { paddingTop: Math.max(topInset, spacing.sm) }]}>
       <View style={styles.searchBar}>
@@ -44,6 +50,7 @@ export function MapTopChrome({ userId, userName, avatarKey, layer, onLayerChange
         <HeaderAvatar avatarKey={avatarKey} onPress={onOpenProfile} userId={userId} userName={userName} />
       </View>
       <MapLayerBar onChange={onLayerChange} value={layer} />
+      {layer !== 'places' && <MapTypeFilterBar active={activeTypeFilter} onToggle={onToggleTypeFilter} />}
 
       <View pointerEvents="box-none" style={styles.scanRow}>
         {scanAvailable ? (

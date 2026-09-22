@@ -177,6 +177,7 @@ const bubble = (type: SignalType, left: number, top: number, ageMinutes: number,
 );
 function MapChrome() {
   const [layer, setLayer] = useState<MapLayer>('all');
+  const [typeFilter, setTypeFilter] = useState<Set<SignalType>>(new Set());
   const [tab, setTab] = useState<BlinkrTab>('map');
   return (
     <View style={{ backgroundColor: '#1B2521', flex: 1, overflow: 'hidden' }}>
@@ -204,6 +205,12 @@ function MapChrome() {
         ]}
       </View>
       <MapTopChrome
+        activeTypeFilter={typeFilter}
+        onToggleTypeFilter={(type) => setTypeFilter((current) => {
+          const next = new Set(current);
+          if (next.has(type)) next.delete(type); else next.add(type);
+          return next;
+        })}
         isLoading={false}
         layer={layer}
         onLayerChange={setLayer}

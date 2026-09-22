@@ -22,7 +22,9 @@ import { BlinkrMapMarker, BlinkrClusterMarker } from './BlinkrMapMarker';
 import { bottomBarClearance } from './ui/BlinkrBottomBar';
 import { MapTopChrome } from './map/MapTopChrome';
 import { MapSearchOverlay } from './map/MapSearchOverlay';
-import { selectMapData, type MapLayer } from '../mapSelection';
+import { selectMapData, filterBySignalTypes, type MapLayer } from '../mapSelection';
+import { loadTypeFilter, saveTypeFilter } from '../mapTypeFilterStorage';
+import { MapTypeFilterBar } from './map/MapTypeFilterBar';
 import { clusterMapPoints, zoomToLongitudeDelta } from '../mapClusters';
 import {
   NearbyRequestOwnership,
@@ -131,6 +133,16 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
   const [composerInitialStep, setComposerInitialStep] = useState(0);
   const [composerInitialSignal, setComposerInitialSignal] = useState<{ type: SignalType; value: string | null } | null>(null);
   const [mapLayer, setMapLayer] = useState<MapLayer>('all');
+  const [activeTypeFilter, setActiveTypeFilter] = useState<Set<SignalType>>(new Set());
+  useEffect(() => { loadTypeFilter().then(setActiveTypeFilter); }, []);
+  const toggleTypeFilter = useCallback((type: SignalType) => {
+    setActiveTypeFilter((current) => {
+      const next = new Set(current);
+      if (next.has(type)) next.delete(type); else next.add(type);
+      void saveTypeFilter(next);
+      return next;
+    });
+  }, []);
   // moveToDeviceLocation must not depend on the layer: the mount effect below depends on it, and a
   // changing dependency re-ran that effect (permission check + recentre) on every filter change.
   const mapLayerRef = useRef<MapLayer>('all');
@@ -139,8 +151,8 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(timer); }, []);
 
   const { places: visiblePlaces, signals: visibleSignals } = useMemo(
-    () => selectMapData(mapLayer, places, signals, now),
-    [mapLayer, places, signals, now],
+    () => filterBySignalTypes(mapLayer, selectMapData(mapLayer, places, signals, now), activeTypeFilter),
+    [mapLayer, places, signals, now, activeTypeFilter],
   );
 
   const markerLookup = useMemo(() => ({
@@ -838,6 +850,8 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
       )}
 
       <MapTopChrome
+        activeTypeFilter={activeTypeFilter}
+        onToggleTypeFilter={(type) => { toggleTypeFilter(type); Haptics.selectionAsync(); }}
         isLoading={isLoading}
         layer={mapLayer}
         onLayerChange={(layer) => { setMapLayer(layer); Haptics.selectionAsync(); }}
