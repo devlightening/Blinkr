@@ -15,6 +15,19 @@
 
 ## Kararlar
 
+### D-005 — P2.10 realtime gateway: dokunulmuyor, REST polling korunuyor (2026-09-22)
+- Bağlam: D-004, P2.10'u (socket.io tarzı realtime gateway) kök CLAUDE.md §6.5'in bilinçli REST
+  polling kararıyla çeliştiği için kullanıcı onayına bloke etmişti.
+- Seçenekler: (A) Dokunma, polling korunur, P2.10 Faz 2'de atlanır. (B) WebSocket/SignalR eklenir
+  (§6.5'teki kararı tersine çevirir). (C) Karar ertelenir.
+- Karar: **(A) — Şimdilik dokunma.** REST polling mimarisi korunuyor; P2.10 Faz 2 kapsamından
+  çıkarıldı.
+- Gerekçe: Kullanıcının kendi açık tercihi (önerilen seçenek); küçük/geri alınabilir olmayan bir
+  mimari değişikliği gerektirmeden mevcut, çalışan ve testli davranış korunuyor.
+- Etki: Faz 2'nin geri kalanı (P2.4/P2.8/P2.11) mevcut REST polling mimarisiyle ilerler. P2.10 kalıcı
+  olarak `[-]` (uygulanmayacak) olarak işaretlendi; ileride tekrar gündeme gelirse yeni bir karar
+  kaydı (D-00X) gerekir, bu karar sessizce geçersiz sayılmaz.
+
 ### D-004 — Faz 2 görev listesinin mevcut .NET backend'ine eşlenmesi (2026-09-22)
 - Bağlam: Faz 1 tamamlandı, sıra Faz 2'de. Planın Faz 2 görev listesi (`13_ROADMAP_PHASES.md` P2.1-P2.13)
   Node/Postgres+PostGIS referans backend'ini varsayıyor; D-001/D-003 gereği gerçek backend .NET 10 +

@@ -10,7 +10,7 @@
 | Aktif faz | Faz 2 (D-004 ile yeniden kapsamlandı) |
 | Son tamamlanan görev | P2.7 (sinyal TTL bug'ı düzeltildi) |
 | Son güncelleme | 2026-09-22 |
-| Engelleyici | P2.10 (realtime gateway) kullanıcı onayı bekliyor — bkz. D-004. Faz 2'nin geri kalanını bloklamıyor. |
+| Engelleyici | — (D-005 ile çözüldü: P2.10 realtime gateway'e dokunulmuyor, REST polling korunuyor) |
 
 
 ## Faz 0 — Keşif ve denetim
@@ -83,9 +83,9 @@ gerekçenin özetidir; tam gerekçe için D-004'e bakın.
   medyasında blurhash/varyant/temizlik yok (kök CLAUDE.md §15'te zaten bilinen gap).
 - [x] P2.9 Sinyal uç noktaları (CRUD, harita bbox, yakındaki yerler) — zaten var ve testli (§13 API
   Yüzeyi, `test-product-08.ps1`).
-- [ ] P2.10 Realtime gateway (socket.io/`map:*`/`signal:*`) — **BLOKE, kullanıcı kararı gerekir.** Kök
-  CLAUDE.md §6.5 bilinçli olarak REST polling seçmiş (WebSocket/SignalR kullanmama kararı); bunu
-  tersine çevirmek küçük/geri alınabilir bir değişiklik değil, onaysız başlanmaz.
+- [-] P2.10 Realtime gateway (socket.io/`map:*`/`signal:*`) — **kullanıcıya soruldu (D-005): dokunma,
+  REST polling korunur.** Kök CLAUDE.md §6.5'in bilinçli WebSocket/SignalR kullanmama kararı geçerli
+  kalıyor; Faz 2 kapsamından çıkarıldı.
 - [ ] P2.11 İşler (`signal.expire`, `place.aggregate`, `counters.reconcile`) — projection worker zaten
   idempotent tüketiyor; ayrı reconciliation/error-queue görünürlüğü kök CLAUDE.md §21 "P1 Üretim
   güvenilirliği"nde zaten listeli, Faz 2'nin kendi görevi olarak değil o yol haritası altında ele alınacak.
