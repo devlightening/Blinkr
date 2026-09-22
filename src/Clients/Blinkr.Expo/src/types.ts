@@ -153,7 +153,9 @@ export type CreateSignalInput = {
   audienceType: AudienceType;
   identityDisclosure: IdentityDisclosure;
   locationPrecision: LocationPrecision;
-  expiresAt: string;
+  // Optional: omit to let the server apply its own per-signal-type default TTL
+  // (trust and freshness policy are server-owned, kök CLAUDE.md §2.1).
+  expiresAt?: string;
   media?: Array<{
     mediaId: string;
     mediaType: MediaKind;

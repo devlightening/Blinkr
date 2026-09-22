@@ -7,10 +7,10 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz 1 tamamlandı → Faz 2 başlıyor |
-| Son tamamlanan görev | P1.4 |
+| Aktif faz | Faz 2 (D-004 ile yeniden kapsamlandı) |
+| Son tamamlanan görev | P2.7 (sinyal TTL bug'ı düzeltildi) |
 | Son güncelleme | 2026-09-22 |
-| Engelleyici | — (D-002 → D-003 ile çözüldü: plan aynen uygulanır, backend mimarisi korunur) |
+| Engelleyici | P2.10 (realtime gateway) kullanıcı onayı bekliyor — bkz. D-004. Faz 2'nin geri kalanını bloklamıyor. |
 
 
 ## Faz 0 — Keşif ve denetim
@@ -49,19 +49,50 @@ açısından yeniden gözden geçirilmeli (AUDIT.md §6 stack eşleme tablosuna 
 
 ## Faz 2 — Backend temeli
 
-- [ ] P2.1 Yerel geliştirme ortamı: docker-compose (postgres+postgis, redis, minio), `.env.example`
-- [ ] P2.2 Migration'lar: 08'deki şema (mevcut tablolarla eşlemeli, veri koruyan)
-- [ ] P2.3 Veri göçü: tip eşleme, `(#12345)` temizliği, konum → display_location, arkadaşlık → follows
-- [ ] P2.4 Ortak altyapı: hata biçimi, zod doğrulama, cursor sayfalama, idempotency, rate limit, logger (konum maskeleme)
-- [ ] P2.5 Auth: register/login/Apple/Google/refresh rotasyonu/logout (mevcut auth varsa uyarlama)
-- [ ] P2.6 Görünürlük fonksiyonu (`shared/visibility`) + birim testleri (açık/gizli hesap, engel, anonim, takipçi)
-- [ ] P2.7 Sinyal motoru saf fonksiyonları (10 §1–§7) + birim testleri: TTL, uzatma, doğrulama kuralları, bulanıklaştırma, canlı durum, güven puanı, sıralama
-- [ ] P2.8 Medya: upload-url, complete, worker (EXIF sil, varyantlar, blurhash, video), temizlik işi
-- [ ] P2.9 Sinyal uç noktaları: POST/GET/PATCH/DELETE, harita (bbox + kümeleme), yakındaki yerler
-- [ ] P2.10 Realtime gateway: auth, odalar, `map:*`, `signal:*` olayları
-- [ ] P2.11 İşler: `signal.expire`, `place.aggregate`, `counters.reconcile`
-- [ ] P2.12 Paylaşılan tipler (`shared/types/api.ts`) mobil tarafa bağlandı; mobil API istemcisi (TanStack Query hook'ları, token refresh)
-- [ ] P2.13 API entegrasyon testleri (sinyal oluştur → haritada görün → süresi dolsun)
+→ **D-004 (DECISIONS.md) ile yeniden kapsamlandı:** bu liste artık planın orijinal Node+PostgreSQL+PostGIS
+varsayımı değil, mevcut .NET/EventStoreDB/Mongo backend'ine göre okunmalı. Her satırdaki not D-004'teki
+gerekçenin özetidir; tam gerekçe için D-004'e bakın.
+
+- [-] P2.1 docker-compose (postgres+postgis, redis, minio) — büyük ölçüde gereksiz, mevcut compose zaten
+  Postgres+Mongo+Redis+RabbitMQ+EventStoreDB çalıştırıyor; PostGIS yerine Mongo `2dsphere` kullanılıyor.
+  Tek gerçek eksik MinIO/S3 (ücretli/hesap gerektirir, kullanıcıya sorulmadan eklenmez).
+- [-] P2.2 Migration'lar (08'deki şema) — uygulanmaz, sıfırdan şema varsayıyor; mevcut EF Core
+  migration'ları ve Mongo koleksiyonları korunuyor (kural 1: sıfırdan yazma).
+- [-] P2.3 Veri göçü (tip eşleme, follows) — uygulanmaz, aynı nedenle; "arkadaşlık→takip" birlikte
+  yaşama sorusu D-003'te ayrı not edildi (Faz 6 P6.1'e kadar açık).
+- [ ] P2.4 Ortak altyapı (hata biçimi, sayfalama, idempotency, rate limit, logger) — idempotency zaten
+  var (projection inbox); hata biçimi/rate limit tutarsız. Ayrı Faz 2 görevi değil, kök CLAUDE.md §21
+  "P1 Quality gate"/"P1 Güvenlik ve auth" yol haritası altında ele alınacak.
+- [x] P2.5 Auth (register/login/refresh) — zaten var (IdentityService). Apple/Google sosyal giriş yok,
+  ayrı küçük eklenti, plan kapsamında zorunlu değil.
+- [x] P2.6 Görünürlük fonksiyonu (engel, anonim) — zaten var ve testli (`BLK-SAFETY-01`, `AnonymousMap`).
+  "Gizli hesap" kavramı bilinçli olarak yok; arkadaşlık/takip birlikte yaşama sorusu açık (D-003).
+- [x] P2.7 Sinyal motoru: **TTL** — **gerçek bir bug bulundu ve düzeltildi.** İlk incelemede sunucuda
+  zaten bir TTL motoru olduğu ortaya çıktı (`CreatePostCommandHandler.GetDefaultExpiry`: Crowd/Queue 1
+  saat, TemporaryStatus 3 saat, Event/Offer 24 saat, NewOpening 7 gün, varsayılan 24 saat — istemci
+  `ExpiresAt` göndermezse bu devreye giriyor, gönderirse `[şimdi, +30 gün]` aralığında doğrulanıyor).
+  Gerçek sorun: mobil `SignalComposer.tsx` her sinyal türü için sabit **3 saat** gönderiyordu
+  (`new Date(Date.now() + 3*60*60*1000)`), bu yüzden sunucunun tür bazlı varsayılanı hiç çalışmıyordu —
+  `Crowd`/`Queue` gerekenden 3x uzun, `Event`/`Offer`/`NewOpening` gerekenden çok kısa yaşıyordu. Bu,
+  "Trust is server-owned" (kök CLAUDE.md §2.1) ilkesinin sessizce ihlaliydi. Düzeltme: composer artık
+  `expiresAt` hiç göndermiyor (`SignalComposer.tsx`), `CreateSignalInput.expiresAt` isteğe bağlı yapıldı
+  (`types.ts`) — sunucunun tür bazlı varsayılanı her zaman geçerli. `typecheck`/`test:nearby`/
+  `test:product`/`test:ui` yeşil; tam backend kabul paketi (`test-product-08.ps1`, tüm `BLK-*` senaryoları
+  dahil) bu değişiklikle yeniden çalıştırıldı, hepsi PASS.
+- [ ] P2.8 Medya (blurhash, varyant, orphan temizliği) — presign + EXIF silme (snap) zaten var; post
+  medyasında blurhash/varyant/temizlik yok (kök CLAUDE.md §15'te zaten bilinen gap).
+- [x] P2.9 Sinyal uç noktaları (CRUD, harita bbox, yakındaki yerler) — zaten var ve testli (§13 API
+  Yüzeyi, `test-product-08.ps1`).
+- [ ] P2.10 Realtime gateway (socket.io/`map:*`/`signal:*`) — **BLOKE, kullanıcı kararı gerekir.** Kök
+  CLAUDE.md §6.5 bilinçli olarak REST polling seçmiş (WebSocket/SignalR kullanmama kararı); bunu
+  tersine çevirmek küçük/geri alınabilir bir değişiklik değil, onaysız başlanmaz.
+- [ ] P2.11 İşler (`signal.expire`, `place.aggregate`, `counters.reconcile`) — projection worker zaten
+  idempotent tüketiyor; ayrı reconciliation/error-queue görünürlüğü kök CLAUDE.md §21 "P1 Üretim
+  güvenilirliği"nde zaten listeli, Faz 2'nin kendi görevi olarak değil o yol haritası altında ele alınacak.
+- [-] P2.12 TanStack Query mobil istemcisi — ertelendi; mevcut `api.ts` sarmalayıcısı çalışıyor, somut
+  bir sorunu çözdüğü kanıtlanmadan büyük refactor başlatılmaz (kök CLAUDE.md §22).
+- [x] P2.13 API entegrasyon testleri (sinyal oluştur → haritada görün → süresi dolsun) — büyük ölçüde
+  zaten var (`BLK-LOCATION-01/02`, `BLK-CORE-02`, bu oturumda tekrar PASS ile doğrulandı).
 
 ## Faz 3 — Harita, pinler, Sinyal Kartı
 

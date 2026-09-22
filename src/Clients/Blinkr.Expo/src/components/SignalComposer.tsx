@@ -259,7 +259,10 @@ export function SignalComposer({
     await onSubmit({
       audienceType: 'Public',
       content: content.trim(),
-      expiresAt: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+      // No client-side expiresAt: the server applies its own per-signal-type default
+      // (Crowd/Queue 1h, TemporaryStatus 3h, Event/Offer 24h, NewOpening 7d) — trust is
+      // server-owned (kök CLAUDE.md §2.1), a fixed client TTL would silently override that
+      // for every signal type regardless of how long it actually stays meaningful.
       identityDisclosure,
       locationPrecision: area?.place ? 'PlaceCenter' : 'ApproximateArea',
       media: readyMedia.map((item) => ({ mediaId: item.mediaId as string, mediaType: item.mediaType })),
