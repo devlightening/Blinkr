@@ -7,10 +7,10 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz 3 (harita/pin — yalnız backend'e bağımlı olmayan alt maddeler) |
-| Son tamamlanan görev | P3.2 (otomatik bbox yükleme, "Bu alanı tara"/"N görünür" kaldırıldı) |
+| Aktif faz | Faz 3 — backend'e bağımlı olmayan alt maddeler bitti |
+| Son tamamlanan görev | P3.1/P3.2/P3.3/P3.4/P3.8 doğrulandı/tamamlandı |
 | Son güncelleme | 2026-09-23 |
-| Engelleyici | Faz 3'ün çoğu (Sinyal Kartı ActionRow/yorum) Faz 4 backend'ine bağımlı — bkz. Faz 3 başlığındaki kapsam notu. Bloklamıyor, yalnız sıralamayı belirliyor. |
+| Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı; P3.13 (arama Yerler\|Kişiler) ayrı, bağımsız bir iş olarak açık. Sıradaki mantıklı adım: Faz 4'ün backend'i (yorum/beğeni uç noktaları) ya da P3.13. |
 
 
 ## Faz 0 — Keşif ve denetim
@@ -151,6 +151,22 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 - [ ] P3.11 Görüntülenme toplu gönderimi
 - [ ] P3.12 Yer sayfası (04 §5): canlı durum, StatRow, takip et, yol tarifi, soru sor (UI + API), son sinyaller ızgarası, geçmiş
 - [ ] P3.13 Arama ekranı (Yerler | Kişiler), sonuçtan haritaya uçma
+
+- [x] P3.8 Doğrulama akışı (Evet/Değişti) — **zaten var**, bu oturumda doğrulandı. `PostDetailSheet.tsx`
+  + `recheckSignal()` (`productPresentation.ts`): yalnız taze/yapılandırılmış canlı durumda "Hâlâ böyle
+  mi?" sorusu, "Evet" composer'ı son adımda aynı değerle açıyor, "Değişti" sinyal adımından. Uzaklık
+  kısıtı istemcide görsel olarak pasifleştirilmiyor (plan'ın "500 m dışında buton pasif" istediği gibi)
+  — **bilinçli, küçük bir UX eksiği**: sunucu zaten gerçek konumdan kararı tekrar hesaplıyor (`trust is
+  server-owned`), yani yanlış davranış riski yok, yalnız uzaktaki biri butona basıp sunucudan ret alıyor
+  (kaba bir hata yerine daha iyi bir UX olurdu). Küçük, ayrı bir iş olarak kalıyor.
+- [ ] P3.13 Arama ekranı (Yerler | Kişiler) — **kısmen var, gerçek bir boşluk bulundu.** `map/
+  MapSearchOverlay` yalnız Yer aramasını kapsıyor; kişi araması ayrı bir yerde var (sohbetin "Yeni
+  mesaj" akışı, `UserSearchSheet`) ama harita aramasına entegre değil. Sekmeli birleşik arama ekranı
+  henüz yok — bu oturumda yapılmadı, ayrı bir iş olarak kalıyor.
+- [ ] P3.5-P3.7, P3.9, P3.11-P3.12 (Sinyal Kartı yenileme, tepki/beğeni, görüntülenme sayacı, yer
+  sayfasının Takip et/Soru sor kısmı) — **Faz 4/6/9'un backend'ine bağımlı, henüz yok**, sahte veriyle
+  inşa edilmeyecek. Yer sayfasının temel kısmı (canlı durum, yol tarifi) zaten mevcut `PostDetailSheet`
+  akışında var; yalnız "Takip et"/"Soru sor" gibi backend'i olmayan kısımlar eksik.
 
 ## Faz 4 — Gönderi detayı, yorumlar, medya görüntüleyici
 
