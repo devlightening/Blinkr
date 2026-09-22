@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { ArrowLeft, ChevronRight, Info, LogOut, ShieldCheck, UserX } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight, Code2, Info, LogOut, ShieldCheck, UserX } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import { colors, radii, sizes, spacing, typography } from '../theme';
 import type { AuthResponse, BlockedUser } from '../types';
 import { AnimatedPressable } from './AnimatedPressable';
 import { Avatar } from './Avatar';
+import { DevComponentPreview } from './DevComponentPreview';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
 
@@ -21,7 +22,7 @@ type Props = {
   onLogout: () => void;
 };
 
-type Page = 'main' | 'blocked';
+type Page = 'main' | 'blocked' | 'dev';
 
 const appVersion = () => Constants.expoConfig?.version ?? '1.0.0';
 
@@ -69,7 +70,7 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
   useEffect(() => { void loadBlocked(); return () => load.current?.abort(); }, [loadBlocked]);
 
   useEffect(() => {
-    const back = BackHandler.addEventListener('hardwareBackPress', () => { if (page === 'blocked') setPage('main'); else onBack(); return true; });
+    const back = BackHandler.addEventListener('hardwareBackPress', () => { if (page !== 'main') setPage('main'); else onBack(); return true; });
     return () => back.remove();
   }, [page, onBack]);
 
@@ -86,6 +87,8 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
       setBusy((current) => { const next = new Set(current); next.delete(userId); return next; });
     }
   };
+
+  if (page === 'dev') return <DevComponentPreview onBack={() => setPage('main')} />;
 
   return (
     <View style={styles.screen}>
@@ -119,6 +122,15 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
               <Text style={styles.noteText}>Arkadaşlık yalnızca birbirini bulmak ve mesajlaşmak içindir; konum paylaşmaz.</Text>
             </View>
           </View>
+
+          {__DEV__ ? (
+            <>
+              <Text style={styles.section}>Geliştirici</Text>
+              <View style={styles.group}>
+                <Row icon={<Code2 color={colors.text} size={18} />} onPress={() => setPage('dev')} title="Bileşen önizleme" />
+              </View>
+            </>
+          ) : null}
 
           <Text style={styles.section}>Hakkında</Text>
           <View style={styles.group}>

@@ -1,0 +1,130 @@
+import { ArrowLeft, MessageCircle, Users, X } from 'lucide-react-native';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { colors, sizes, spacing, typography } from '../theme';
+import { AnimatedPressable } from './AnimatedPressable';
+import { Avatar } from './Avatar';
+import { BlinkrButton } from './ui/BlinkrButton';
+import { BlinkrCard } from './ui/BlinkrCard';
+import { BlinkrChip } from './ui/BlinkrChip';
+import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
+import { BlinkrErrorState } from './ui/BlinkrErrorState';
+import { FreshnessRing } from './ui/BlinkrFreshnessRing';
+import { IconButton } from './ui/BlinkrIconButton';
+import { LevelMeter } from './ui/BlinkrLevelMeter';
+import { SegmentedControl } from './ui/BlinkrSegmentedControl';
+import { SkeletonList } from './ui/BlinkrSkeleton';
+import { StatRow } from './ui/BlinkrStatRow';
+import { BlinkrText } from './ui/BlinkrText';
+import { Toast } from './ui/BlinkrToast';
+import { TypeBadge } from './ui/BlinkrTypeBadge';
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.section}>
+      <Text accessibilityRole="header" style={styles.sectionTitle}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+
+/**
+ * P1.9 (sinyal-mvp-plan Faz 1): the design system's whole catalogue in one scrollable, native-runnable
+ * screen - a `__DEV__`-only entry point (Ayarlar > Geliştirici), never shown in a release build. Covers
+ * the same ground as the browser harness's "Kit" scene, but rendered by the real app on a real device,
+ * where fonts, native gestures and platform-specific rendering can actually be checked.
+ */
+export function DevComponentPreview({ onBack }: { onBack: () => void }) {
+  const insets = useSafeAreaInsets();
+  const [segment, setSegment] = useState('nearby');
+  const [chipSelected, setChipSelected] = useState(true);
+  const [toast, setToast] = useState<string | null>(null);
+
+  return (
+    <View style={styles.screen}>
+      <View style={[styles.bar, { paddingTop: insets.top + spacing.sm }]}>
+        <AnimatedPressable accessibilityLabel="Geri dön" accessibilityRole="button" onPress={onBack} pressScale={0.95} style={styles.back}>
+          <ArrowLeft color={colors.text} size={22} />
+        </AnimatedPressable>
+        <Text accessibilityRole="header" style={styles.title}>Bileşen Önizleme</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]} showsVerticalScrollIndicator={false}>
+        <Section title="Metin (P1.3)">
+          <BlinkrText variant="display">Display 30/36</BlinkrText>
+          <BlinkrText variant="title1">Title1 22/28</BlinkrText>
+          <BlinkrText color={colors.textSecondary} variant="title2">Title2 18/24</BlinkrText>
+          <BlinkrText variant="body">Body - Şişli'de İğneada Çığlığı</BlinkrText>
+        </Section>
+
+        <Section title="Buton, Chip, Kart">
+          <View style={styles.row}>
+            <BlinkrButton label="Birincil" onPress={() => {}} style={styles.flex} />
+            <BlinkrButton label="İkincil" onPress={() => {}} style={styles.flex} variant="secondary" />
+          </View>
+          <BlinkrChip label={chipSelected ? 'Seçili' : 'Seçili değil'} onPress={() => setChipSelected((v) => !v)} selected={chipSelected} />
+          <BlinkrCard variant="elevated"><Text style={{ ...typography.body, color: colors.text }}>Kart içeriği</Text></BlinkrCard>
+        </Section>
+
+        <Section title="FreshnessRing, TypeBadge, LevelMeter">
+          <View style={styles.row}>
+            <FreshnessRing color={colors.orange} live progress={0.85} size={56}><Avatar seed="dev-1" size={44} /></FreshnessRing>
+            <FreshnessRing color={colors.amber} progress={0.4} size={56}><Avatar seed="dev-2" size={44} /></FreshnessRing>
+            <FreshnessRing color={colors.textSecondary} progress={0.1} size={56}><Avatar seed="dev-3" size={44} /></FreshnessRing>
+          </View>
+          <View style={styles.row}>
+            <TypeBadge signalType="Crowd" tone={colors.orange} typeLabel="Doluluk" valueLabel="Kalabalık" />
+            <TypeBadge signalType="Queue" tone={colors.amber} typeLabel="Bekleme" valueLabel="5-15 dk" />
+          </View>
+          <LevelMeter accessibilityLabel="Doluluk seviyesi: kalabalık" level={2} />
+        </Section>
+
+        <Section title="StatRow">
+          <StatRow items={[
+            { key: 'signals', icon: <MessageCircle color={colors.mint} size={20} />, label: 'sinyal', value: '12' },
+            { key: 'freshness', icon: <MessageCircle color={colors.mint} size={20} />, label: 'tazelik', value: 'Taze' },
+          ]}
+          />
+        </Section>
+
+        <Section title="IconButton, SegmentedControl">
+          <View style={styles.row}>
+            <IconButton accessibilityLabel="Kapat" icon={<X color={colors.text} size={20} />} onPress={() => {}} variant="glass" />
+            <IconButton accessibilityLabel="Kişiler" icon={<Users color={colors.text} size={20} />} onPress={() => {}} variant="surface" />
+          </View>
+          <SegmentedControl
+            accessibilityLabel="Görünüm"
+            onChange={setSegment}
+            options={[{ value: 'nearby', label: 'Yakınımda' }, { value: 'following', label: 'Takip' }]}
+            value={segment}
+          />
+        </Section>
+
+        <Section title="Skeleton, EmptyState, ErrorState">
+          <SkeletonList rows={2} variant="person" />
+          <BlinkrEmptyState description="Boş durum açıklaması." icon={<Users color={colors.textSecondary} size={24} />} title="Boş durum başlığı" />
+          <BlinkrErrorState description="Hata durumu açıklaması." onRetry={() => {}} />
+        </Section>
+
+        <Section title="Toast">
+          <BlinkrButton label="Toast göster" onPress={() => setToast('Kaydedildi')} variant="secondary" />
+        </Section>
+      </ScrollView>
+      <Toast message={toast} onHide={() => setToast(null)} tone="success" />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { ...StyleSheet.absoluteFill, backgroundColor: colors.background, zIndex: 20 },
+  bar: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.sm, paddingHorizontal: spacing.lg },
+  back: { alignItems: 'center', height: sizes.touch, justifyContent: 'center', marginLeft: -spacing.sm, width: sizes.touch },
+  title: { ...typography.title, color: colors.text },
+  content: { gap: spacing.lg, paddingHorizontal: spacing.lg },
+  section: { gap: spacing.sm },
+  sectionTitle: { ...typography.label, color: colors.textSecondary },
+  row: { flexDirection: 'row', gap: spacing.sm },
+  flex: { flex: 1 },
+});

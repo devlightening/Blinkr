@@ -7,8 +7,8 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz 1 (sürüyor) |
-| Son tamamlanan görev | P1.5 |
+| Aktif faz | Faz 1 (yalnız P1.4 kaldı) |
+| Son tamamlanan görev | P1.9 |
 | Son güncelleme | 2026-09-22 |
 | Engelleyici | — (D-002 → D-003 ile çözüldü: plan aynen uygulanır, backend mimarisi korunur) |
 
@@ -36,16 +36,15 @@ D-003 ile çözüldü (bkz. DECISIONS.md): plan aynen uygulanır, mevcut backend
 - [x] P1.6 Sinyal tipi kataloğu (istemci): tip → renk, seviye etiketleri — tek kaynak dosya. Yeni `src/signalCatalog.ts` (`SIGNAL_CATALOG`), daha önce üç ayrı dosyada dağınık olan veriyi birleştirdi: `signalLabels` (`presentation.ts`) ve `signalOptions` (`productPresentation.ts`) artık bu kataloğun türetilmiş re-export'ları — eski import eden hiçbir dosya değişmedi, testli (`product-presentation.test.ts`: katalog ile eski isimler her tip için birebir eşleşiyor). **Bilinçli olarak dışarıda bırakılanlar:** (a) ikon eşlemesi kataloğa taşınmadı, `SignalSymbol.tsx`'te kaldı — ilk denemede ikon'u da kataloğa taşıyınca `lucide-react-native` (→ `react-native`'in Flow sözdizimli dosyalarını içeriyor) `test:nearby`/`test:product`'ın düz `tsc`+`node` boru hattına sızdı ve `SyntaxError: Unexpected token 'typeof'` ile kırıldı (bundler'sız pipeline `react-native`'i hiç parse edemiyor); bu gerçek bir hataydı, düzeltilip testle kilitlendi. (b) TTL bilgisi eklenmedi — `10_SIGNAL_ENGINE.md`'nin TTL tablosu backend'de henüz uygulanmıyor (`BlogService`'te `ExpiresAt` çağıran tarafından veriliyor, sabit değil); burada uydurma dakika değeri yazmak sunucunun vermediği bir garanti iddia etmek olurdu — gerçek TTL motoru Faz 2 P2.7'nin işi.
 - [x] P1.7 Yeni tab bar: Harita · Keşfet · (+) · Sohbet · Profil (Keşfet şimdilik mevcut "Yakında" ekranını gösterir); Harita varsayılan açılış — `ui/BlinkrBottomBar.tsx` sırası ve "Yakında"→"Keşfet" etiketi güncellendi, `scripts/ui-test.cjs` uyarlandı, `npm run typecheck`/`test:theme`/`test:ui` yeşil.
 - [x] P1.8 Mevcut ekranlarda hızlı düzeltmeler — plandaki 4 alt madde de tamam: (a) yeni `ui/BlinkrStatRow.tsx` (`StatRow`), `PostDetailSheet.tsx`'teki ad-hoc `Stat`+`statDivider` bununla değiştirildi, "Orta güven **güven**" tekrarı çözüldü (`.tmp/product-ui/shot-detail-detail.png`). (b) #4 başlık/etiket tekrarı: yeni `meaningfulTitle()` (`src/presentation.ts`, testli) — composer boş başlık bırakıldığında tip adını başlık olarak gönderiyordu; `PostRow.tsx`, `PostDetailSheet.tsx`, `nearbyActivity.ts` düzeltildi. (c) #5 profilde e-posta zaten daha önce gizlenmişti (AUDIT.md §3). (d) #11 üst bar safe-area: `MapTopChrome` artık zorunlu `topInset` prop'u alıyor (`MapScreen.tsx` → `insets.top`), önceden `top: 0` sabitti — durum çubuğuna/çentiğe yapışma tarayıcı harness'inde görünmüyordu (çentik simülasyonu yok), gerçek cihazda görünen bir bug'dı; `.tmp/product-ui/shot-map.png` ile doğrulandı.
-- [ ] P1.9 Bileşen önizleme ekranı (yalnızca dev build'de: `/dev/components`)
+- [x] P1.9 Bileşen önizleme ekranı (yalnızca dev build'de) — `/dev/components` kelimenin tam anlamıyla değil (proje `expo-router` kullanmıyor, D-001 gereği mevcut ekran-değiştirme deseni korunuyor): yeni `DevComponentPreview.tsx`, `Ayarlar > Geliştirici > Bileşen önizleme` üzerinden açılıyor, yalnızca `__DEV__` true iken görünür (üretim build'inde bu bölüm hiç render edilmez). Tarayıcı harness'indeki "Kit" sahnesiyle aynı kataloğu kapsıyor ama gerçek uygulamanın **kendi içinde**, gerçek cihazda çalışan bir ekran — `test:ui`'de gerçek assertion'larla doğrulandı (`.tmp/product-ui/dev-component-preview.png`).
 
-→ Faz 1'de kalan yalnız iki görev: **P1.9** (dev-only bileşen önizleme ekranı — tarayıcı harness'indeki
-"Kit" sahnesi zaten aynı işi görüyor ama uygulamanın kendi içinde `/dev/components` ayrı, küçük bir iş)
-ve **P1.4** (i18n altyapısı — Faz 1'in en büyük ve en riskli kalan parçası: `i18next` kurulumu kendisi
-küçük, ama "mevcut ekranlardaki ham metinleri anahtarlara taşı" tüm proje boyunca yüzlerce dosyaya
-dokunan, tek oturumda bitmeyecek bir iş; ayrı ve dikkatli başlanmalı, muhtemelen ekran ekran). Sıradaki
-oturum P1.9 ile Faz 1'i pratik olarak bitirip P1.4'e büyük, kendi başına bir görev olarak başlayabilir.
-`npm run typecheck`/`test:theme`/`test:nearby`/`test:product`/`test:ui` yeşil; `npx expo export
---platform ios` ve `--platform android` yeşil (bundle boyutu font eklenmesiyle büyüdü, beklenen).
+→ **Faz 1'de tek kalan görev: P1.4 (i18n altyapısı)** — Faz 1'in en büyük ve en riskli parçası.
+`i18next` kurulumunun kendisi küçük; asıl iş "mevcut ekranlardaki ham metinleri anahtarlara taşı" —
+tüm proje boyunca yüzlerce dosyaya dokunan, tek oturumda bitmeyecek bir iş. Ayrı, dikkatli bir oturumda
+ele alınmalı, muhtemelen ekran ekran (önce altyapı + tr.json/en.json + dil algılama, sonra ekranlar tek
+tek taşınır — her taşımadan sonra `test:ui` ile o ekranın hâlâ doğru göründüğü doğrulanır). `npm run
+typecheck`/`test:theme`/`test:nearby`/`test:product`/`test:ui` yeşil; `npx expo export --platform ios`
+ve `--platform android` yeşil.
 
 ## Faz 2 — Backend temeli
 

@@ -484,6 +484,17 @@ async function main() {
     await expect(page.getByText('Kimseyi engellemedin')).toBeVisible();
     await page.getByRole('button', { name: 'Geri dön' }).click();
     await expect(page.getByRole('heading', { name: 'Ayarlar' })).toBeVisible();
+    // P1.9: the dev-only component preview (Ayarlar > Geliştirici), the same catalogue the "Kit" scene covers, native-runnable.
+    await page.getByRole('button', { name: 'Bileşen önizleme' }).click();
+    await expect(page.getByRole('heading', { name: 'Bileşen Önizleme' })).toBeVisible();
+    await expect(page.getByText('Display 30/36')).toBeVisible();
+    await page.getByRole('tab', { name: 'Takip' }).click();
+    await expect(page.getByRole('tab', { name: 'Takip' })).toHaveAttribute('aria-selected', 'true');
+    await page.getByRole('button', { name: 'Toast göster' }).click();
+    await expect(page.getByText('Kaydedildi', { exact: true })).toBeVisible();
+    await page.waitForTimeout(250); await page.screenshot({ path: path.join(out, 'dev-component-preview.png') });
+    await page.getByRole('button', { name: 'Geri dön' }).click();
+    await expect(page.getByRole('heading', { name: 'Ayarlar' })).toBeVisible();
     await page.getByRole('button', { name: 'Oturumu kapat' }).click();
     await expect(page.getByLabel('chosen')).toHaveText('logout');
     await page.goto(url + '?scene=settings&noblocks');
