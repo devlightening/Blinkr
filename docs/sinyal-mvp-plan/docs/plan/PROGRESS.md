@@ -8,7 +8,7 @@
 | Alan | Değer |
 |---|---|
 | Aktif faz | Faz 7 — Keşfet akışı ve hikayeler |
-| Son tamamlanan görev | P7.4 (Keşfet ekranı) |
+| Son tamamlanan görev | P7.5 (hikaye backend) |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
 
@@ -210,7 +210,7 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 - [~] P7.2 `feed/DiscoverScreen`: Yakınımda | Takip | Yerler (eski Yakında listesi korunuyor). Arama/zil/StoryTray/filtre/yarıçap seçici yok (hikaye P7.5+, zil Faz 9).
 - [~] P7.3 `feed/FeedCard` (yazar/anonim, tip+değer, tazelik, kaba mesafe, foto, beğeni yerinde, yorumlar sheet'te, Haritada göster); boş/hata/iskelet durumları. Yer durum şeridi "Yerler" sekmesi olarak; önerilen kişiler yok.
 - [~] P7.4 Çekerek yenile, sayfalı kaydırma (bilinçli üst sınır 10 sayfa — "Decision utility over engagement"). Sekmeye tekrar dokununca başa kaydırma yok.
-- [ ] P7.5 Backend: stories tray, kullanıcı hikayeleri, seen, viewers
+- [x] P7.5 Backend (NotificationsService, snap depolamasıyla aynı özel disk): `POST /api/stories` (ham medya, foto 3/5/10 sn, video; EXIF silinir, bayt imzası denetlenir; 24 sa; kişi başına 30 aktif), `GET /api/stories/tray` (kendim + takip ettiklerim, görülmemiş önce), `GET /api/stories/users/{id}`, `GET /api/stories/{id}/content` (no-store), `POST .../seen`, `GET .../viewers` (yalnız yazar), `DELETE`. Görünürlük kimlik servisiyle (takip + engel), cevap yoksa kapalı başarısız (503). Konum saklanmaz. Kanıt: BLK-STORIES-01 (16 kontrol) PASS.
 - [ ] P7.6 StoryTray (harita + keşfet) sıralama ve görüldü durumları
 - [ ] P7.7 Hikaye görüntüleyici: ilerleme çubukları, dokun/tut/kaydır hareketleri, kullanıcılar arası küp geçiş, ön yükleme
 - [ ] P7.8 Hikayeye yanıt → DM (story_reply), görüntüleyenler listesi (kendi hikayen), hikayeden kaldır

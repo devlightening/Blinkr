@@ -673,6 +673,10 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 - `GET /api/users/{id}/followers|following?page&pageSize` (gizli hesapta yalniz onayli takipciye; aksi 403 `PRIVATE_ACCOUNT`), `PUT /api/users/me/privacy` (`{ isPrivate }`; aciga donmek bekleyen istekleri onaylar), `GET /api/follows/visibility/{id}` (`{ canSee }`, BlogService sorar)
 - `GET /api/users/{id}` artik `followerCount`, `followingCount`, `follow`, `followsYou`, `isPrivate`, `canSeeContent` tasir; `GET /api/users/me` `followerCount`, `followingCount`, `followRequestCount`, `isPrivate`. `GET /api/posts-read/author/{id}` gizli hesapta takipci olmayana 403 `PRIVATE_ACCOUNT`, kimlik servisine ulasamazsa 503 `PROFILE_UNAVAILABLE`. Takip konum paylasmaz ve haritada kimin neyi gorecegini degistirmez; arkadaslik (sohbet/snap) ayri kalir.
 
+### Stories (sinyal-mvp-plan Faz 7)
+
+- `POST /api/stories?durationSeconds&caption` (govde ham medya; foto 3/5/10 sn, video 0; 24 saat yasar; EXIF silinir; 400 `INVALID_DURATION`/`MEDIA_MISMATCH`/`UNSUPPORTED_MEDIA`/`MEDIA_SIZE`, 429 `TOO_MANY_STORIES`), `GET /api/stories/tray`, `GET /api/stories/users/{id}` (yazar ve onayli takipciler; aksi 403 `STORY_FORBIDDEN`), `GET /api/stories/{id}/content` (`no-store`), `POST /api/stories/{id}/seen`, `GET /api/stories/{id}/viewers` (yalniz yazar), `DELETE /api/stories/{id}`. NotificationsService, snap diskini paylasir; takip/engel bilgisini IdentityService `GET /api/follows/graph`ten kisinin kendi token'i ile sorar, cevap alamazsa 503 `STORIES_UNAVAILABLE`. Hikayede konum yoktur; anonim sinyal hikayeye gonderilmez.
+
 ### Saved places (P6.8)
 
 - `GET /api/users/me/saved-places` (yeniden eskiye), `PUT /api/users/me/saved-places/{placeId}` (`{ name, category, latitude, longitude }`, idempotent; 400 `INVALID_PLACE`, 429 `SAVED_LIMIT` (100)), `DELETE /api/users/me/saved-places/{placeId}`, `POST /api/users/me/saved-places/import` (`{ items }`, cihazdaki eski kayitlar; yeni olanlar eklenir, birlesik liste doner). Yalniz hesabin sahibi okur; kimsenin kayitli yerleri baskasina gosterilmez.

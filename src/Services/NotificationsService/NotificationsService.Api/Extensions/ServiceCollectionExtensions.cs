@@ -70,6 +70,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(settings);
         services.AddSingleton<ISnapStorage>(new NotificationsService.Infrastructure.Storage.LocalSnapStorage(settings.StorageRoot, environment.ContentRootPath));
         services.AddHostedService<NotificationsService.Api.Services.SnapCleanupService>();
+        // Stories (Faz 7) share the private snap storage; visibility comes from the identity service follow graph.
+        services.AddHttpContextAccessor();
+        services.AddScoped<NotificationsService.Api.Stories.FollowGraphClient>();
+        services.AddHostedService<NotificationsService.Api.Stories.StoryCleanupService>();
 
         return services;
     }
