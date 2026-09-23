@@ -9,5 +9,6 @@
     "gotIt": "Anladım",
     "uncertainTitle": "Konum belirsiz",
     "uncertainBody": "Cihazının konum doğruluğu {{meters}} m. Açık alana çıkınca daha doğru bir konum alınabilir."
-  }
+  },
+  "lifetime": "Haritada {{duration}} kalır"
 }

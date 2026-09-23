@@ -8,7 +8,7 @@
 | Alan | Değer |
 |---|---|
 | Aktif faz | Faz 5 — kamera ve oluşturma |
-| Son tamamlanan görev | P5.6 (metin aracı) |
+| Son tamamlanan görev | P5.8 (TTL bilgisi) |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
 
@@ -183,8 +183,8 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 - [x] P5.4 Önizlemede ve düzenlemede yatay kaydırma = sonraki/önceki filtre (döner), ad 1 sn ortada + haptik. Skia kurulmadı: mevcut katman tabanlı 8 filtre korunuyor (fotoğrafa zaten gömülüyor).
 - [x] P5.5 Çıkartmalar: saat + tip + 6 emoji; sürükle/ölçekle/**döndür**; sürüklerken çıkan çöp kutusuna bırakınca silinir; **çakışmasız yerleşim** (kutu tabanlı, AUDIT #8); tip çıkartması composer'da o sinyal tipini önceden seçer. "Yer adı" çıkartması yok (kamera yeri bilmiyor, D-007).
 - [x] P5.6 Metin aracı: "T" → yazı, Düz/Zeminli/Vurgulu, 7 renk, okunur zıt renk, sürüklenebilir/döner, fotoğrafa gömülür.
-- [ ] P5.7 Flatten + stickers metadata; istemci sıkıştırma; EXIF silme
-- [ ] P5.8 Detaylar sayfası: tip çipleri, seviye segmenti, yer listesi, açıklama (@, sayaç), görünürlük, anonim, TTL bilgisi
+- [~] P5.7 Flatten (`captureRef`) ve istemci sıkıştırması (0.84-0.92 JPEG) zaten vardı. **EXIF silme sunucuda tamamlandı:** JPEG'e ek olarak PNG (`eXIf/tEXt/iTXt/zTXt/tIME`) ve WebP (`EXIF/XMP`) meta verisi de siliniyor; kabul testi `test-media-privacy.ps1` (BLK-MEDIA-PRIVACY-01) PASS. Çıkartma metadatası JSON olarak gönderilmiyor (backend alanı yok, analitik Faz 11).
+- [~] P5.8 Tip çipleri, seviye, yer listesi, açıklama sayacı, anonim zaten composer'da vardı; **TTL bilgisi eklendi** ("Haritada 1 sa kalır", sunucu varsayılanlarının aynası, testli). Takipçiler/Yalnızca ben görünürlüğü ve @bahsetme yok: backend `AudienceType` yalnız Public destekliyor (Faz 6 takip modeliyle).
 - [ ] P5.9 Gönder sayfası: Harita, Hikayem, arkadaşlar (snap)
 - [ ] P5.10 Arka plan yükleme kuyruğu, ilerleme çipi, yeniden deneme, taslak saklama, gecikmeli sinyal
 - [ ] P5.11 Galeri: EXIF tarih/konum okuma, "Galeriden" etiketi, 2 saat kuralı

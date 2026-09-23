@@ -20,10 +20,9 @@ export type SignalCatalogEntry = {
  * parse (it ships Flow syntax `.js` files meant only for Metro/a bundler). The icon mapping stays local
  * to `SignalSymbol.tsx`, a component file that pure-logic tests never touch.
  *
- * TTL (`docs/sinyal-mvp-plan/docs/plan/10_SIGNAL_ENGINE.md` §1) is deliberately not included here either:
- * it is a backend rule that does not exist yet - BlogService's `ExpiresAt` is caller-supplied today,
- * there is no server-enforced per-type lifetime. Adding invented TTL minutes would claim a guarantee the
- * server does not make; it belongs here once Faz 2 (P2.7) builds the real signal engine.
+ * TTL: the server owns each type's lifetime (BlogService `CreatePostCommandHandler.GetDefaultExpiry`, P2.7);
+ * `SIGNAL_TTL_MINUTES` below only mirrors it so the composer can say "Haritada 1 sa kalır" before publishing.
+ * If the server changes, this display must change with it - the server value always wins.
  */
 export const SIGNAL_CATALOG: Record<SignalType, SignalCatalogEntry> = {
   GeneralObservation: { label: 'Gözlem', tone: signalColors.GeneralObservation },
@@ -48,4 +47,23 @@ export const SIGNAL_CATALOG: Record<SignalType, SignalCatalogEntry> = {
     options: [{ value: 'Available', label: 'Devam ediyor' }, { value: 'Ended', label: 'Sona erdi' }],
   },
   NewOpening: { label: 'Yeni açılış', tone: signalColors.NewOpening },
+};
+
+/** Mirror of the server's default lifetime per type (display only - see the note above). */
+export const SIGNAL_TTL_MINUTES: Record<SignalType, number> = {
+  Crowd: 60,
+  Queue: 60,
+  TemporaryStatus: 180,
+  Event: 1440,
+  Offer: 1440,
+  NewOpening: 10080,
+  GeneralObservation: 1440,
+};
+
+/** "1 sa" / "1 h", "7 gün" / "7 days". */
+export const formatLifetime = (minutes: number, language: 'tr' | 'en' = 'tr') => {
+  if (minutes < 60) return `${minutes} ${language === 'en' ? 'min' : 'dk'}`;
+  if (minutes < 1440) return `${Math.round(minutes / 60)} ${language === 'en' ? 'h' : 'sa'}`;
+  const days = Math.round(minutes / 1440);
+  return language === 'en' ? `${days} ${days === 1 ? 'day' : 'days'}` : `${days} gün`;
 };

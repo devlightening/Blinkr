@@ -9,5 +9,6 @@
     "gotIt": "Got it",
     "uncertainTitle": "Location uncertain",
     "uncertainBody": "Your device's location accuracy is {{meters}} m. Stepping outside may give a better fix."
-  }
+  },
+  "lifetime": "Stays on the map for {{duration}}"
 }

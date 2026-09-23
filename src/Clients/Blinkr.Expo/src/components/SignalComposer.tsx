@@ -49,6 +49,7 @@ import { VideoPreview } from './VideoPreview';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { MAX_VIDEO_SECONDS } from '../cameraEffects';
 import { accuracyUncertain, mediaAllowedAt, placeSensitivity } from '../placeSafety';
+import { SIGNAL_TTL_MINUTES, formatLifetime } from '../signalCatalog';
 import { BlinkrChip } from './ui/BlinkrChip';
 import { BlinkrHeader } from './ui/BlinkrHeader';
 import type {
@@ -148,7 +149,7 @@ export function SignalComposer({
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [step, setStep] = useState(initialStep ?? 0);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const { t } = useTranslation('create');
+  const { t, i18n } = useTranslation('create');
   // The privacy reminder at a sensitive place is shown once per place per composer session.
   const [privacyAckFor, setPrivacyAckFor] = useState<string | null>(null);
 
@@ -559,6 +560,7 @@ export function SignalComposer({
               <ShieldCheck color={colors.mint} size={20} />
               <Text style={styles.policyText}>Paylaşım haritada herkese görünür. Kesin cihaz konumun gösterilmez.</Text>
             </View>
+            <Text style={styles.placeMeta} testID="ttl-info">{t('lifetime', { duration: formatLifetime(SIGNAL_TTL_MINUTES[signalType], i18n.language === 'en' ? 'en' : 'tr') })}</Text>
             </>}
           </ScrollView>}
 

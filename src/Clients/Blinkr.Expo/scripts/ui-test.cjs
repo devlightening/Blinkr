@@ -25,6 +25,7 @@ async function main() {
     await page.getByPlaceholder('Örn. Bekleme süresi 10 dakika').fill('Park bu akşam sakin');
     await page.getByText('Devam', { exact: true }).click();
     await page.waitForTimeout(420); await page.screenshot({ path: path.join(out, 'composer-review.png') });
+    await expect(page.getByTestId('ttl-info')).toHaveText('Haritada 1 sa kalır');
     await page.getByText('Sinyal bırak', { exact: true }).click();
     await expect(page.getByRole('button', { name: 'Yayınlanıyor' })).toBeDisabled();
     await expect(page.getByLabel('Published result')).toHaveText('park:Crowd:Calm');

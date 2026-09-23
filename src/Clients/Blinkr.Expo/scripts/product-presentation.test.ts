@@ -1,6 +1,6 @@
 import { canPublishAt, friendlyError, freshnessOpacity, freshnessProgress, isFresh, isFreshnessPulseDue, recheckSignal, signalOptions, signalValueLabel, trustLabel } from '../src/productPresentation';
 import { formatCategory, meaningfulTitle, signalLabels } from '../src/presentation';
-import { SIGNAL_CATALOG } from '../src/signalCatalog';
+import { SIGNAL_CATALOG, SIGNAL_TTL_MINUTES, formatLifetime } from '../src/signalCatalog';
 import type { ComposerArea, SignalType } from '../src/types';
 function check(value: unknown, message: string) { if (!value) throw new Error(message); }
 const area: ComposerArea = { name: 'Area', source: 'device', accuracyMeters: 22, region: { latitude: 40, longitude: 32, latitudeDelta: .01, longitudeDelta: .01 } };
@@ -49,3 +49,9 @@ check(allTypes.every((type) => signalLabels[type] === SIGNAL_CATALOG[type].label
 check(allTypes.every((type) => JSON.stringify(signalOptions[type]) === JSON.stringify(SIGNAL_CATALOG[type].options)), 'signalOptions matches the catalogue for every type, undefined where the catalogue has none');
 check(signalLabels.Crowd === 'Doluluk' && signalLabels.GeneralObservation === 'Gözlem', 'labels read as before');
 console.log('product presentation tests passed');
+{ // lifetime shown in the composer mirrors the server defaults (CreatePostCommandHandler.GetDefaultExpiry)
+  check(SIGNAL_TTL_MINUTES.Crowd === 60 && SIGNAL_TTL_MINUTES.Queue === 60 && SIGNAL_TTL_MINUTES.TemporaryStatus === 180, 'short-lived');
+  check(SIGNAL_TTL_MINUTES.Event === 1440 && SIGNAL_TTL_MINUTES.Offer === 1440 && SIGNAL_TTL_MINUTES.NewOpening === 10080 && SIGNAL_TTL_MINUTES.GeneralObservation === 1440, 'long-lived');
+  check(formatLifetime(60) === '1 sa' && formatLifetime(180) === '3 sa' && formatLifetime(1440) === '1 gün' && formatLifetime(10080) === '7 gün', 'tr');
+  check(formatLifetime(60, 'en') === '1 h' && formatLifetime(1440, 'en') === '1 day' && formatLifetime(10080, 'en') === '7 days' && formatLifetime(30) === '30 dk', 'en / minutes');
+}

@@ -215,9 +215,64 @@ public sealed class MediaAttachmentService : IMediaAttachmentService
         };
         if (!valid) throw new ArgumentException("Uploaded bytes do not match the declared media type.");
 
-        return mediaType == MediaType.Image && contentType.Equals("image/jpeg", StringComparison.OrdinalIgnoreCase)
-            ? StripJpegAppMetadata(bytes)
-            : bytes;
+        if (mediaType != MediaType.Image) return bytes;
+        return contentType.ToLowerInvariant() switch
+        {
+            "image/jpeg" => StripJpegAppMetadata(bytes),
+            "image/png" => StripPngMetadata(bytes),
+            "image/webp" => StripWebpMetadata(bytes),
+            _ => bytes
+        };
+    }
+
+    /// <summary>
+    /// Drops PNG ancillary chunks that can carry location or personal text (eXIf, tEXt, iTXt, zTXt, tIME); keeps
+    /// the picture chunks untouched. Anything malformed is returned as uploaded (validation already passed).
+    /// </summary>
+    internal static byte[] StripPngMetadata(byte[] bytes)
+    {
+        if (bytes.Length < 8) return bytes;
+        using var output = new MemoryStream(bytes.Length);
+        output.Write(bytes, 0, 8);
+        var index = 8;
+        while (index + 12 <= bytes.Length)
+        {
+            var length = (bytes[index] << 24) | (bytes[index + 1] << 16) | (bytes[index + 2] << 8) | bytes[index + 3];
+            if (length < 0 || index + 12 + (long)length > bytes.Length) return bytes;
+            var type = Encoding.ASCII.GetString(bytes, index + 4, 4);
+            var drop = type is "eXIf" or "tEXt" or "iTXt" or "zTXt" or "tIME";
+            if (!drop) output.Write(bytes, index, length + 12);
+            index += length + 12;
+            if (type == "IEND") break;
+        }
+        return output.ToArray();
+    }
+
+    /// <summary>Drops the EXIF and XMP chunks of a WebP (RIFF) file and fixes the RIFF size.</summary>
+    internal static byte[] StripWebpMetadata(byte[] bytes)
+    {
+        if (bytes.Length < 12) return bytes;
+        using var body = new MemoryStream(bytes.Length);
+        var index = 12;
+        while (index + 8 <= bytes.Length)
+        {
+            var type = Encoding.ASCII.GetString(bytes, index, 4);
+            var size = bytes[index + 4] | (bytes[index + 5] << 8) | (bytes[index + 6] << 16) | (bytes[index + 7] << 24);
+            var padded = size + (size & 1);
+            if (size < 0 || index + 8 + (long)padded > bytes.Length) return bytes;
+            if (type is not ("EXIF" or "XMP ")) body.Write(bytes, index, 8 + padded);
+            index += 8 + padded;
+        }
+        var chunks = body.ToArray();
+        // VP8X flags byte (first byte of its payload): clear the EXIF (0x08) and XMP (0x04) bits for what was removed.
+        if (chunks.Length >= 9 && Encoding.ASCII.GetString(chunks, 0, 4) == "VP8X") chunks[8] = (byte)(chunks[8] & ~0x0C);
+        var riffSize = 4 + chunks.Length;
+        var output = new byte[8 + riffSize];
+        Encoding.ASCII.GetBytes("RIFF").CopyTo(output, 0);
+        BitConverter.GetBytes(riffSize).CopyTo(output, 4);
+        Encoding.ASCII.GetBytes("WEBP").CopyTo(output, 8);
+        chunks.CopyTo(output, 12);
+        return output;
     }
 
     private static bool LooksLikeIsoBaseMedia(byte[] bytes)
