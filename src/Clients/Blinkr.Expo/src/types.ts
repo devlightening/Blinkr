@@ -297,3 +297,6 @@ export const ISTANBUL_REGION: Region = {
   latitudeDelta: 0.08,
   longitudeDelta: 0.08,
 };
+
+/** What the centre (+) button asked for: tap = camera, long press = text-only composer (sinyal-mvp-plan P5.1). */
+export type ShareMode = 'camera' | 'text';

@@ -24,7 +24,7 @@ import { ThemeProvider } from './src/components/ThemeProvider';
 import { BlinkrBottomBar, type BlinkrTab } from './src/components/ui/BlinkrBottomBar';
 import { hasSeenOnboarding, markOnboardingSeen } from './src/onboardingStore';
 import { colors } from './src/theme';
-import type { AuthResponse, BlinkrPlace, CoordinateSignal, UserSummary } from './src/types';
+import type { AuthResponse, BlinkrPlace, CoordinateSignal, ShareMode, UserSummary } from './src/types';
 
 // While Sohbet is not on screen the tab-bar dot is refreshed at this gentle interval, foreground only.
 const UNREAD_POLL_MS = 30_000;
@@ -59,8 +59,7 @@ export default function App() {
   const [auth, setAuth] = useState<AuthResponse | null>(null);
   const [isRestoring, setIsRestoring] = useState(true);
   const [activeTab, setActiveTab] = useState<BlinkrTab>('map');
-  const [shareRequested, setShareRequested] = useState(false);
-  const [snapRequested, setSnapRequested] = useState(false);
+  const [shareRequested, setShareRequested] = useState<ShareMode | null>(null);
   const [focusPlace, setFocusPlace] = useState<BlinkrPlace | null>(null);
   const [focusSignal, setFocusSignal] = useState<CoordinateSignal | null>(null);
   const [mapOverlayOpen, setMapOverlayOpen] = useState(false);
@@ -111,8 +110,7 @@ export default function App() {
     setAuth(null);
     // Nothing of the previous user's session may survive into the next sign-in.
     setActiveTab('map');
-    setShareRequested(false);
-    setSnapRequested(false);
+    setShareRequested(null);
     setFocusPlace(null);
     setFocusSignal(null);
     setMapOverlayOpen(false);
@@ -124,16 +122,11 @@ export default function App() {
     await clearAuth();
   }, []);
 
-  const openShare = useCallback(() => {
+  const openShare = useCallback((mode: ShareMode = 'camera') => {
     setActiveTab('map');
-    setShareRequested(true);
+    setShareRequested(mode);
   }, []);
-  const clearShareRequest = useCallback(() => setShareRequested(false), []);
-  const openSnapFlow = useCallback(() => {
-    setActiveTab('chat');
-    setSnapRequested(true);
-  }, []);
-  const clearSnapRequest = useCallback(() => setSnapRequested(false), []);
+  const clearShareRequest = useCallback(() => setShareRequested(null), []);
   const openChatWith = useCallback((user: UserSummary) => {
     setChatTarget(user);
     setActiveTab('chat');
@@ -228,7 +221,6 @@ export default function App() {
                     onFocusSignalHandled={clearFocusSignal}
                     onAuthChange={acceptAuth}
                     onShareHandled={clearShareRequest}
-                    onStartSnap={openSnapFlow}
                     onFocusHandled={clearFocusPlace}
                     onLogout={logout}
                     onMessageUser={openChatWith}
@@ -242,8 +234,6 @@ export default function App() {
                       auth={auth}
                       onAuthChange={acceptAuth}
                       onConversationOpenChange={setChatConversationOpen}
-                      onSnapHandled={clearSnapRequest}
-                      snapRequested={snapRequested}
                       onSessionExpired={logout}
                       onUnreadChange={setChatUnread}
                       onOpenWithHandled={clearChatTarget}
@@ -253,12 +243,12 @@ export default function App() {
                 )}
                 {activeTab === 'nearby' && (
                   <View style={styles.tabLayer}>
-                    <NearbyScreen onCreateSignal={openShare} onOpenPlace={openSavedPlace} onOpenSignal={openNearbySignal} />
+                    <NearbyScreen onCreateSignal={() => openShare('camera')} onOpenPlace={openSavedPlace} onOpenSignal={openNearbySignal} />
                   </View>
                 )}
                 {activeTab === 'profile' && (
                   <View style={styles.tabLayer}>
-                    <ProfileScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={openShare} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOverlayOpenChange={setProfileOverlayOpen} onRequestsChange={onRequestsChange} />
+                    <ProfileScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={() => openShare('camera')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOverlayOpenChange={setProfileOverlayOpen} onRequestsChange={onRequestsChange} />
                   </View>
                 )}
                 <BlinkrBottomBar

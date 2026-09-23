@@ -72,6 +72,9 @@ async function main() {
     await expect(page.getByLabel('Tap count')).toHaveText('1');
     await page.getByLabel('Yeni sinyal paylaş').click();
     await expect(page.getByLabel('Tap count')).toHaveText('11');
+    // P5.1: a long press on (+) asks for the text-only composer instead of the camera.
+    await page.getByLabel('Yeni sinyal paylaş').click({ delay: 700 });
+    await expect(page.getByLabel('Tap count')).toHaveText('111');
     await expect(page.getByRole('button', { name: 'Kapalı' })).toBeDisabled();
     // P1.5: FreshnessRing, TypeBadge, LevelMeter, Toast.
     await expect(page.getByLabel('freshness-ring-row').locator('svg')).toHaveCount(6);
@@ -224,18 +227,6 @@ async function main() {
     await expect(page.getByText('Doluluk').first()).toBeVisible();
     await page.getByText('Sinyal bırak', { exact: true }).click();
     await expect(page.getByLabel('Published result')).toHaveText(/:Crowd:Busy$/);
-
-    // Share hub: the centre button offers camera, gallery or a plain signal instead of opening the camera directly.
-    await page.goto(url + '?scene=share');
-    await expect(page.getByRole('heading', { name: 'Ne paylaşmak istersin?' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Kamera\./ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Galeri\./ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Sadece sinyal\./ })).toBeVisible();
-    await page.waitForTimeout(700); await page.screenshot({ path: path.join(out, 'share-hub.png') });
-    await page.getByRole('button', { name: /^Sadece sinyal\./ }).click();
-    await expect(page.getByLabel('choice')).toHaveText('signal');
-    await page.getByRole('button', { name: /^Kamera\./ }).click();
-    await expect(page.getByLabel('choice')).toHaveText('camera');
 
     // In-app camera: lenses, mode switch, edit stage with lens + stickers, untouched photos are passed on as they are.
     await page.goto(url + '?scene=camera');

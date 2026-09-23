@@ -12,8 +12,8 @@ export type BlinkrTab = 'chat' | 'map' | 'nearby' | 'profile';
 type Props = {
   active: BlinkrTab;
   onTab: (tab: BlinkrTab) => void;
-  /** Opens the share hub (camera, gallery or a plain signal). */
-  onShare: () => void;
+  /** (+) tap opens the camera; a long press opens the text-only composer (sinyal-mvp-plan P5.1). */
+  onShare: (mode: 'camera' | 'text') => void;
   /** Shows the red dot on Sohbet. Only pass true when a real unread message exists. */
   chatUnread?: boolean;
   /** Shows the dot on Profil. Only pass true while a friend request really waits for an answer. */
@@ -68,11 +68,14 @@ export function BlinkrBottomBar({ active, onTab, onShare, chatUnread = false, pr
         <TabItem active={active === 'nearby'} onPress={() => onTab('nearby')} tab="nearby" />
         <View style={styles.cameraSlot}>
           <AnimatedPressable
+            accessibilityHint="Kamera açılır. Basılı tutarsan yalnız yazılı sinyal."
             accessibilityLabel="Yeni sinyal paylaş"
             accessibilityRole="button"
             aria-disabled={shareDisabled}
             disabled={shareDisabled}
-            onPress={onShare}
+            delayLongPress={350}
+            onLongPress={() => onShare('text')}
+            onPress={() => onShare('camera')}
             pressScale={0.95}
             style={[styles.camera, shareDisabled && styles.cameraDisabled]}
           >

@@ -46,12 +46,12 @@ import type {
   CreateSignalInput,
   LocationReadiness,
   NearbyStatus,
+  ShareMode,
   SignalType,
   UserSummary,
 } from '../types';
 import { ISTANBUL_REGION } from '../types';
 import { PostDetailSheet } from './PostDetailSheet';
-import { ShareHubSheet } from './ShareHubSheet';
 import { SignalCamera } from './camera/SignalCamera';
 import type { CapturedMedia } from './camera/PhotoEditor';
 import { SignalComposer } from './SignalComposer';
@@ -61,11 +61,9 @@ type Props = {
   onAuthChange: (auth: AuthResponse) => void;
   onLogout: () => void;
   onOpenProfile: () => void;
-  /** True when the share button was pressed on any tab; cleared through `onShareHandled`. */
-  shareRequested?: boolean;
+  /** Set when (+) was pressed on any tab: `camera` (tap) or `text` (long press); cleared through `onShareHandled`. */
+  shareRequested?: ShareMode | null;
   onShareHandled?: () => void;
-  /** The hub's "Snap gönder": the app shell opens the Sohbet tab and starts the snap flow there. */
-  onStartSnap?: () => void;
   /** A saved Place to bring into view and open; cleared through `onFocusHandled`. */
   focusPlace?: BlinkrPlace | null;
   onFocusHandled?: () => void;
@@ -92,7 +90,7 @@ const MAX_NEARBY_LOCATION_AGE_MS = 30_000;
 const LOCATION_TIMEOUT_MS = 8_000;
 
 
-export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRequested = false, onShareHandled, onStartSnap, focusPlace = null, onFocusHandled, focusSignal = null, onFocusSignalHandled, onOverlayOpenChange, onMessageUser }: Props) {
+export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRequested = null, onShareHandled, focusPlace = null, onFocusHandled, focusSignal = null, onFocusSignalHandled, onOverlayOpenChange, onMessageUser }: Props) {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const activeRequest = useRef<AbortController | null>(null);
@@ -130,7 +128,6 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
   const [success, setSuccess] = useState<string | null>(null);
   const [composerArea, setComposerArea] = useState<ComposerArea | null>(null);
   const [pendingCapture, setPendingCapture] = useState<ImagePicker.ImagePickerAsset | null>(null);
-  const [shareOpen, setShareOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchProfileUser, setSearchProfileUser] = useState<UserSummary | null>(null);
   const [searchOrigin, setSearchOrigin] = useState({ latitude: 0, longitude: 0 });
@@ -666,9 +663,8 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
       .catch(() => setLocationReadiness('unavailable'));
   };
 
-  // Share hub: camera (own UI with lenses), gallery, or a signal without media. All three end in the same composer.
+  // (+) tap: camera (own UI with lenses and a gallery button); long press: a signal without media. Both end in the same composer.
   const startCamera = () => {
-    setShareOpen(false);
     setCameraOpen(true);
   };
 
@@ -678,32 +674,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
     if (!isComposerOpen) openComposer(selectedPlace, 1);
   };
 
-  const startGallery = async () => {
-    setShareOpen(false);
-    try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (permission.status !== 'granted') {
-        openComposer(selectedPlace, 0);
-        setComposerError('Fotoğraf arşivi izni gerekiyor.');
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: false, mediaTypes: ['images', 'videos'], quality: 0.84, videoMaxDuration: 45 });
-      if (result.canceled || !result.assets[0]) return;
-      setPendingCapture(result.assets[0]);
-      openComposer(selectedPlace, 1);
-    } catch (err) {
-      openComposer(selectedPlace, 0);
-      setComposerError(friendlyError(err, 'Medya seçilemedi. Tekrar dene.'));
-    }
-  };
-
-  const startSnap = () => {
-    setShareOpen(false);
-    onStartSnap?.();
-  };
-
   const startSignalOnly = () => {
-    setShareOpen(false);
     openComposer(selectedPlace, 0);
   };
 
@@ -756,8 +727,11 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
 
   useEffect(() => {
     if (!shareRequested) return;
+    const mode = shareRequested;
     onShareHandled?.();
-    if (!isCreating) setShareOpen(true);
+    if (isCreating) return;
+    if (mode === 'text') startSignalOnly();
+    else startCamera();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shareRequested]);
 
@@ -816,7 +790,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusSignal]);
 
-  const overlayOpen = isComposerOpen || shareOpen || searchOpen || cameraOpen || Boolean(selectedPlace) || Boolean(selectedSignal) || Boolean(searchProfileUser);
+  const overlayOpen = isComposerOpen || searchOpen || cameraOpen || Boolean(selectedPlace) || Boolean(selectedSignal) || Boolean(searchProfileUser);
   useEffect(() => { onOverlayOpenChange?.(overlayOpen); }, [overlayOpen, onOverlayOpenChange]);
 
   const chromeTop = insets.top + 140;
@@ -929,7 +903,6 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
           user={searchProfileUser}
         />
       ) : null}
-      {shareOpen && <ShareHubSheet onCamera={startCamera} onClose={() => setShareOpen(false)} onGallery={() => { void startGallery(); }} onSignalOnly={startSignalOnly} onSnap={onStartSnap ? startSnap : undefined} />}
       {cameraOpen && <View style={styles.cameraLayer}><SignalCamera onCapture={handleCaptured} onClose={() => setCameraOpen(false)} /></View>}
       {!isComposerOpen && <PostDetailSheet
         isLoading={isDetailLoading}

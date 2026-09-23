@@ -31,7 +31,6 @@ import { Avatar } from '../src/components/Avatar';
 import { avatarKeyOf } from '../src/avatars';
 import { NearbyScreen } from '../src/components/NearbyScreen';
 import { MapSearchOverlay } from '../src/components/map/MapSearchOverlay';
-import { ShareHubSheet } from '../src/components/ShareHubSheet';
 import { SignalCamera } from '../src/components/camera/SignalCamera';
 import { ConversationScreen } from '../src/components/chat/ConversationScreen';
 import { UserSearchSheet } from '../src/components/chat/UserSearchSheet';
@@ -127,7 +126,7 @@ function Kit() {
         <BlinkrErrorState description="Sinyaller yüklenemedi. Bağlantını kontrol edip tekrar dene." onRetry={() => {}} />
       </ScrollView>
       <Toast message={toast} onHide={() => setToast(null)} tone="success" />
-      <BlinkrBottomBar active={tab} chatUnread onShare={() => setTaps(taps + 10)} onTab={setTab} />
+      <BlinkrBottomBar active={tab} chatUnread onShare={(mode) => setTaps(taps + (mode === 'text' ? 100 : 10))} onTab={setTab} />
     </View>
   );
 }
@@ -260,15 +259,6 @@ function Chat() {
     <View style={{ backgroundColor: colors.background, flex: 1 }}>
       <ChatListScreen auth={qaAuth} onAuthChange={() => {}} onConversationOpenChange={setCovered} onSessionExpired={() => {}} snapRequested={typeof location !== 'undefined' && location.search.includes('compose')} />
       <BlinkrBottomBar active={tab} chatUnread hidden={covered} onShare={() => {}} onTab={setTab} />
-    </View>
-  );
-}
-function ShareHub() {
-  const [choice, setChoice] = useState('');
-  return (
-    <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
-      <ShareHubSheet onCamera={() => setChoice('camera')} onClose={() => setChoice('closed')} onGallery={() => setChoice('gallery')} onSignalOnly={() => setChoice('signal')} />
-      <Text accessibilityLabel="choice" style={{ height: 0, opacity: 0, position: 'absolute' }}>{choice}</Text>
     </View>
   );
 }
@@ -427,7 +417,7 @@ function ReportableDetail() {
   );
 }
 
-const scenes: Record<string, () => React.JSX.Element> = { onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, mapSearch: MapSearch, avatars: AvatarGallery, share: ShareHub, camera: CameraScene, conversation: Conversation, search: UserSearch };
+const scenes: Record<string, () => React.JSX.Element> = { onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
 
 export function SceneHost({ name }: { name: string }) {
   const Scene = scenes[name];

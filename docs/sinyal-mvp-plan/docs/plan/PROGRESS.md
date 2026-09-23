@@ -177,7 +177,7 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 
 ## Faz 5 — Kamera ve oluşturma akışı
 
-- [ ] P5.1 (+) → doğrudan tam ekran kamera (eski seçim sayfası kaldırıldı); uzun basma → metin modu
+- [x] P5.1 (+) → doğrudan tam ekran kamera; uzun basma (350 ms) → yazılı sinyal composer'ı. `ShareHubSheet` silindi (galeri kameranın içinde zaten vardı; Snap Sohbet'teki kamera düğmelerinden). `test:ui`'da uzun basma testi.
 - [ ] P5.2 Kamera: foto/video (basılı tut, 15 sn halka), flaş, çevir, zoom, galeri, "Aa"
 - [ ] P5.3 Yer algılama + en yakın yer çipi; konum belirsiz uyarısı; hassas yer uyarısı; okulda medya kapalı
 - [ ] P5.4 Düzenleme: kaydırarak filtre (Skia; mevcut 8 filtre), filtre adı gösterimi
