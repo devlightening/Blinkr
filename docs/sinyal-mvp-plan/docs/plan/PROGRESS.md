@@ -8,7 +8,7 @@
 | Alan | Değer |
 |---|---|
 | Aktif faz | Faz 8 — sohbet yenileme |
-| Son tamamlanan görev | P7.8 (hikaye mobil) — Faz 7 kapandı |
+| Son tamamlanan görev | P8.1 (sohbet backend ekleri) |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
 
@@ -217,7 +217,7 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 
 ## Faz 8 — Sohbet yenileme
 
-- [ ] P8.1 Backend: konuşmalar, mesajlar (idempotent client_id), okundu, istek klasörü, dm_policy, snap aç/tek sefer, geri al, tepki
+- [~] P8.1 Backend: konuşma/mesaj/okundu/snap zaten vardı; eklendi: `clientId` ile idempotent gönderim, `kind: signal` sinyal paylaşımı (bağlantı + görüntü özeti, yazar yok), `DELETE .../messages/{id}` geri alma (yalnız gönderen, snap hariç), `PUT .../reaction` (sabit 6 emoji, kişi başı bir). Kanıt: BLK-CHAT-02 (14 kontrol) PASS. **Ertelendi:** mesaj istekleri klasörü ve dm_policy (arkadaş dışından mesaj bugün de açık, engel korumalı).
 - [ ] P8.2 Konuşma listesi: Snapchat durum ikonları, okunmamış, mesaj istekleri, hızlı kamera, kaydırma eylemleri
 - [ ] P8.3 Sohbet ekranı: balonlar, gruplama, gün ayırıcı, okundu, yazıyor, çevrimiçi
 - [ ] P8.4 Mesaj tipleri: text, snap, media, signal_share (SharedSignalBubble), story_reply, system

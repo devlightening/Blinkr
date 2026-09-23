@@ -21,11 +21,48 @@ public class ChatMessage
     [BsonRepresentation(BsonType.String)]
     public List<Guid> ReadByUserIds { get; set; } = new();
 
-    /// <summary>"text" (default, also for messages stored before snaps existed) or "snap".</summary>
+    /// <summary>"text" (default, also for messages stored before snaps existed), "snap", "signal" or "unsent".</summary>
     public string Kind { get; set; } = "text";
 
     [BsonIgnoreIfNull]
     public SnapPayload? Snap { get; set; }
+
+    /// <summary>A shared signal (Kind "signal"): a link to a post plus a display snapshot. Never an author name.</summary>
+    [BsonIgnoreIfNull]
+    public SignalSharePayload? Signal { get; set; }
+
+    /// <summary>Sender-chosen id so a retried send never creates a second message (sinyal-mvp-plan P8.1).</summary>
+    [BsonIgnoreIfNull]
+    public string? ClientId { get; set; }
+
+    /// <summary>One reaction per person (P8.5).</summary>
+    public List<MessageReaction> Reactions { get; set; } = new();
+}
+
+public class SignalSharePayload
+{
+    [BsonRepresentation(BsonType.String)]
+    public Guid PostId { get; set; }
+    public string SignalType { get; set; } = "GeneralObservation";
+    [BsonIgnoreIfNull]
+    public string? SignalValue { get; set; }
+    [BsonIgnoreIfNull]
+    public string? Title { get; set; }
+    [BsonIgnoreIfNull]
+    public string? LocationName { get; set; }
+}
+
+public class MessageReaction
+{
+    [BsonRepresentation(BsonType.String)]
+    public Guid UserId { get; set; }
+    public string Emoji { get; set; } = string.Empty;
+}
+
+public static class ChatRules
+{
+    public static readonly string[] Reactions = { "❤️", "😂", "😮", "😢", "👍", "🔥" };
+    public const int MaxClientIdLength = 64;
 }
 
 /// <summary>

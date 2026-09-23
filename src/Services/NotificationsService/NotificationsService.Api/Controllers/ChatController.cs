@@ -48,16 +48,29 @@ public class ChatController : ControllerBase
         return Ok(new { items, nextCursor });
     }
 
-    public record SendMessageRequest(string Text);
+    public record SignalShareRequest(Guid PostId, string? SignalType, string? SignalValue, string? Title, string? LocationName);
+    public record SendMessageRequest(string? Text, string? ClientId = null, SignalShareRequest? Signal = null);
+    public record ReactionRequest(string? Emoji);
 
     [HttpPost("conversations/{id}/messages")]
     public async Task<IActionResult> SendMessage(string id, [FromBody] SendMessageRequest req)
     {
         var userId = User.GetUserId();
-        _logger.LogInformation("Chat: SendMessage | UserId={UserId} | ConversationId={ConversationId}", userId, id);
-        var message = await _mediator.Send(new SendMessageCommand(userId, id, req.Text));
+        _logger.LogInformation("Chat: SendMessage | UserId={UserId} | ConversationId={ConversationId} | Kind={Kind}", userId, id, req.Signal is null ? "text" : "signal");
+        var signal = req.Signal is null ? null : new SignalShareInput(req.Signal.PostId, req.Signal.SignalType, req.Signal.SignalValue, req.Signal.Title, req.Signal.LocationName);
+        var message = await _mediator.Send(new SendMessageCommand(userId, id, req.Text ?? string.Empty, req.ClientId, signal));
         return Ok(message);
     }
+
+    /// <summary>DELETE /api/chat/conversations/{id}/messages/{messageId} - take back my own message (not a snap).</summary>
+    [HttpDelete("conversations/{id}/messages/{messageId}")]
+    public async Task<IActionResult> Unsend(string id, string messageId) =>
+        Ok(await _mediator.Send(new UnsendMessageCommand(User.GetUserId(), id, messageId)));
+
+    /// <summary>PUT /api/chat/conversations/{id}/messages/{messageId}/reaction - { emoji } one of the fixed set, null clears.</summary>
+    [HttpPut("conversations/{id}/messages/{messageId}/reaction")]
+    public async Task<IActionResult> React(string id, string messageId, [FromBody] ReactionRequest req) =>
+        Ok(await _mediator.Send(new ReactToMessageCommand(User.GetUserId(), id, messageId, req?.Emoji)));
 
     /// <summary>
     /// Sends a view-once photo or video. The body is the raw media (Content-Type = its type); the timer and an

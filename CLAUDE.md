@@ -698,6 +698,7 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 - `POST /api/chat/conversations/{id}/snaps?durationSeconds=&caption=` (govde ham medya, `Content-Type` = medya turu; foto 3/5/10 sn, video 0 = sonuna kadar; en fazla 41 MB)
 - `POST /api/chat/conversations/{id}/messages/{messageId}/open` (alici; 200 `{ contentUrl, mediaType, durationSeconds, caption, viewUntilUtc }`, 410 `SNAP_OPENED`/`SNAP_EXPIRED`)
 - `GET /api/chat/snaps/{messageId}/content` (yalniz alici, yalniz pencere icinde, `Cache-Control: no-store`)
+- `POST /api/chat/conversations/{id}/messages` ayrica `{ clientId? , signal? }` alir: ayni `clientId` ikinci mesaj uretmez; `signal: { postId, signalType, signalValue?, title?, locationName? }` `kind: "signal"` mesaji olusturur (yazar bilgisi tasimaz). `DELETE /api/chat/conversations/{id}/messages/{messageId}` gonderen geri alir (`kind: "unsent"`, icerik iki taraftan silinir; snap geri alinamaz). `PUT .../messages/{messageId}/reaction` (`{ emoji }`, sabit set ❤️😂😮😢👍🔥, kisi basi bir, null temizler).
 - Konusma ogeleri `lastMessageKind`, `lastMessageState` (`sent|opened|expired`), `lastMessageId` tasir; mesajlar `kind` ve `snap` (medya veya depolama anahtari asla) tasir.
 
 API contract degisikligi yaparken mobil type'lari, Gateway route'larini, integration event consumer'larini ve smoke testlerini birlikte kontrol et.

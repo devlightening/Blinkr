@@ -22,6 +22,12 @@ public class MongoChatMessageRepository : IChatMessageRepository
                 Builders<ChatMessage>.IndexKeys.Ascending(x => x.ConversationId).Descending(x => x.CreatedAtUtc)));
     }
 
+    public Task<ChatMessage?> FindByClientIdAsync(string conversationId, Guid senderId, string clientId, CancellationToken ct) =>
+        _messages.Find(x => x.ConversationId == conversationId && x.SenderId == senderId && x.ClientId == clientId).FirstOrDefaultAsync(ct)!;
+
+    public Task ReplaceAsync(ChatMessage message, CancellationToken ct) =>
+        _messages.ReplaceOneAsync(x => x.Id == message.Id, message, cancellationToken: ct);
+
     public async Task<ChatMessage> InsertAsync(ChatMessage message, CancellationToken ct)
     {
         await _messages.InsertOneAsync(message, cancellationToken: ct);

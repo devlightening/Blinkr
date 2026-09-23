@@ -20,8 +20,14 @@ public record ChatMessageDto(
     DateTime CreatedAtUtc,
     bool IsRead,
     string Kind = "text",
-    SnapDto? Snap = null
+    SnapDto? Snap = null,
+    SignalShareDto? Signal = null,
+    IReadOnlyList<ReactionDto>? Reactions = null,
+    string? ClientId = null
 );
+
+public record SignalShareDto(Guid PostId, string SignalType, string? SignalValue, string? Title, string? LocationName);
+public record ReactionDto(Guid UserId, string Emoji);
 
 /// <summary>What clients may know about a snap: never the media or its storage key.</summary>
 public record SnapDto(

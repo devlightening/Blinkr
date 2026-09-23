@@ -20,6 +20,9 @@ public interface IChatMessageRepository
     Task<IReadOnlyDictionary<string, int>> CountUnreadAsync(IReadOnlyCollection<string> conversationIds, Guid userId, CancellationToken ct);
 
     Task<ChatMessage?> GetByIdAsync(string messageId, CancellationToken ct);
+    /// <summary>The message this sender already sent with this client id in this conversation, if any.</summary>
+    Task<ChatMessage?> FindByClientIdAsync(string conversationId, Guid senderId, string clientId, CancellationToken ct);
+    Task ReplaceAsync(ChatMessage message, CancellationToken ct);
     Task<IReadOnlyList<ChatMessage>> GetManyAsync(IReadOnlyCollection<string> messageIds, CancellationToken ct);
 
     /// <summary>

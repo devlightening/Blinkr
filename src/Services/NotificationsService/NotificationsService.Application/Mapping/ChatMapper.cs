@@ -31,6 +31,9 @@ public static class ChatMapper
             m.CreatedAtUtc,
             m.SenderId == viewerId || m.ReadByUserIds.Contains(viewerId),
             m.Kind,
-            m.Snap is null ? null : new SnapDto(m.Snap.MediaType, m.Snap.DurationSeconds, m.Snap.Caption, m.Snap.EffectiveState(DateTime.UtcNow), m.Snap.ExpiresAtUtc, m.Snap.OpenedAtUtc)
+            m.Snap is null ? null : new SnapDto(m.Snap.MediaType, m.Snap.DurationSeconds, m.Snap.Caption, m.Snap.EffectiveState(DateTime.UtcNow), m.Snap.ExpiresAtUtc, m.Snap.OpenedAtUtc),
+            m.Signal is null ? null : new SignalShareDto(m.Signal.PostId, m.Signal.SignalType, m.Signal.SignalValue, m.Signal.Title, m.Signal.LocationName),
+            (m.Reactions ?? new()).Select(r => new ReactionDto(r.UserId, r.Emoji)).ToList(),
+            m.SenderId == viewerId ? m.ClientId : null
         );
 }
