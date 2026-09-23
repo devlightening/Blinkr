@@ -47,5 +47,10 @@
   },
   "saved": {
     "synced": "Kept on your account"
+  },
+  "grid": {
+    "switch": "Signal view",
+    "grid": "Grid",
+    "list": "List"
   }
 }

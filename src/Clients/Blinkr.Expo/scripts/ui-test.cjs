@@ -117,6 +117,10 @@ async function main() {
     await expect(page.getByText(/rozet|puan|yorum/i)).toHaveCount(0);
     // Own posts: the real total (Turkish thousands separator), newest first, paged as the list scrolls.
     await expect(page.getByLabel('20.030 sinyal')).toBeVisible();
+    // P6.3: the grid is the default view (square tiles, dimmed when expired); the list view keeps the details.
+    await expect(page.getByTestId(/^grid-tile-/).first()).toBeVisible();
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'profile-grid.png') });
+    await page.getByRole('tab', { name: 'Liste' }).click();
     await expect(page.getByText('Sinyal başlığı 20030')).toBeVisible();
     await expect(page.getByText('Anonim').first()).toBeVisible();
     // 50 rows per page: rows only appear after scrolling loads the next pages (the list is virtualised).

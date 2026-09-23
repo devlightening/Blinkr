@@ -47,5 +47,10 @@
   },
   "saved": {
     "synced": "Hesabında saklanır"
+  },
+  "grid": {
+    "switch": "Sinyal görünümü",
+    "grid": "Izgara",
+    "list": "Liste"
   }
 }

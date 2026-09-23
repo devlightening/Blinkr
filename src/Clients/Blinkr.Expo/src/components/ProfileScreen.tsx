@@ -1,7 +1,7 @@
 import { Bookmark, Camera, LogOut, Pencil, Radio, Settings, ShieldCheck, Users } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getMyPosts, getMyProfile, getPlacesByIds } from '../api';
@@ -21,6 +21,9 @@ import { FriendsScreen } from './friends/FriendsScreen';
 import { UserProfileSheet } from './friends/UserProfileSheet';
 import { PlaceSymbol } from './PlaceSymbol';
 import { PostRow } from './PostRow';
+import { SignalGridTile } from './SignalGridTile';
+import { GRID_COLUMNS, GRID_GAP, gridTileSize, type ProfileView } from '../profileGrid';
+import { SegmentedControl } from './ui/BlinkrSegmentedControl';
 import { SettingsScreen } from './SettingsScreen';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { bottomBarClearance } from './ui/BlinkrBottomBar';
@@ -57,6 +60,9 @@ type Props = {
 export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCreateSignal, onOverlayOpenChange, onMessageUser, onRequestsChange }: Props) {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation('profile');
+  const { width: screenWidth } = useWindowDimensions();
+  const [view, setView] = useState<ProfileView>('grid');
+  const tileSize = gridTileSize(screenWidth, spacing.lg);
   const [saved, setSaved] = useState<SavedPlace[] | null>(null);
   const [savedError, setSavedError] = useState<string | null>(null);
   const [posts, setPosts] = useState<AuthoredPost[]>([]);
@@ -288,6 +294,9 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
         <Text accessibilityRole="header" style={styles.postsTitle}>Sinyallerim</Text>
         {total !== null ? <Text style={styles.postsCount}>{formatCount(total)}</Text> : null}
       </View>
+      <View style={styles.viewSwitch}>
+        <SegmentedControl accessibilityLabel={t('grid.switch')} onChange={setView} options={[{ value: 'grid', label: t('grid.grid') }, { value: 'list', label: t('grid.list') }]} value={view} />
+      </View>
     </View>
   );
 
@@ -326,7 +335,10 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
         ListFooterComponent={footer}
         ListHeaderComponent={header}
         contentContainerStyle={[styles.content, { paddingBottom: bottomBarClearance(insets.bottom) + spacing.lg }]}
+        columnWrapperStyle={view === 'grid' ? styles.gridRow : undefined}
         data={posts}
+        key={view}
+        numColumns={view === 'grid' ? GRID_COLUMNS : 1}
         initialNumToRender={10}
         keyExtractor={(item) => item.id}
         maxToRenderPerBatch={10}
@@ -334,7 +346,7 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
         onEndReachedThreshold={0.6}
         refreshControl={<RefreshControl onRefresh={() => { setRefreshing(true); void loadSaved(); void loadProfile(); void loadPosts(true); }} refreshing={refreshing} tintColor={colors.mint} />}
         removeClippedSubviews
-        renderItem={({ item }) => <PostRow post={item} />}
+        renderItem={({ item }) => (view === 'grid' ? <SignalGridTile post={item} size={tileSize} /> : <PostRow post={item} />)}
         showsVerticalScrollIndicator={false}
         windowSize={7}
       />
@@ -390,6 +402,8 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
 }
 
 const styles = StyleSheet.create({
+  gridRow: { gap: GRID_GAP, marginBottom: GRID_GAP },
+  viewSwitch: { marginBottom: spacing.sm, marginTop: spacing.sm },
   screen: { backgroundColor: colors.background, flex: 1 },
   content: { paddingHorizontal: spacing.lg },
   headerBlock: { gap: spacing.lg, paddingBottom: spacing.sm },
