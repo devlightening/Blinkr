@@ -56,6 +56,18 @@ Check(GalleryMediaPolicy.CapTrust("NEARBY_PLACE_POST", true, t0.AddMinutes(-1), 
 Check(GalleryMediaPolicy.CapTrust(null, true, t0.AddHours(-3), t0) is null, "coordinate signal untouched");
 Check(SensitivePlacePolicy.BlocksMedia("EDUCATION") && SensitivePlacePolicy.BlocksMedia("education") && !SensitivePlacePolicy.BlocksMedia("HEALTH") && !SensitivePlacePolicy.BlocksMedia(null), "media blocked only at EDUCATION");
 
+// Faz 7: the nearby feed puts fresh and close first, lets engagement only nudge, and spreads authors out.
+var n0 = new DateTime(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc);
+DiscoverRanking.Candidate Cand(Guid author, double minutesAgo, double meters, int likes = 0, bool anon = false) => new(Guid.NewGuid(), author, anon, n0.AddMinutes(-minutesAgo), meters, likes, 0);
+var ann = Guid.NewGuid(); var bo = Guid.NewGuid(); var cem = Guid.NewGuid();
+Check(DiscoverRanking.Score(Cand(ann, 5, 300), n0) > DiscoverRanking.Score(Cand(ann, 300, 300, likes: 500), n0), "a fresh signal beats an old popular one");
+Check(DiscoverRanking.Score(Cand(ann, 10, 200), n0) > DiscoverRanking.Score(Cand(ann, 10, 5000), n0), "closer ranks higher at the same age");
+var spread = DiscoverRanking.Order(new[] { Cand(ann, 1, 100), Cand(ann, 2, 100), Cand(ann, 3, 100), Cand(bo, 30, 900), Cand(cem, 60, 2000) }, n0, 4);
+Check(spread.Take(4).Count(c => c.AuthorId == ann) == 2 && spread.Count == 5, "at most two per person per page, nothing dropped");
+var anons = DiscoverRanking.Order(new[] { Cand(ann, 1, 100, anon: true), Cand(ann, 2, 100, anon: true), Cand(ann, 3, 100, anon: true) }, n0, 3);
+Check(anons.Count == 3, "anonymous signals are not grouped by their hidden author");
+Check(DiscoverRanking.CoarseDistance(12) == 50 && DiscoverRanking.CoarseDistance(137) == 150 && DiscoverRanking.CoarseDistance(1024) == 1000, "feed distances are coarse");
+
 if (args.Contains("--catalog"))
 {
     using var http = new HttpClient { BaseAddress = new Uri("http://localhost:5080"), Timeout = TimeSpan.FromSeconds(30) };

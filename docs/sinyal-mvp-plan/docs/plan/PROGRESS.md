@@ -7,8 +7,8 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz 6 — profil, takip, kaydedilenler |
-| Son tamamlanan görev | P6.3 (profil ızgarası) |
+| Aktif faz | Faz 7 — Keşfet akışı ve hikayeler |
+| Son tamamlanan görev | P7.1 (Keşfet backend) |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
 
@@ -198,15 +198,15 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 - [~] P6.4 Başka kullanıcı profili: `FollowButton` (Takip et / Geri takip et / Takip ediliyor / İstek gönderildi; iyimser + geri alma; bırakmadan önce onay), "Seni takip ediyor", sayaçlar, gizli hesap kilidi; mevcut Mesaj/Engelle/Bildir korunuyor. Ortak takipçiler yok.
 - [x] P6.5 `FollowListSheet`/`FollowListPanel`: Takipçiler/Takip (sayfalı), her satırda takip düğmesi, kendi takipçini onaylı çıkarma; başka profilde aynı sheet içinde açılır (ikinci sheet yok). Liste içi arama yok.
 - [x] P6.6 Takip istekleri: listede "İstekler" sekmesi (Onayla/Sil) + Ayarlar'da "Gizli hesap" anahtarı.
-- [ ] P6.7 Profili düzenle: avatar (foto veya illüstrasyon seti), ad, kullanıcı adı (canlı kontrol, 14 gün kuralı), bio, şehir, bağlantı
+- [-] P6.7 Profili düzenle — mevcut avatar + bio korunuyor; kullanıcı adı değiştirme (14 gün), şehir, bağlantı ertelendi (D-010).
 - [~] P6.8 Kayıtlı yerler hesapta (IdentityService `SavedPlaces`, ekleme yapan EF göçü), iki cihazda aynı; cihazdaki eski kayıtlar ilk girişte bir kez `import` ile taşınıyor, cihaz yalnız çevrimdışı önbellek. Kanıt: BLK-SAVED-01 PASS. **Ertelendi:** koleksiyonlar, sinyal kaydetme.
-- [ ] P6.9 Profil paylaş: link + QR kodu; derin link `/u/{username}`
-- [ ] P6.10 Güven puanı açıklama sayfası, seviye ilerleme; rozet detayları
-- [ ] P6.11 Engelleme sonrası içerik anında her yerden kalkar (React Query önbellek temizliği)
+- [-] P6.9 Profil paylaş/QR — ertelendi (D-010: derin link altyapısı yok, Faz 9 P9.4 ile).
+- [-] P6.10 Güven puanı/seviye/rozet — ertelendi (D-010: sunucuda hesaplanmıyor; uydurma sayı gösterilmez).
+- [~] P6.11 Engel sunucuda takipleri siler, profil/liste/yazar sinyalleri ve Keşfet akışlarında engelli kişi görünmez (BLK-FOLLOW-01, BLK-DISCOVER-01). Harita pinleri (herkese açık harita) süzülmüyor.
 
 ## Faz 7 — Keşfet akışı ve hikayeler
 
-- [ ] P7.1 Backend: `/feed/nearby` (skor + çeşitlilik), `/feed/following`, yer durum şeridi, önerilen kişiler
+- [~] P7.1 Backend: `GET /api/discover/nearby` (tazelik > yakınlık > log etkileşim skoru, sayfa başına kişi başı en fazla 2, kaba mesafe, anonimde yazar yok, engelliler dışarıda) ve `GET /api/discover/following` (takip edilenlerin son 7 gün, anonim hariç; kimlik servisi cevap vermezse 503). Eski `/api/v1/feed` ham koordinat ve anonim yazar adı döndürdüğü için kullanılmadı. Kanıt: BLK-DISCOVER-01 + `tests/PlacePosting` sıralama kontrolleri PASS. **Ertelendi:** yer durum şeridi, önerilen kişiler.
 - [ ] P7.2 Keşfet ekranı: başlık (arama, zil), StoryTray, Yakınımda|Takip, filtreler, yarıçap seçici
 - [ ] P7.3 SignalCard feed varyantı; yer durum kartları şeridi; önerilen kişiler kartı; boş durumlar
 - [ ] P7.4 Çekerek yenile, sonsuz kaydırma, sekmeye tekrar dokun = başa kaydır

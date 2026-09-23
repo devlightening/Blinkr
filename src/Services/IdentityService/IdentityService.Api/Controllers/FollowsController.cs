@@ -188,6 +188,22 @@ namespace IdentityService.Api.Controllers
         public async Task<IActionResult> Visibility(Guid userId) =>
             Ok(new { userId, canSee = await FollowQueries.CanSeeAsync(_db, Viewer(), userId) });
 
+        /// <summary>
+        /// GET /api/follows/graph - whom I follow (accepted) and whom I must not see (blocks either way). Only about the
+        /// caller; BlogService uses it to build the "Takip" feed and to leave blocked people out of feeds.
+        /// </summary>
+        [HttpGet("api/follows/graph")]
+        public async Task<IActionResult> Graph()
+        {
+            var me = Viewer();
+            if (me == Guid.Empty) return Unauthorized(new { error = "Unauthorized" });
+            var following = await _db.Follows.Where(f => f.FollowerId == me && f.Status == FollowStatus.Accepted)
+                .OrderByDescending(f => f.AcceptedAtUtc ?? f.CreatedAtUtc).Take(FollowRules.MaxFollowing)
+                .Select(f => f.FolloweeId).ToListAsync();
+            var hidden = await BlockQueries.HiddenFromAsync(_db, me);
+            return Ok(new { following, hidden });
+        }
+
         /// <summary>PUT /api/users/me/privacy - make my account private or public. Going public approves every waiting request.</summary>
         [HttpPut("api/users/me/privacy")]
         public async Task<IActionResult> SetPrivacy([FromBody] SetPrivacyRequest request)
