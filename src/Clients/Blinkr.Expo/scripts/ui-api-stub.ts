@@ -259,6 +259,29 @@ export const getDiscoverFollowing = async (_auth: unknown, page = 1) => {
   return { items, page, pageSize: 20, hasMore: false };
 };
 
+// Stories: zeynep has two unseen, ece one seen, I have none until I post one.
+const storyPixel = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="360" height="640"><rect width="360" height="640" fill="#2b5a4a"/></svg>');
+let myStories: Array<Record<string, unknown>> = [];
+const storyFor = (id: string, authorId: string, authorName: string, seen: boolean) => ({ id, authorId, authorName, mediaType: 'Image', caption: id === 'z-1' ? 'Kuyruk kısa' : null, durationSeconds: 3, createdAtUtc: new Date(feedNow - 30 * 60_000).toISOString(), expiresAtUtc: new Date(feedNow + 20 * 3_600_000).toISOString(), seen, viewerCount: null });
+const seenStories = new Set<string>();
+export const listStoryTray = async () => [
+  ...(myStories.length ? [{ authorId: 'qa', authorName: 'alper', isMine: true, storyCount: myStories.length, latestAtUtc: new Date().toISOString(), allSeen: true }] : []),
+  { authorId: 'u-zeynep', authorName: 'zeynep', isMine: false, storyCount: 2, latestAtUtc: new Date(feedNow - 30 * 60_000).toISOString(), allSeen: seenStories.has('z-1') && seenStories.has('z-2') },
+  { authorId: 'u-ece', authorName: 'ece', isMine: false, storyCount: 1, latestAtUtc: new Date(feedNow - 90 * 60_000).toISOString(), allSeen: true },
+];
+export const listUserStories = async (_auth: unknown, userId: string) =>
+  userId === 'qa' ? myStories : userId === 'u-zeynep' ? [storyFor('z-1', 'u-zeynep', 'zeynep', seenStories.has('z-1')), storyFor('z-2', 'u-zeynep', 'zeynep', seenStories.has('z-2'))] : [storyFor('e-1', 'u-ece', 'ece', true)];
+export const markStorySeen = async (_auth: unknown, id: string) => { seenStories.add(id); };
+export const listStoryViewers = async () => [{ userId: 'u-ece', userName: 'ece', seenAtUtc: new Date().toISOString() }];
+export const deleteStory = async (_auth: unknown, id: string) => { myStories = myStories.filter((s) => s.id !== id); };
+export const storyMediaSource = (_auth: unknown, _id: string) => ({ uri: storyPixel, headers: {} as Record<string, string> });
+export const postStory = async () => {
+  const story = { ...storyFor(`m-${myStories.length + 1}`, 'qa', 'alper', true), viewerCount: 1 };
+  myStories = [...myStories, story];
+  return story;
+};
+export const sentStoryReplies: string[] = [];
+
 // Saved places on the account: the harness has no session, so savedPlaces.ts stays device-local (localStorage).
 export const listServerSavedPlaces = async () => [];
 export const putSavedPlace = async (_auth: unknown, place: { id: string }) => ({ placeId: place.id, saved: true });

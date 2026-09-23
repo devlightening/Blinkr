@@ -5,7 +5,11 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Linking, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ApiCodeError, getDiscoverFollowing, getDiscoverNearby, getPlace, togglePostLike } from '../../api';
+import { ApiCodeError, getDiscoverFollowing, getDiscoverNearby, getPlace, postStory, togglePostLike } from '../../api';
+import { DEFAULT_STORY_SECONDS, type StoryTrayItem } from '../../stories';
+import { SignalCamera } from '../camera/SignalCamera';
+import { StoryTray } from '../stories/StoryTray';
+import { StoryViewer } from '../stories/StoryViewer';
 import { LOCATION_TIMEOUT, resolveDeviceOrigin, type Origin } from '../../deviceOrigin';
 import { canLoadMore, mergeDiscoverPage, toggleFeedLike, type DiscoverItem, type DiscoverPage, type DiscoverTab } from '../../discoverFeed';
 import { engagementErrorKey } from '../../engagement';
@@ -55,14 +59,18 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
   const [refreshing, setRefreshing] = useState(false);
   const [thread, setThread] = useState<DiscoverItem | null>(null);
   const [person, setPerson] = useState<UserSummary | null>(null);
+  const [storyView, setStoryView] = useState<{ authors: StoryTrayItem[]; start: string } | null>(null);
+  const [storyCamera, setStoryCamera] = useState(false);
+  const [trayKey, setTrayKey] = useState(0);
+  const [storyNotice, setStoryNotice] = useState<string | null>(null);
   const requests = useRef<Record<string, AbortController | undefined>>({});
   const likeBusy = useRef(new Set<string>());
   const refresh = useRef({ onAuthRefresh: onAuthChange, onSessionExpired: onLogout });
   refresh.current = { onAuthRefresh: onAuthChange, onSessionExpired: onLogout };
 
   useEffect(() => {
-    onOverlayOpenChange?.(Boolean(thread || person));
-  }, [thread, person, onOverlayOpenChange]);
+    onOverlayOpenChange?.(Boolean(thread || person || storyView || storyCamera));
+  }, [thread, person, storyView, storyCamera, onOverlayOpenChange]);
   useEffect(() => () => { Object.values(requests.current).forEach((c) => c?.abort()); onOverlayOpenChange?.(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const patch = (which: 'nearby' | 'following', next: Partial<FeedState>) =>
@@ -142,6 +150,8 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
         options={[{ value: 'nearby', label: t('discover.tabNearby') }, { value: 'following', label: t('discover.tabFollowing') }, { value: 'places', label: t('discover.tabPlaces') }]}
         value={tab}
       />
+      {tab !== 'places' ? <StoryTray auth={auth} onAdd={() => setStoryCamera(true)} onOpen={(item, all) => setStoryView({ authors: all, start: item.authorId })} refresh={refresh.current} reloadKey={trayKey} /> : null}
+      {storyNotice ? <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{storyNotice}</Text> : null}
       <Text style={styles.subtitle}>{tab === 'nearby' ? t('discover.subtitleNearby') : tab === 'following' ? t('discover.subtitleFollowing') : t('discover.subtitlePlaces')}</Text>
     </View>
   );
@@ -236,6 +246,24 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
           </BlinkrSheetPanel>
         </Sheet>
       ) : null}
+      {storyView ? (
+        <StoryViewer auth={auth} authors={storyView.authors} onClose={() => { setStoryView(null); setTrayKey((k) => k + 1); }} refresh={refresh.current} startAuthorId={storyView.start} />
+      ) : null}
+      {storyCamera ? (
+        <View style={styles.cameraLayer}>
+          <SignalCamera
+            onCapture={(asset) => {
+              setStoryCamera(false);
+              setStoryNotice(t('stories.posting'));
+              postStory(auth, asset, { durationSeconds: DEFAULT_STORY_SECONDS }, refresh.current)
+                .then(() => { setStoryNotice(t('stories.posted')); setTrayKey((k) => k + 1); })
+                .catch(() => setStoryNotice(t('stories.postFailed')));
+            }}
+            onClose={() => setStoryCamera(false)}
+            submitLabel={t('stories.share')}
+          />
+        </View>
+      ) : null}
       {person ? (
         <UserProfileSheet
           auth={auth}
@@ -252,6 +280,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.background, flex: 1 },
+  cameraLayer: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 60 },
   header: { gap: spacing.sm, paddingBottom: spacing.md, paddingHorizontal: spacing.lg },
   title: { ...typography.headline, color: colors.text },
   subtitle: { ...typography.caption, color: colors.textSecondary },

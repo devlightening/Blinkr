@@ -32,5 +32,33 @@
     "showOnMap": "Haritada göster",
     "comments": "Yorumlar",
     "anonymous": "Topluluk üyesi"
+  },
+  "stories": {
+    "yours": "Hikayen",
+    "add": "Hikaye ekle",
+    "trayLabel": "Hikayeler",
+    "unseen": "{{name}}, yeni hikaye",
+    "seen": "{{name}}, izlendi",
+    "viewers_one": "{{count}} görüntüleme",
+    "viewers_other": "{{count}} görüntüleme",
+    "viewersTitle": "Görüntüleyenler",
+    "noViewers": "Henüz kimse izlemedi",
+    "delete": "Hikayeyi sil",
+    "deleteConfirm": "Silinsin mi? Geri alınamaz.",
+    "deleteYes": "Evet, sil",
+    "cancel": "Vazgeç",
+    "replyPlaceholder": "{{name}} kişisine yanıt ver…",
+    "send": "Gönder",
+    "replySent": "Yanıtın mesaj olarak gönderildi.",
+    "replyFailed": "Yanıt gönderilemedi. Tekrar dene.",
+    "loadFailed": "Hikaye açılamadı.",
+    "posting": "Hikayen paylaşılıyor…",
+    "posted": "Hikayen 24 saat takipçilerine görünür.",
+    "postFailed": "Hikaye paylaşılamadı. Tekrar dene.",
+    "close": "Hikayeyi kapat",
+    "next": "Sonraki",
+    "previous": "Önceki",
+    "share": "Paylaş",
+    "gone": "Bu hikaye artık yok."
   }
 }

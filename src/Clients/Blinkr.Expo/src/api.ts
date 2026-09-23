@@ -5,6 +5,7 @@ import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, Crea
 import { resolveUploadContentType, safeUploadFileName } from './mediaContentType';
 import { COMMENT_PAGE_SIZE, type CommentPage, type CommentSort } from './engagement';
 import { DISCOVER_PAGE_SIZE, DISCOVER_RADIUS_METERS, type DiscoverPage } from './discoverFeed';
+import type { Story, StoryTrayItem, StoryViewer } from './stories';
 
 type NearbyPlacesResponse = Array<BlinkrPlace & { distanceMeters?: number }> & {
   coverageState?: string | null;
@@ -388,6 +389,39 @@ export const sendReport = (
   report: { targetType: 'user' | 'signal'; targetId: string; reason: string; note?: string },
   refresh: Refresh = {},
 ) => requestJson<{ reported: boolean }>('/api/reports', { auth, body: report, method: 'POST', ...refresh });
+
+/** Stories (Faz 7): 24 h, author + accepted followers; the media is private and never cached. */
+export const listStoryTray = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<StoryTrayItem[]>('/api/stories/tray', { auth, signal, ...refresh });
+export const listUserStories = (auth: AuthResponse, userId: string, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<Story[]>(`/api/stories/users/${userId}`, { auth, signal, ...refresh });
+export const markStorySeen = async (auth: AuthResponse, storyId: string, refresh: Refresh = {}) => {
+  await request(`/api/stories/${storyId}/seen`, { auth, method: 'POST', ...refresh });
+};
+export const listStoryViewers = (auth: AuthResponse, storyId: string, refresh: Refresh = {}) =>
+  requestJson<StoryViewer[]>(`/api/stories/${storyId}/viewers`, { auth, ...refresh });
+export const deleteStory = async (auth: AuthResponse, storyId: string, refresh: Refresh = {}) => {
+  const response = await request(`/api/stories/${storyId}`, { auth, method: 'DELETE', ...refresh });
+  if (!response.ok) throw new Error(await readError(response));
+};
+export const storyMediaSource = (auth: AuthResponse, storyId: string) => ({
+  uri: `${API_BASE_URL}/api/stories/${storyId}/content`,
+  headers: { Authorization: `Bearer ${auth.token}` },
+});
+export const postStory = async (
+  auth: AuthResponse,
+  media: LocalMedia,
+  options: { durationSeconds: number; caption?: string },
+  refresh: Refresh = {},
+) => {
+  const mediaType: MediaKind = media.type === 'video' ? 'Video' : 'Image';
+  const { blob, contentType } = await readLocalMedia(media, mediaType);
+  const query = new URLSearchParams({ durationSeconds: String(mediaType === 'Video' ? 0 : options.durationSeconds) });
+  if (options.caption) query.set('caption', options.caption);
+  const response = await request(`/api/stories?${query}`, { auth, headers: { 'Content-Type': contentType }, method: 'POST', rawBody: blob, timeoutMs: 90000, ...refresh });
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json() as Promise<Story>;
+};
 
 /** Keşfet (Faz 7): ranked live signals nearby, and what followed people shared this week. */
 export const getDiscoverNearby = (auth: AuthResponse, latitude: number, longitude: number, page = 1, signal?: AbortSignal, refresh: Refresh = {}) =>

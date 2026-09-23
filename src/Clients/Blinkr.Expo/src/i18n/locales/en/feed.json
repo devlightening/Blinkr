@@ -32,5 +32,33 @@
     "showOnMap": "Show on map",
     "comments": "Comments",
     "anonymous": "Community member"
+  },
+  "stories": {
+    "yours": "Your story",
+    "add": "Add story",
+    "trayLabel": "Stories",
+    "unseen": "{{name}}, new story",
+    "seen": "{{name}}, watched",
+    "viewers_one": "{{count}} view",
+    "viewers_other": "{{count}} views",
+    "viewersTitle": "Viewers",
+    "noViewers": "No one has watched yet",
+    "delete": "Delete story",
+    "deleteConfirm": "Delete it? This can't be undone.",
+    "deleteYes": "Yes, delete",
+    "cancel": "Cancel",
+    "replyPlaceholder": "Reply to {{name}}…",
+    "send": "Send",
+    "replySent": "Your reply was sent as a message.",
+    "replyFailed": "Couldn't send the reply. Try again.",
+    "loadFailed": "Couldn't open the story.",
+    "posting": "Sharing your story…",
+    "posted": "Your story is visible to your followers for 24 hours.",
+    "postFailed": "Couldn't share the story. Try again.",
+    "close": "Close story",
+    "next": "Next",
+    "previous": "Previous",
+    "share": "Share",
+    "gone": "This story is gone."
   }
 }

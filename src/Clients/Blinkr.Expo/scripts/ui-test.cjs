@@ -676,6 +676,37 @@ async function main() {
     await page.goto(url + '?scene=discover');
     await page.getByRole('tab', { name: 'Takip' }).click();
     await expect(page.getByTestId('feed-card-f-1')).toBeVisible();
+    // Stories: the tray (unseen ring first), watching moves through the segments and marks them seen, a reply goes
+    // as a DM, and my own story shows viewers and can be deleted.
+    await page.goto(url + '?scene=discover');
+    await expect(page.getByTestId('story-tray')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Hikaye ekle' })).toBeVisible();
+    await page.getByRole('button', { name: 'zeynep, yeni hikaye' }).click();
+    await expect(page.getByTestId('story-viewer')).toBeVisible();
+    await expect(page.getByText('Kuyruk kısa')).toBeVisible();
+    await page.waitForTimeout(250); await page.screenshot({ path: path.join(out, 'story-viewer.png') });
+    await page.getByLabel('zeynep kişisine yanıt ver…').fill('Teşekkürler!');
+    await page.getByRole('button', { name: 'Gönder' }).click();
+    await expect(page.getByText('Yanıtın mesaj olarak gönderildi.')).toBeVisible();
+    await page.getByTestId('story-next').click();
+    await page.getByTestId('story-next').click();
+    await page.getByTestId('story-next').click();
+    await expect(page.getByTestId('story-viewer')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'zeynep, izlendi' })).toBeVisible();
+    await page.getByRole('button', { name: 'Hikaye ekle' }).click();
+    await expect(page.getByRole('button', { name: 'Fotoğraf çek' })).toBeEnabled();
+    await page.getByRole('button', { name: 'Fotoğraf çek' }).click();
+    await page.getByRole('button', { name: 'Paylaş' }).click();
+    await expect(page.getByText('Hikayen 24 saat takipçilerine görünür.')).toBeVisible();
+    await page.getByRole('button', { name: 'Hikayen', exact: true }).click();
+    await expect(page.getByText('1 görüntüleme')).toBeVisible();
+    await page.getByText('1 görüntüleme').click();
+    await expect(page.getByText('Görüntüleyenler')).toBeVisible();
+    await page.getByRole('button', { name: 'Vazgeç' }).click();
+    await page.getByRole('button', { name: 'Hikayeyi sil' }).click();
+    await page.getByRole('button', { name: 'Evet, sil' }).click();
+    await expect(page.getByTestId('story-viewer')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Hikaye ekle' })).toBeVisible();
     await page.goto(url + '?scene=discover&nofollowing');
     await page.getByRole('tab', { name: 'Takip' }).click();
     await expect(page.getByText('Takip akışın boş')).toBeVisible();

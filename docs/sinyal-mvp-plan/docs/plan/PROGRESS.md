@@ -7,8 +7,8 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz 7 — Keşfet akışı ve hikayeler |
-| Son tamamlanan görev | P7.5 (hikaye backend) |
+| Aktif faz | Faz 8 — sohbet yenileme |
+| Son tamamlanan görev | P7.8 (hikaye mobil) — Faz 7 kapandı |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
 
@@ -211,9 +211,9 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 - [~] P7.3 `feed/FeedCard` (yazar/anonim, tip+değer, tazelik, kaba mesafe, foto, beğeni yerinde, yorumlar sheet'te, Haritada göster); boş/hata/iskelet durumları. Yer durum şeridi "Yerler" sekmesi olarak; önerilen kişiler yok.
 - [~] P7.4 Çekerek yenile, sayfalı kaydırma (bilinçli üst sınır 10 sayfa — "Decision utility over engagement"). Sekmeye tekrar dokununca başa kaydırma yok.
 - [x] P7.5 Backend (NotificationsService, snap depolamasıyla aynı özel disk): `POST /api/stories` (ham medya, foto 3/5/10 sn, video; EXIF silinir, bayt imzası denetlenir; 24 sa; kişi başına 30 aktif), `GET /api/stories/tray` (kendim + takip ettiklerim, görülmemiş önce), `GET /api/stories/users/{id}`, `GET /api/stories/{id}/content` (no-store), `POST .../seen`, `GET .../viewers` (yalnız yazar), `DELETE`. Görünürlük kimlik servisiyle (takip + engel), cevap yoksa kapalı başarısız (503). Konum saklanmaz. Kanıt: BLK-STORIES-01 (16 kontrol) PASS.
-- [ ] P7.6 StoryTray (harita + keşfet) sıralama ve görüldü durumları
-- [ ] P7.7 Hikaye görüntüleyici: ilerleme çubukları, dokun/tut/kaydır hareketleri, kullanıcılar arası küp geçiş, ön yükleme
-- [ ] P7.8 Hikayeye yanıt → DM (story_reply), görüntüleyenler listesi (kendi hikayen), hikayeden kaldır
+- [~] P7.6 `stories/StoryTray` Keşfet'in üstünde: benim (yoksa +), sonra takip ettiklerim; görülmemiş parlak halka, izlenmiş sönük; sunucu sırası (kendim, görülmemiş, en yeni). Harita üstünde tray yok (harita sadeliği).
+- [~] P7.7 `stories/StoryViewer`: segment çubukları, sağ dokun ileri / sol geri, basılı tut duraklat, kişiden kişiye geçiş, ilk görülmemişten başlar, görüldü işaretlenir, video desteği. Küp animasyonu ve ön yükleme yok.
+- [x] P7.8 Yanıt → DM ("↩ Hikayene yanıt: …"), kendi hikayende görüntüleyenler ve iki adımlı silme; hikaye paylaşma Keşfet'teki "Hikaye ekle" → kamera → Paylaş.
 
 ## Faz 8 — Sohbet yenileme
 
@@ -311,6 +311,15 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 - Kanıt: 19 backend kabul betiği sıfır FAIL (yeni: BLK-ENGAGE-01, BLK-SENSITIVE-01, BLK-MEDIA-PRIVACY-01), `tests/PlacePosting` PASS, typecheck/test:nearby/test:ui/test:i18n/test:theme/test:product yeşil, `expo export` iOS+Android yeşil.
 - Ertelenenler: P5.10 çevrimdışı kuyruk, P5.12 kopya birleştirme (D-008); kamera üzerinde yer çipi (D-007); Skia filtreler (katman tabanlı filtre korunuyor).
 - Bilinen sorunlar: Basılı-tut kayıt, döndürme, çöp kutusu fiziksel cihazda denenmedi (yalnız tarayıcı).
+
+### Faz 6 — 2026-09-23
+- Yapılanlar: Takip + gizli hesap (D-009, BLK-FOLLOW-01), takip butonları/listeleri/istekleri, profil sayaçları ve ızgara, e-posta profilden kaldırıldı, kayıtlı yerler hesapta (BLK-SAVED-01).
+- Ertelenenler (D-010): kullanıcı adı değiştirme, QR/derin link, güven puanı/rozet, koleksiyonlar, mute, öneriler.
+
+### Faz 7 — 2026-09-23
+- Yapılanlar: Keşfet (BLK-DISCOVER-01, sıralama birim kontrolleri), FeedCard, hikayeler uçtan uca (BLK-STORIES-01), tray + görüntüleyici + paylaşma + yanıt + görüntüleyenler.
+- Ertelenenler: yer durum şeridi/önerilen kişiler, sekmeye tekrar dokununca başa kaydırma, küp geçiş, harita üstü tray.
+- Bilinen sorunlar: Hikaye videosu ve dokunma hareketleri fiziksel cihazda denenmedi.
 
 ## Performans ölçümleri (Faz 11)
 
