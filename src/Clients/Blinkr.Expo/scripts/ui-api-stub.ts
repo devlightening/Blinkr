@@ -261,7 +261,7 @@ export const getDiscoverNearby = async (_auth: unknown, _lat: number, _lon: numb
   const items = page > 1 ? [feedItem('n-4', { title: 'Dördüncü', authorName: 'ece', authorId: 'u-ece' })] : [
     feedItem('n-1'),
     feedItem('n-2', { signalType: 'Crowd', signalValue: 'Calm', content: 'Park sakin.', authorId: null, authorName: 'Topluluk üyesi', anonymous: true, placeId: null, locationName: 'Masal Parkı', distanceMeters: 1200 }),
-    feedItem('n-3', { signalType: 'Offer', signalValue: 'Available', content: 'Simit iki al bir öde.', authorId: 'qa', authorName: 'alper', distanceMeters: 50 }),
+    feedItem('n-3', { signalType: 'Offer', signalValue: 'Available', content: 'Simit iki al bir öde.', authorId: 'qa', authorName: 'alper', distanceMeters: 50, sensitive: true }),
   ];
   return { items, page, pageSize: 20, hasMore: page === 1 };
 };

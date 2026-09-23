@@ -32,5 +32,10 @@
     "decline": "Sil",
     "answered": "Yanıtlandı",
     "close": "Kapat"
+  },
+  "personalData": {
+    "title": "Kişisel bilgi paylaşmak üzeresin",
+    "masked": "TC kimlik numaraları ve plakalar paylaşımda otomatik gizlenir.",
+    "visible": "Telefon numarası ya da açık adres herkese görünür. Gerekmiyorsa sil."
   }
 }

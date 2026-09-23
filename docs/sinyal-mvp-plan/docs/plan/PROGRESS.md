@@ -239,7 +239,7 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 
 ## Faz 10 — Güvenlik, gizlilik, moderasyon
 
-- [ ] P10.1 Metin filtresi (tr/en, normalizasyon), kişisel veri kalıbı uyarısı ve maskeleme
+- [x] P10.1 Metin filtresi — `Shared.Moderation.ContentTextFilter` (normalizasyon: Türkçe harf, leetspeak, tekrar, a.r.a.l.ı harf); tehdit/nefret/hedefli hakaret 422 `CONTENT_BLOCKED` (gönderi, düzenleme, yorum, sohbet, snap/hikâye alt yazısı, bio); TC no. ve plaka maskelenir (gönderi, yorum, hikâye, bio; özel sohbet hariç); hafif küfür Keşfet'te ×0,5 + "Hassas içerik"; uygulamada telefon/TC/plaka/adres uyarısı (composer, yorum, bio). Kanıt: `tests/ContentFilter` (BLK-TEXTFILTER-01, 38 kontrol), `test-text-filter.ps1` (BLK-TEXTFILTER-02) PASS, `text-safety.test.ts`, test:ui. Kelime listeleri başlangıç seviyesi (D-014).
 - [ ] P10.2 Görsel moderasyon sağlayıcı soyutlaması (`MODERATION_PROVIDER`), auto_hide
 - [ ] P10.3 Rapor akışı (UI: neden seçimi + not), ağırlıklı rapor skoru, auto_hide
 - [ ] P10.4 Admin uç noktaları + minimal admin sayfası/CLI; yaptırım merdiveni; kullanıcıya bildirim

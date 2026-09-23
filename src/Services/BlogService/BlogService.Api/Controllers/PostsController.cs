@@ -14,6 +14,7 @@ using BlogService.Api.Extensions;
 using BlogService.Application.DTOs.PostCommentDtos;
 using BlogService.Infrastructure.Services;
 using BlogService.Infrastructure.Services.Queries;
+using Shared.Moderation;
 
 namespace BlogService.Api.Controllers;
 
@@ -49,10 +50,14 @@ public class PostsController : ControllerBase
         // Get author gender from JWT claims (for map pin color)
         var authorGender = User.FindFirst("gender")?.Value;
         
+        // Synchronous text filter (Faz 10 P10.1): threats/hate refused, TC numbers and plates masked.
+        var (verdict, texts) = ContentTextFilter.ReviewAll(dto.Title, dto.Content);
+        if (verdict == TextVerdict.Blocked) return UnprocessableEntity(new { error = ContentTextFilter.BlockedCode, code = ContentTextFilter.BlockedCode, message = "Bu içerik topluluk kurallarına uymuyor." });
+
         // Create command with location, author name, and gender
         var command = new CreatePostCommand(
-            dto.Title, 
-            dto.Content, 
+            texts[0] ?? dto.Title,
+            texts[1] ?? dto.Content, 
             dto.Media?.ToList(),
             dto.Latitude,
             dto.Longitude,
@@ -117,7 +122,9 @@ public class PostsController : ControllerBase
     {
         // DÜZELTME: UpdatePostCommand'in beklediği AuthorId'yi ekliyoruz.
         var authorId = User.GetUserId() ?? throw new UnauthorizedAccessException();
-        var command = new UpdatePostCommand(id, dto.Title, dto.Content, authorId);
+        var (verdict, texts) = ContentTextFilter.ReviewAll(dto.Title, dto.Content);
+        if (verdict == TextVerdict.Blocked) return UnprocessableEntity(new { error = ContentTextFilter.BlockedCode, code = ContentTextFilter.BlockedCode, message = "Bu içerik topluluk kurallarına uymuyor." });
+        var command = new UpdatePostCommand(id, texts[0] ?? dto.Title, texts[1] ?? dto.Content, authorId);
 
         var success = await _mediator.Send(command);
         return success ? NoContent() : NotFound();
@@ -145,6 +152,9 @@ public class PostsController : ControllerBase
         var text = dto.CommentText?.Trim() ?? string.Empty;
         if (text.Length == 0) return BadRequest(new { code = "COMMENT_EMPTY" });
         if (text.Length > 500) return BadRequest(new { code = "COMMENT_TOO_LONG" });
+        var review = ContentTextFilter.Review(text);
+        if (review.Verdict == TextVerdict.Blocked) return UnprocessableEntity(new { error = ContentTextFilter.BlockedCode, code = ContentTextFilter.BlockedCode, message = "Bu içerik topluluk kurallarına uymuyor." });
+        text = review.Text;
 
         try
         {

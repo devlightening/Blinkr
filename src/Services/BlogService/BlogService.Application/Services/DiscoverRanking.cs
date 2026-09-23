@@ -9,8 +9,10 @@ public static class DiscoverRanking
 {
     public static readonly TimeSpan FreshnessHalfLife = TimeSpan.FromMinutes(90);
     public const int MaxPerAuthorPerPage = 2;
+    /// <summary>Light swearing is published but ranked lower (sinyal-mvp-plan 11 §4, Faz 10 P10.1).</summary>
+    public const double SensitivePenalty = 0.5;
 
-    public sealed record Candidate(Guid PostId, Guid AuthorId, bool Anonymous, DateTime CreatedAtUtc, double DistanceMeters, int LikeCount, int CommentCount);
+    public sealed record Candidate(Guid PostId, Guid AuthorId, bool Anonymous, DateTime CreatedAtUtc, double DistanceMeters, int LikeCount, int CommentCount, bool Sensitive = false);
 
     public static double Score(Candidate c, DateTime nowUtc)
     {
@@ -18,7 +20,7 @@ public static class DiscoverRanking
         var freshness = Math.Pow(0.5, ageMinutes / FreshnessHalfLife.TotalMinutes);
         var proximity = 1.0 / (1.0 + Math.Max(0, c.DistanceMeters) / 1000.0);
         var engagement = 1.0 + 0.25 * Math.Log(1 + Math.Max(0, c.LikeCount) + 2.0 * Math.Max(0, c.CommentCount));
-        return freshness * proximity * engagement;
+        return freshness * proximity * engagement * (c.Sensitive ? SensitivePenalty : 1.0);
     }
 
     /// <summary>Best first; no more than <see cref="MaxPerAuthorPerPage"/> from one person in each page-sized window.</summary>

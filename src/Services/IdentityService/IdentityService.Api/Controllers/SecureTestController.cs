@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using Shared.Moderation;
 
 namespace IdentityService.Api.Controllers
 {
@@ -72,6 +73,13 @@ namespace IdentityService.Api.Controllers
             var bio = CleanBio(request?.Bio);
             if (bio is not null && bio.Length > FriendshipRules.MaxBioLength)
                 return BadRequest(new { error = "BIO_TOO_LONG", message = $"Hakkında en fazla {FriendshipRules.MaxBioLength} karakter olabilir." });
+            if (bio is not null)
+            {
+                var review = ContentTextFilter.Review(bio);
+                if (review.Verdict == TextVerdict.Blocked)
+                    return UnprocessableEntity(new { error = ContentTextFilter.BlockedCode, code = ContentTextFilter.BlockedCode, message = "Bu içerik topluluk kurallarına uymuyor." });
+                bio = review.Text;
+            }
 
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user is null) return NotFound(new { error = "USER_NOT_FOUND" });

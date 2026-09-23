@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using NotificationsService.Application.Snaps;
 using NotificationsService.Domain.Interfaces;
+using Shared.Moderation;
 
 namespace NotificationsService.Api.Stories;
 
@@ -43,6 +44,9 @@ public class StoriesController : ControllerBase
     [RequestSizeLimit(MaxRequestBytes)]
     public async Task<IActionResult> Create([FromQuery] int durationSeconds = 5, [FromQuery] string? caption = null, CancellationToken ct = default)
     {
+        var captionReview = ContentTextFilter.Review(caption);
+        if (captionReview.Verdict == TextVerdict.Blocked) return UnprocessableEntity(new { code = ContentTextFilter.BlockedCode, message = "Bu içerik topluluk kurallarına uymuyor." });
+        caption = captionReview.Text;
         var me = Me();
         var contentType = SnapMedia.NormalizeContentType(Request.ContentType);
         var isImage = SnapMedia.IsImage(contentType);

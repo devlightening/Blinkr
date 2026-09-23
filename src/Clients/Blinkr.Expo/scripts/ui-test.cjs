@@ -664,6 +664,9 @@ async function main() {
     await expect(page.getByTestId('feed-card-n-2')).toContainText('Topluluk üyesi');
     await expect(page.getByTestId('feed-card-n-2')).not.toContainText('zeynep');
     await expect(page.getByTestId('feed-card-n-1')).toContainText('~350 m');
+    // Faz 10: light swearing is labelled, clean items are not.
+    await expect(page.getByTestId('feed-card-n-3').getByTestId('feed-sensitive')).toContainText('Hassas içerik');
+    await expect(page.getByTestId('feed-card-n-1').getByTestId('feed-sensitive')).toHaveCount(0);
     await page.getByTestId('feed-like-n-1').click();
     await expect(page.getByTestId('feed-like-n-1')).toContainText('5');
     await expect(page.getByTestId('feed-like-n-3')).toBeDisabled();
@@ -755,7 +758,13 @@ async function main() {
     await page.getByTestId('like-button').click();
     await expect(page.getByTestId('like-button')).toContainText('4');
     await expect(page.getByRole('button', { name: 'Beğeniyi geri al' })).toBeVisible();
+    // Faz 10: a plate in a comment warns (and says the server hides it); clearing it removes the warning.
+    await page.getByTestId('comment-input').fill('34 ABC 123 kapıyı kapattı');
+    await expect(page.getByTestId('personal-data-notice')).toContainText('otomatik gizlenir');
+    await page.getByTestId('comment-input').fill('Ara 0532 123 45 67');
+    await expect(page.getByTestId('personal-data-notice')).toContainText('herkese görünür');
     await page.getByTestId('comment-input').fill('Şimdi boş mu?');
+    await expect(page.getByTestId('personal-data-notice')).toHaveCount(0);
     await page.getByTestId('comment-send').click();
     await expect(page.getByText('Şimdi boş mu?')).toBeVisible();
     await expect(page.getByTestId('comment-input')).toHaveValue('');

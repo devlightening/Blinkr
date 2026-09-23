@@ -8,6 +8,7 @@ import { DISCOVER_PAGE_SIZE, DISCOVER_RADIUS_METERS, type DiscoverPage } from '.
 import type { Story, StoryTrayItem, StoryViewer } from './stories';
 import type { SignalShare } from './chatExtras';
 import type { AppNotification } from './notifications';
+import { i18n } from './i18n';
 
 type NearbyPlacesResponse = Array<BlinkrPlace & { distanceMeters?: number }> & {
   coverageState?: string | null;
@@ -56,12 +57,15 @@ const readError = async (response: Response) => {
   if (raw) {
     try {
       const payload = JSON.parse(raw) as {
+        code?: string;
         detail?: string;
         error?: string;
         errors?: Record<string, string[]>;
         message?: string;
         title?: string;
       };
+      // Refused by the server's text filter (Faz 10 P10.1): the app's own words, in the app's language.
+      if (payload.code === 'CONTENT_BLOCKED' || payload.error === 'CONTENT_BLOCKED') return i18n.t('errors:contentBlocked');
       const validationMessages = Object.values(payload.errors ?? {}).flat().filter(Boolean);
       const message = validationMessages[0]
         || payload.detail

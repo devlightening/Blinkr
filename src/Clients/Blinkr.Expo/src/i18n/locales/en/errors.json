@@ -11,5 +11,6 @@
     "commentFailed": "Couldn't send your comment. Try again.",
     "deleteFailed": "Couldn't delete the comment. Try again.",
     "loadFailed": "Couldn't load comments."
-  }
+  },
+  "contentBlocked": "This doesn't follow the community rules: threats, hate speech and targeted insults can't be posted."
 }

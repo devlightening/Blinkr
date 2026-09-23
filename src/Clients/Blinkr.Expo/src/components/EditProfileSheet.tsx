@@ -11,6 +11,7 @@ import { Avatar } from './Avatar';
 import { Sheet } from './Sheet';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { BlinkrSheetPanel } from './ui/BlinkrSheetPanel';
+import { PersonalDataNotice } from './ui/PersonalDataNotice';
 
 type Props = {
   auth: AuthResponse;
@@ -71,6 +72,7 @@ export function EditProfileSheet({ auth, bio, onAuthChange, onSessionExpired, on
           <Text style={styles.help}>Herkes görebilir. Konumun ve e-postan paylaşılmaz.</Text>
           <Text accessibilityLabel={`${state.length} / ${BIO_MAX} karakter`} style={[styles.count, state.tooLong && styles.countError]}>{state.length}/{BIO_MAX}</Text>
         </View>
+        <PersonalDataNotice texts={[text]} />
         {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
         <BlinkrButton disabled={state.tooLong || unchanged} label="Kaydet" loading={saving} onPress={() => void save()} size="lg" />
       </BlinkrSheetPanel>

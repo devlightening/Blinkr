@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using NotificationsService.Api.Filters;
 using NotificationsService.Application.Commands;
 using NotificationsService.Application.Queries;
+using Shared.Moderation;
 
 namespace NotificationsService.Api.Controllers;
 
@@ -55,6 +56,10 @@ public class ChatController : ControllerBase
     [HttpPost("conversations/{id}/messages")]
     public async Task<IActionResult> SendMessage(string id, [FromBody] SendMessageRequest req)
     {
+        // Private 1:1 text is not masked (a person may share their own details with a friend), but threats and
+        // hate are refused here too (Faz 10 P10.1).
+        if (ContentTextFilter.Review(req.Text, maskPersonalData: false).Verdict == TextVerdict.Blocked)
+            return UnprocessableEntity(new { code = ContentTextFilter.BlockedCode, message = "Bu içerik topluluk kurallarına uymuyor." });
         var userId = User.GetUserId();
         _logger.LogInformation("Chat: SendMessage | UserId={UserId} | ConversationId={ConversationId} | Kind={Kind}", userId, id, req.Signal is null ? "text" : "signal");
         var signal = req.Signal is null ? null : new SignalShareInput(req.Signal.PostId, req.Signal.SignalType, req.Signal.SignalValue, req.Signal.Title, req.Signal.LocationName);
@@ -80,6 +85,8 @@ public class ChatController : ControllerBase
     [RequestSizeLimit(MaxSnapRequestBytes)]
     public async Task<IActionResult> SendSnap(string id, [FromQuery] int durationSeconds = 5, [FromQuery] string? caption = null, CancellationToken ct = default)
     {
+        if (ContentTextFilter.Review(caption, maskPersonalData: false).Verdict == TextVerdict.Blocked)
+            return UnprocessableEntity(new { code = ContentTextFilter.BlockedCode, message = "Bu içerik topluluk kurallarına uymuyor." });
         var userId = User.GetUserId();
         var contentType = Request.ContentType ?? string.Empty;
 

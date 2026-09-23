@@ -15,6 +15,12 @@
 
 ## Kararlar
 
+### D-014 — P10.1 metin filtresi: tek paylaşılan sınıf, başlangıç kelime listesi, özel sohbet maskelenmez (2026-09-23)
+- Bağlam: 11 §4 senkron metin filtresi (tr/en, normalizasyon), ağır ihlalde 422 `CONTENT_BLOCKED`, hafif küfürde yayın + sıralama cezası + "Hassas içerik", TC no./plaka maskeleme ve kişisel veri uyarısı istiyor.
+- Karar: `BuildingBlocks/Shared/Moderation/ContentTextFilter` (Blog, Notifications, Identity API'leri zaten `Shared`'a bağlı). Gönderi başlık/metni + düzenleme, yorum, hikâye alt yazısı ve bio: engelle + maskele. Sohbet mesajı ve snap alt yazısı: yalnız engelle (kişi kendi plakasını bir arkadaşına yazabilir). Hafif küfür okuma anında hesaplanır: Keşfet "Yakınımda" skoru ×0,5 ve `sensitive: true` (olay sözleşmesi değişmedi). Telefon ve açık adres yalnız uygulamada uyarılır (`textSafety.ts`, `PersonalDataNotice`); sunucu bunları değiştirmez.
+- Gerekçe: Tek kural kümesi, üç serviste aynı davranış; read-time hesap, EventStore/worker/PlaceService zincirine yeni alan eklemeden çalışır. Kelime listeleri kodda ve kısa: yanlış pozitifleri önlemek için "kendini as" (≈"kendini aş"), "pic", "seni bulurum", "evini biliyorum" gibi girdiler bilinçli olarak çıkarıldı.
+- Etki: Listeler bir Türkçe/İngilizce anadil moderatörüyle gözden geçirilmeli. Asenkron metin/görsel moderasyon ve auto_hide (P10.2/P10.3) ayrı; "Hassas içerik" etiketi şimdilik yalnız Keşfet kartında (harita detayında yok).
+
 ### D-013 — P10.8: loglarda konum yok; "ev bulanıklaştırma" mevcut 110 m ızgara ile karşılanıyor (2026-09-23)
 - Bağlam: P10.8 log/analitik/hata raporlarında konum olmamasını ve ev bulanıklaştırma kuralını istiyor. Denetimde ~30 açık log satırı (Blog, Notifications, Worker) ham enlem/boylam yazıyordu; ASP.NET istek logu, HttpClient ve YARP da URL'deki `?lat=&lon=` sorgusunu yazıyordu.
 - Karar: Açık log satırlarından koordinatlar çıkarıldı (PostId, yarıçap, sayılar kaldı); `Microsoft.AspNetCore.Hosting.Diagnostics`, `System.Net.Http.HttpClient` ve `Yarp` tüm servislerde Warning'e çekildi; PlaceService kapsama anahtarı logda tek yönlü kısa kimlikle (`CoverageLogId`) geçiyor. `test-log-privacy.ps1` (BLK-LOGPRIV-01) çalışan servislerin test sırasında yazdığı loglarda ayırt edici bir noktanın rakamlarını arar. Ev bulanıklaştırma için ayrı bir "ev" kavramı eklenmedi: yer seçilmeyen sinyal zaten yazılırken 3 ondalığa (~110 m) yuvarlanıyor ve harita bu değeri gösteriyor.

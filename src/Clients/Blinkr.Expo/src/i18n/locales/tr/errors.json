@@ -11,5 +11,6 @@
     "commentFailed": "Yorum gönderilemedi. Tekrar dene.",
     "deleteFailed": "Yorum silinemedi. Tekrar dene.",
     "loadFailed": "Yorumlar yüklenemedi."
-  }
+  },
+  "contentBlocked": "Bu içerik topluluk kurallarına uymuyor: tehdit, nefret söylemi ya da hedefli hakaret paylaşılamaz."
 }

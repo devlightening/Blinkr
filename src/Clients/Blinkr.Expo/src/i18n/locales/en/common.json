@@ -32,5 +32,10 @@
     "decline": "Delete",
     "answered": "Answered",
     "close": "Close"
+  },
+  "personalData": {
+    "title": "You're about to share personal details",
+    "masked": "National ID numbers and number plates are hidden automatically when you post.",
+    "visible": "Phone numbers and street addresses will be visible to everyone. Remove them if you don't need them."
   }
 }

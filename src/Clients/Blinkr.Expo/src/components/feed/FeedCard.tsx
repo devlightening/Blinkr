@@ -1,4 +1,4 @@
-import { EyeOff, Heart, MapPin, MessageCircle, Radio, Send } from 'lucide-react-native';
+import { EyeOff, Heart, MapPin, MessageCircle, Radio, Send, ShieldAlert } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
@@ -69,6 +69,12 @@ export function FeedCard({ item, myUserId, onLike, onOpenThread, onOpenAuthor, o
             <SignalSymbol color={tone} size={14} type={item.signalType} />
             <Text style={[styles.typeText, { color: tone }]}>{signalLabels[item.signalType] ?? 'Sinyal'}{value ? ` · ${value}` : ''}</Text>
           </View>
+          {item.sensitive ? (
+            <View style={styles.sensitive} testID="feed-sensitive">
+              <ShieldAlert color={colors.textSecondary} size={12} />
+              <Text style={styles.sensitiveText}>{t('discover.sensitive')}</Text>
+            </View>
+          ) : null}
         </View>
         {title ? <Text style={styles.title}>{title}</Text> : null}
         {item.content ? <Text numberOfLines={4} style={styles.content}>{item.content}</Text> : null}
@@ -123,6 +129,8 @@ const styles = StyleSheet.create({
   typeRow: { flexDirection: 'row' },
   typeBadge: { alignItems: 'center', borderRadius: radii.pill, flexDirection: 'row', gap: 6, paddingHorizontal: 10, paddingVertical: 4 },
   typeText: { ...typography.label },
+  sensitive: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 2 },
+  sensitiveText: { ...typography.label, color: colors.textSecondary },
   title: { ...typography.heading, color: colors.text, marginTop: spacing.xs },
   content: { ...typography.body, color: colors.text, marginTop: 2 },
   photo: { aspectRatio: 4 / 3, backgroundColor: colors.surfaceElevated, borderRadius: radii.md, marginTop: spacing.sm, width: '100%' },

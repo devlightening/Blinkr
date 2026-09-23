@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using MongoDB.Driver.GeoJsonObjectModel;
+using Shared.Moderation;
 
 namespace BlogService.Api.Controllers;
 
@@ -15,7 +16,7 @@ public record DiscoverItemDto(
     Guid? AuthorId, string AuthorName, bool Anonymous,
     DateTime CreatedAtUtc, DateTime? ExpiresAtUtc, bool Expired,
     int LikeCount, int CommentCount, bool IsLikedByCurrentUser,
-    Guid? PlaceId, string? LocationName, int? DistanceMeters, IReadOnlyList<DiscoverMediaDto> Media);
+    Guid? PlaceId, string? LocationName, int? DistanceMeters, IReadOnlyList<DiscoverMediaDto> Media, bool Sensitive);
 public record DiscoverPageDto(IReadOnlyList<DiscoverItemDto> Items, int Page, int PageSize, bool HasMore);
 
 /// <summary>
@@ -67,7 +68,7 @@ public class DiscoverController : ControllerBase
         var visible = docs.Where(d => d.IdentityDisclosure == "AnonymousMap" || !hidden.Contains(d.AuthorId)).ToList();
         var byId = visible.ToDictionary(d => d.Id);
         var ordered = DiscoverRanking.Order(visible.Select(d => new DiscoverRanking.Candidate(
-            d.Id, d.AuthorId, d.IdentityDisclosure == "AnonymousMap", d.CreatedAtUtc, DistanceOf(d, lat, lon), d.LikeCount, d.CommentCount)), now, pageSize);
+            d.Id, d.AuthorId, d.IdentityDisclosure == "AnonymousMap", d.CreatedAtUtc, DistanceOf(d, lat, lon), d.LikeCount, d.CommentCount, ContentTextFilter.IsSensitive(d.Title, d.Content))), now, pageSize);
 
         var slice = ordered.Skip((page - 1) * pageSize).Take(pageSize)
             .Select(c => ToItem(byId[c.PostId], me, now, DiscoverRanking.CoarseDistance(c.DistanceMeters))).ToList();
@@ -119,6 +120,7 @@ public class DiscoverController : ControllerBase
             d.CreatedAtUtc, d.ExpiresAt, d.ExpiresAt.HasValue && d.ExpiresAt <= now,
             d.LikeCount, d.CommentCount, me.HasValue && (d.LikedByUserIds?.Contains(me.Value) ?? false),
             d.PlaceId, d.LocationName, distance,
-            (d.Media ?? new()).Select(m => new DiscoverMediaDto(m.Url, m.ThumbnailUrl, m.Type)).ToList());
+            (d.Media ?? new()).Select(m => new DiscoverMediaDto(m.Url, m.ThumbnailUrl, m.Type)).ToList(),
+            ContentTextFilter.IsSensitive(d.Title, d.Content));
     }
 }

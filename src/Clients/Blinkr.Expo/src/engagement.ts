@@ -144,6 +144,7 @@ export const engagementErrorKey = (code: string | null | undefined) => {
     case 'COMMENT_TOO_LONG': return 'errors:engagement.commentTooLong';
     case 'COMMENT_FORBIDDEN': return 'errors:engagement.commentForbidden';
     case 'NOT_FOUND': return 'errors:engagement.notFound';
+    case 'CONTENT_BLOCKED': return 'errors:contentBlocked';
     default: return 'errors:generic';
   }
 };

@@ -31,7 +31,8 @@
     "live": "Live",
     "showOnMap": "Show on map",
     "comments": "Comments",
-    "anonymous": "Community member"
+    "anonymous": "Community member",
+    "sensitive": "Sensitive content"
   },
   "stories": {
     "yours": "Your story",

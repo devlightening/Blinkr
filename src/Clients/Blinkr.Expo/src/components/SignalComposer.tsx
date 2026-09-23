@@ -54,6 +54,7 @@ import { capturedAtOf, isStaleCapture, oldestCapture } from '../galleryCapture';
 import { shareToFriendsAvailability, toggleSnapFriend } from '../snapPresentation';
 import { BlinkrChip } from './ui/BlinkrChip';
 import { BlinkrHeader } from './ui/BlinkrHeader';
+import { PersonalDataNotice } from './ui/PersonalDataNotice';
 import type {
   AuthResponse,
   BlinkrPlace,
@@ -506,6 +507,7 @@ export function SignalComposer({
             <TextInput maxLength={500} multiline onChangeText={setContent} placeholder="Karar vermeyi kolaylaştıracak güncel ve somut bir bilgi yaz." placeholderTextColor={colors.textSecondary} style={[styles.input, styles.textArea]} textAlignVertical="top" value={content} />
             <Text style={styles.counter}>{content.length}/500</Text>
             {content.trim().length > 0 && content.trim().length < 5 && <Text style={styles.errorText}>Gözlem en az 5 karakter olmalı.</Text>}
+            <PersonalDataNotice texts={[title, content]} />
 
             <View style={styles.sectionHeadingRow}>
               <Text style={styles.sectionLabel}>Fotoğraf veya video</Text>

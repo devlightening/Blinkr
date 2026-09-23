@@ -25,6 +25,8 @@ export type DiscoverItem = {
   locationName?: string | null;
   distanceMeters?: number | null;
   media: DiscoverMedia[];
+  /** Light swearing: published, ranked lower by the server and labelled "Hassas içerik" (Faz 10 P10.1). */
+  sensitive?: boolean;
 };
 export type DiscoverPage = { items: DiscoverItem[]; page: number; pageSize: number; hasMore: boolean };
 export type DiscoverTab = 'nearby' | 'following' | 'places';

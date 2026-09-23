@@ -510,6 +510,8 @@ Confidence ve freshness, event sayisi ile birlikte zaman agirligi kullanilarak h
 - `AnonymousMap` seciminde author adini public projection/detail'e sizdirmama.
 - Loglarda raw koordinatlari, JWT'yi, refresh token'i veya kullanici sifresini yazmama.
 - Konum iznini urunun zorunlu olmayan alanlarinda gereksiz istememe.
+- Loglara koordinat yazilmaz; cerceve istek/HttpClient/YARP loglari Warning seviyesindedir (URL'deki `?lat=&lon=` yuzunden). `scripts/test-log-privacy.ps1` (BLK-LOGPRIV-01) bunu calisan servislerde denetler.
+- Kullanici metni `Shared.Moderation.ContentTextFilter`'dan gecer: tehdit/nefret/hedefli hakaret 422 `CONTENT_BLOCKED`; herkese acik metinde (gonderi, yorum, hikaye, bio) gecerli TC kimlik no. ve plaka maskelenir, ozel sohbette maskelenmez; hafif kufur yayinlanir ama Kesfet'te geriye itilir ve `sensitive` isaretlenir. Telefon/adres yalniz uygulamada uyarilir (`textSafety.ts`).
 
 ## 11. Harita Davranisi
 

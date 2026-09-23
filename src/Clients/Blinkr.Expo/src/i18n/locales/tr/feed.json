@@ -31,7 +31,8 @@
     "live": "Canlı",
     "showOnMap": "Haritada göster",
     "comments": "Yorumlar",
-    "anonymous": "Topluluk üyesi"
+    "anonymous": "Topluluk üyesi",
+    "sensitive": "Hassas içerik"
   },
   "stories": {
     "yours": "Hikayen",

@@ -29,6 +29,7 @@ import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
 import { SegmentedControl } from '../ui/BlinkrSegmentedControl';
+import { PersonalDataNotice } from '../ui/PersonalDataNotice';
 
 type Refresh = { onAuthRefresh?: (auth: AuthResponse) => void; onSessionExpired?: () => void };
 
@@ -405,6 +406,7 @@ export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refre
             </AnimatedPressable>
           </View>
           {remaining < 60 ? <Text style={[styles.commentAge, tooLong && styles.errorText]}>{t('signal:comments.remaining', { count: remaining })}</Text> : null}
+          <PersonalDataNotice texts={[draft]} />
         </View>
       ) : (
         <Text style={styles.readOnly}>{t('signal:comments.readOnly')}</Text>
