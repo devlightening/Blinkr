@@ -624,6 +624,13 @@ async function main() {
     await page.getByRole('button', { name: 'Sinyal bırak', exact: true }).click();
     await expect(page.getByLabel('snap-to')).toHaveText(/^sent:.+:photo$/);
     if (!friendName) throw new Error('friend chip had no name');
+    // P5.11: an old gallery photo is labelled and does not count as live.
+    await page.goto(url + '?scene=composerMedia&oldphoto');
+    await page.getByRole('button', { name: 'Devam', exact: true }).click();
+    await expect(page.getByTestId('gallery-stale')).toContainText('Galeriden · 5 sa önce');
+    await page.goto(url + '?scene=composerMedia');
+    await page.getByRole('button', { name: 'Devam', exact: true }).click();
+    await expect(page.getByTestId('gallery-stale')).toHaveCount(0);
     await page.goto(url + '?scene=composerMedia&loose');
     await expect(page.getByTestId('location-uncertain')).toContainText('250 m');
     await page.goto(url + '?scene=reportableDetail&clinic');

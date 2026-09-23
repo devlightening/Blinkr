@@ -23,5 +23,8 @@
     "sentAll_one": "Snap sent to {{count}} friend.",
     "sentAll_other": "Snap sent to {{count}} friends.",
     "sentSome": "Sent to {{sent}}, couldn't reach {{failed}}."
+  },
+  "gallery": {
+    "stale": "From gallery · taken {{hours}} h ago. It shows as content but does not change the live status."
   }
 }

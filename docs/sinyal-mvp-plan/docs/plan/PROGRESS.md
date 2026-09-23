@@ -7,8 +7,8 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz 5 — kamera ve oluşturma |
-| Son tamamlanan görev | P5.9 (arkadaşlara snap) |
+| Aktif faz | Faz 6 — profil, takip, kaydedilenler |
+| Son tamamlanan görev | P5.11 (galeri 2 saat kuralı) — Faz 5 kapandı |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
 
@@ -186,9 +186,9 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 - [~] P5.7 Flatten (`captureRef`) ve istemci sıkıştırması (0.84-0.92 JPEG) zaten vardı. **EXIF silme sunucuda tamamlandı:** JPEG'e ek olarak PNG (`eXIf/tEXt/iTXt/zTXt/tIME`) ve WebP (`EXIF/XMP`) meta verisi de siliniyor; kabul testi `test-media-privacy.ps1` (BLK-MEDIA-PRIVACY-01) PASS. Çıkartma metadatası JSON olarak gönderilmiyor (backend alanı yok, analitik Faz 11).
 - [~] P5.8 Tip çipleri, seviye, yer listesi, açıklama sayacı, anonim zaten composer'da vardı; **TTL bilgisi eklendi** ("Haritada 1 sa kalır", sunucu varsayılanlarının aynası, testli). Takipçiler/Yalnızca ben görünürlüğü ve @bahsetme yok: backend `AudienceType` yalnız Public destekliyor (Faz 6 takip modeliyle).
 - [~] P5.9 Composer'ın kontrol adımında "Arkadaşlarına snap olarak da gönder" (en fazla 10 arkadaş, yalnız fotoğraf, **anonim sinyalde kapalı** — fotoğraf kimin paylaştığını belli ederdi). Snap'ler sinyal yayınlandıktan sonra gönderilir; biri başarısız olursa sinyal geri alınmaz, yalnız bildirilir. Ayrı "Gönder" sayfası yok (mevcut 4 adımlı composer korunuyor). "Hikayem" Faz 7'de.
-- [ ] P5.10 Arka plan yükleme kuyruğu, ilerleme çipi, yeniden deneme, taslak saklama, gecikmeli sinyal
-- [ ] P5.11 Galeri: EXIF tarih/konum okuma, "Galeriden" etiketi, 2 saat kuralı
-- [ ] P5.12 Kopya sinyal birleştirme yanıtının UI'ı ("Mevcut sinyalin güncellendi")
+- [-] P5.10 Arka plan yükleme kuyruğu — ertelendi (D-008: sunucuda idempotency anahtarı olmadan otomatik yeniden deneme çift sinyal üretebilir).
+- [x] P5.11 Galeri fotoğrafının EXIF çekim zamanı telefonda okunuyor (`galleryCapture.ts`, testli), 2 saatten eskiyse composer'da "Galeriden · N sa önce" notu; sunucu `GalleryMediaPolicy` bu zamanı **yalnız güveni düşürmek** için kullanıyor (VERIFIED_LIVE → NEARBY_PLACE_POST, canlı durumu değiştirmez). Kanıt: BLK-SENSITIVE-01'e eklenen 3 kontrol + `tests/PlacePosting` birim kontrolleri PASS. EXIF konumu okunmuyor (gerek yok, konum sunucuda cihazdan).
+- [-] P5.12 Kopya birleştirme UI'ı — ertelendi, sunucuda karşılığı yok (D-008).
 
 ## Faz 6 — Profil, takip, kaydedilenler
 
@@ -300,6 +300,17 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
   PostgreSQL+PostGIS'e geçiş önerisi kök belgenin EventStoreDB-authoritative kuralıyla çelişiyor ve
   veri kaybı riski taşıyan bir migrasyon sayılıyor. Bkz. AUDIT.md §7.
 - Ölçümler: —
+
+### Faz 4 — 2026-09-23
+- Yapılanlar: Beğeni/yorum uçtan uca (6 gerçek backend bug'ı düzeltildi, D-006), yanıt, silme, anonim yazar gizliliği, `SignalThreadPanel`. BLK-ENGAGE-01.
+- Ertelenenler: @bahsetme, yorum beğenisi, medya görüntüleyici, beğenenler listesi (D-006).
+- Bilinen sorunlar: Fiziksel cihazda denenmedi.
+
+### Faz 5 — 2026-09-23
+- Yapılanlar: (+) → kamera / uzun basma → metin; basılı tut = 15 sn video + halka; "Aa"; kaydırarak filtre; çıkartmalar (döndür, çöp kutusu, çakışmasız yerleşim, emoji, tip önerisi); metin aracı; okulda medya sunucuda kapalı; sağlık/ibadet uyarısı; HealthNotice; konum belirsiz uyarısı; PNG/WebP meta verisi silme; TTL bilgisi; arkadaşlara snap; galeri 2 saat kuralı (sunucuda güven düşürme).
+- Kanıt: 19 backend kabul betiği sıfır FAIL (yeni: BLK-ENGAGE-01, BLK-SENSITIVE-01, BLK-MEDIA-PRIVACY-01), `tests/PlacePosting` PASS, typecheck/test:nearby/test:ui/test:i18n/test:theme/test:product yeşil, `expo export` iOS+Android yeşil.
+- Ertelenenler: P5.10 çevrimdışı kuyruk, P5.12 kopya birleştirme (D-008); kamera üzerinde yer çipi (D-007); Skia filtreler (katman tabanlı filtre korunuyor).
+- Bilinen sorunlar: Basılı-tut kayıt, döndürme, çöp kutusu fiziksel cihazda denenmedi (yalnız tarayıcı).
 
 ## Performans ölçümleri (Faz 11)
 

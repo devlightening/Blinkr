@@ -15,6 +15,18 @@
 
 ## Kararlar
 
+### D-008 — Faz 5 kapanışı: arka plan yükleme kuyruğu ve kopya birleştirme ertelendi (2026-09-23)
+- Bağlam: P5.10 (çevrimdışı yükleme kuyruğu, taslak saklama, gecikmeli sinyal) ve P5.12 (kopya sinyal
+  birleştirme UI'ı) kalan iki madde.
+- Karar: İkisi de ertelendi. P5.10 için mevcut davranış korunuyor: yayın sırasında composer açık kalır,
+  medya yüklemesi composer içinde yapılır, hata olursa taslak composer'da durur ve "Tekrar dene" vardır.
+  P5.12: sunucuda "kopya birleştirme" kuralı yok (her sinyal ayrı event; canlı durumda kişi başına tek ses
+  zaten `CurrentPlaceStateCalculator`'da); karşılığı olmayan bir UI mesajı yazılmadı.
+- Gerekçe: P5.10 kalıcı kuyruk (MMKV kurulu değil), uygulama yeniden açılınca sürdürme ve çift gönderimi
+  önleyen istemci idempotency anahtarı gerektirir; sunucu `POST /api/posts` henüz idempotency anahtarı
+  almıyor. Anahtar olmadan otomatik yeniden deneme çift sinyal üretebilir (kök CLAUDE.md §16).
+- Etki: Faz 5 kabulündeki "uçak modunda paylaş → otomatik yüklenir" maddesi karşılanmıyor; açık iş.
+
 ### D-007 — Hassas yerler: okulda medya sunucuda kapalı, EDUCATION kategorisinin tamamına uygulanıyor (2026-09-23)
 - Bağlam: 11_SAFETY §3 "okul/kreşte foto/video kapalı" diyor. Yer kataloğu yalnız normalize kategoriyi
   saklıyor; OSM `school/kindergarten/university/college/library` hepsi `EDUCATION`'a düşüyor.

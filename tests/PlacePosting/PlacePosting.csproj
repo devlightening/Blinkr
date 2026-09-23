@@ -5,6 +5,8 @@
     <PackageReference Include="NetTopologySuite" />
     <PackageReference Include="MongoDB.Driver" />
     <Compile Include="../../src/Services/BlogService/BlogService.Application/Services/PlaceProximityPolicy.cs" Link="PlaceProximityPolicy.cs" />
+    <Compile Include="../../src/Services/BlogService/BlogService.Application/Services/GalleryMediaPolicy.cs" Link="GalleryMediaPolicy.cs" />
+    <Compile Include="../../src/Services/BlogService/BlogService.Application/Services/SensitivePlacePolicy.cs" Link="SensitivePlacePolicy.cs" />
     <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/CurrentPlaceStateCalculator.cs" Link="CurrentPlaceStateCalculator.cs" />
     <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/PlaceDtos.cs" Link="PlaceDtos.cs" />
     <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Domain/PlaceSignalDocument.cs" Link="PlaceSignalDocument.cs" />

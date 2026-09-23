@@ -107,7 +107,7 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
                 request.ObservationLongitude,
                 request.ObservationAccuracyMeters,
                 place.GeometryWkt));
-            publicationTrust = proximity.TrustLevel;
+            publicationTrust = GalleryMediaPolicy.CapTrust(proximity.TrustLevel, hasMedia, request.MediaCapturedAtUtc, DateTime.UtcNow);
             _logger.LogInformation(
                 "[Blinkr Publish] anchorType=PLACE placeId={PlaceId} distanceMeters={DistanceMeters} proximityAllowed={ProximityAllowed}",
                 request.PlaceId,

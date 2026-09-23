@@ -23,7 +23,8 @@ namespace BlogService.Application.Features.Mediatr.Comamnds.PostCommands
       DateTime? ExpiresAt = null,
       double? ObservationLatitude = null,
       double? ObservationLongitude = null,
-      double? ObservationAccuracyMeters = null
+      double? ObservationAccuracyMeters = null,
+      DateTime? MediaCapturedAtUtc = null
   ) : IRequest<Guid>;
 
 }

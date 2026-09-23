@@ -24,10 +24,12 @@ export type CapturedMedia = {
   fileName?: string;
   /** From a type sticker: lets the composer start with that signal type chosen (the person can change it). */
   signalHint?: StickerSignal | null;
+  /** When the picture was taken, if it came from the gallery (P5.11). */
+  capturedAtUtc?: string | null;
 };
 
 type Props = {
-  photo: { uri: string; width: number; height: number };
+  photo: { uri: string; width: number; height: number; capturedAtUtc?: string | null };
   lensId: string;
   onLensChange: (id: string) => void;
   onRetake: () => void;
@@ -74,7 +76,7 @@ export function PhotoEditor({ photo, lensId, onLensChange, onRetake, onDone, sub
     setError(null);
     const untouched = !lensChangesPicture(lens) && stickers.length === 0;
     if (untouched) {
-      onDone({ uri: photo.uri, width: photo.width, height: photo.height, type: 'image', mimeType: 'image/jpeg', fileName: `blinkr-${Date.now()}.jpg`, signalHint });
+      onDone({ uri: photo.uri, width: photo.width, height: photo.height, type: 'image', mimeType: 'image/jpeg', fileName: `blinkr-${Date.now()}.jpg`, signalHint, capturedAtUtc: photo.capturedAtUtc ?? null });
       return;
     }
     setRendering(true);
@@ -83,7 +85,7 @@ export function PhotoEditor({ photo, lensId, onLensChange, onRetake, onDone, sub
       await new Promise((resolve) => setTimeout(resolve, 60));
       const uri = await captureRef(shot, { format: 'jpg', quality: 0.92, result: 'tmpfile' });
       if (!uri) throw new Error('render-failed');
-      if (mounted.current) onDone({ uri, width: photo.width, height: photo.height, type: 'image', mimeType: 'image/jpeg', fileName: `blinkr-${Date.now()}.jpg`, signalHint });
+      if (mounted.current) onDone({ uri, width: photo.width, height: photo.height, type: 'image', mimeType: 'image/jpeg', fileName: `blinkr-${Date.now()}.jpg`, signalHint, capturedAtUtc: photo.capturedAtUtc ?? null });
     } catch (err) {
       console.log('[Blinkr Camera]', { failedStage: 'render', errorCode: err instanceof Error ? err.name : 'Unknown' });
       if (mounted.current) setError(friendlyError(err, 'Fotoğraf hazırlanamadı. Efektleri kaldırıp tekrar dene.'));

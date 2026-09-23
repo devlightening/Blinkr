@@ -52,7 +52,7 @@ function Find-Place {
 }
 
 function Post-At {
-    param([string]$Token, $Place, [string]$MediaId)
+    param([string]$Token, $Place, [string]$MediaId, [string]$CapturedAt)
     $body = @{
         title = ""; content = "Sensitive place smoke"; signalType = "GeneralObservation"; placeId = $Place.id
         latitude = $Place.latitude; longitude = $Place.longitude; accuracyMeters = 20
@@ -60,6 +60,7 @@ function Post-At {
         locationName = $Place.name; audienceType = "Public"; identityDisclosure = "LimitedProfile"; locationPrecision = "PlaceCenter"
     }
     if ($MediaId) { $body.media = @(@{ mediaId = $MediaId; mediaType = "Image" }) }
+    if ($CapturedAt) { $body.mediaCapturedAtUtc = $CapturedAt }
     return Invoke-Api -Method POST -Path "/api/posts" -Token $Token -Body $body
 }
 
@@ -79,6 +80,21 @@ $text = Post-At -Token $token -Place $school
 Check "a text signal at a school still works" ($text.Status -eq 201) "HTTP $($text.Status) $($text.Raw)"
 $ok = Post-At -Token $token -Place $cafe -MediaId (Upload-Png -Token $token)
 Check "a photo at an ordinary place still works" ($ok.Status -eq 201) "HTTP $($ok.Status) $($ok.Raw)"
+
+# P5.11: a gallery photo taken hours ago still posts, but can never count as live.
+function Trust-Of([string]$PlaceId, [string]$PostId) {
+    for ($i = 0; $i -lt 30; $i++) {
+        $signals = Invoke-Api -Method GET -Path "/api/places/$PlaceId/signals"
+        $hit = @($signals.Json | ForEach-Object { $_ } | Where-Object { $_.postId -eq $PostId })
+        if ($hit.Count -gt 0) { return $hit[0].publicationTrust }
+        Start-Sleep -Milliseconds 500
+    }
+    return $null
+}
+$old = Post-At -Token $token -Place $cafe -MediaId (Upload-Png -Token $token) -CapturedAt ((Get-Date).ToUniversalTime().AddHours(-5).ToString("o"))
+Check "an old gallery photo still posts" ($old.Status -eq 201) "HTTP $($old.Status) $($old.Raw)"
+Check "an old gallery photo is not live (NEARBY_PLACE_POST)" ((Trust-Of $cafe.id $old.Json.postId) -eq "NEARBY_PLACE_POST")
+Check "a fresh photo at the place is live (VERIFIED_LIVE)" ((Trust-Of $cafe.id $ok.Json.postId) -eq "VERIFIED_LIVE")
 
 if ($script:failures.Count -gt 0) {
     Write-Host "`nFAIL BLK-SENSITIVE-01: $($script:failures.Count) check(s) failed" -ForegroundColor Red

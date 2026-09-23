@@ -322,7 +322,8 @@ function UserSearch() {
 
 // --- Composer over a captured photo (the design's camera-first look) ---
 function ComposerWithMedia() {
-  const capture = { uri: tile(20), type: 'image', fileName: 'kare.jpg', width: 400, height: 300 } as never;
+  // ?oldphoto = a gallery photo taken five hours ago (P5.11).
+  const capture = { uri: tile(20), type: 'image', fileName: 'kare.jpg', width: 400, height: 300, ...(location.search.includes('oldphoto') ? { capturedAtUtc: new Date(Date.now() - 5 * 3_600_000).toISOString() } : {}) } as never;
   const [snapTo, setSnapTo] = useState('');
   return (
     <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>

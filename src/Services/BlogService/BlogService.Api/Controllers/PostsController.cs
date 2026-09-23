@@ -69,7 +69,8 @@ public class PostsController : ControllerBase
             dto.ExpiresAt,
             dto.ObservationLatitude,
             dto.ObservationLongitude,
-            dto.ObservationAccuracyMeters);
+            dto.ObservationAccuracyMeters,
+            dto.MediaCapturedAtUtc);
         try
         {
             var postId = await _mediator.Send(command);

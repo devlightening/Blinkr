@@ -50,6 +50,7 @@ import { BlinkrButton } from './ui/BlinkrButton';
 import { MAX_VIDEO_SECONDS } from '../cameraEffects';
 import { accuracyUncertain, mediaAllowedAt, placeSensitivity } from '../placeSafety';
 import { SIGNAL_TTL_MINUTES, formatLifetime } from '../signalCatalog';
+import { capturedAtOf, isStaleCapture, oldestCapture } from '../galleryCapture';
 import { shareToFriendsAvailability, toggleSnapFriend } from '../snapPresentation';
 import { BlinkrChip } from './ui/BlinkrChip';
 import { BlinkrHeader } from './ui/BlinkrHeader';
@@ -104,6 +105,8 @@ type MediaDraft = {
   mediaType: MediaKind;
   name: string;
   previewUri: string;
+  /** Gallery capture time (EXIF), when known. */
+  capturedAt: Date | null;
   status: UploadState;
   error?: string;
 };
@@ -233,6 +236,7 @@ export function SignalComposer({
       mediaType: asset.type === 'video' ? 'Video' : 'Image',
       name: asset.fileName || (asset.type === 'video' ? 'Video sinyali' : 'Fotoğraf sinyali'),
       previewUri: asset.uri,
+      capturedAt: capturedAtOf(asset as { exif?: Record<string, unknown> | null; capturedAtUtc?: string | null }),
       status: 'preparing',
     };
     setMedia((current) => [...current, draft]);
@@ -261,7 +265,7 @@ export function SignalComposer({
 
     const result = source === 'camera'
       ? await ImagePicker.launchCameraAsync({ allowsEditing: false, mediaTypes: ['images', 'videos'], quality: 0.84, videoMaxDuration: MAX_VIDEO_SECONDS })
-      : await ImagePicker.launchImageLibraryAsync({ allowsEditing: false, mediaTypes: ['images', 'videos'], quality: 0.84, videoMaxDuration: MAX_VIDEO_SECONDS });
+      : await ImagePicker.launchImageLibraryAsync({ allowsEditing: false, mediaTypes: ['images', 'videos'], quality: 0.84, videoMaxDuration: MAX_VIDEO_SECONDS, exif: true });
 
     if (result.canceled || !result.assets[0]) return;
     attachCapturedAsset(result.assets[0]);
@@ -301,6 +305,7 @@ export function SignalComposer({
       identityDisclosure,
       locationPrecision: area?.place ? 'PlaceCenter' : 'ApproximateArea',
       media: readyMedia.map((item) => ({ mediaId: item.mediaId as string, mediaType: item.mediaType })),
+      mediaCapturedAtUtc: oldestCapture(readyMedia.map((item) => item.capturedAt))?.toISOString() ?? null,
       placeId: area?.place?.id ?? null,
       signalType,
       signalValue,
@@ -538,6 +543,7 @@ export function SignalComposer({
                   : <Image accessibilityIgnoresInvertColors source={{ uri: item.previewUri }} style={styles.mediaThumb} />}
                 <View style={styles.flex}>
                   <Text numberOfLines={1} style={styles.mediaName}>{item.name}</Text>
+                  {isStaleCapture(item.capturedAt) ? <Text style={styles.galleryNote} testID="gallery-stale">{t('gallery.stale', { hours: Math.max(2, Math.round((Date.now() - item.capturedAt!.getTime()) / 3_600_000)) })}</Text> : null}
                   <Text style={[styles.mediaStatus, item.status === 'failed' && styles.mediaFailed]}>
                     {item.status === 'ready' ? 'Hazır' : item.status === 'failed' ? item.error : item.status === 'uploading' ? 'Yükleniyor' : 'Hazırlanıyor'}
                   </Text>
@@ -695,6 +701,7 @@ const styles = StyleSheet.create({
   segmentTextActive: { color: colors.ink },
   policySummary: { alignItems: 'flex-start', backgroundColor: colors.greenSoft, borderRadius: radii.md, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
   policyText: { ...typography.caption, color: colors.mint, flex: 1 },
+  galleryNote: { ...typography.caption, color: colors.warning },
   safetyNotice: { alignItems: 'flex-start', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
   safetyTitle: { ...typography.bodyStrong, color: colors.text },
   safetyAction: { alignSelf: 'flex-start', marginTop: spacing.sm },

@@ -47,6 +47,15 @@ Check(legacy.ActiveSignalCount == 2, "signals without a known author each stay t
 var outvoted = calculator.Calculate([By(alice, "Busy", 40), By(alice, "Busy", 30), By(bob, "Calm", 5), By(Guid.NewGuid(), "Calm", 4)], now);
 Check(outvoted.SignalValue == "Calm", "two people beat one person repeating themselves");
 
+// P5.11: an old gallery photo can only lower trust, never raise it.
+var t0 = new DateTime(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc);
+Check(GalleryMediaPolicy.CapTrust("VERIFIED_LIVE", true, t0.AddHours(-3), t0) == "NEARBY_PLACE_POST", "3h-old gallery photo is not live");
+Check(GalleryMediaPolicy.CapTrust("VERIFIED_LIVE", true, t0.AddMinutes(-30), t0) == "VERIFIED_LIVE", "fresh photo stays live");
+Check(GalleryMediaPolicy.CapTrust("VERIFIED_LIVE", false, t0.AddHours(-3), t0) == "VERIFIED_LIVE", "no media, no cap");
+Check(GalleryMediaPolicy.CapTrust("NEARBY_PLACE_POST", true, t0.AddMinutes(-1), t0) == "NEARBY_PLACE_POST", "a capture time never raises trust");
+Check(GalleryMediaPolicy.CapTrust(null, true, t0.AddHours(-3), t0) is null, "coordinate signal untouched");
+Check(SensitivePlacePolicy.BlocksMedia("EDUCATION") && SensitivePlacePolicy.BlocksMedia("education") && !SensitivePlacePolicy.BlocksMedia("HEALTH") && !SensitivePlacePolicy.BlocksMedia(null), "media blocked only at EDUCATION");
+
 if (args.Contains("--catalog"))
 {
     using var http = new HttpClient { BaseAddress = new Uri("http://localhost:5080"), Timeout = TimeSpan.FromSeconds(30) };

@@ -156,6 +156,8 @@ export type CreateSignalInput = {
   // Optional: omit to let the server apply its own per-signal-type default TTL
   // (trust and freshness policy are server-owned, kök CLAUDE.md §2.1).
   expiresAt?: string;
+  /** Oldest attached photo's capture time (gallery EXIF). The server only uses it to lower trust (P5.11). */
+  mediaCapturedAtUtc?: string | null;
   media?: Array<{
     mediaId: string;
     mediaType: MediaKind;

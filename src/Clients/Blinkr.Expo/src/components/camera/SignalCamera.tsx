@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 
 import { HOLD_TO_RECORD_MS, MAX_VIDEO_SECONDS, clampZoom, recordingProgress, flashLabel, formatRecording, lensById, nextFlash, zoomMultiplierLabel, type FlashMode } from '../../cameraEffects';
+import { capturedAtOf } from '../../galleryCapture';
 import { friendlyError } from '../../productPresentation';
 import { colors, radii, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
@@ -57,7 +58,7 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
   const [permission, requestPermission] = useCameraPermissions();
   const [micPermission, requestMic] = useMicrophonePermissions();
   const [stage, setStage] = useState<'camera' | 'edit'>('camera');
-  const [photo, setPhoto] = useState<{ uri: string; width: number; height: number } | null>(null);
+  const [photo, setPhoto] = useState<{ uri: string; width: number; height: number; capturedAtUtc?: string | null } | null>(null);
   const [lensId, setLensId] = useState('none');
   const [mode, setMode] = useState<Mode>('photo');
   const [facing, setFacing] = useState<'front' | 'back'>('back');
@@ -179,11 +180,11 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
     try {
       const allowed = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (allowed.status !== 'granted') { setError('Fotoğraf arşivi izni gerekiyor.'); return; }
-      const result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: false, mediaTypes: photoOnly ? ['images'] : ['images', 'videos'], quality: 0.84, videoMaxDuration: MAX_VIDEO_SECONDS });
+      const result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: false, mediaTypes: photoOnly ? ['images'] : ['images', 'videos'], quality: 0.84, videoMaxDuration: MAX_VIDEO_SECONDS, exif: true });
       const asset = result.assets?.[0];
       if (result.canceled || !asset) return;
       if (asset.type === 'video') onCapture({ uri: asset.uri, width: asset.width, height: asset.height, type: 'video', mimeType: asset.mimeType ?? videoMime(asset.uri), fileName: asset.fileName ?? undefined });
-      else { setPhoto({ uri: asset.uri, width: asset.width, height: asset.height }); setStage('edit'); }
+      else { setPhoto({ uri: asset.uri, width: asset.width, height: asset.height, capturedAtUtc: capturedAtOf(asset)?.toISOString() ?? null }); setStage('edit'); }
     } catch (err) {
       setError(friendlyError(err, 'Medya seçilemedi. Tekrar dene.'));
     }

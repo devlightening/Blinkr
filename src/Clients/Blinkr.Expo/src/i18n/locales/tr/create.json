@@ -23,5 +23,8 @@
     "sentAll_one": "{{count}} arkadaşa snap gönderildi.",
     "sentAll_other": "{{count}} arkadaşa snap gönderildi.",
     "sentSome": "{{sent}} arkadaşa gönderildi, {{failed}} kişiye gönderilemedi."
+  },
+  "gallery": {
+    "stale": "Galeriden · {{hours}} sa önce çekilmiş. İçerik olarak görünür, canlı durumu değiştirmez."
   }
 }
