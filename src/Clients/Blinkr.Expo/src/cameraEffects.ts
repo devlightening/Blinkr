@@ -29,10 +29,22 @@ export const CAMERA_LENSES: CameraLens[] = [
 ];
 
 export const lensById = (id: string | null | undefined) => CAMERA_LENSES.find((lens) => lens.id === id) ?? CAMERA_LENSES[0];
+/**
+ * Swiping across the photo steps through the lenses (Snapchat). A swipe to the left (negative dx) goes to the next
+ * lens, to the right the previous one; it wraps around. Small drags (under `LENS_SWIPE_MIN_PX`) change nothing.
+ */
+export const LENS_SWIPE_MIN_PX = 40;
+export const lensAfterSwipe = (currentId: string, dx: number) => {
+  if (!Number.isFinite(dx) || Math.abs(dx) < LENS_SWIPE_MIN_PX) return lensById(currentId).id;
+  const index = Math.max(0, CAMERA_LENSES.findIndex((lens) => lens.id === currentId));
+  const step = dx < 0 ? 1 : -1;
+  return CAMERA_LENSES[(index + step + CAMERA_LENSES.length) % CAMERA_LENSES.length].id;
+};
+
 /** True when a lens changes the picture (so a photo must be re-rendered instead of used as it is). */
 export const lensChangesPicture = (lens: CameraLens) => lens.layers.length > 0 || Boolean(lens.vignette);
 
-export type StickerKind = 'time' | 'label';
+export type StickerKind = 'time' | 'label' | 'emoji';
 export type StickerDef = { id: string; kind: StickerKind; glyph: string; label: string };
 
 /**
@@ -51,7 +63,41 @@ export const STICKERS: StickerDef[] = [
   { id: 'event', kind: 'label', glyph: '🎉', label: 'Etkinlik' },
   { id: 'roadwork', kind: 'label', glyph: '🚧', label: 'Yol çalışması' },
   { id: 'weather', kind: 'label', glyph: '☀️', label: 'Güzel hava' },
+  { id: 'parking', kind: 'label', glyph: '🅿️', label: 'Park yok' },
+  // Plain emoji stickers: decoration only, no text.
+  { id: 'e-fire', kind: 'emoji', glyph: '🔥', label: '' },
+  { id: 'e-heart', kind: 'emoji', glyph: '❤️', label: '' },
+  { id: 'e-laugh', kind: 'emoji', glyph: '😂', label: '' },
+  { id: 'e-wow', kind: 'emoji', glyph: '😮', label: '' },
+  { id: 'e-thumbs', kind: 'emoji', glyph: '👍', label: '' },
+  { id: 'e-coffee', kind: 'emoji', glyph: '☕', label: '' },
 ];
+
+/**
+ * A type sticker hints what the signal is about, so the composer can start with that type already chosen
+ * (sinyal-mvp-plan 05 §1.2 "Tip çıkartması eklenirse Detaylar adımında o tip otomatik seçilir"). It is only
+ * a starting point - the person can change it, and the server still validates the signal.
+ */
+export type StickerSignal = { type: 'Crowd' | 'Queue' | 'TemporaryStatus' | 'Offer' | 'Event'; value: string | null };
+const STICKER_SIGNALS: Record<string, StickerSignal> = {
+  crowded: { type: 'Crowd', value: 'Busy' },
+  calm: { type: 'Crowd', value: 'Calm' },
+  seat: { type: 'Crowd', value: 'Calm' },
+  queue: { type: 'Queue', value: null },
+  open: { type: 'TemporaryStatus', value: 'Open' },
+  closed: { type: 'TemporaryStatus', value: 'Closed' },
+  offer: { type: 'Offer', value: 'Available' },
+  event: { type: 'Event', value: 'Started' },
+};
+export const stickerSignal = (stickerId: string): StickerSignal | null => STICKER_SIGNALS[stickerId] ?? null;
+/** The first type sticker placed decides; decoration-only stickers are ignored. */
+export const signalFromStickers = (placed: Array<{ stickerId: string }>): StickerSignal | null => {
+  for (const sticker of placed) {
+    const hint = stickerSignal(sticker.stickerId);
+    if (hint) return hint;
+  }
+  return null;
+};
 
 export const MAX_STICKERS = 6;
 /** A signal clip is short: 15 s (sinyal-mvp-plan 05 §1.1 "Basılı tut = video (maks 15 sn, halka ilerlemesi)"). */
@@ -67,6 +113,8 @@ const pad = (value: number) => String(value).padStart(2, '0');
 export const clockLabel = (date: Date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 
 export const stickerText = (sticker: StickerDef, now: Date) => (sticker.kind === 'time' ? clockLabel(now) : sticker.label);
+/** Accessible name for a sticker, also for emoji stickers that have no text. */
+export const stickerName = (sticker: StickerDef, now: Date) => stickerText(sticker, now) || sticker.glyph;
 
 /** "00:07" while recording. */
 export const formatRecording = (seconds: number) => {
@@ -89,11 +137,72 @@ export const zoomMultiplierLabel = (zoom: number) => `${(1 + clampZoom(zoom) * Z
 /** Keeps a sticker centre inside the picture so it can always be grabbed again. */
 export const clampToFrame = (value: number, size: number, margin = 24) => Math.min(size - margin, Math.max(margin, value));
 
-export type PlacedSticker = { key: string; stickerId: string; x: number; y: number; scale: number };
+export type PlacedSticker = {
+  key: string;
+  stickerId: string;
+  x: number;
+  y: number;
+  scale: number;
+  rotation?: number;
+  /** Text tool (stickerId `text`): what was written, how it looks. */
+  text?: string;
+  textStyle?: TextStyleId;
+  textColor?: string;
+};
 
-/** New stickers start near the middle and fan out a little so several never stack exactly. */
+/** Text tool (sinyal-mvp-plan 05 §1.2 "Metin (T): 3 stil (düz, zeminli, vurgulu), renk seçimi, sürüklenebilir"). */
+export type TextStyleId = 'plain' | 'solid' | 'highlight';
+export const TEXT_STYLES: TextStyleId[] = ['plain', 'solid', 'highlight'];
+export const TEXT_STYLE_LABELS: Record<TextStyleId, string> = { plain: 'Düz', solid: 'Zeminli', highlight: 'Vurgulu' };
+export const nextTextStyle = (style: TextStyleId): TextStyleId => TEXT_STYLES[(TEXT_STYLES.indexOf(style) + 1) % TEXT_STYLES.length];
+/** Text colours are picture content (like lens swatches), not UI chrome. */
+export const TEXT_COLORS = ['#FFFFFF', '#111111', '#FFC845', '#5FD3A0', '#FF6B6B', '#6FB7FF', '#C58CFF'];
+export const TEXT_MAX = 80;
+/** Writing on the picture: trimmed, one line of meaning, capped; empty writes nothing. */
+export const cleanOverlayText = (value: string) => value.replace(/\s+/g, ' ').trim().slice(0, TEXT_MAX);
+/** Readable text on a solid/highlight background: dark text on light colours, white on dark ones. */
+export const textOnColor = (hex: string) => {
+  const n = parseInt(hex.replace('#', ''), 16);
+  if (!Number.isFinite(n)) return '#FFFFFF';
+  const luminance = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+  return luminance > 0.6 ? '#111111' : '#FFFFFF';
+};
+
+/** Adds a text item the same way as a sticker (same limit, same free-spot placement). */
+export const placeText = (existing: PlacedSticker[], text: string, style: TextStyleId, color: string, frame: { width: number; height: number }, now = Date.now()): PlacedSticker[] => {
+  const clean = cleanOverlayText(text);
+  if (!clean) return existing;
+  const next = placeSticker(existing, 'text', frame, now);
+  if (next === existing) return existing;
+  const added = next[next.length - 1];
+  return [...existing, { ...added, text: clean, textStyle: style, textColor: color }];
+};
+
+/** A sticker pill is roughly this big; two anchors closer than this on both axes overlap visually. */
+export const STICKER_BOX = { width: 140, height: 56 };
+export const stickersOverlap = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+  Math.abs(a.x - b.x) < STICKER_BOX.width && Math.abs(a.y - b.y) < STICKER_BOX.height;
+
+/**
+ * A new sticker goes to the first free spot, scanning from the middle outwards, so it never lands on top of one
+ * already there (sinyal-mvp-plan AUDIT #8). If the picture is full it falls back to the least crowded spot.
+ */
 export const placeSticker = (existing: PlacedSticker[], stickerId: string, frame: { width: number; height: number }, now = Date.now()): PlacedSticker[] => {
   if (existing.length >= MAX_STICKERS) return existing;
-  const offset = (existing.length % 4) * 26;
-  return [...existing, { key: `${stickerId}-${now}-${existing.length}`, stickerId, x: frame.width / 2 + offset - 39, y: frame.height * 0.42 + offset, scale: 1 }];
+  // Two columns a sticker-width apart, rows a sticker-height apart, middle rows first.
+  const left = Math.max(8, frame.width / 2 - 110);
+  const cols = [left, left + STICKER_BOX.width];
+  const rowStep = STICKER_BOX.height + 4;
+  const middle = frame.height * 0.42;
+  const rows = [0, -1, 1, -2, 2, -3, 3].map((k) => middle + k * rowStep).filter((y) => y >= 8 && y <= frame.height - 40);
+  const candidates = rows.flatMap((y) => cols.map((x) => ({ x: clampToFrame(x, frame.width, 8), y })));
+  const nearest = (point: { x: number; y: number }) => existing.reduce((min, s) => Math.min(min, Math.hypot(s.x - point.x, s.y - point.y)), Number.POSITIVE_INFINITY);
+  const free = candidates.find((point) => existing.every((s) => !stickersOverlap(s, point)));
+  const spot = free ?? candidates.reduce((best, point) => (nearest(point) > nearest(best) ? point : best), candidates[0]);
+  return [...existing, { key: `${stickerId}-${now}-${existing.length}`, stickerId, x: spot.x, y: spot.y, scale: 1, rotation: 0 }];
 };
+
+/** Dropping a sticker on the bin at the bottom centre of the picture deletes it. */
+export const TRASH_ZONE = { size: 64, bottomMargin: 16 };
+export const isOverTrash = (point: { x: number; y: number }, frame: { width: number; height: number }) =>
+  point.y >= frame.height - TRASH_ZONE.bottomMargin - TRASH_ZONE.size && Math.abs(point.x - frame.width / 2) <= TRASH_ZONE.size;

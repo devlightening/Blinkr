@@ -251,6 +251,30 @@ async function main() {
     await expect(page.getByLabel('Kalabalık çıkartması', { exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Kullan' }).click();
     await expect(page.getByLabel('captured')).toHaveText('image:image/jpeg:rendered');
+    // P5.5: a type sticker preselects the signal type; an emoji sticker has no text; a sticker dropped on the bin is gone.
+    await page.goto(url + '?scene=camera');
+    await page.getByRole('button', { name: 'Fotoğraf çek' }).click();
+    await page.getByRole('button', { name: '🔥 çıkartması ekle' }).click();
+    await expect(page.getByLabel('🔥 çıkartması', { exact: true })).toBeVisible();
+    const fire = await page.getByLabel('🔥 çıkartması', { exact: true }).boundingBox();
+    const photoBox = await page.getByLabel('Çekilen fotoğraf').boundingBox();
+    await page.mouse.move(fire.x + fire.width / 2, fire.y + fire.height / 2); await page.mouse.down();
+    await page.mouse.move(fire.x + 20, fire.y + 40, { steps: 4 });
+    await expect(page.getByTestId('sticker-trash')).toBeVisible();
+    await page.mouse.move(photoBox.x + photoBox.width / 2, photoBox.y + photoBox.height - 40, { steps: 10 }); await page.mouse.up();
+    await expect(page.getByLabel('🔥 çıkartması', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Kapalı çıkartması ekle' }).click();
+    // P5.6 text tool: write, switch style and colour, the text lands on the picture.
+    await page.getByRole('button', { name: 'Yazı ekle' }).click();
+    await page.getByLabel('Fotoğrafa yazı').fill('Kapı açık');
+    await page.getByRole('button', { name: 'Yazı stili: Zeminli' }).click();
+    await expect(page.getByRole('button', { name: 'Yazı stili: Vurgulu' })).toBeVisible();
+    await page.getByRole('button', { name: 'Renk #FFC845' }).click();
+    await page.getByRole('button', { name: 'Yazıyı ekle' }).click();
+    await expect(page.getByLabel('Kapı açık çıkartması', { exact: true })).toBeVisible();
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'camera-text.png') });
+    await page.getByRole('button', { name: 'Kullan' }).click();
+    await expect(page.getByLabel('captured')).toHaveText('image:image/jpeg:rendered:TemporaryStatus');
     await page.goto(url + '?scene=camera');
     await page.getByRole('button', { name: 'Fotoğraf çek' }).click();
     await page.getByRole('button', { name: 'Normal efekti' }).click();
@@ -262,6 +286,13 @@ async function main() {
     await expect(page.getByRole('button', { name: 'Kaydı durdur' })).toBeVisible();
     await page.getByRole('button', { name: 'Kaydı durdur' }).click();
     await expect(page.getByLabel('captured')).toHaveText('video:video/mp4:original');
+    // P5.4: a horizontal swipe over the preview changes the lens and shows its name.
+    await page.goto(url + '?scene=camera');
+    await expect(page.getByRole('button', { name: 'Fotoğraf çek' })).toBeEnabled();
+    await page.mouse.move(300, 400); await page.mouse.down(); await page.mouse.move(250, 402, { steps: 5 }); await page.mouse.move(120, 405, { steps: 8 }); await page.mouse.up();
+    await expect(page.getByTestId('lens-name')).toHaveText('Gün batımı');
+    await expect(page.getByRole('button', { name: 'Gün batımı efekti' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('lens-name')).toHaveCount(0, { timeout: 3000 });
     // P5.2: holding the shutter records a clip (ring fills toward 15 s); releasing stops and hands it on.
     await page.goto(url + '?scene=camera');
     await expect(page.getByRole('button', { name: 'Fotoğraf çek' })).toBeEnabled();

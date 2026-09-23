@@ -267,7 +267,7 @@ function CameraScene() {
   const [closed, setClosed] = useState(false);
   return (
     <View style={{ backgroundColor: '#000', flex: 1 }}>
-      {!closed && <SignalCamera onCapture={(asset) => setResult(`${asset.type}:${asset.mimeType}:${asset.uri.endsWith('#rendered') ? 'rendered' : 'original'}`)} onClose={() => setClosed(true)} onTextOnly={() => setResult('text')} />}
+      {!closed && <SignalCamera onCapture={(asset) => setResult(`${asset.type}:${asset.mimeType}:${asset.uri.endsWith('#rendered') ? 'rendered' : 'original'}${asset.signalHint ? `:${asset.signalHint.type}` : ''}`)} onClose={() => setClosed(true)} onTextOnly={() => setResult('text')} />}
       <Text accessibilityLabel="captured" style={{ height: 0, opacity: 0, position: 'absolute' }}>{result}{closed ? 'closed' : ''}</Text>
     </View>
   );

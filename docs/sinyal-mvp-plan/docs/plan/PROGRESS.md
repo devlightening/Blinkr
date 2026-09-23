@@ -8,7 +8,7 @@
 | Alan | Değer |
 |---|---|
 | Aktif faz | Faz 5 — kamera ve oluşturma |
-| Son tamamlanan görev | P5.3 (hassas yerler) |
+| Son tamamlanan görev | P5.6 (metin aracı) |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
 
@@ -180,9 +180,9 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 - [x] P5.1 (+) → doğrudan tam ekran kamera; uzun basma (350 ms) → yazılı sinyal composer'ı. `ShareHubSheet` silindi (galeri kameranın içinde zaten vardı; Snap Sohbet'teki kamera düğmelerinden). `test:ui`'da uzun basma testi.
 - [x] P5.2 Kamera: deklanşöre dokun = foto, basılı tut = video (15 sn, kırmızı ilerleme halkası; `MAX_VIDEO_SECONDS` 45→15), flaş/çevir/zoom/galeri zaten vardı, "Aa" = yazılı sinyal. Erişilebilirlik için açık Video modu korunuyor. Basılı-tut kaydı fiziksel cihazda denenmedi (tarayıcıda testli).
 - [~] P5.3 Okulda medya **sunucuda** kapalı (422 `MEDIA_NOT_ALLOWED_AT_PLACE`, `test-sensitive-place.ps1` BLK-SENSITIVE-01 PASS) + composer'da ön uyarı; sağlık/ibadet mahremiyet uyarısı; >100 m "Konum belirsiz"; sağlık yerinde HealthNotice (P10.5'in bir kısmı). Kamera üzerindeki yer çipi yapılmadı (D-007).
-- [ ] P5.4 Düzenleme: kaydırarak filtre (Skia; mevcut 8 filtre), filtre adı gösterimi
-- [ ] P5.5 Çıkartmalar: bağlam + tip + emoji; sürükle/ölçekle/döndür/çöpe at; çakışmasız yerleşim
-- [ ] P5.6 Metin aracı (3 stil, renk)
+- [x] P5.4 Önizlemede ve düzenlemede yatay kaydırma = sonraki/önceki filtre (döner), ad 1 sn ortada + haptik. Skia kurulmadı: mevcut katman tabanlı 8 filtre korunuyor (fotoğrafa zaten gömülüyor).
+- [x] P5.5 Çıkartmalar: saat + tip + 6 emoji; sürükle/ölçekle/**döndür**; sürüklerken çıkan çöp kutusuna bırakınca silinir; **çakışmasız yerleşim** (kutu tabanlı, AUDIT #8); tip çıkartması composer'da o sinyal tipini önceden seçer. "Yer adı" çıkartması yok (kamera yeri bilmiyor, D-007).
+- [x] P5.6 Metin aracı: "T" → yazı, Düz/Zeminli/Vurgulu, 7 renk, okunur zıt renk, sürüklenebilir/döner, fotoğrafa gömülür.
 - [ ] P5.7 Flatten + stickers metadata; istemci sıkıştırma; EXIF silme
 - [ ] P5.8 Detaylar sayfası: tip çipleri, seviye segmenti, yer listesi, açıklama (@, sayaç), görünürlük, anonim, TTL bilgisi
 - [ ] P5.9 Gönder sayfası: Harita, Hikayem, arkadaşlar (snap)

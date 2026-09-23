@@ -15,6 +15,7 @@ import { AnimatedPressable } from '../AnimatedPressable';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
 import { FilterOverlay } from './FilterOverlay';
 import { LensSelector } from './LensSelector';
+import { useLensSwipe } from './LensSwipe';
 import { PhotoEditor, type CapturedMedia } from './PhotoEditor';
 
 type Props = {
@@ -198,6 +199,8 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
       zoomRef.current = next;
       setZoom(next);
     });
+  const lensSwipe = useLensSwipe(lensId, setLensId, recording || mode !== 'photo');
+  const previewGestures = Gesture.Simultaneous(pinch, lensSwipe.gesture);
   const resetZoom = () => { zoomRef.current = 0; setZoom(0); };
 
   if (!permission) {
@@ -244,7 +247,7 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
 
   return (
     <View style={styles.screen}>
-      <GestureDetector gesture={pinch}>
+      <GestureDetector gesture={previewGestures}>
         <View style={StyleSheet.absoluteFill}>
           <CameraView
             enableTorch={false}
@@ -258,6 +261,7 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
             zoom={zoom}
           />
           {mode === 'photo' ? <FilterOverlay lens={lens} /> : null}
+          {lensSwipe.label}
         </View>
       </GestureDetector>
 

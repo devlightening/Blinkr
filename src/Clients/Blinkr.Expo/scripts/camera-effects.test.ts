@@ -1,4 +1,4 @@
-import { CAMERA_LENSES, HOLD_TO_RECORD_MS, MAX_STICKERS, MAX_VIDEO_SECONDS, recordingProgress, STICKERS, clampToFrame, clampZoom, clockLabel, flashLabel, formatRecording, lensById, lensChangesPicture, nextFlash, placeSticker, stickerText, zoomMultiplierLabel } from '../src/cameraEffects';
+import { CAMERA_LENSES, HOLD_TO_RECORD_MS, TEXT_MAX, cleanOverlayText, nextTextStyle, placeText, textOnColor, stickersOverlap, isOverTrash, signalFromStickers, stickerName, LENS_SWIPE_MIN_PX, lensAfterSwipe, MAX_STICKERS, MAX_VIDEO_SECONDS, recordingProgress, STICKERS, clampToFrame, clampZoom, clockLabel, flashLabel, formatRecording, lensById, lensChangesPicture, nextFlash, placeSticker, stickerText, zoomMultiplierLabel } from '../src/cameraEffects';
 
 function check(value: unknown, message: string) { if (!value) throw new Error(message); }
 const run = (name: string, fn: () => void) => { fn(); console.log('PASS', name); };
@@ -50,7 +50,7 @@ run('placing stickers fans out and caps at the maximum', () => {
   let list = placeSticker([], 'crowded', frame, 1);
   check(list.length === 1 && list[0].scale === 1, 'first sticker');
   list = placeSticker(list, 'queue', frame, 2);
-  check(list[1].x !== list[0].x && list[1].y !== list[0].y, 'stickers must not stack exactly');
+  check(!stickersOverlap(list[0], list[1]), 'stickers must not stack');
   check(new Set(list.map((s) => s.key)).size === 2, 'keys unique');
   for (let i = 0; i < 10; i += 1) list = placeSticker(list, 'open', frame, 10 + i);
   check(list.length === MAX_STICKERS, 'sticker cap');
@@ -61,4 +61,42 @@ run('hold-to-record: 15 s cap and a ring that fills from 0 to 1', () => {
   check(recordingProgress(0) === 0 && recordingProgress(7.5) === 0.5 && recordingProgress(15) === 1, 'linear');
   check(recordingProgress(99) === 1 && recordingProgress(-1) === 0 && recordingProgress(Number.NaN) === 0, 'clamped');
   check(HOLD_TO_RECORD_MS >= 200 && HOLD_TO_RECORD_MS <= 500, 'a hold is distinct from a tap');
+});
+run('swiping steps through the lenses and wraps around; small drags do nothing', () => {
+  check(lensAfterSwipe('none', -80) === 'sunset' && lensAfterSwipe('sunset', 80) === 'none', 'next / previous');
+  check(lensAfterSwipe('night', -80) === 'none' && lensAfterSwipe('none', 80) === 'night', 'wraps');
+  check(lensAfterSwipe('mint', LENS_SWIPE_MIN_PX - 1) === 'mint' && lensAfterSwipe('mint', Number.NaN) === 'mint', 'no change');
+  check(lensAfterSwipe('unknown', -80) === 'sunset', 'unknown starts from Normal');
+});
+run('new stickers never land on top of each other (AUDIT #8)', () => {
+  const frame = { width: 360, height: 480 };
+  let placed: ReturnType<typeof placeSticker> = [];
+  for (let i = 0; i < MAX_STICKERS; i += 1) placed = placeSticker(placed, 'calm', frame, i);
+  check(placed.length === MAX_STICKERS, 'all placed');
+  for (const a of placed) for (const b of placed) if (a !== b) check(!stickersOverlap(a, b), `overlap ${a.key}/${b.key}`);
+  check(placed.every((s) => s.x >= 0 && s.x <= frame.width && s.y >= 0 && s.y <= frame.height), 'inside the picture');
+  check(placeSticker(placed, 'calm', frame).length === MAX_STICKERS, 'limit');
+});
+run('the bin sits at the bottom centre', () => {
+  const frame = { width: 360, height: 480 };
+  check(isOverTrash({ x: 180, y: 450 }, frame) && isOverTrash({ x: 230, y: 420 }, frame), 'inside');
+  check(!isOverTrash({ x: 180, y: 200 }, frame) && !isOverTrash({ x: 20, y: 470 }, frame), 'outside');
+});
+run('a type sticker suggests the signal type; the first one wins; decoration is ignored', () => {
+  check(signalFromStickers([{ stickerId: 'time' }, { stickerId: 'crowded' }, { stickerId: 'closed' }])?.type === 'Crowd', 'first type sticker');
+  check(signalFromStickers([{ stickerId: 'closed' }])?.value === 'Closed', 'value');
+  check(signalFromStickers([{ stickerId: 'e-fire' }, { stickerId: 'weather' }]) === null, 'none');
+});
+run('emoji stickers have no text but still a name', () => {
+  const fire = STICKERS.find((s) => s.id === 'e-fire')!;
+  check(fire.kind === 'emoji' && stickerText(fire, new Date()) === '' && stickerName(fire, new Date()) === '🔥', 'name');
+});
+run('text tool: cleaned, capped, placed like a sticker, three styles, readable colours', () => {
+  const frame = { width: 360, height: 480 };
+  check(cleanOverlayText('  Sıra   \n uzun  ') === 'Sıra uzun' && cleanOverlayText('x'.repeat(200)).length === TEXT_MAX, 'clean');
+  check(placeText([], '   ', 'plain', '#FFFFFF', frame).length === 0, 'empty writes nothing');
+  const one = placeText([], 'Kapı açık', 'solid', '#FFC845', frame, 1);
+  check(one.length === 1 && one[0].text === 'Kapı açık' && one[0].textStyle === 'solid' && one[0].stickerId === 'text', 'placed');
+  check(nextTextStyle('plain') === 'solid' && nextTextStyle('solid') === 'highlight' && nextTextStyle('highlight') === 'plain', 'styles cycle');
+  check(textOnColor('#FFFFFF') === '#111111' && textOnColor('#111111') === '#FFFFFF' && textOnColor('#FFC845') === '#111111', 'contrast');
 });

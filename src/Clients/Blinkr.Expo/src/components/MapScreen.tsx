@@ -671,7 +671,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
   const handleCaptured = (asset: CapturedMedia) => {
     setCameraOpen(false);
     setPendingCapture(asset);
-    if (!isComposerOpen) openComposer(selectedPlace, 1);
+    if (!isComposerOpen) openComposer(selectedPlace, 1, asset.signalHint ?? null);
   };
 
   const startSignalOnly = () => {
