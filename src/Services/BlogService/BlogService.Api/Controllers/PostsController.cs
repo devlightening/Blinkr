@@ -191,7 +191,8 @@ public class PostsController : ControllerBase
         _ = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated");
         try
         {
-            var liked = await _mediator.Send(new CreatePostLikeCommand(postId)); // UserId via ICurrentUserService
+            var likerName = User.FindFirst("preferred_username")?.Value ?? User.FindFirst("name")?.Value ?? User.Identity?.Name;
+            var liked = await _mediator.Send(new CreatePostLikeCommand(postId, likerName)); // UserId via ICurrentUserService
             return Ok(new { liked });
         }
         catch (KeyNotFoundException)

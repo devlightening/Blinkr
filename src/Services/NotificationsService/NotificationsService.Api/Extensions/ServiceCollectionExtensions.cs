@@ -86,6 +86,8 @@ public static class ServiceCollectionExtensions
         {
             busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.EventConsumer.PostLikedNotificationConsumer>();
             busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.EventConsumer.PostCommentAddedNotificationConsumer>();
+            busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.UserFollowedNotificationConsumer>();
+            busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.FollowAcceptedNotificationConsumer>();
 
             busCfg.UsingRabbitMq((ctx, cfg) =>
             {

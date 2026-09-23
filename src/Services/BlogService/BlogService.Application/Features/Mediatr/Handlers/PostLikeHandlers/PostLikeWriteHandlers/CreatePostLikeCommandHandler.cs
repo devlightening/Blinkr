@@ -56,7 +56,7 @@ public class CreatePostLikeCommandHandler : IRequestHandler<CreatePostLikeComman
             _logger.LogInformation(
                 "WS-06: PostLiked | PostId={PostId} | UserId={UserId} | Action=Like",
                 request.PostId, userId);
-            postAggregate.AddLike(userId);
+            postAggregate.AddLike(userId, request.LikerName);
         }
         else
         {

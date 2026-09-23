@@ -250,6 +250,7 @@ public sealed class EventStoreToRabbitMqPublisher : BackgroundService
                     PostId = e.PostId,
                     PostOwnerId = e.PostOwnerId ?? Guid.Empty,
                     LikerUserId = e.UserId,
+                    LikerUserName = e.LikerName ?? string.Empty,
                     OccurredAtUtc = e.OccurredOn
                 }, ctx => ctx.MessageId = eventId, ct);
                 _log.LogInformation("Published PostLikedIntegrationEvent EventId={EventId} PostId={PostId}", eventId, e.PostId);

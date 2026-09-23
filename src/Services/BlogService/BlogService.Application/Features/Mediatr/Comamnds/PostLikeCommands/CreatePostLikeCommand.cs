@@ -8,6 +8,6 @@ using System.Threading.Tasks;
 namespace BlogService.Application.Features.Mediatr.Comamnds.PostLikeCommands
 {
     /// <summary>Toggles the caller's like; returns true when the post is liked afterwards.</summary>
-    public record CreatePostLikeCommand(Guid PostId) : IRequest<bool>;
+    public record CreatePostLikeCommand(Guid PostId, string? LikerName = null) : IRequest<bool>;
 
 }

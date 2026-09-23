@@ -142,12 +142,12 @@ namespace BlogService.Domain.Entities
             ApplyNewEvent(new PostCommentRemovedEvent(Id, commentId, requesterId, DateTime.UtcNow));
         }
 
-        public void AddLike(Guid userId)
+        public void AddLike(Guid userId, string? likerName = null)
         {
             if (IsDeleted) return; // Silinmiş posta işlem yapma
             if (Likes.Any(like => like.UserId == userId)) return;
 
-            ApplyNewEvent(new PostLikedEvent(this.Id, userId, DateTime.UtcNow, AuthorId));
+            ApplyNewEvent(new PostLikedEvent(this.Id, userId, DateTime.UtcNow, AuthorId, likerName));
         }
 
         public void UnlikePost(Guid userId)

@@ -1,3 +1,4 @@
+using MassTransit;
 using HealthChecks.UI.Client;
 using IdentityService.Application.Interfaces;
 using IdentityService.Infrastructure.Data;
@@ -47,6 +48,20 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 builder.Services.AddHttpClient();
+
+// Follow events for notifications (sinyal-mvp-plan Faz 9). Publishing is best effort: see FollowsController.
+builder.Services.AddMassTransit(bus =>
+{
+    bus.UsingRabbitMq((context, cfg) =>
+    {
+        var rabbit = builder.Configuration.GetSection("RabbitMq");
+        cfg.Host(rabbit["Host"] ?? "localhost", "/", h =>
+        {
+            h.Username(rabbit["User"] ?? "user");
+            h.Password(rabbit["Pass"] ?? "password");
+        });
+    });
+});
 
 // PostgreSQL DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>

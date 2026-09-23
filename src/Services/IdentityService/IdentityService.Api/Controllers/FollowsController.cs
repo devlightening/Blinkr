@@ -1,4 +1,6 @@
 using IdentityService.Domain.Entities;
+using MassTransit;
+using Shared.Events.Events.Identity;
 using IdentityService.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -52,8 +54,34 @@ namespace IdentityService.Api.Controllers
     public class FollowsController : ControllerBase
     {
         private readonly AppDbContext _db;
+        private readonly IPublishEndpoint _bus;
+        private readonly ILogger<FollowsController> _logger;
 
-        public FollowsController(AppDbContext db) => _db = db;
+        public FollowsController(AppDbContext db, IPublishEndpoint bus, ILogger<FollowsController> logger)
+        {
+            _db = db;
+            _bus = bus;
+            _logger = logger;
+        }
+
+        private string ViewerName() => User.FindFirst("preferred_username")?.Value ?? User.FindFirst("name")?.Value ?? User.Identity?.Name ?? string.Empty;
+
+        /// <summary>
+        /// Notifications are a side effect: the follow is already saved, so a bus hiccup is logged and never fails the
+        /// request (no outbox here - a lost notification is acceptable, a lost follow is not).
+        /// </summary>
+        private async Task PublishSafelyAsync<T>(T message) where T : class
+        {
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                await _bus.Publish(message, cts.Token);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Follow notification could not be published ({Event})", typeof(T).Name);
+            }
+        }
 
         private Guid Viewer() => Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : Guid.Empty;
 
@@ -101,6 +129,7 @@ namespace IdentityService.Api.Controllers
                 _db.ChangeTracker.Clear(); // a parallel follow won the race: same outcome
                 return State(userId, await RowAsync(me, userId));
             }
+            await PublishSafelyAsync(new UserFollowedIntegrationEvent { FollowerId = me, FollowerName = ViewerName(), FolloweeId = userId, Requested = row.Status == FollowStatus.Pending, OccurredAtUtc = now });
             return State(userId, row);
         }
 
@@ -147,6 +176,7 @@ namespace IdentityService.Api.Controllers
             row.Status = FollowStatus.Accepted;
             row.AcceptedAtUtc = DateTime.UtcNow;
             await _db.SaveChangesAsync();
+            await PublishSafelyAsync(new FollowRequestAcceptedIntegrationEvent { AccepterId = me, AccepterName = ViewerName(), FollowerId = userId, OccurredAtUtc = row.AcceptedAtUtc.Value });
             return Ok(new { userId, follower = true });
         }
 

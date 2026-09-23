@@ -8,5 +8,6 @@ namespace BlogService.Domain.Events
             Guid PostId,
             Guid UserId,
             DateTime OccurredOn,
-            Guid? PostOwnerId = null) : IDomainEvent;
+            Guid? PostOwnerId = null,
+            string? LikerName = null) : IDomainEvent;
 }

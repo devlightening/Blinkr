@@ -122,11 +122,14 @@ public class PostCommentAddedNotificationConsumer : IConsumer<PostCommentAddedIn
         {
             UserId = m.PostOwnerId,
             Type = NotificationType.CommentCreated,
+            PostId = m.PostId,
+            ActorUserId = m.CommentAuthorId,
+            ActorUserName = string.IsNullOrWhiteSpace(m.CommentAuthorName) ? null : m.CommentAuthorName,
             Content = new()
             {
                 Title = "Yeni yorum",
                 Body = string.IsNullOrWhiteSpace(m.CommentAuthorName) ? trimmed : $"{m.CommentAuthorName}: {trimmed}",
-                DeepLink = $"post:{m.PostId}"
+                DeepLink = $"blinkr://posts/{m.PostId}"
             },
             CreatedAtUtc = m.OccurredAtUtc == default ? DateTime.UtcNow : m.OccurredAtUtc
         };

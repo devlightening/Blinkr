@@ -8,7 +8,7 @@
 | Alan | Değer |
 |---|---|
 | Aktif faz | Faz 9 — bildirimler |
-| Son tamamlanan görev | P8.7 (sinyali sohbete paylaş) — Faz 8 kapandı |
+| Son tamamlanan görev | P9.1 (bildirim backend) |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
 
@@ -229,7 +229,7 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 
 ## Faz 9 — Bildirimler
 
-- [ ] P9.1 Backend: notification satırları, gruplama (group_key, 6 sa pencere), tercihler, sessiz saatler, `notify.fanout`
+- [~] P9.1 Backend: bildirim satırları vardı; eklendi: IdentityService takip olaylarını RabbitMQ'ya yayınlıyor (`UserFollowedIntegrationEvent`, `FollowRequestAcceptedIntegrationEvent`; en iyi çaba, takip asla bu yüzden başarısız olmaz), NotificationsService yeni takipçi / takip isteği / istek kabul bildirimleri; beğeni bildirimi artık beğenenin adını, yorum bildirimi yazar ve gönderi kimliğini taşıyor (önceden boştu). Kanıt: BLK-NOTIFY-01 (9 kontrol) PASS. **Ertelendi:** gruplama, tercihler, sessiz saatler.
 - [ ] P9.2 Push: cihaz kaydı, Expo Push gönderimi, geçersiz token temizliği, push metinleri tr/en
 - [ ] P9.3 Bildirimler ekranı: gruplar (Bugün/Bu hafta/Daha önce), takip istekleri girişi, satır içi eylemler (Geri takip et)
 - [ ] P9.4 Derin link yönlendirme (bildirime dokun → doğru ekran, uygulama kapalıyken de)
