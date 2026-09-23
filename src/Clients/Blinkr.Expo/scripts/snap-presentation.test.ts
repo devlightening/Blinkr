@@ -1,5 +1,5 @@
 import {
-  DEFAULT_TIMER, MAX_CAPTION_LENGTH, TIMER_OPTIONS, cleanCaption, conversationLabel, conversationStatus, nextTimer, sendButtonLabel, snapRow, summarizeSend, timerFraction, timerLabel, toggleRecipient,
+  DEFAULT_TIMER, MAX_COMPOSER_SNAP_FRIENDS, shareToFriendsAvailability, toggleSnapFriend, MAX_CAPTION_LENGTH, TIMER_OPTIONS, cleanCaption, conversationLabel, conversationStatus, nextTimer, sendButtonLabel, snapRow, summarizeSend, timerFraction, timerLabel, toggleRecipient,
 } from '../src/snapPresentation';
 import type { ChatMessage, Conversation } from '../src/types';
 
@@ -95,3 +95,14 @@ run('send summary lists what still needs a retry', () => {
   check(summarizeSend([{ conversationId: 'a', ok: true }]).allSent, 'all sent');
   check(!summarizeSend([]).allSent, 'nothing sent is not success');
 });
+{ // P5.9: snaps from the composer
+  check(shareToFriendsAvailability({ anonymous: false, hasPhoto: true }) === 'ok', 'ok');
+  check(shareToFriendsAvailability({ anonymous: true, hasPhoto: true }) === 'anonymous', 'anonymous never');
+  check(shareToFriendsAvailability({ anonymous: false, hasPhoto: false }) === 'no-photo', 'needs a photo');
+  let picked: string[] = [];
+  picked = toggleSnapFriend(picked, 'a'); picked = toggleSnapFriend(picked, 'b'); picked = toggleSnapFriend(picked, 'a');
+  check(picked.join() === 'b', 'toggle');
+  for (let i = 0; i < 20; i += 1) picked = toggleSnapFriend(picked, `u${i}`);
+  check(picked.length === MAX_COMPOSER_SNAP_FRIENDS, 'capped');
+  console.log('PASS composer snaps: photo only, never anonymous, capped');
+}

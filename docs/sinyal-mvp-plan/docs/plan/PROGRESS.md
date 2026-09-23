@@ -8,7 +8,7 @@
 | Alan | Değer |
 |---|---|
 | Aktif faz | Faz 5 — kamera ve oluşturma |
-| Son tamamlanan görev | P5.8 (TTL bilgisi) |
+| Son tamamlanan görev | P5.9 (arkadaşlara snap) |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
 
@@ -185,7 +185,7 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 - [x] P5.6 Metin aracı: "T" → yazı, Düz/Zeminli/Vurgulu, 7 renk, okunur zıt renk, sürüklenebilir/döner, fotoğrafa gömülür.
 - [~] P5.7 Flatten (`captureRef`) ve istemci sıkıştırması (0.84-0.92 JPEG) zaten vardı. **EXIF silme sunucuda tamamlandı:** JPEG'e ek olarak PNG (`eXIf/tEXt/iTXt/zTXt/tIME`) ve WebP (`EXIF/XMP`) meta verisi de siliniyor; kabul testi `test-media-privacy.ps1` (BLK-MEDIA-PRIVACY-01) PASS. Çıkartma metadatası JSON olarak gönderilmiyor (backend alanı yok, analitik Faz 11).
 - [~] P5.8 Tip çipleri, seviye, yer listesi, açıklama sayacı, anonim zaten composer'da vardı; **TTL bilgisi eklendi** ("Haritada 1 sa kalır", sunucu varsayılanlarının aynası, testli). Takipçiler/Yalnızca ben görünürlüğü ve @bahsetme yok: backend `AudienceType` yalnız Public destekliyor (Faz 6 takip modeliyle).
-- [ ] P5.9 Gönder sayfası: Harita, Hikayem, arkadaşlar (snap)
+- [~] P5.9 Composer'ın kontrol adımında "Arkadaşlarına snap olarak da gönder" (en fazla 10 arkadaş, yalnız fotoğraf, **anonim sinyalde kapalı** — fotoğraf kimin paylaştığını belli ederdi). Snap'ler sinyal yayınlandıktan sonra gönderilir; biri başarısız olursa sinyal geri alınmaz, yalnız bildirilir. Ayrı "Gönder" sayfası yok (mevcut 4 adımlı composer korunuyor). "Hikayem" Faz 7'de.
 - [ ] P5.10 Arka plan yükleme kuyruğu, ilerleme çipi, yeniden deneme, taslak saklama, gecikmeli sinyal
 - [ ] P5.11 Galeri: EXIF tarih/konum okuma, "Galeriden" etiketi, 2 saat kuralı
 - [ ] P5.12 Kopya sinyal birleştirme yanıtının UI'ı ("Mevcut sinyalin güncellendi")

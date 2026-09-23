@@ -27,6 +27,7 @@ export const searchPlaces = async (q: string) => {
 };
 export const uploadMedia = async () => {
   if (flag('slowmedia')) return new Promise<never>(() => {}); // stays in "uploading" for visual review
+  if (flag('mediaok')) return { mediaId: 'media-1', mediaType: 'Image' as const }; // ?mediaok = the upload succeeds
   throw new Error('Media is covered by the Gateway smoke, not the browser harness.');
 };
 export const toAbsoluteUrl = (url?: string | null) => url ?? null;

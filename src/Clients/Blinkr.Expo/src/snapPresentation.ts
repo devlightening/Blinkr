@@ -101,3 +101,18 @@ export const summarizeSend = (results: Array<{ conversationId: string; ok: boole
 /** Spoken/accessible description of a chat list row. */
 export const conversationLabel = (name: string, status: ConversationStatus, when: string) =>
   `${name}, ${status.label}${when ? `, ${when}` : ''}${status.opensSnap ? '. Snapı aç' : '. Sohbeti aç'}`;
+
+/**
+ * "Also send to friends as a snap" from the signal composer (sinyal-mvp-plan P5.9). Only a photo can go as a snap,
+ * and never from an anonymous signal: friends receiving the same picture would learn who posted it.
+ */
+export const shareToFriendsAvailability = (params: { anonymous: boolean; hasPhoto: boolean }): 'ok' | 'anonymous' | 'no-photo' => {
+  if (params.anonymous) return 'anonymous';
+  if (!params.hasPhoto) return 'no-photo';
+  return 'ok';
+};
+/** Composer snaps use the middle viewing time. */
+export const COMPOSER_SNAP_SECONDS = 5;
+export const MAX_COMPOSER_SNAP_FRIENDS = 10;
+export const toggleSnapFriend = (selected: string[], id: string) =>
+  selected.includes(id) ? selected.filter((item) => item !== id) : selected.length >= MAX_COMPOSER_SNAP_FRIENDS ? selected : [...selected, id];

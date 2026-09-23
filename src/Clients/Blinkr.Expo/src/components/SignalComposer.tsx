@@ -36,7 +36,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
-import { uploadMedia } from '../api';
+import { listFriends, uploadMedia } from '../api';
 import { splitNearbyPlaces } from '../nearbyPlaceTiers';
 import { formatCategory, formatDistance } from '../presentation';
 import { categoryTone, colors, motion, radii, shadow, signalColors, spacing, typography } from '../theme';
@@ -50,6 +50,7 @@ import { BlinkrButton } from './ui/BlinkrButton';
 import { MAX_VIDEO_SECONDS } from '../cameraEffects';
 import { accuracyUncertain, mediaAllowedAt, placeSensitivity } from '../placeSafety';
 import { SIGNAL_TTL_MINUTES, formatLifetime } from '../signalCatalog';
+import { shareToFriendsAvailability, toggleSnapFriend } from '../snapPresentation';
 import { BlinkrChip } from './ui/BlinkrChip';
 import { BlinkrHeader } from './ui/BlinkrHeader';
 import type {
@@ -57,6 +58,7 @@ import type {
   BlinkrPlace,
   ComposerArea,
   CreateSignalInput,
+  Friend,
   IdentityDisclosure,
   LocationReadiness,
   MediaKind,
@@ -66,6 +68,7 @@ import type {
 } from '../types';
 
 type ComposerInput = Omit<CreateSignalInput, 'latitude' | 'longitude' | 'accuracyMeters' | 'locationName'>;
+export type ComposerExtras = { snapFriendIds: string[]; snapAsset: { uri: string; fileName?: string | null; mimeType?: string | null; type?: string | null } | null };
 
 type Props = {
   area: ComposerArea | null;
@@ -88,7 +91,8 @@ type Props = {
   onRequestCamera?: () => void;
   onSelectArea: (source: 'device' | 'map', place?: BlinkrPlace | null) => Promise<void>;
   onSessionExpired: () => void;
-  onSubmit: (input: ComposerInput) => Promise<void>;
+  /** `extras.snapFriendIds`: friends (user ids) who also get the photo as a snap (P5.9); sent after the signal is published. */
+  onSubmit: (input: ComposerInput, extras?: ComposerExtras) => Promise<void>;
   pendingCapture?: ImagePicker.ImagePickerAsset | null;
   visible: boolean;
 };
@@ -152,6 +156,9 @@ export function SignalComposer({
   const { t, i18n } = useTranslation('create');
   // The privacy reminder at a sensitive place is shown once per place per composer session.
   const [privacyAckFor, setPrivacyAckFor] = useState<string | null>(null);
+  const [friends, setFriends] = useState<Friend[] | null>(null);
+  const [friendsFailed, setFriendsFailed] = useState(false);
+  const [snapFriendIds, setSnapFriendIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!visible) {
@@ -163,6 +170,7 @@ export function SignalComposer({
       setShowExtendedPlaces(false);
       setMedia([]);
       setMediaError(null);
+      setSnapFriendIds([]);
       setStep(initialStep ?? 0);
     }
   }, [visible, initialStep]);
@@ -264,8 +272,25 @@ export function SignalComposer({
     catch (err) { setMediaError(friendlyError(err, 'Medya seçilemedi. Tekrar dene.')); }
   };
 
+  const snapPhoto = readyMedia.find((item) => item.mediaType === 'Image') ?? null;
+  const snapAvailability = shareToFriendsAvailability({ anonymous: identityDisclosure === 'AnonymousMap', hasPhoto: Boolean(snapPhoto) });
+
+  // Friends are loaded once the review step is reached with a photo (not on every open).
+  useEffect(() => {
+    if (!visible || step !== 3 || snapAvailability !== 'ok' || friends) return undefined;
+    const controller = new AbortController();
+    listFriends(auth, controller.signal, { onAuthRefresh: onAuthChange, onSessionExpired })
+      .then((list) => { if (!controller.signal.aborted) { setFriends(list); setFriendsFailed(false); } })
+      .catch(() => { if (!controller.signal.aborted) setFriendsFailed(true); });
+    return () => controller.abort();
+  }, [visible, step, snapAvailability, friends, auth, onAuthChange, onSessionExpired]);
+
   const publish = async () => {
     if (!canPublish) return;
+    const extras: ComposerExtras = {
+      snapFriendIds: snapAvailability === 'ok' ? snapFriendIds : [],
+      snapAsset: snapAvailability === 'ok' && snapPhoto ? { uri: snapPhoto.asset.uri, fileName: snapPhoto.asset.fileName, mimeType: snapPhoto.asset.mimeType, type: 'image' } : null,
+    };
     await onSubmit({
       audienceType: 'Public',
       content: content.trim(),
@@ -280,7 +305,7 @@ export function SignalComposer({
       signalType,
       signalValue,
       title: title.trim() || selectedType?.label || 'Yeni sinyal',
-    });
+    }, extras);
   };
 
   useEffect(() => {
@@ -560,6 +585,26 @@ export function SignalComposer({
               <ShieldCheck color={colors.mint} size={20} />
               <Text style={styles.policyText}>Paylaşım haritada herkese görünür. Kesin cihaz konumun gösterilmez.</Text>
             </View>
+            <View style={styles.sectionHeadingRow}>
+              <Text style={styles.sectionLabel}>{t('snap.title')}</Text>
+              {snapFriendIds.length > 0 ? <Text style={styles.sectionHint}>{t('snap.selected', { count: snapFriendIds.length })}</Text> : null}
+            </View>
+            {snapAvailability === 'anonymous' ? <Text style={styles.placeMeta}>{t('snap.anonymous')}</Text> : null}
+            {snapAvailability === 'no-photo' ? <Text style={styles.placeMeta}>{t('snap.noPhoto')}</Text> : null}
+            {snapAvailability === 'ok' ? (
+              <>
+                <Text style={styles.placeMeta}>{t('snap.hint')}</Text>
+                {friendsFailed ? <Text style={styles.errorText}>{t('snap.loadFailed')}</Text> : null}
+                {friends && friends.length === 0 ? <Text style={styles.placeMeta}>{t('snap.none')}</Text> : null}
+                {friends && friends.length > 0 ? (
+                  <View style={styles.chipRow} testID="snap-friends">
+                    {friends.map((friend) => (
+                      <BlinkrChip key={friend.id} label={friend.userName} onPress={() => setSnapFriendIds((current) => toggleSnapFriend(current, friend.id))} selected={snapFriendIds.includes(friend.id)} />
+                    ))}
+                  </View>
+                ) : null}
+              </>
+            ) : null}
             <Text style={styles.placeMeta} testID="ttl-info">{t('lifetime', { duration: formatLifetime(SIGNAL_TTL_MINUTES[signalType], i18n.language === 'en' ? 'en' : 'tr') })}</Text>
             </>}
           </ScrollView>}

@@ -608,6 +608,22 @@ async function main() {
     await expect(page.getByRole('button', { name: 'Galeri', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Anladım' }).click();
     await expect(page.getByTestId('privacy-notice')).toHaveCount(0);
+    // P5.9: the photo can also go to friends as a snap from the review step - never from an anonymous signal.
+    await page.goto(url + '?scene=composerMedia&mediaok');
+    await page.getByRole('button', { name: 'Devam', exact: true }).click();
+    await page.getByRole('button', { name: 'Devam', exact: true }).click();
+    await expect(page.getByTestId('snap-friends')).toBeVisible();
+    const firstFriend = page.getByTestId('snap-friends').getByRole('button').first();
+    const friendName = (await firstFriend.innerText()).trim();
+    await firstFriend.click();
+    await expect(page.getByText('1 kişi seçildi')).toBeVisible();
+    await page.getByRole('button', { name: 'Anonim', exact: true }).click();
+    await expect(page.getByText(/Anonim sinyal arkadaşlara gönderilemez/)).toBeVisible();
+    await expect(page.getByTestId('snap-friends')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Sınırlı profil', exact: true }).click();
+    await page.getByRole('button', { name: 'Sinyal bırak', exact: true }).click();
+    await expect(page.getByLabel('snap-to')).toHaveText(/^sent:.+:photo$/);
+    if (!friendName) throw new Error('friend chip had no name');
     await page.goto(url + '?scene=composerMedia&loose');
     await expect(page.getByTestId('location-uncertain')).toContainText('250 m');
     await page.goto(url + '?scene=reportableDetail&clinic');

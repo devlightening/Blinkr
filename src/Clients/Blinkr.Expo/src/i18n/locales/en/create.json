@@ -10,5 +10,18 @@
     "uncertainTitle": "Location uncertain",
     "uncertainBody": "Your device's location accuracy is {{meters}} m. Stepping outside may give a better fix."
   },
-  "lifetime": "Stays on the map for {{duration}}"
+  "lifetime": "Stays on the map for {{duration}}",
+  "snap": {
+    "title": "Also send to friends as a snap",
+    "hint": "The same photo goes to the people you pick as a one-time snap.",
+    "anonymous": "An anonymous signal can't be sent to friends; the photo would show who posted it.",
+    "noPhoto": "Add a photo to send a snap.",
+    "none": "You have no friends here yet.",
+    "loadFailed": "Couldn't load your friends.",
+    "selected_one": "{{count}} person selected",
+    "selected_other": "{{count}} people selected",
+    "sentAll_one": "Snap sent to {{count}} friend.",
+    "sentAll_other": "Snap sent to {{count}} friends.",
+    "sentSome": "Sent to {{sent}}, couldn't reach {{failed}}."
+  }
 }

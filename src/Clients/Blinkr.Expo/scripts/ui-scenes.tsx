@@ -323,8 +323,10 @@ function UserSearch() {
 // --- Composer over a captured photo (the design's camera-first look) ---
 function ComposerWithMedia() {
   const capture = { uri: tile(20), type: 'image', fileName: 'kare.jpg', width: 400, height: 300 } as never;
+  const [snapTo, setSnapTo] = useState('');
   return (
     <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
+      <Text accessibilityLabel="snap-to" style={{ height: 0, opacity: 0, position: 'absolute' }}>{snapTo}</Text>
       <SignalComposer
         // ?school / ?clinic swap the place category (sensitive-place rules); ?loose makes the fix 250 m.
         area={{ ...composerArea, ...(location.search.includes('loose') ? { observationAccuracyMeters: 250, source: 'device' as const } : {}), place: { ...nearby[1], ...(location.search.includes('school') ? { category: 'EDUCATION' } : location.search.includes('clinic') ? { category: 'HEALTH' } : {}) }, source: location.search.includes('loose') ? 'device' : 'place', proximity: { allowed: true, trustLevel: 'VERIFIED_LIVE', thresholdMeters: 200 } }}
@@ -342,7 +344,7 @@ function ComposerWithMedia() {
         onOpenSettings={() => {}}
         onSelectArea={async () => {}}
         onSessionExpired={() => {}}
-        onSubmit={async () => {}}
+        onSubmit={async (_input, extras) => { setSnapTo(`sent:${(extras?.snapFriendIds ?? []).join(',')}:${extras?.snapAsset ? 'photo' : 'none'}`); }}
         pendingCapture={capture}
         visible
       />

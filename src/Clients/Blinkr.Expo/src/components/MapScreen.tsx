@@ -16,7 +16,9 @@ import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { createSignal, getNearbyPlaces, getPlace, getUnifiedMapBounds, previewPresence, getSignalContent, sendReport } from '../api';
+import i18n from 'i18next';
+import { createSignal, getNearbyPlaces, getPlace, getUnifiedMapBounds, previewPresence, getSignalContent, sendReport, sendSnap, startConversation } from '../api';
+import { COMPOSER_SNAP_SECONDS, summarizeSend } from '../snapPresentation';
 import { friendlyError } from '../productPresentation';
 import { BlinkrMapMarker, BlinkrClusterMarker } from './BlinkrMapMarker';
 import { bottomBarClearance } from './ui/BlinkrBottomBar';
@@ -54,7 +56,7 @@ import { ISTANBUL_REGION } from '../types';
 import { PostDetailSheet } from './PostDetailSheet';
 import { SignalCamera } from './camera/SignalCamera';
 import type { CapturedMedia } from './camera/PhotoEditor';
-import { SignalComposer } from './SignalComposer';
+import { SignalComposer, type ComposerExtras } from './SignalComposer';
 
 type Props = {
   auth: AuthResponse;
@@ -678,8 +680,30 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
     openComposer(selectedPlace, 0);
   };
 
+  // P5.9: the published photo also goes to the chosen friends as a snap, one conversation at a time. It runs after
+  // the signal is safely published; a failed snap never undoes the signal, it is only reported.
+  const sendComposerSnaps = async (extras: ComposerExtras) => {
+    if (!extras.snapAsset || extras.snapFriendIds.length === 0) return;
+    const results: Array<{ conversationId: string; ok: boolean }> = [];
+    for (const friendId of extras.snapFriendIds) {
+      try {
+        const conversation = await startConversation(auth, friendId, onAuthChange, onLogout);
+        await sendSnap(auth, conversation.id, extras.snapAsset, { durationSeconds: COMPOSER_SNAP_SECONDS }, onAuthChange, onLogout);
+        results.push({ conversationId: friendId, ok: true });
+      } catch (err) {
+        console.log('[Blinkr Snap]', { failedStage: 'composer-send', errorCode: err instanceof Error ? err.name : 'Unknown' });
+        results.push({ conversationId: friendId, ok: false });
+      }
+    }
+    const summary = summarizeSend(results);
+    setSuccess(summary.allSent
+      ? i18n.t('create:snap.sentAll', { count: summary.sent })
+      : i18n.t('create:snap.sentSome', { sent: summary.sent, failed: summary.failed.length }));
+  };
+
   const submitSignal = async (
     input: Omit<CreateSignalInput, 'latitude' | 'longitude' | 'accuracyMeters' | 'locationName'>,
+    extras?: ComposerExtras,
   ) => {
     if (submissionInFlight.current) return;
     submissionInFlight.current = true;
@@ -706,6 +730,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
       nearbyOwner.current.reset();
       setSuccess('Yayınlandı. Haritaya ekleniyor.');
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (extras) void sendComposerSnaps(extras);
 
       const target = { ...composerArea.region, latitudeDelta: 0.01, longitudeDelta: 0.01 };
       currentRegion.current = target;

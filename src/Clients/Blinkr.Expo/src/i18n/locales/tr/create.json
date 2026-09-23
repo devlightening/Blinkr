@@ -10,5 +10,18 @@
     "uncertainTitle": "Konum belirsiz",
     "uncertainBody": "Cihazının konum doğruluğu {{meters}} m. Açık alana çıkınca daha doğru bir konum alınabilir."
   },
-  "lifetime": "Haritada {{duration}} kalır"
+  "lifetime": "Haritada {{duration}} kalır",
+  "snap": {
+    "title": "Arkadaşlarına snap olarak da gönder",
+    "hint": "Aynı fotoğraf seçtiğin kişilere bir kez izlenen snap olarak gider.",
+    "anonymous": "Anonim sinyal arkadaşlara gönderilemez; fotoğraf kimin paylaştığını belli eder.",
+    "noPhoto": "Snap için bir fotoğraf ekle.",
+    "none": "Henüz arkadaşın yok.",
+    "loadFailed": "Arkadaş listesi yüklenemedi.",
+    "selected_one": "{{count}} kişi seçildi",
+    "selected_other": "{{count}} kişi seçildi",
+    "sentAll_one": "{{count}} arkadaşa snap gönderildi.",
+    "sentAll_other": "{{count}} arkadaşa snap gönderildi.",
+    "sentSome": "{{sent}} arkadaşa gönderildi, {{failed}} kişiye gönderilemedi."
+  }
 }
