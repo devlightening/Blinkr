@@ -50,8 +50,7 @@ public class SubscriptionsController : ControllerBase
         {
             var userId = User.GetUserId();
             
-            _logger.LogInformation("📍 Updating location for user {UserId}: ({Lat}, {Lon})", 
-                userId, req.Latitude, req.Longitude);
+            _logger.LogInformation("📍 Updating location subscription for user {UserId}", userId);
             
             var collection = _db.GetCollection<UserLocation>("user_locations");
             

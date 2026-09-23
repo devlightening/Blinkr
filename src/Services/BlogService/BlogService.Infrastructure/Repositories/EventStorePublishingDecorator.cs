@@ -243,7 +243,7 @@ public class EventStorePublishingDecorator : IEventStoreRepository
             }
 
             case PostLocationAddedEvent e:
-                _log.LogInformation("Publishing PostLocationAdded PostId={PostId} Lat={Lat} Lon={Lon}", e.PostId, e.Latitude, e.Longitude);
+                _log.LogInformation("Publishing PostLocationAdded PostId={PostId}", e.PostId);
                 await _bus.Publish<IPostLocationAddedIntegrationEvent>(new
                 {
                     e.PostId,
@@ -255,7 +255,7 @@ public class EventStorePublishingDecorator : IEventStoreRepository
                 break;
 
             case PostLocationUpdatedEvent e:
-                _log.LogInformation("Publishing PostLocationUpdated PostId={PostId} Lat={Lat} Lon={Lon}", e.PostId, e.Latitude, e.Longitude);
+                _log.LogInformation("Publishing PostLocationUpdated PostId={PostId}", e.PostId);
                 await _bus.Publish<IPostLocationUpdatedIntegrationEvent>(new
                 {
                     e.PostId,

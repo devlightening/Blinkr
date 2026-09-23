@@ -18,7 +18,7 @@ public sealed class NoOpGeocodingService : IGeocodingService
 
     public Task<string?> TryReverseAsync(double lat, double lon, CancellationToken ct = default)
     {
-        _logger.LogDebug("🌍 NoOp geocoding: lat={Lat}, lon={Lon} (will be implemented in L2.3)", lat, lon);
+        _logger.LogDebug("🌍 NoOp geocoding");
         return Task.FromResult<string?>(null);
     }
 }

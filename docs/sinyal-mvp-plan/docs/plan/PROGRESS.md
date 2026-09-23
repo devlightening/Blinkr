@@ -246,7 +246,7 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 - [ ] P10.5 Hassas yer kuralları (uyarı, okulda medya kapalı, HealthNotice + ülke acil numarası)
 - [ ] P10.6 18 yaş altı varsayılanları
 - [ ] P10.7 Hesap silme (2 adım, 30 gün, purge işi) + geri alma; veri indirme talebi
-- [ ] P10.8 Konum gizliliği denetimi: log/analitik/hata raporlarında konum yok (otomatik test); ev bulanıklaştırma kuralı
+- [x] P10.8 Konum gizliliği denetimi — ~30 log satırından koordinat çıkarıldı, çerçeve istek/HttpClient/YARP logları Warning, kapsama anahtarı logda tek yönlü kimlik; ev bulanıklaştırma mevcut ~110 m ızgara (D-013). Kanıt: `test-log-privacy.ps1` (BLK-LOGPRIV-01) PASS; önce eski servislerde sızıntıyı yakaladığı görüldü.
 - [ ] P10.9 Yetkilendirme test paketi (başkasının kaynağına erişim denemeleri)
 - [ ] P10.10 Topluluk kuralları, kullanım şartları, gizlilik politikası ekranları (metinler yer tutucu + hukuki inceleme notu)
 

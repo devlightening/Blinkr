@@ -71,8 +71,8 @@ public class FeedController : ControllerBase
 
             var deviceId = HttpContext.Items["DeviceId"]?.ToString() ?? "unknown";
             
-            _logger.LogInformation("Feed request: sort={Sort}, page={Page}, pageSize={PageSize}, lat={Lat}, lon={Lon}, device={DeviceId}",
-                sort, page, pageSize, lat, lon, deviceId);
+            _logger.LogInformation("Feed request: sort={Sort}, page={Page}, pageSize={PageSize}, hasLocation={HasLocation}, device={DeviceId}",
+                sort, page, pageSize, lat.HasValue && lon.HasValue, deviceId);
 
             var result = await GetFeedData(sort, page, pageSize, lat, lon);
 
@@ -246,8 +246,8 @@ public class FeedController : ControllerBase
             var deviceId = HttpContext.Items["DeviceId"]?.ToString() ?? "unknown";
             
             _logger.LogInformation(
-                "📍 NOW Feed request: lat={Lat}, lon={Lon}, radius={RadiusKm}km, sinceMin={SinceMin}, page={Page}, device={DeviceId}",
-                lat, lon, radiusKm, sinceMinutes, page, deviceId);
+                "📍 NOW Feed request: radius={RadiusKm}km, sinceMin={SinceMin}, page={Page}, device={DeviceId}",
+                radiusKm, sinceMinutes, page, deviceId);
 
             var query = new NearbyQuery(
                 Lat: lat,
@@ -302,7 +302,7 @@ public class FeedController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting NOW feed: lat={Lat}, lon={Lon}", lat, lon);
+            _logger.LogError(ex, "Error getting NOW feed");
             return StatusCode(500, new
             {
                 error = "Internal server error",
@@ -341,8 +341,8 @@ public class FeedController : ControllerBase
             if (precision > 6) precision = 6;
             
             _logger.LogInformation(
-                "🗺️ Heatmap request: lat={Lat}, lon={Lon}, radius={RadiusKm}km, sinceMin={SinceMin}, precision={Precision}",
-                lat, lon, radiusKm, sinceMinutes, precision);
+                "🗺️ Heatmap request: radius={RadiusKm}km, sinceMin={SinceMin}, precision={Precision}",
+                radiusKm, sinceMinutes, precision);
             
             var collection = _mongoDb.GetCollection<PostDocument>("posts");
             

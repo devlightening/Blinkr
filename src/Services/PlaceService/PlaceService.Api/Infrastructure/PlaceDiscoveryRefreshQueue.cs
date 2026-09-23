@@ -40,7 +40,7 @@ public sealed class PlaceDiscoveryRefreshQueue : BackgroundService, IPlaceDiscov
         if (!_queue.Writer.TryWrite(new RefreshRequest(key, minLat, minLon, maxLat, maxLon, limit)))
         {
             lock (_gate) _queuedKeys.Remove(key);
-            _logger.LogWarning("[Blinkr PlaceDiscovery] source=LOCAL_PLUS_REFRESH status=queue_full coverageKey={CoverageKey}", key);
+            _logger.LogWarning("[Blinkr PlaceDiscovery] source=LOCAL_PLUS_REFRESH status=queue_full coverage={Coverage}", PlaceDiscoveryService.CoverageLogId(key));
         }
     }
 
@@ -60,7 +60,7 @@ public sealed class PlaceDiscoveryRefreshQueue : BackgroundService, IPlaceDiscov
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "[Blinkr PlaceDiscovery] source=LOCAL_PLUS_REFRESH status=failed coverageKey={CoverageKey}", request.Key);
+                _logger.LogWarning(ex, "[Blinkr PlaceDiscovery] source=LOCAL_PLUS_REFRESH status=failed coverage={Coverage}", PlaceDiscoveryService.CoverageLogId(request.Key));
             }
             finally
             {

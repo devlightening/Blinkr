@@ -307,8 +307,7 @@ public class PostCommentAddedNotificationConsumer : IConsumer<PostCommentAddedIn
                 return;
             }
             
-            _log.LogInformation("📍 Processing proximity notifications for post {PostId} at ({Lat}, {Lon})", 
-                postId, lat, lon);
+            _log.LogInformation("📍 Processing proximity notifications for post {PostId}", postId);
             
             // Find nearby users (within 1km)
             var nearbyUsers = await FindNearbyUsersAsync(db, lat, lon, radiusMeters: 1000, ct);

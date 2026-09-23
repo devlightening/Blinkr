@@ -51,7 +51,7 @@ public sealed class PlaceDiscoveryService : IPlaceDiscoveryService
         if (await _repository.HasFreshCoverageAsync(key, ttl, ct))
         {
             coverage.Stop();
-            _logger.LogInformation("[Blinkr Places] source=cache status=success count=coverage coverageKey={CoverageKey}", key);
+            _logger.LogInformation("[Blinkr Places] source=cache status=success count=coverage coverage={Coverage}", CoverageLogId(key));
             _logger.LogInformation(
                 "[Blinkr PlaceDiscovery] localMs=0 coverageMs={CoverageMs} providerMs=0 normalizationMs=0 totalMs={TotalMs} source=LOCAL status=coverage_fresh",
                 coverage.ElapsedMilliseconds,
@@ -66,7 +66,7 @@ public sealed class PlaceDiscoveryService : IPlaceDiscoveryService
         if (discovery.Status is PlaceDiscoveryStatus.Failure or PlaceDiscoveryStatus.Timeout)
         {
             await _repository.MarkCoverageAsync(key, _provider.Name, discovery.Status == PlaceDiscoveryStatus.Timeout ? "provider_timeout" : "provider_failure", 0, ct);
-            _logger.LogWarning("[Blinkr Places] source=provider status={Status} count=0 coverageKey={CoverageKey}", discovery.Status, key);
+            _logger.LogWarning("[Blinkr Places] source=provider status={Status} count=0 coverage={Coverage}", discovery.Status, CoverageLogId(key));
             _logger.LogInformation(
                 "[Blinkr PlaceDiscovery] localMs=0 coverageMs={CoverageMs} providerMs={ProviderMs} normalizationMs=0 totalMs={TotalMs} source=PROVIDER status={Status}",
                 coverage.ElapsedMilliseconds,
@@ -80,7 +80,7 @@ public sealed class PlaceDiscoveryService : IPlaceDiscoveryService
         var upserted = await _repository.UpsertDiscoveredAsync(discovery.Places, ct);
         normalization.Stop();
         await _repository.MarkCoverageAsync(key, _provider.Name, discovery.Status == PlaceDiscoveryStatus.Empty ? "empty" : "success", upserted.Count, ct);
-        _logger.LogInformation("[Blinkr Places] source=provider status={Status} count={Count} coverageKey={CoverageKey}", discovery.Status, upserted.Count, key);
+        _logger.LogInformation("[Blinkr Places] source=provider status={Status} count={Count} coverage={Coverage}", discovery.Status, upserted.Count, CoverageLogId(key));
         _logger.LogInformation(
             "[Blinkr PlaceDiscovery] localMs=0 coverageMs={CoverageMs} providerMs={ProviderMs} normalizationMs={NormalizationMs} totalMs={TotalMs} source=PROVIDER status={Status}",
             coverage.ElapsedMilliseconds,
@@ -90,6 +90,10 @@ public sealed class PlaceDiscoveryService : IPlaceDiscoveryService
             discovery.Status);
         return new PlaceDiscoveryRefreshResult(discovery.Status, upserted.Count, coverage.ElapsedMilliseconds, provider.ElapsedMilliseconds, normalization.ElapsedMilliseconds, total.ElapsedMilliseconds);
     }
+
+    /// <summary>A short one-way id for a coverage key, so logs can correlate a viewport without its coordinates.</summary>
+    public static string CoverageLogId(string key) =>
+        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(key)))[..10];
 
     private static string CoverageKey(double minLat, double minLon, double maxLat, double maxLon)
     {

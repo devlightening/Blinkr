@@ -161,11 +161,11 @@ public class PostsReadController : ControllerBase
             }
             
             // Validate coordinates
-            _logger.LogInformation("🔍 Parsed coordinates: lat={Lat}, lon={Lon}, radius={Radius}", lat, lon, radius);
+            _logger.LogInformation("🔍 Nearby request: radius={Radius}", radius);
             
             if (lat is < -90 or > 90 || lon is < -180 or > 180)
             {
-                _logger.LogWarning("❌ Invalid coordinates provided: lat={Lat}, lon={Lon}", lat, lon);
+                _logger.LogWarning("❌ Invalid coordinates provided");
                 return BadRequest("Invalid latitude/longitude. Latitude must be between -90 and 90, longitude between -180 and 180.");
             }
             
@@ -188,8 +188,8 @@ public class PostsReadController : ControllerBase
             // Avoid double enumeration - use ICollection if available
             var hits = result.Items is ICollection<PostListDto> c ? c.Count : result.Items.Count();
             _logger.LogInformation(
-                "📍 Nearby posts retrieved: lat={Lat}, lon={Lon}, radius={Radius}m, page={Page}/{PageSize}, hits={Hits}",
-                lat, lon, radius, page, pageSize, hits);
+                "📍 Nearby posts retrieved: radius={Radius}m, page={Page}/{PageSize}, hits={Hits}",
+                radius, page, pageSize, hits);
 
             return Ok(result);
         }

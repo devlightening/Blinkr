@@ -53,8 +53,8 @@ public class PostsLocationController : ControllerBase
             await _mediator.Send(command, ct);
 
             _logger.LogInformation(
-                "📍 Location added to post: PostId={PostId}, Lat={Lat}, Lon={Lon}",
-                postId, request.Latitude, request.Longitude);
+                "📍 Location added to post: PostId={PostId}",
+                postId);
 
             return Ok(new { message = "Location added successfully" });
         }
@@ -99,8 +99,8 @@ public class PostsLocationController : ControllerBase
             await _mediator.Send(command, ct);
 
             _logger.LogInformation(
-                "📍 Location updated for post: PostId={PostId}, Lat={Lat}, Lon={Lon}",
-                postId, request.Latitude, request.Longitude);
+                "📍 Location updated for post: PostId={PostId}",
+                postId);
 
             return Ok(new { message = "Location updated successfully" });
         }

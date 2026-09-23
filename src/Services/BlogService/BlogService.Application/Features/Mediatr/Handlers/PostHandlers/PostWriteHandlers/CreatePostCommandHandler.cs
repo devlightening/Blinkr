@@ -129,7 +129,7 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
         {
             try
             {
-                _logger.LogDebug("🌍 Auto-geocoding location for lat={Lat}, lon={Lon}", request.Latitude.Value, request.Longitude.Value);
+                _logger.LogDebug("🌍 Auto-geocoding location name");
                 locationName = await _geocodingService.TryReverseAsync(request.Latitude.Value, request.Longitude.Value, ct);
                 if (!string.IsNullOrWhiteSpace(locationName))
                 {
@@ -137,13 +137,12 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
                 }
                 else
                 {
-                    _logger.LogWarning("🌍 Geocoding returned empty result for lat={Lat}, lon={Lon}", request.Latitude.Value, request.Longitude.Value);
+                    _logger.LogWarning("🌍 Geocoding returned an empty result");
                 }
             }
             catch (Exception geocodingEx)
             {
-                _logger.LogWarning(geocodingEx, "🌍 Geocoding failed for lat={Lat}, lon={Lon}, continuing without location name", 
-                    request.Latitude.Value, request.Longitude.Value);
+                _logger.LogWarning(geocodingEx, "🌍 Geocoding failed, continuing without location name");
                 // Continue without location name - don't fail post creation
             }
         }

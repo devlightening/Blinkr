@@ -15,6 +15,12 @@
 
 ## Kararlar
 
+### D-013 — P10.8: loglarda konum yok; "ev bulanıklaştırma" mevcut 110 m ızgara ile karşılanıyor (2026-09-23)
+- Bağlam: P10.8 log/analitik/hata raporlarında konum olmamasını ve ev bulanıklaştırma kuralını istiyor. Denetimde ~30 açık log satırı (Blog, Notifications, Worker) ham enlem/boylam yazıyordu; ASP.NET istek logu, HttpClient ve YARP da URL'deki `?lat=&lon=` sorgusunu yazıyordu.
+- Karar: Açık log satırlarından koordinatlar çıkarıldı (PostId, yarıçap, sayılar kaldı); `Microsoft.AspNetCore.Hosting.Diagnostics`, `System.Net.Http.HttpClient` ve `Yarp` tüm servislerde Warning'e çekildi; PlaceService kapsama anahtarı logda tek yönlü kısa kimlikle (`CoverageLogId`) geçiyor. `test-log-privacy.ps1` (BLK-LOGPRIV-01) çalışan servislerin test sırasında yazdığı loglarda ayırt edici bir noktanın rakamlarını arar. Ev bulanıklaştırma için ayrı bir "ev" kavramı eklenmedi: yer seçilmeyen sinyal zaten yazılırken 3 ondalığa (~110 m) yuvarlanıyor ve harita bu değeri gösteriyor.
+- Gerekçe: Servisler farklı log yığınları kullanıyor (Serilog / Microsoft logging); merkezi bir maskeleyici yerine kaynağı temizlemek her yığında aynı sonucu veriyor. Ev adresi saklamak, gizlemek istediğimiz veriyi yeni bir yere yazmak olurdu.
+- Etki: Analitik ve hata raporlayıcı henüz yok (Faz 11/12); eklendiklerinde aynı test genişletilmeli.
+
 ### D-012 — Push bildirimleri ertelendi (secret gerekli); uygulama içi bildirimler var (2026-09-23)
 - Bağlam: P9.2 Expo/FCM/APNs push, P9.7 tercihler.
 - Karar: Push için `expo-notifications` + FCM sunucu anahtarı/APNs sertifikası + EAS proje kimliği gerekir; bunlar secret/hesap ister ve 00_START_HERE kuralı gereği kullanıcıya sorulmadan eklenmez. Bu yüzden bildirimler şimdilik uygulama içi (zil + liste). Tercihler ve sessiz saatler push ile birlikte yapılacak.

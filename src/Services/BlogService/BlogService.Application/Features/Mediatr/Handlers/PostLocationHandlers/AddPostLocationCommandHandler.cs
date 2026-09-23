@@ -46,8 +46,8 @@ public sealed class AddPostLocationCommandHandler
             await _repository.SaveAsync(post, cancellationToken);
 
             _logger.LogInformation(
-                "📍 PostLocationAdded: PostId={PostId}, Lat={Lat}, Lon={Lon}, Name={Name}, Precision={Precision}",
-                command.PostId, lat, lon, locationName, command.Precision);
+                "📍 PostLocationAdded: PostId={PostId}, Precision={Precision}",
+                command.PostId, command.Precision);
 
             return Unit.Value; // <-- önemli
         }
