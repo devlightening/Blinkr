@@ -26,6 +26,8 @@ import { SegmentedControl } from '../ui/BlinkrSegmentedControl';
 import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
 import { SkeletonList } from '../ui/BlinkrSkeleton';
 import { FeedCard } from './FeedCard';
+import { ShareToChatSheet } from '../chat/ShareToChatSheet';
+import { signalShareOf, type SignalShare } from '../../chatExtras';
 
 type Props = {
   auth: AuthResponse;
@@ -63,14 +65,15 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
   const [storyCamera, setStoryCamera] = useState(false);
   const [trayKey, setTrayKey] = useState(0);
   const [storyNotice, setStoryNotice] = useState<string | null>(null);
+  const [sharing, setSharing] = useState<SignalShare | null>(null);
   const requests = useRef<Record<string, AbortController | undefined>>({});
   const likeBusy = useRef(new Set<string>());
   const refresh = useRef({ onAuthRefresh: onAuthChange, onSessionExpired: onLogout });
   refresh.current = { onAuthRefresh: onAuthChange, onSessionExpired: onLogout };
 
   useEffect(() => {
-    onOverlayOpenChange?.(Boolean(thread || person || storyView || storyCamera));
-  }, [thread, person, storyView, storyCamera, onOverlayOpenChange]);
+    onOverlayOpenChange?.(Boolean(thread || person || storyView || storyCamera || sharing));
+  }, [thread, person, storyView, storyCamera, sharing, onOverlayOpenChange]);
   useEffect(() => () => { Object.values(requests.current).forEach((c) => c?.abort()); onOverlayOpenChange?.(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const patch = (which: 'nearby' | 'following', next: Partial<FeedState>) =>
@@ -219,6 +222,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
             onLike={(target) => { void like(target); }}
             onOpenAuthor={(target) => { if (target.authorId) setPerson({ id: target.authorId, userName: target.authorName }); }}
             onOpenThread={setThread}
+            onShare={(target) => setSharing(signalShareOf(target))}
             onShowOnMap={(target) => { void showOnMap(target); }}
           />
         )}
@@ -246,6 +250,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
           </BlinkrSheetPanel>
         </Sheet>
       ) : null}
+      {sharing ? <ShareToChatSheet auth={auth} onClose={() => setSharing(null)} refresh={refresh.current} share={sharing} /> : null}
       {storyView ? (
         <StoryViewer auth={auth} authors={storyView.authors} onClose={() => { setStoryView(null); setTrayKey((k) => k + 1); }} refresh={refresh.current} startAuthorId={storyView.start} />
       ) : null}

@@ -6,6 +6,7 @@ import { resolveUploadContentType, safeUploadFileName } from './mediaContentType
 import { COMMENT_PAGE_SIZE, type CommentPage, type CommentSort } from './engagement';
 import { DISCOVER_PAGE_SIZE, DISCOVER_RADIUS_METERS, type DiscoverPage } from './discoverFeed';
 import type { Story, StoryTrayItem, StoryViewer } from './stories';
+import type { SignalShare } from './chatExtras';
 
 type NearbyPlacesResponse = Array<BlinkrPlace & { distanceMeters?: number }> & {
   coverageState?: string | null;
@@ -551,14 +552,23 @@ export const sendMessage = (
   text: string,
   onAuthRefresh?: (auth: AuthResponse) => void,
   onSessionExpired?: () => void,
+  extras: { clientId?: string; signal?: SignalShare } = {},
 ) =>
   requestJson<ChatMessage>(`/api/chat/conversations/${conversationId}/messages`, {
     auth,
-    body: { text },
+    body: { text, ...(extras.clientId ? { clientId: extras.clientId } : {}), ...(extras.signal ? { signal: extras.signal } : {}) },
     method: 'POST',
     onAuthRefresh,
     onSessionExpired,
   });
+
+/** Take back my own text or shared signal (Faz 8). */
+export const unsendMessage = (auth: AuthResponse, conversationId: string, messageId: string, refresh: Refresh = {}) =>
+  requestJson<ChatMessage>(`/api/chat/conversations/${conversationId}/messages/${messageId}`, { auth, method: 'DELETE', ...refresh });
+
+/** Set (or with null clear) my reaction on a message. */
+export const reactToMessage = (auth: AuthResponse, conversationId: string, messageId: string, emoji: string | null, refresh: Refresh = {}) =>
+  requestJson<ChatMessage>(`/api/chat/conversations/${conversationId}/messages/${messageId}/reaction`, { auth, body: { emoji }, method: 'PUT', ...refresh });
 
 export const markConversationRead = (
   auth: AuthResponse,

@@ -1,4 +1,4 @@
-import { EyeOff, Heart, MapPin, MessageCircle, Radio } from 'lucide-react-native';
+import { EyeOff, Heart, MapPin, MessageCircle, Radio, Send } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
@@ -19,13 +19,15 @@ type Props = {
   onOpenThread: (item: DiscoverItem) => void;
   onOpenAuthor?: (item: DiscoverItem) => void;
   onShowOnMap?: (item: DiscoverItem) => void;
+  /** Send it to a friend in chat (P8.7). */
+  onShare?: (item: DiscoverItem) => void;
 };
 
 /**
  * One signal in the Keşfet feed (sinyal-mvp-plan P7.3): who (or "Topluluk üyesi" for anonymous), what type and value,
  * how fresh, how far (coarse), the photo if any, and likes/comments. Still a place signal, not a free-form post.
  */
-export function FeedCard({ item, myUserId, onLike, onOpenThread, onOpenAuthor, onShowOnMap }: Props) {
+export function FeedCard({ item, myUserId, onLike, onOpenThread, onOpenAuthor, onShowOnMap, onShare }: Props) {
   const { t, i18n } = useTranslation('feed');
   const lang = i18n.language === 'en' ? 'en' : 'tr';
   const tone = signalColors[item.signalType] ?? colors.mint;
@@ -91,6 +93,11 @@ export function FeedCard({ item, myUserId, onLike, onOpenThread, onOpenAuthor, o
           <MessageCircle color={colors.text} size={20} />
           <Text style={styles.actionCount}>{formatCount(item.commentCount, lang)}</Text>
         </AnimatedPressable>
+        {onShare ? (
+          <AnimatedPressable accessibilityLabel="Sohbette paylaş" accessibilityRole="button" onPress={() => onShare(item)} pressScale={0.9} style={styles.action} testID={`feed-share-${item.id}`}>
+            <Send color={colors.text} size={19} />
+          </AnimatedPressable>
+        ) : null}
         {item.placeId && onShowOnMap ? (
           <AnimatedPressable accessibilityRole="button" onPress={() => onShowOnMap(item)} pressScale={0.95} style={[styles.action, styles.mapLink]}>
             <MapPin color={colors.textSecondary} size={16} />

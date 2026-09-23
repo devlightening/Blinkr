@@ -1,13 +1,22 @@
+import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, BackHandler, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ArrowLeft, Camera, MessageCircle, Send } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getMessages, markConversationRead, sendMessage } from '../../api';
+import { getMessages, markConversationRead, reactToMessage, sendMessage, unsendMessage } from '../../api';
+import { CHAT_REACTIONS, applyReaction, canReact, canUnsend, newClientId, nextReaction, reactionSummary, type SignalShare } from '../../chatExtras';
+import { signalLabels } from '../../presentation';
+import { signalValueLabel } from '../../productPresentation';
+
+import { Sheet } from '../Sheet';
+import { SignalSymbol } from '../SignalSymbol';
+import { SignalThreadPanel } from '../signal/SignalThreadPanel';
+import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
 import { friendlyError } from '../../productPresentation';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
-import { colors, radii, sizes, spacing, typography } from '../../theme';
+import { colors, radii, signalColors, sizes, spacing, typography } from '../../theme';
 import type { AuthResponse, ChatMessage, Conversation } from '../../types';
 import { Avatar } from '../Avatar';
 import { snapRow } from '../../snapPresentation';
@@ -44,6 +53,12 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
   const [isSending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pollInFlight = useRef(false);
+  const { t } = useTranslation('chat');
+  // The client id of a send that failed: retrying the same text reuses it, so the server never stores it twice.
+  const pendingClientId = useRef<string | null>(null);
+  const [actionFor, setActionFor] = useState<string | null>(null);
+  const [openSignal, setOpenSignal] = useState<SignalShare | null>(null);
+  const refresh = { onAuthRefresh: onAuthChange, onSessionExpired };
 
   // Android back returns to the conversation list, not out of the app or to the map.
   useEffect(() => {
@@ -88,7 +103,10 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
     setSending(true);
     setDraft('');
     try {
-      const sent = await sendMessage(auth, conversation.id, text, onAuthChange, onSessionExpired);
+      const clientId = pendingClientId.current ?? newClientId();
+      pendingClientId.current = clientId;
+      const sent = await sendMessage(auth, conversation.id, text, onAuthChange, onSessionExpired, { clientId });
+      pendingClientId.current = null;
       // A poll may already have returned the message; never show it twice.
       setMessages((prev) => (prev.some((message) => message.id === sent.id) ? prev : [sent, ...prev]));
       setError(null);
@@ -101,6 +119,61 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
   };
 
   const canSend = draft.trim().length > 0 && !isSending;
+
+  const replace = (next: ChatMessage) => setMessages((prev) => prev.map((m) => (m.id === next.id ? next : m)));
+
+  const react = async (message: ChatMessage, pressed: string) => {
+    setActionFor(null);
+    const emoji = nextReaction(message.reactions, auth.userId, pressed);
+    const before = message.reactions ?? [];
+    replace({ ...message, reactions: applyReaction(before, auth.userId, emoji) });
+    try {
+      replace(await reactToMessage(auth, conversation.id, message.id, emoji, refresh));
+    } catch {
+      replace({ ...message, reactions: before });
+      setError(t('extras.reactFailed'));
+    }
+  };
+
+  const unsend = async (message: ChatMessage) => {
+    setActionFor(null);
+    try {
+      replace(await unsendMessage(auth, conversation.id, message.id, refresh));
+    } catch {
+      setError(t('extras.unsendFailed'));
+    }
+  };
+
+  const reactionRow = (item: ChatMessage) => {
+    const summary = reactionSummary(item.reactions, auth.userId);
+    const open = actionFor === item.id;
+    if (!summary.length && !open) return null;
+    return (
+      <View style={styles.reactionBlock}>
+        {summary.length ? (
+          <View style={styles.reactionRow}>
+            {summary.map((entry) => (
+              <Text key={entry.emoji} style={[styles.reactionChip, entry.mine && styles.reactionMine]}>{entry.emoji}{entry.count > 1 ? ` ${entry.count}` : ''}</Text>
+            ))}
+          </View>
+        ) : null}
+        {open ? (
+          <View accessibilityLabel={t('extras.actions')} style={styles.actionRow}>
+            {CHAT_REACTIONS.map((emoji) => (
+              <AnimatedPressable accessibilityLabel={t('extras.react', { emoji })} accessibilityRole="button" key={emoji} onPress={() => { void react(item, emoji); }} pressScale={0.85} style={styles.emojiButton}>
+                <Text style={styles.emoji}>{emoji}</Text>
+              </AnimatedPressable>
+            ))}
+            {canUnsend(item, auth.userId) ? (
+              <AnimatedPressable accessibilityRole="button" onPress={() => { void unsend(item); }} pressScale={0.95} style={styles.unsendButton}>
+                <Text style={styles.unsendText}>{t('extras.unsend')}</Text>
+              </AnimatedPressable>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+    );
+  };
 
   return <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.screen}>
     <View style={[styles.bar, { paddingTop: insets.top + spacing.sm }]}>
@@ -154,20 +227,62 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
               <AnimatedPressable accessibilityLabel={`${snap.title}, ${snap.status}`} accessibilityRole="button" onPress={() => onOpenSnap(item.id)} pressScale={0.99} style={styles.snapLine}>{content}</AnimatedPressable>
             ) : <View accessibilityLabel={`${snap.title}, ${snap.status}`} style={styles.snapLine}>{content}</View>;
           }
+          const share = item.kind === 'signal' ? item.signal ?? null : null;
+          const shareTone = share ? signalColors[share.signalType as keyof typeof signalColors] ?? colors.mint : colors.mint;
           return (
-            <View style={styles.line}>
-              <View style={[styles.lineBar, { backgroundColor: tone }]} />
-              <View style={styles.lineBody}>
-                {startsRun ? <Text style={[styles.label, { color: tone }]}>{isMine ? 'Ben' : otherUserName}</Text> : null}
-                <Text style={styles.lineText}>{item.text}</Text>
-              </View>
-              <Text style={styles.lineTime}>{formatClock(item.createdAtUtc)}</Text>
+            <View>
+              <AnimatedPressable
+                accessibilityHint={canReact(item) ? t('extras.actions') : undefined}
+                accessibilityRole={canReact(item) ? 'button' : undefined}
+                delayLongPress={300}
+                disabled={!canReact(item)}
+                onLongPress={() => setActionFor(actionFor === item.id ? null : item.id)}
+                onPress={() => { if (share) setOpenSignal(share); else if (actionFor) setActionFor(null); }}
+                pressScale={0.99}
+                style={styles.line}
+                testID={`message-${item.id}`}
+              >
+                <View style={[styles.lineBar, { backgroundColor: tone }]} />
+                <View style={styles.lineBody}>
+                  {startsRun ? <Text style={[styles.label, { color: tone }]}>{isMine ? 'Ben' : otherUserName}</Text> : null}
+                  {item.kind === 'unsent' ? <Text style={styles.unsent}>{t('extras.unsent')}</Text> : null}
+                  {share ? (
+                    <View accessibilityLabel={t('extras.openSignal')} style={[styles.shareCard, { borderColor: shareTone }]}>
+                      <SignalSymbol color={shareTone} size={18} type={share.signalType as never} />
+                      <View style={styles.shareCopy}>
+                        <Text numberOfLines={1} style={[styles.shareType, { color: shareTone }]}>
+                          {signalLabels[share.signalType as keyof typeof signalLabels] ?? t('extras.signalShared')}{signalValueLabel(share.signalType as never, share.signalValue) ? ` · ${signalValueLabel(share.signalType as never, share.signalValue)}` : ''}
+                        </Text>
+                        {share.title ? <Text numberOfLines={1} style={styles.lineText}>{share.title}</Text> : null}
+                        {share.locationName ? <Text numberOfLines={1} style={styles.snapStatus}>{share.locationName}</Text> : null}
+                      </View>
+                    </View>
+                  ) : null}
+                  {item.kind !== 'unsent' && item.text ? <Text style={styles.lineText}>{item.text}</Text> : null}
+                </View>
+                <Text style={styles.lineTime}>{formatClock(item.createdAtUtc)}</Text>
+              </AnimatedPressable>
+              {reactionRow(item)}
             </View>
           );
         }}
         showsVerticalScrollIndicator={false}
       />
     )}
+
+    {openSignal ? (
+      <Sheet onClose={() => setOpenSignal(null)}>
+        <BlinkrSheetPanel maxHeightRatio={0.92}>
+          <SignalThreadPanel
+            auth={auth}
+            header={<Text style={styles.lineText}>{openSignal.title || signalLabels[openSignal.signalType as keyof typeof signalLabels] || t('extras.signalShared')}</Text>}
+            onClose={() => setOpenSignal(null)}
+            postId={openSignal.postId}
+            refresh={refresh}
+          />
+        </BlinkrSheetPanel>
+      </Sheet>
+    ) : null}
 
     {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
 
@@ -225,6 +340,19 @@ const styles = StyleSheet.create({
   snapStatus: { ...typography.caption, color: colors.textSecondary, flex: 1 },
   snapTime: { ...typography.micro, color: colors.textSecondary, fontWeight: '400' },
   error: { ...typography.caption, color: colors.danger, paddingBottom: 6, paddingHorizontal: spacing.md },
+  unsent: { ...typography.body, color: colors.textSecondary, fontStyle: 'italic' },
+  shareCard: { alignItems: 'center', borderLeftWidth: 3, borderRadius: radii.sm, flexDirection: 'row', gap: spacing.sm, marginTop: 2, paddingHorizontal: spacing.sm, paddingVertical: 6 },
+  shareCopy: { flex: 1 },
+  shareType: { ...typography.label },
+  reactionBlock: { gap: 4, marginLeft: spacing.md + 3, marginTop: 2 },
+  reactionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  reactionChip: { ...typography.caption, backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, color: colors.text, overflow: 'hidden', paddingHorizontal: 8, paddingVertical: 2 },
+  reactionMine: { borderColor: colors.primary, borderWidth: 1 },
+  actionRow: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, flexDirection: 'row', flexWrap: 'wrap', gap: 2, paddingHorizontal: 6, paddingVertical: 2 },
+  emojiButton: { alignItems: 'center', height: 40, justifyContent: 'center', width: 40 },
+  emoji: { fontSize: 22 },
+  unsendButton: { justifyContent: 'center', minHeight: 40, paddingHorizontal: spacing.sm },
+  unsendText: { ...typography.label, color: colors.danger },
   inputBar: { alignItems: 'flex-end', borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md, paddingTop: spacing.sm },
   input: { ...typography.body, backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.xl, borderWidth: 1, color: colors.text, flex: 1, maxHeight: 120, minHeight: sizes.touch - 4, paddingHorizontal: 14, paddingVertical: 9 },
   sendButton: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: radii.pill, height: sizes.touch - 4, justifyContent: 'center', width: sizes.touch - 4 },

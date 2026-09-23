@@ -696,7 +696,7 @@ async function main() {
     await page.getByRole('button', { name: 'Hikaye ekle' }).click();
     await expect(page.getByRole('button', { name: 'Fotoğraf çek' })).toBeEnabled();
     await page.getByRole('button', { name: 'Fotoğraf çek' }).click();
-    await page.getByRole('button', { name: 'Paylaş' }).click();
+    await page.getByRole('button', { name: 'Paylaş', exact: true }).click();
     await expect(page.getByText('Hikayen 24 saat takipçilerine görünür.')).toBeVisible();
     await page.getByRole('button', { name: 'Hikayen', exact: true }).click();
     await expect(page.getByText('1 görüntüleme')).toBeVisible();
@@ -707,6 +707,14 @@ async function main() {
     await page.getByRole('button', { name: 'Evet, sil' }).click();
     await expect(page.getByTestId('story-viewer')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Hikaye ekle' })).toBeVisible();
+    // P8.7: send a feed signal to a friend in chat (link + summary, no author).
+    await page.goto(url + '?scene=discover');
+    await page.getByTestId('feed-share-n-1').click();
+    await expect(page.getByRole('heading', { name: 'Sohbette paylaş' })).toBeVisible();
+    await page.getByRole('button', { name: 'zeynep: Paylaş' }).click();
+    await expect(page.getByText('zeynep kişisine gönderildi.')).toBeVisible();
+    const lastShare = await page.evaluate(() => window.__lastShare);
+    if (!lastShare || lastShare.postId !== 'n-1' || 'authorName' in lastShare || 'authorId' in lastShare) throw new Error('share payload wrong: ' + JSON.stringify(lastShare));
     await page.goto(url + '?scene=discover&nofollowing');
     await page.getByRole('tab', { name: 'Takip' }).click();
     await expect(page.getByText('Takip akışın boş')).toBeVisible();
@@ -881,6 +889,17 @@ async function main() {
     await expect(page.getByText('Deneme mesajı')).toBeVisible();
     await expect(page.getByLabel('Mesaj yaz')).toHaveValue('');
     await page.screenshot({ path: path.join(out, 'conversation.png') });
+    // Faz 8: long-press a message for reactions; my own can be taken back.
+    await page.goto(url + '?scene=conversation');
+    await page.getByTestId('message-m3').hover();
+    await page.mouse.down(); await page.waitForTimeout(500); await page.mouse.up();
+    await page.getByRole('button', { name: '❤️ tepkisi' }).click();
+    await expect(page.getByText('❤️', { exact: true })).toBeVisible();
+    await page.getByTestId('message-m4').hover();
+    await page.mouse.down(); await page.waitForTimeout(500); await page.mouse.up();
+    await page.getByRole('button', { name: 'Geri al' }).click();
+    await expect(page.getByText('Mesaj geri alındı')).toBeVisible();
+    await expect(page.getByText('Tamam, geliyorum.')).toHaveCount(0);
     await page.goto(url + '?scene=conversation&sendfail');
     await page.getByLabel('Mesaj yaz').fill('Gitmeyecek');
     await page.getByRole('button', { name: 'Gönder' }).click();

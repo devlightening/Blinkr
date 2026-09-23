@@ -7,8 +7,8 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz 8 — sohbet yenileme |
-| Son tamamlanan görev | P8.1 (sohbet backend ekleri) |
+| Aktif faz | Faz 9 — bildirimler |
+| Son tamamlanan görev | P8.7 (sinyali sohbete paylaş) — Faz 8 kapandı |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
 
@@ -218,14 +218,14 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 ## Faz 8 — Sohbet yenileme
 
 - [~] P8.1 Backend: konuşma/mesaj/okundu/snap zaten vardı; eklendi: `clientId` ile idempotent gönderim, `kind: signal` sinyal paylaşımı (bağlantı + görüntü özeti, yazar yok), `DELETE .../messages/{id}` geri alma (yalnız gönderen, snap hariç), `PUT .../reaction` (sabit 6 emoji, kişi başı bir). Kanıt: BLK-CHAT-02 (14 kontrol) PASS. **Ertelendi:** mesaj istekleri klasörü ve dm_policy (arkadaş dışından mesaj bugün de açık, engel korumalı).
-- [ ] P8.2 Konuşma listesi: Snapchat durum ikonları, okunmamış, mesaj istekleri, hızlı kamera, kaydırma eylemleri
-- [ ] P8.3 Sohbet ekranı: balonlar, gruplama, gün ayırıcı, okundu, yazıyor, çevrimiçi
-- [ ] P8.4 Mesaj tipleri: text, snap, media, signal_share (SharedSignalBubble), story_reply, system
-- [ ] P8.5 Mesaj eylemleri: tepki, yanıtla (alıntı), kopyala, geri al, bildir
-- [ ] P8.6 Snap görüntüleyici (tek sefer, 10 sn), ekran görüntüsü bildirimi
-- [ ] P8.7 Sinyali sohbete paylaş (karttan ve detaydan)
-- [ ] P8.8 Yeni sohbet (kişi seçici), mesaj izni yoksa istek olarak gönderim
-- [ ] P8.9 Mevcut sohbet verisinin yeni yapıya geçişi
+- [~] P8.2 Snapchat durum ikonları, okunmamış, hızlı kamera zaten vardı; liste artık "Sinyal paylaştı"/"Mesaj geri alındı" önizlemesini gösteriyor. Mesaj istekleri ve kaydırma eylemleri yok.
+- [-] P8.3 Balonlar — bilinçli olarak mevcut balonsuz Snapchat satır düzeni korunuyor (kök CLAUDE.md §12.1, kullanıcının önceki tasarım kararı); "yazıyor/çevrimiçi" realtime gerektirir (D-005).
+- [x] P8.4 text, snap (vardı), **signal** (paylaşılan sinyal kartı, dokununca yorum/beğeni paneli), unsent; hikaye yanıtı düz metin DM olarak.
+- [~] P8.5 Uzun basma: 6 sabit tepki (kişi başı bir, aynısına basınca kalkar) ve kendi mesajını geri alma (iyimser + geri alma). Alıntılı yanıt/kopyala yok; bildirme profil üzerinden.
+- [x] P8.6 Snap görüntüleyici zaten vardı (tek sefer, süre, Android ekran görüntüsü engeli). Ekran görüntüsü bildirimi yok (iOS engellenemez, bildirim güvenilir değil).
+- [x] P8.7 Keşfet kartından "Sohbette paylaş" → arkadaş seç → sinyal mesajı (bağlantı + özet, yazar yok, `clientId` ile çift gönderim yok).
+- [~] P8.8 Yeni sohbet kişi seçici zaten vardı; mesaj isteği klasörü yok (D-011).
+- [x] P8.9 Göç gerekmedi: yeni alanlar isteğe bağlı, eski mesajlar olduğu gibi okunuyor.
 
 ## Faz 9 — Bildirimler
 

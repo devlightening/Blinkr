@@ -162,11 +162,23 @@ export const getPlacesByIds = async (ids: string[]) => {
 };
 let sent: ChatMessage[] = [];
 export const getMessages = async () => ({ items: flag('emptychat') ? [] : [...sent, ...chatMessages] });
-export const sendMessage = async (_auth: unknown, conversationId: string, text: string): Promise<ChatMessage> => {
+export const sendMessage = async (_auth: unknown, conversationId: string, text: string, _r?: unknown, _e?: unknown, extras: { clientId?: string; signal?: ChatMessage['signal'] } = {}): Promise<ChatMessage> => {
   if (flag('sendfail')) throw new Error('Network request failed');
-  const message = { id: `sent-${sent.length}`, conversationId, senderId: 'qa', text, createdAtUtc: new Date().toISOString(), isRead: false };
+  const message: ChatMessage = { id: `sent-${sent.length}`, conversationId, senderId: 'qa', text, createdAtUtc: new Date().toISOString(), isRead: false, kind: extras.signal ? 'signal' : 'text', signal: extras.signal ?? null, clientId: extras.clientId ?? null, reactions: [] };
   sent = [message, ...sent];
+  if (typeof window !== 'undefined') (window as unknown as { __lastShare?: unknown }).__lastShare = extras.signal ?? null;
   return message;
+};
+const allMessages = () => [...sent, ...chatMessages];
+export const reactToMessage = async (_auth: unknown, _c: string, messageId: string, emoji: string | null) => {
+  const message = allMessages().find((m) => m.id === messageId)!;
+  message.reactions = [...(message.reactions ?? []).filter((r) => r.userId !== 'qa'), ...(emoji ? [{ userId: 'qa', emoji }] : [])];
+  return { ...message };
+};
+export const unsendMessage = async (_auth: unknown, _c: string, messageId: string) => {
+  const message = allMessages().find((m) => m.id === messageId)!;
+  message.kind = 'unsent'; message.text = ''; message.signal = null; message.reactions = [];
+  return { ...message };
 };
 export const markConversationRead = async () => {};
 

@@ -1,5 +1,24 @@
 {
   "title": "Chats",
-  "empty": { "title": "No messages yet", "description": "Find someone and start talking." },
-  "newMessage": "New message"
+  "empty": {
+    "title": "No messages yet",
+    "description": "Find someone and start talking."
+  },
+  "newMessage": "New message",
+  "extras": {
+    "signalShared": "Shared a signal",
+    "openSignal": "Open signal",
+    "unsent": "Message unsent",
+    "unsend": "Unsend",
+    "actions": "Message options",
+    "react": "React {{emoji}}",
+    "reactFailed": "Couldn't save the reaction.",
+    "unsendFailed": "Couldn't unsend the message.",
+    "shareTitle": "Share in chat",
+    "shareHint": "A link and a summary go; the poster's name does not.",
+    "shareSent": "Sent to {{name}}.",
+    "shareFailed": "Couldn't send. Try again.",
+    "noFriends": "Add a friend first to share in chat.",
+    "share": "Share"
+  }
 }

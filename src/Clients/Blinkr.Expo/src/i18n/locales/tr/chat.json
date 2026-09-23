@@ -1,5 +1,24 @@
 {
   "title": "Sohbetler",
-  "empty": { "title": "Henüz mesajın yok", "description": "Bir kullanıcı bul ve konuşmaya başla." },
-  "newMessage": "Yeni mesaj"
+  "empty": {
+    "title": "Henüz mesajın yok",
+    "description": "Bir kullanıcı bul ve konuşmaya başla."
+  },
+  "newMessage": "Yeni mesaj",
+  "extras": {
+    "signalShared": "Sinyal paylaştı",
+    "openSignal": "Sinyali aç",
+    "unsent": "Mesaj geri alındı",
+    "unsend": "Geri al",
+    "actions": "Mesaj seçenekleri",
+    "react": "{{emoji}} tepkisi",
+    "reactFailed": "Tepki kaydedilemedi.",
+    "unsendFailed": "Mesaj geri alınamadı.",
+    "shareTitle": "Sohbette paylaş",
+    "shareHint": "Sinyal bağlantısı ve özeti gider; paylaşanın adı gitmez.",
+    "shareSent": "{{name}} kişisine gönderildi.",
+    "shareFailed": "Gönderilemedi. Tekrar dene.",
+    "noFriends": "Sohbette paylaşmak için önce arkadaş ekle.",
+    "share": "Paylaş"
+  }
 }

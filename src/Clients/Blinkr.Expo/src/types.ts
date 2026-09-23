@@ -305,8 +305,12 @@ export type ChatMessage = {
   text: string;
   createdAtUtc: string;
   isRead: boolean;
-  kind?: 'text' | 'snap';
+  kind?: 'text' | 'snap' | 'signal' | 'unsent';
   snap?: SnapInfo | null;
+  /** Faz 8: a shared signal (link + snapshot, never its author). */
+  signal?: import('./chatExtras').SignalShare | null;
+  reactions?: import('./chatExtras').ChatReaction[] | null;
+  clientId?: string | null;
 };
 
 export const ISTANBUL_REGION: Region = {

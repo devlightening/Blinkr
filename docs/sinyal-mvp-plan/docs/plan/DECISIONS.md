@@ -15,6 +15,11 @@
 
 ## Kararlar
 
+### D-011 — Faz 8: mesaj istekleri klasörü ve dm_policy ertelendi; satır düzeni korunuyor (2026-09-23)
+- Bağlam: Plan "mesaj izni yoksa istek olarak gönderim" ve balonlu sohbet istiyor.
+- Karar: Bugünkü davranış korunuyor: herkes herkese mesaj başlatabilir, engel her iki yönde kapatır (BLK-SAFETY-01). İstek klasörü ve gizlilik ayarı ayrı bir iş olarak kalıyor. Sohbet ekranı kullanıcının daha önce seçtiği balonsuz Snapchat satır düzeninde kalıyor.
+- Gerekçe: İstek klasörü okunmamış sayacı, bildirim ve sohbet listesi davranışını birlikte değiştirir; bu faz sinyal paylaşımı/tepki/geri alma ile sınırlı tutuldu.
+
 ### D-010 — Faz 6 kalanları ertelendi: kullanıcı adı değiştirme, QR/derin link, güven puanı (2026-09-23)
 - Bağlam: P6.7'nin kullanıcı adı/şehir/bağlantı kısmı, P6.9 profil paylaşımı ve P6.10 güven/seviye/rozetler.
 - Karar: Ertelendi. Kullanıcı adı JWT içinde ve eski gönderilerde yazar adı olarak kopyalanıyor; değiştirmek oturum yenileme ve read model güncellemesi ister. QR/derin link için uygulama henüz bağlantı şeması ve yönlendirme işlemiyor (Faz 9 P9.4). Güven puanı/seviye sunucuda hesaplanmıyor; kök CLAUDE.md §12.1 gereği karşılığı olmayan puan/rozet gösterilmez.
