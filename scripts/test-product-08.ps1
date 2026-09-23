@@ -8,7 +8,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Policy/catalog tests failed.' }
     & dotnet run --project tests/ContentFilter/ContentFilter.csproj
     if ($LASTEXITCODE -ne 0) { throw 'Text filter unit tests failed.' }
-    foreach ($script in @('test-place-posting-real-catalog', 'test-nearby-distance-contract', 'test-nearby-place-ux-core', 'test-location-map-core', 'test-place-live-signal', 'test-content-media-smoke', 'test-auth-gateway-smoke', 'test-auth-registration', 'test-avatar', 'test-friends', 'test-safety', 'test-place-batch', 'test-place-search', 'test-chat-smoke', 'test-snap-smoke', 'test-author-posts-privacy', 'test-post-engagement', 'test-sensitive-place', 'test-media-privacy', 'test-follows', 'test-saved-places', 'test-discover', 'test-stories', 'test-chat-plus', 'test-notifications', 'test-log-privacy', 'test-text-filter', 'test-moderation')) {
+    foreach ($script in @('test-place-posting-real-catalog', 'test-nearby-distance-contract', 'test-nearby-place-ux-core', 'test-location-map-core', 'test-place-live-signal', 'test-content-media-smoke', 'test-auth-gateway-smoke', 'test-auth-registration', 'test-avatar', 'test-friends', 'test-safety', 'test-place-batch', 'test-place-search', 'test-chat-smoke', 'test-snap-smoke', 'test-author-posts-privacy', 'test-post-engagement', 'test-sensitive-place', 'test-media-privacy', 'test-follows', 'test-saved-places', 'test-discover', 'test-stories', 'test-chat-plus', 'test-notifications', 'test-log-privacy', 'test-text-filter', 'test-moderation', 'test-authz')) {
         & powershell -ExecutionPolicy Bypass -File "scripts/$script.ps1"
         if ($LASTEXITCODE -ne 0) { throw "$script failed." }
     }

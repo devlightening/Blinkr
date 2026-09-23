@@ -16,6 +16,15 @@ public class ExceptionMiddleware
     public async Task InvokeAsync(HttpContext context)
     {
         try { await _next(context); }
+        catch (UnauthorizedAccessException ex) when (!context.Response.HasStarted)
+        {
+            // A handler refused the caller (e.g. editing someone else's post): 403, not a server error (Faz 10 P10.9).
+            _logger.LogWarning("Forbidden: {Reason}. TraceId: {TraceId}", ex.Message, context.TraceIdentifier);
+            context.Response.Clear();
+            context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(JsonSerializer.Serialize(new { code = "FORBIDDEN", message = "Bu işlem için yetkin yok.", traceId = context.TraceIdentifier }));
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception. TraceId: {TraceId}", context.TraceIdentifier);

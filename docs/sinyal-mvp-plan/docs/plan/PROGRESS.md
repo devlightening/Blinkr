@@ -7,7 +7,7 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz 10 — güvenlik, gizlilik, moderasyon |
+| Aktif faz | Faz 10 — güvenlik, gizlilik, moderasyon (kalan: P10.10, P10.7, P10.6 — bkz. `HANDOFF_2026-09-23b.md`) |
 | Son tamamlanan görev | P9.3 (bildirim ekranı) — Faz 9 kapandı |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
@@ -247,7 +247,7 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 - [ ] P10.6 18 yaş altı varsayılanları
 - [ ] P10.7 Hesap silme (2 adım, 30 gün, purge işi) + geri alma; veri indirme talebi
 - [x] P10.8 Konum gizliliği denetimi — ~30 log satırından koordinat çıkarıldı, çerçeve istek/HttpClient/YARP logları Warning, kapsama anahtarı logda tek yönlü kimlik; ev bulanıklaştırma mevcut ~110 m ızgara (D-013). Kanıt: `test-log-privacy.ps1` (BLK-LOGPRIV-01) PASS; önce eski servislerde sızıntıyı yakaladığı görüldü.
-- [ ] P10.9 Yetkilendirme test paketi (başkasının kaynağına erişim denemeleri)
+- [x] P10.9 Yetkilendirme test paketi — `test-authz.ps1` (BLK-AUTHZ-01): gönderi/yorum, gizli hesap, hikâye, sohbet/snap, engel, kişisel listeler, admin, sahte token. Bulunan hata: başkasının gönderisini düzenleme/silme 500 dönüyordu → 403 `FORBIDDEN` (BlogService `ExceptionMiddleware`).
 - [ ] P10.10 Topluluk kuralları, kullanım şartları, gizlilik politikası ekranları (metinler yer tutucu + hukuki inceleme notu)
 
 ## Faz 11 — i18n, erişilebilirlik, performans, analitik
