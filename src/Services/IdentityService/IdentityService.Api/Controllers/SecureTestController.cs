@@ -9,7 +9,12 @@ using System.Security.Claims;
 namespace IdentityService.Api.Controllers
 {
     public record UserSummaryDto(Guid Id, string UserName, string? AvatarKey = null, string Relation = "none");
-    public record PublicProfileDto(Guid Id, string UserName, string? AvatarKey, string? Bio, DateTime JoinedAtUtc, string Relation);
+    /// <summary>
+    /// Public profile. Follower/following counts are public (sinyal-mvp-plan pivot, kök CLAUDE.md §2.3); the friend list
+    /// and friend count never are. <c>CanSeeContent</c> is false for a private account the viewer does not follow.
+    /// </summary>
+    public record PublicProfileDto(Guid Id, string UserName, string? AvatarKey, string? Bio, DateTime JoinedAtUtc, string Relation,
+        int FollowerCount = 0, int FollowingCount = 0, string Follow = "none", bool FollowsYou = false, bool IsPrivate = false, bool CanSeeContent = true);
     public record SetAvatarRequest(string? AvatarKey);
     public record SetProfileRequest(string? Bio);
 
@@ -47,6 +52,10 @@ namespace IdentityService.Api.Controllers
 
             user.FriendCount = await _db.Friendships.CountAsync(f => f.Status == FriendshipStatus.Accepted && (f.UserAId == userId || f.UserBId == userId));
             user.IncomingRequestCount = await _db.Friendships.CountAsync(f => f.Status == FriendshipStatus.Pending && f.AddresseeId == userId);
+            user.FollowerCount = await FollowQueries.FollowersAsync(_db, userId);
+            user.FollowingCount = await FollowQueries.FollowingAsync(_db, userId);
+            user.FollowRequestCount = await _db.Follows.CountAsync(f => f.FolloweeId == userId && f.Status == FollowStatus.Pending);
+            user.IsPrivate = await _db.Users.Where(u => u.Id == userId).Select(u => u.IsPrivate).FirstOrDefaultAsync();
             return Ok(user);
         }
 
@@ -127,7 +136,7 @@ namespace IdentityService.Api.Controllers
         public async Task<IActionResult> GetById(Guid id)
         {
             var user = await _db.Users.Where(u => u.Id == id)
-                .Select(u => new { u.Id, u.UserName, u.AvatarKey, u.Bio, u.CreatedAt })
+                .Select(u => new { u.Id, u.UserName, u.AvatarKey, u.Bio, u.CreatedAt, u.IsPrivate })
                 .FirstOrDefaultAsync();
 
             if (user is null) return NotFound();
@@ -135,10 +144,14 @@ namespace IdentityService.Api.Controllers
             // Somebody who blocked me does not exist as far as I can tell; somebody I blocked shows as blocked so I can undo it.
             var iBlocked = me != Guid.Empty && await _db.UserBlocks.AnyAsync(b => b.BlockerId == me && b.BlockedId == id);
             if (!iBlocked && me != Guid.Empty && me != id && await BlockQueries.BetweenAsync(_db, me, id)) return NotFound();
-            if (iBlocked) return Ok(new PublicProfileDto(user.Id, user.UserName, user.AvatarKey, null, user.CreatedAt, Relation.Blocked));
+            if (iBlocked) return Ok(new PublicProfileDto(user.Id, user.UserName, user.AvatarKey, null, user.CreatedAt, Relation.Blocked, CanSeeContent: false));
             var rows = await RowsAsync(me, new List<Guid> { id });
+            var myFollow = me == Guid.Empty ? null : await _db.Follows.FirstOrDefaultAsync(f => f.FollowerId == me && f.FolloweeId == id);
+            var followsYou = me != Guid.Empty && await _db.Follows.AnyAsync(f => f.FollowerId == id && f.FolloweeId == me && f.Status == FollowStatus.Accepted);
             // Public profile: no e-mail, no friend list, no friend count. Only what the person chose to show.
-            return Ok(new PublicProfileDto(user.Id, user.UserName, user.AvatarKey, user.Bio, user.CreatedAt, Relation.Of(me, id, rows.GetValueOrDefault(id))));
+            return Ok(new PublicProfileDto(user.Id, user.UserName, user.AvatarKey, user.Bio, user.CreatedAt, Relation.Of(me, id, rows.GetValueOrDefault(id)),
+                await FollowQueries.FollowersAsync(_db, id), await FollowQueries.FollowingAsync(_db, id),
+                me == id ? "self" : FollowState.Of(myFollow), followsYou, user.IsPrivate, await FollowQueries.CanSeeAsync(_db, me, id)));
         }
 
         private Guid ViewerId() => Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : Guid.Empty;

@@ -15,6 +15,25 @@
 
 ## Kararlar
 
+### D-009 — Takip, arkadaşlığın yanına eklendi (yerine geçmedi); gizli hesap (2026-09-23)
+- Bağlam: Plan (06 §4) "Arkadaş = karşılıklı takip, ayrı tablo yok" diyor. Mevcut sistemde onaylı, karşılıklı
+  `Friendship` tablosu var ve sohbet/snap/arama bunun üzerine kurulu (kök CLAUDE.md §2.2). Arkadaşlığı takibe
+  çevirmek mevcut veriyi dönüştüren (yıkıcı) bir göç olurdu.
+- Seçenekler: (A) Arkadaşlığı sil, karşılıklı takibe göç et. (B) Takibi ayrı, tek yönlü ilişki olarak ekle;
+  arkadaşlık sohbet/snap için aynen kalsın.
+- Karar: (B). Yeni `Follows` tablosu (Pending/Accepted) + `Users.IsPrivate` (EF göçü yalnız ekleme yapar).
+  Takip konum paylaşmaz, haritada kimin neyi göreceğini değiştirmez. Gizli hesapta profil ızgarası ve
+  takipçi/takip listeleri yalnız onaylı takipçilere açık; bu kural **sunucuda**: Identity
+  `GET /api/follows/visibility/{id}`, BlogService `posts-read/author/{id}` bunu kullanıcının kendi token'ıyla
+  sorar ve cevap alamazsa kapalı başarısız olur (503). Engel her iki yöndeki takipleri siler. Takipçi/takip
+  **sayıları** herkese açık (pivot §2.3); arkadaş listesi ve sayısı hâlâ kimseye gösterilmez.
+- Gerekçe: Veri silmeden ilerlemek (00_START_HERE: yıkıcı göç için kullanıcıya sorulur), mevcut sohbet/snap
+  güvenliğini bozmamak.
+- Etki: Kabul testi `test-follows.ps1` (BLK-FOLLOW-01, 30 kontrol). Bilinen açık: herkese açık
+  `GET /api/posts-read?authorId=` listesi gizli hesap kuralını uygulamıyor — gizli hesabın sinyalleri zaten
+  haritada herkese açık (anayasa: map-first), bu yüzden ızgara kilidi bir profil gizliliği, içerik gizliliği değil.
+  Sinyal başına "yalnız takipçiler" görünürlüğü yok (ayrı iş).
+
 ### D-008 — Faz 5 kapanışı: arka plan yükleme kuyruğu ve kopya birleştirme ertelendi (2026-09-23)
 - Bağlam: P5.10 (çevrimdışı yükleme kuyruğu, taslak saklama, gecikmeli sinyal) ve P5.12 (kopya sinyal
   birleştirme UI'ı) kalan iki madde.

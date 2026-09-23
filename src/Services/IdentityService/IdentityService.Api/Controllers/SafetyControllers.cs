@@ -83,6 +83,9 @@ namespace IdentityService.Api.Controllers
                 var (a, b) = Friendship.Pair(me, request.UserId);
                 var friendship = await _db.Friendships.FirstOrDefaultAsync(f => f.UserAId == a && f.UserBId == b);
                 if (friendship is not null) _db.Friendships.Remove(friendship);
+                // Blocking ends following in both directions too (and any waiting follow request).
+                var follows = await _db.Follows.Where(f => (f.FollowerId == me && f.FolloweeId == request.UserId) || (f.FollowerId == request.UserId && f.FolloweeId == me)).ToListAsync();
+                _db.Follows.RemoveRange(follows);
                 try { await _db.SaveChangesAsync(); }
                 catch (DbUpdateException) { _db.ChangeTracker.Clear(); /* a parallel block won the race: same outcome */ }
             }

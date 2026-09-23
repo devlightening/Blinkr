@@ -21,5 +21,10 @@ namespace IdentityService.Application.Interfaces
         public string? Bio { get; set; }
         public int FriendCount { get; set; }
         public int IncomingRequestCount { get; set; }
+        public int FollowerCount { get; set; }
+        public int FollowingCount { get; set; }
+        /// <summary>People waiting for me to approve their follow (private account).</summary>
+        public int FollowRequestCount { get; set; }
+        public bool IsPrivate { get; set; }
     }
 }

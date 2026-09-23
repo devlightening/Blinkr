@@ -8,7 +8,7 @@
 | Alan | Değer |
 |---|---|
 | Aktif faz | Faz 6 — profil, takip, kaydedilenler |
-| Son tamamlanan görev | P5.11 (galeri 2 saat kuralı) — Faz 5 kapandı |
+| Son tamamlanan görev | P6.1 (takip backend) |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
 
@@ -192,7 +192,7 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 
 ## Faz 6 — Profil, takip, kaydedilenler
 
-- [ ] P6.1 Backend: follow/unfollow/istek/kabul/red, takipçi çıkar, block, mute, öneriler, arama (trigram), user_stats sayaçları
+- [~] P6.1 Backend (IdentityService, D-009): takip/bırak/istek/kabul/red, takipçi çıkar, gizli hesap, takipçi/takip listeleri (sayfalı, engel süzmeli, gizlilikte kapalı), sayaçlar, engel takipleri siler, BlogService yazar listesi sunucuda gizlilik kontrollü. Kanıt: BLK-FOLLOW-01 (30 kontrol) PASS. **Ertelendi:** sessize alma (mute), öneriler, trigram arama (mevcut ILIKE arama kalıyor).
 - [ ] P6.2 Kendi profil ekranı: üst bölüm, sayaçlar, güven/seviye, bio, butonlar, rozetler şeridi
 - [ ] P6.3 ProfileTabs: Izgara (3 sütun, rozetler, halka, soluk sona erenler, metin kareleri), Harita sekmesi, Kaydedilenler, Doğrulamalar
 - [ ] P6.4 Başka kullanıcı profili: FollowButton durumları, Mesaj, ortak takipçiler, gizli hesap kilidi, ⋯ menüsü

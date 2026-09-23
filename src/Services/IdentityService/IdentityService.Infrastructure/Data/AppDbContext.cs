@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<Friendship> Friendships => Set<Friendship>();
     public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
     public DbSet<Report> Reports => Set<Report>();
+    public DbSet<Follow> Follows => Set<Follow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -49,6 +50,16 @@ public class AppDbContext : DbContext
             entity.HasIndex(r => new { r.ReporterId, r.TargetType, r.TargetId }).IsUnique();
             entity.HasIndex(r => new { r.TargetType, r.TargetId });
             entity.HasOne<User>().WithMany().HasForeignKey(r => r.ReporterId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Follow>(entity =>
+        {
+            entity.HasKey(f => f.Id);
+            entity.HasIndex(f => new { f.FollowerId, f.FolloweeId }).IsUnique();
+            entity.HasIndex(f => new { f.FolloweeId, f.Status });
+            entity.HasIndex(f => new { f.FollowerId, f.Status });
+            entity.HasOne<User>().WithMany().HasForeignKey(f => f.FollowerId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(f => f.FolloweeId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Friendship>(entity =>

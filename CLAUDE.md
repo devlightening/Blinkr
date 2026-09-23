@@ -665,6 +665,13 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 - `POST /api/friends/requests/{userId}/accept` ve `/decline` (yalniz istegin alicisi; 404 `REQUEST_NOT_FOUND`), `DELETE /api/friends/requests/{userId}` (gonderen geri alir), `DELETE /api/friends/{userId}` (iki taraf da bitirebilir; 404 `NOT_FRIENDS`)
 - Her eylem `{ userId, relation }` doner. Gateway: `/api/friends/{**catch-all}` IdentityService'e gider.
 
+### Follows (sinyal-mvp-plan Faz 6, D-009)
+
+- `POST /api/follows/{userId}` (acik hesapta `{ follow: "following" }`, gizli hesapta `"requested"`; 400 `SELF`, 403 `FOLLOW_NOT_ALLOWED` (engel), 429 `TOO_MANY_REQUESTS`/`TOO_MANY_FOLLOWS`), `DELETE /api/follows/{userId}` (takibi birak / istegi geri al)
+- `GET /api/follows/requests`, `POST /api/follows/requests/{userId}/accept|decline`, `DELETE /api/follows/followers/{userId}` (takipciyi cikar; bildirilmez)
+- `GET /api/users/{id}/followers|following?page&pageSize` (gizli hesapta yalniz onayli takipciye; aksi 403 `PRIVATE_ACCOUNT`), `PUT /api/users/me/privacy` (`{ isPrivate }`; aciga donmek bekleyen istekleri onaylar), `GET /api/follows/visibility/{id}` (`{ canSee }`, BlogService sorar)
+- `GET /api/users/{id}` artik `followerCount`, `followingCount`, `follow`, `followsYou`, `isPrivate`, `canSeeContent` tasir; `GET /api/users/me` `followerCount`, `followingCount`, `followRequestCount`, `isPrivate`. `GET /api/posts-read/author/{id}` gizli hesapta takipci olmayana 403 `PRIVATE_ACCOUNT`, kimlik servisine ulasamazsa 503 `PROFILE_UNAVAILABLE`. Takip konum paylasmaz ve haritada kimin neyi gorecegini degistirmez; arkadaslik (sohbet/snap) ayri kalir.
+
 ### Safety
 
 - `GET /api/blocks` (engelledigim kisiler), `POST /api/blocks` (`{ userId }`, idempotent; arkadasligi bitirir; `{ userId, relation: "blocked" }`), `DELETE /api/blocks/{userId}` (arkadaslik geri gelmez), `GET /api/blocks/status/{userId}` (`{ blocked }`, iki yonlu; sohbet servisi sorar)

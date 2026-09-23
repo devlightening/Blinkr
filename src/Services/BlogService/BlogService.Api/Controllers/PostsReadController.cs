@@ -19,11 +19,13 @@ public class PostsReadController : ControllerBase
 {
     private readonly IPostQueryService _queryService;
     private readonly ILogger<PostsReadController> _logger;
+    private readonly BlogService.Api.Services.ProfileVisibilityGuard _visibility;
 
-    public PostsReadController(IPostQueryService queryService, ILogger<PostsReadController> logger)
+    public PostsReadController(IPostQueryService queryService, ILogger<PostsReadController> logger, BlogService.Api.Services.ProfileVisibilityGuard visibility)
     {
         _queryService = queryService;
         _logger = logger;
+        _visibility = visibility;
     }
 
     /// <summary>
@@ -278,7 +280,16 @@ public class PostsReadController : ControllerBase
             // Use the main query method with author filter
             // Only the author sees their own anonymous posts; the response is then private.
             var includeAnonymous = User.GetUserId() == authorId;
-            if (includeAnonymous) Response.Headers.CacheControl = "private, no-store";
+            // The answer depends on who asks (private accounts, blocks), so it is never shared-cacheable.
+            Response.Headers.CacheControl = "private, no-store";
+            if (!includeAnonymous)
+            {
+                var visibility = await _visibility.CheckAsync(authorId, ct);
+                if (visibility == BlogService.Api.Services.ProfileVisibility.Unavailable)
+                    return StatusCode(StatusCodes.Status503ServiceUnavailable, new { code = "PROFILE_UNAVAILABLE" });
+                if (visibility == BlogService.Api.Services.ProfileVisibility.Hidden)
+                    return StatusCode(StatusCodes.Status403Forbidden, new { code = "PRIVATE_ACCOUNT" });
+            }
 
             var query = new PostQuery
             {

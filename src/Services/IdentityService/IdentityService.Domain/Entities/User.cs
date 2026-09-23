@@ -12,6 +12,8 @@
         public string? AvatarKey { get; set; }
         /// <summary>Short public line about the person; null = none.</summary>
         public string? Bio { get; set; }
+        /// <summary>A private account approves each follower; non-followers see the profile header only (D-009).</summary>
+        public bool IsPrivate { get; set; }
         public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     }
 }
