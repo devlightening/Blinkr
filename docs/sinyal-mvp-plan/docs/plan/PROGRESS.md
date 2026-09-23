@@ -7,8 +7,8 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz 9 — bildirimler |
-| Son tamamlanan görev | P9.1 (bildirim backend) |
+| Aktif faz | Faz 10 — güvenlik, gizlilik, moderasyon |
+| Son tamamlanan görev | P9.3 (bildirim ekranı) — Faz 9 kapandı |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
 
@@ -230,12 +230,12 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 ## Faz 9 — Bildirimler
 
 - [~] P9.1 Backend: bildirim satırları vardı; eklendi: IdentityService takip olaylarını RabbitMQ'ya yayınlıyor (`UserFollowedIntegrationEvent`, `FollowRequestAcceptedIntegrationEvent`; en iyi çaba, takip asla bu yüzden başarısız olmaz), NotificationsService yeni takipçi / takip isteği / istek kabul bildirimleri; beğeni bildirimi artık beğenenin adını, yorum bildirimi yazar ve gönderi kimliğini taşıyor (önceden boştu). Kanıt: BLK-NOTIFY-01 (9 kontrol) PASS. **Ertelendi:** gruplama, tercihler, sessiz saatler.
-- [ ] P9.2 Push: cihaz kaydı, Expo Push gönderimi, geçersiz token temizliği, push metinleri tr/en
-- [ ] P9.3 Bildirimler ekranı: gruplar (Bugün/Bu hafta/Daha önce), takip istekleri girişi, satır içi eylemler (Geri takip et)
-- [ ] P9.4 Derin link yönlendirme (bildirime dokun → doğru ekran, uygulama kapalıyken de)
-- [ ] P9.5 Tüm tetikleyiciler: follow, follow_request/accept, reaction, comment, reply, mention, verify, place_update, question, badge_earned, signal_expiring
-- [ ] P9.6 Rozet sayıları: tab bar (Sohbet), zil; uygulama ikonu rozeti
-- [ ] P9.7 Bildirim tercihleri ekranı
+- [-] P9.2 Push — ertelendi (D-012: FCM/APNs kimlik bilgileri ve EAS proje kimliği gerekiyor; secret kullanıcıdan istenmeli). Sunucuda `IPushSender` (FCM/Noop) ve cihaz token deposu zaten var; bildirimler uygulama içinde görünüyor.
+- [x] P9.3 `notifications/NotificationsScreen`: Bugün/Bu hafta/Daha önce, takip isteğine satır içi Onayla/Sil, açılınca hepsi okundu; boş/hata/iskelet durumları. ("Geri takip et" düğmesi profilden.)
+- [~] P9.4 Bildirime dokunma: beğeni/yorum → sinyalin beğeni/yorum paneli, takip → kişinin profili (`blinkr://posts|users/{id}` ayrıştırma testli). Uygulama kapalıyken açılma push ile gelir (D-012).
+- [~] P9.5 follow, follow_request, follow_accept, like, comment (BLK-NOTIFY-01). Yok: reply/mention/verify/place_update/question/badge/signal_expiring (karşılık gelen özellikler yok ya da ertelendi).
+- [~] P9.6 Keşfet başlığındaki zilde okunmamış noktası (60 sn'de bir, yalnız ekran açıkken); Sohbet sekmesi noktası zaten vardı. Uygulama ikonu rozeti push ile (D-012).
+- [-] P9.7 Tercihler — ertelendi (D-012), sunucuda tercih modeli yok.
 
 ## Faz 10 — Güvenlik, gizlilik, moderasyon
 

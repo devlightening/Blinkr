@@ -15,6 +15,11 @@
 
 ## Kararlar
 
+### D-012 — Push bildirimleri ertelendi (secret gerekli); uygulama içi bildirimler var (2026-09-23)
+- Bağlam: P9.2 Expo/FCM/APNs push, P9.7 tercihler.
+- Karar: Push için `expo-notifications` + FCM sunucu anahtarı/APNs sertifikası + EAS proje kimliği gerekir; bunlar secret/hesap ister ve 00_START_HERE kuralı gereği kullanıcıya sorulmadan eklenmez. Bu yüzden bildirimler şimdilik uygulama içi (zil + liste). Tercihler ve sessiz saatler push ile birlikte yapılacak.
+- Etki: Uygulama kapalıyken bildirim gelmez; kök CLAUDE.md §20.1'deki "Push bildirimi yok" maddesi geçerli.
+
 ### D-011 — Faz 8: mesaj istekleri klasörü ve dm_policy ertelendi; satır düzeni korunuyor (2026-09-23)
 - Bağlam: Plan "mesaj izni yoksa istek olarak gönderim" ve balonlu sohbet istiyor.
 - Karar: Bugünkü davranış korunuyor: herkes herkese mesaj başlatabilir, engel her iki yönde kapatır (BLK-SAFETY-01). İstek klasörü ve gizlilik ayarı ayrı bir iş olarak kalıyor. Sohbet ekranı kullanıcının daha önce seçtiği balonsuz Snapchat satır düzeninde kalıyor.

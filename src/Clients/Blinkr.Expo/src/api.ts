@@ -7,6 +7,7 @@ import { COMMENT_PAGE_SIZE, type CommentPage, type CommentSort } from './engagem
 import { DISCOVER_PAGE_SIZE, DISCOVER_RADIUS_METERS, type DiscoverPage } from './discoverFeed';
 import type { Story, StoryTrayItem, StoryViewer } from './stories';
 import type { SignalShare } from './chatExtras';
+import type { AppNotification } from './notifications';
 
 type NearbyPlacesResponse = Array<BlinkrPlace & { distanceMeters?: number }> & {
   coverageState?: string | null;
@@ -390,6 +391,15 @@ export const sendReport = (
   report: { targetType: 'user' | 'signal'; targetId: string; reason: string; note?: string },
   refresh: Refresh = {},
 ) => requestJson<{ reported: boolean }>('/api/reports', { auth, body: report, method: 'POST', ...refresh });
+
+/** In-app notifications (Faz 9). */
+export const listNotifications = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<{ items: AppNotification[]; nextCursor?: string | null }>('/api/notifications?pageSize=50', { auth, signal, ...refresh });
+export const getUnreadNotificationCount = async (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  (await requestJson<{ unreadCount: number }>('/api/notifications/unread-count', { auth, signal, ...refresh })).unreadCount;
+export const markAllNotificationsRead = async (auth: AuthResponse, refresh: Refresh = {}) => {
+  await request('/api/notifications/mark-read', { auth, body: { notificationIds: [] }, method: 'POST', ...refresh });
+};
 
 /** Stories (Faz 7): 24 h, author + accepted followers; the media is private and never cached. */
 export const listStoryTray = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>

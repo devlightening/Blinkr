@@ -15,5 +15,22 @@
   },
   "empty": {
     "noResults": "No results found"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "open": "Notifications",
+    "openUnread_one": "Notifications, {{count}} unread",
+    "openUnread_other": "Notifications, {{count}} unread",
+    "today": "Today",
+    "week": "This week",
+    "earlier": "Earlier",
+    "emptyTitle": "No notifications yet",
+    "emptyBody": "When someone likes or comments on your signal or follows you, it shows up here.",
+    "loadFailed": "Couldn't load notifications.",
+    "retry": "Try again",
+    "accept": "Confirm",
+    "decline": "Delete",
+    "answered": "Answered",
+    "close": "Close"
   }
 }

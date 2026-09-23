@@ -294,6 +294,20 @@ export const postStory = async () => {
 };
 export const sentStoryReplies: string[] = [];
 
+// Notifications (?nonotifications = empty, ?notificationsfail = the list fails).
+let notificationsRead = false;
+const notificationList = () => flag('nonotifications') ? [] : [
+  { id: 'n1', title: 'Yeni beğeni', body: 'zeynep gönderini beğendi.', type: 'PostLiked', createdAtUtc: new Date(Date.now() - 10 * 60_000).toISOString(), isRead: notificationsRead, postId: 'post-a', actorUserId: 'u-zeynep', actorUserName: 'zeynep' },
+  { id: 'n2', title: 'Takip isteği', body: 'arda seni takip etmek istiyor.', type: 'FollowRequested', createdAtUtc: new Date(Date.now() - 50 * 60_000).toISOString(), isRead: notificationsRead, actorUserId: 'u-arda', actorUserName: 'arda' },
+  { id: 'n3', title: 'Yeni takipçi', body: 'ece seni takip etmeye başladı.', type: 'UserFollowed', createdAtUtc: new Date(Date.now() - 9 * 24 * 3_600_000).toISOString(), isRead: true, actorUserId: 'u-ece', actorUserName: 'ece' },
+];
+export const listNotifications = async () => {
+  if (flag('notificationsfail')) throw new Error('Network request failed');
+  return { items: notificationList(), nextCursor: null };
+};
+export const getUnreadNotificationCount = async () => notificationList().filter((n) => !n.isRead).length;
+export const markAllNotificationsRead = async () => { notificationsRead = true; };
+
 // Saved places on the account: the harness has no session, so savedPlaces.ts stays device-local (localStorage).
 export const listServerSavedPlaces = async () => [];
 export const putSavedPlace = async (_auth: unknown, place: { id: string }) => ({ placeId: place.id, saved: true });

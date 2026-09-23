@@ -715,6 +715,24 @@ async function main() {
     await expect(page.getByText('zeynep kişisine gönderildi.')).toBeVisible();
     const lastShare = await page.evaluate(() => window.__lastShare);
     if (!lastShare || lastShare.postId !== 'n-1' || 'authorName' in lastShare || 'authorId' in lastShare) throw new Error('share payload wrong: ' + JSON.stringify(lastShare));
+    // Faz 9: the bell shows unread; the list is grouped, a follow request can be answered inline, a like opens the signal.
+    await page.goto(url + '?scene=discover');
+    await expect(page.getByRole('button', { name: 'Bildirimler, 2 okunmamış' })).toBeVisible();
+    await page.getByTestId('notifications-bell').click();
+    await expect(page.getByRole('heading', { name: 'Bildirimler' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Bugün' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Daha önce' })).toBeVisible();
+    await page.waitForTimeout(250); await page.screenshot({ path: path.join(out, 'notifications.png') });
+    await page.getByRole('button', { name: 'Onayla' }).click();
+    await expect(page.getByText('Yanıtlandı')).toBeVisible();
+    await page.getByTestId('notification-n1').click();
+    await expect(page.getByRole('heading', { name: 'Yorumlar' })).toBeVisible();
+    await page.getByRole('button', { name: 'Kapat' }).last().click();
+    await page.getByRole('button', { name: 'Kapat' }).first().click();
+    await expect(page.getByRole('button', { name: 'Bildirimler', exact: true })).toBeVisible();
+    await page.goto(url + '?scene=discover&nonotifications');
+    await page.getByTestId('notifications-bell').click();
+    await expect(page.getByText('Henüz bildirim yok')).toBeVisible();
     await page.goto(url + '?scene=discover&nofollowing');
     await page.getByRole('tab', { name: 'Takip' }).click();
     await expect(page.getByText('Takip akışın boş')).toBeVisible();

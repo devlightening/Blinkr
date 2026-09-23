@@ -15,5 +15,22 @@
   },
   "empty": {
     "noResults": "Sonuç bulunamadı"
+  },
+  "notifications": {
+    "title": "Bildirimler",
+    "open": "Bildirimler",
+    "openUnread_one": "Bildirimler, {{count}} okunmamış",
+    "openUnread_other": "Bildirimler, {{count}} okunmamış",
+    "today": "Bugün",
+    "week": "Bu hafta",
+    "earlier": "Daha önce",
+    "emptyTitle": "Henüz bildirim yok",
+    "emptyBody": "Biri sinyalini beğendiğinde, yorum yaptığında ya da seni takip ettiğinde burada görürsün.",
+    "loadFailed": "Bildirimler yüklenemedi.",
+    "retry": "Tekrar dene",
+    "accept": "Onayla",
+    "decline": "Sil",
+    "answered": "Yanıtlandı",
+    "close": "Kapat"
   }
 }

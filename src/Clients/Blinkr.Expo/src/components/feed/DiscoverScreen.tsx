@@ -1,11 +1,13 @@
 import * as Location from 'expo-location';
-import { Compass, MapPin, Users, WifiOff } from 'lucide-react-native';
+import { Bell, Compass, MapPin, Users, WifiOff } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Linking, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ApiCodeError, getDiscoverFollowing, getDiscoverNearby, getPlace, postStory, togglePostLike } from '../../api';
+import { ApiCodeError, getDiscoverFollowing, getDiscoverNearby, getPlace, getUnreadNotificationCount, postStory, togglePostLike } from '../../api';
+import { NotificationsScreen } from '../notifications/NotificationsScreen';
+import { AnimatedPressable } from '../AnimatedPressable';
 import { DEFAULT_STORY_SECONDS, type StoryTrayItem } from '../../stories';
 import { SignalCamera } from '../camera/SignalCamera';
 import { StoryTray } from '../stories/StoryTray';
@@ -52,7 +54,7 @@ const emptyFeed: FeedState = { items: [], page: null, loading: false, error: nul
  * only when the person chooses to use it here.
  */
 export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOpenSignal, onCreateSignal, onMessageUser, onOverlayOpenChange }: Props) {
-  const { t } = useTranslation(['feed', 'errors']);
+  const { t } = useTranslation(['feed', 'errors', 'common']);
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<DiscoverTab>('nearby');
   const [phase, setPhase] = useState<LocationPhase>('checking');
@@ -66,14 +68,26 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
   const [trayKey, setTrayKey] = useState(0);
   const [storyNotice, setStoryNotice] = useState<string | null>(null);
   const [sharing, setSharing] = useState<SignalShare | null>(null);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
   const requests = useRef<Record<string, AbortController | undefined>>({});
   const likeBusy = useRef(new Set<string>());
   const refresh = useRef({ onAuthRefresh: onAuthChange, onSessionExpired: onLogout });
   refresh.current = { onAuthRefresh: onAuthChange, onSessionExpired: onLogout };
 
   useEffect(() => {
-    onOverlayOpenChange?.(Boolean(thread || person || storyView || storyCamera || sharing));
-  }, [thread, person, storyView, storyCamera, sharing, onOverlayOpenChange]);
+    onOverlayOpenChange?.(Boolean(thread || person || storyView || storyCamera || sharing || notificationsOpen));
+  }, [thread, person, storyView, storyCamera, sharing, notificationsOpen, onOverlayOpenChange]);
+
+  // The bell's dot: checked on open and now and then while Keşfet is on screen (no push yet, D-012).
+  useEffect(() => {
+    if (notificationsOpen) return undefined;
+    let cancelled = false;
+    const check = () => { getUnreadNotificationCount(auth, undefined, refresh.current).then((count) => { if (!cancelled) setUnread(count); }).catch(() => {}); };
+    check();
+    const timer = setInterval(check, 60_000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [auth, notificationsOpen]);
   useEffect(() => () => { Object.values(requests.current).forEach((c) => c?.abort()); onOverlayOpenChange?.(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const patch = (which: 'nearby' | 'following', next: Partial<FeedState>) =>
@@ -146,7 +160,20 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
 
   const header = (
     <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
-      <Text accessibilityRole="header" style={styles.title}>{t('discover.title')}</Text>
+      <View style={styles.titleRow}>
+        <Text accessibilityRole="header" style={styles.title}>{t('discover.title')}</Text>
+        <AnimatedPressable
+          accessibilityLabel={unread > 0 ? t('common:notifications.openUnread', { count: unread }) : t('common:notifications.open')}
+          accessibilityRole="button"
+          onPress={() => setNotificationsOpen(true)}
+          pressScale={0.9}
+          style={styles.bell}
+          testID="notifications-bell"
+        >
+          <Bell color={colors.text} size={22} />
+          {unread > 0 ? <View style={styles.bellDot} /> : null}
+        </AnimatedPressable>
+      </View>
       <SegmentedControl
         accessibilityLabel={t('discover.title')}
         onChange={setTab}
@@ -250,6 +277,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
           </BlinkrSheetPanel>
         </Sheet>
       ) : null}
+      {notificationsOpen ? <NotificationsScreen auth={auth} onAuthChange={onAuthChange} onBack={() => { setNotificationsOpen(false); setUnread(0); }} onLogout={onLogout} onMessageUser={onMessageUser} /> : null}
       {sharing ? <ShareToChatSheet auth={auth} onClose={() => setSharing(null)} refresh={refresh.current} share={sharing} /> : null}
       {storyView ? (
         <StoryViewer auth={auth} authors={storyView.authors} onClose={() => { setStoryView(null); setTrayKey((k) => k + 1); }} refresh={refresh.current} startAuthorId={storyView.start} />
@@ -288,6 +316,9 @@ const styles = StyleSheet.create({
   cameraLayer: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 60 },
   header: { gap: spacing.sm, paddingBottom: spacing.md, paddingHorizontal: spacing.lg },
   title: { ...typography.headline, color: colors.text },
+  titleRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  bell: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
+  bellDot: { backgroundColor: colors.danger, borderColor: colors.background, borderRadius: 999, borderWidth: 2, height: 12, position: 'absolute', right: 9, top: 9, width: 12 },
   subtitle: { ...typography.caption, color: colors.textSecondary },
   center: { alignItems: 'center', flex: 1, justifyContent: 'center' },
   loadingBlock: { gap: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
