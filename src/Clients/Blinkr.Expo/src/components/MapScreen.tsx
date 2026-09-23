@@ -903,7 +903,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
           user={searchProfileUser}
         />
       ) : null}
-      {cameraOpen && <View style={styles.cameraLayer}><SignalCamera onCapture={handleCaptured} onClose={() => setCameraOpen(false)} /></View>}
+      {cameraOpen && <View style={styles.cameraLayer}><SignalCamera onCapture={handleCaptured} onClose={() => setCameraOpen(false)} onTextOnly={() => { setCameraOpen(false); startSignalOnly(); }} /></View>}
       {!isComposerOpen && <PostDetailSheet
         isLoading={isDetailLoading}
         onClose={closeDetailSheet}

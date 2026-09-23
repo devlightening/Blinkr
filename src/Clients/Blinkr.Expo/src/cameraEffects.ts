@@ -54,7 +54,12 @@ export const STICKERS: StickerDef[] = [
 ];
 
 export const MAX_STICKERS = 6;
-export const MAX_VIDEO_SECONDS = 45;
+/** A signal clip is short: 15 s (sinyal-mvp-plan 05 §1.1 "Basılı tut = video (maks 15 sn, halka ilerlemesi)"). */
+export const MAX_VIDEO_SECONDS = 15;
+/** How far the shutter ring has filled while recording, 0..1. */
+export const recordingProgress = (seconds: number) => Math.min(1, Math.max(0, Number.isFinite(seconds) ? seconds / MAX_VIDEO_SECONDS : 0));
+/** Holding the shutter this long starts a video instead of taking a photo. */
+export const HOLD_TO_RECORD_MS = 300;
 
 const pad = (value: number) => String(value).padStart(2, '0');
 

@@ -267,7 +267,7 @@ function CameraScene() {
   const [closed, setClosed] = useState(false);
   return (
     <View style={{ backgroundColor: '#000', flex: 1 }}>
-      {!closed && <SignalCamera onCapture={(asset) => setResult(`${asset.type}:${asset.mimeType}:${asset.uri.endsWith('#rendered') ? 'rendered' : 'original'}`)} onClose={() => setClosed(true)} />}
+      {!closed && <SignalCamera onCapture={(asset) => setResult(`${asset.type}:${asset.mimeType}:${asset.uri.endsWith('#rendered') ? 'rendered' : 'original'}`)} onClose={() => setClosed(true)} onTextOnly={() => setResult('text')} />}
       <Text accessibilityLabel="captured" style={{ height: 0, opacity: 0, position: 'absolute' }}>{result}{closed ? 'closed' : ''}</Text>
     </View>
   );
@@ -326,11 +326,12 @@ function ComposerWithMedia() {
   return (
     <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
       <SignalComposer
-        area={{ ...composerArea, place: nearby[1], source: 'place', proximity: { allowed: true, trustLevel: 'VERIFIED_LIVE', thresholdMeters: 200 } }}
+        // ?school / ?clinic swap the place category (sensitive-place rules); ?loose makes the fix 250 m.
+        area={{ ...composerArea, ...(location.search.includes('loose') ? { observationAccuracyMeters: 250, source: 'device' as const } : {}), place: { ...nearby[1], ...(location.search.includes('school') ? { category: 'EDUCATION' } : location.search.includes('clinic') ? { category: 'HEALTH' } : {}) }, source: location.search.includes('loose') ? 'device' : 'place', proximity: { allowed: true, trustLevel: 'VERIFIED_LIVE', thresholdMeters: 200 } }}
         auth={qaAuth}
         canAskLocationAgain
         error={null}
-        initialStep={1}
+        initialStep={location.search.includes('loose') ? 0 : 1}
         isSubmitting={false}
         locationReadiness="ready"
         nearbyPlaces={nearby}
@@ -394,7 +395,7 @@ function Settings() {
 // A place with two signals, reportable (?reportfail makes the server refuse).
 function ReportableDetail() {
   const place = {
-    id: 'rp', name: 'Kent Meydanı', category: 'PUBLIC', latitude: 37.07, longitude: 36.25, distanceMeters: 120,
+    id: 'rp', name: 'Kent Meydanı', category: location.search.includes('clinic') ? 'HEALTH' : 'PUBLIC', latitude: 37.07, longitude: 36.25, distanceMeters: 120,
     currentState: { signalType: 'Crowd', signalValue: 'Busy', freshness: 'FRESH', activeSignalCount: 2, observedAtUtc: new Date().toISOString(), confidence: 'MEDIUM' },
     recentSignals: [
       { postId: 'post-a', title: 'Çok kalabalık', text: 'Kuyruk uzun', signalType: 'Crowd', createdAtUtc: new Date().toISOString(), authorName: 'deniz', publicationTrust: 'VERIFIED_LIVE' },

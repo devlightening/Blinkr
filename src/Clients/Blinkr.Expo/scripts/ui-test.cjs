@@ -262,6 +262,19 @@ async function main() {
     await expect(page.getByRole('button', { name: 'Kaydı durdur' })).toBeVisible();
     await page.getByRole('button', { name: 'Kaydı durdur' }).click();
     await expect(page.getByLabel('captured')).toHaveText('video:video/mp4:original');
+    // P5.2: holding the shutter records a clip (ring fills toward 15 s); releasing stops and hands it on.
+    await page.goto(url + '?scene=camera');
+    await expect(page.getByRole('button', { name: 'Fotoğraf çek' })).toBeEnabled();
+    await page.getByTestId('shutter').hover();
+    await page.mouse.down();
+    await expect(page.getByLabel(/^kayıt ilerlemesi/)).toBeVisible();
+    await page.waitForTimeout(600);
+    await page.mouse.up();
+    await expect(page.getByLabel('captured')).toHaveText('video:video/mp4:original');
+    // "Aa" leaves the camera for a text-only signal.
+    await page.goto(url + '?scene=camera');
+    await page.getByRole('button', { name: 'Sadece yazılı sinyal' }).click();
+    await expect(page.getByLabel('captured')).toHaveText('text');
     await page.goto(url + '?scene=camera&nocamperm');
     await expect(page.getByText('Kamera izni gerekiyor')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Kameraya izin ver' })).toBeVisible();
@@ -549,6 +562,26 @@ async function main() {
     if (!sentSignal || sentSignal.targetType !== 'signal' || sentSignal.targetId !== 'post-a' || sentSignal.reason !== 'wrong_info') throw new Error('Signal report wrong: ' + JSON.stringify(sentSignal));
     await page.getByRole('button', { name: 'Tamam' }).click();
     await expect(page.getByText('Son sinyaller')).toBeVisible();
+    // P5.3 sensitive places: no media at a school (and attached media can be removed), a privacy reminder at a
+    // clinic that goes away once acknowledged, a "location uncertain" note past 100 m, and a health notice on the place.
+    await page.goto(url + '?scene=composerMedia&school');
+    await page.getByRole('button', { name: 'Devam', exact: true }).click();
+    await expect(page.getByTestId('no-media-notice')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Galeri', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Eklenen medyayı kaldır' }).click();
+    await expect(page.getByRole('button', { name: 'Eklenen medyayı kaldır' })).toHaveCount(0);
+    await page.goto(url + '?scene=composerMedia&clinic');
+    await page.getByRole('button', { name: 'Devam', exact: true }).click();
+    await expect(page.getByTestId('privacy-notice')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Galeri', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Anladım' }).click();
+    await expect(page.getByTestId('privacy-notice')).toHaveCount(0);
+    await page.goto(url + '?scene=composerMedia&loose');
+    await expect(page.getByTestId('location-uncertain')).toContainText('250 m');
+    await page.goto(url + '?scene=reportableDetail&clinic');
+    await expect(page.getByTestId('health-notice')).toContainText('112');
+    await page.goto(url + '?scene=reportableDetail');
+    await expect(page.getByTestId('health-notice')).toHaveCount(0);
     // Faz 4: likes and comments on a signal, inside the same sheet (no second sheet).
     await page.goto(url + '?scene=reportableDetail');
     await page.getByTestId('open-thread-post-a').click();

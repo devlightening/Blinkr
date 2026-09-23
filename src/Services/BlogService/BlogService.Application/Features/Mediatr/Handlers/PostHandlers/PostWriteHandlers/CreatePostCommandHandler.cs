@@ -94,6 +94,11 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
                 throw new ArgumentException("PlaceId does not reference an active place.");
             }
 
+            if (hasMedia && SensitivePlacePolicy.BlocksMedia(place.Category))
+            {
+                throw new PlaceMediaNotAllowedException();
+            }
+
             var proximity = _placeProximityPolicy.Evaluate(new PlaceProximityRequest(
                 request.SignalType,
                 place.Latitude,

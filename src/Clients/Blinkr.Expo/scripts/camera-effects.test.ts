@@ -1,4 +1,4 @@
-import { CAMERA_LENSES, MAX_STICKERS, STICKERS, clampToFrame, clampZoom, clockLabel, flashLabel, formatRecording, lensById, lensChangesPicture, nextFlash, placeSticker, stickerText, zoomMultiplierLabel } from '../src/cameraEffects';
+import { CAMERA_LENSES, HOLD_TO_RECORD_MS, MAX_STICKERS, MAX_VIDEO_SECONDS, recordingProgress, STICKERS, clampToFrame, clampZoom, clockLabel, flashLabel, formatRecording, lensById, lensChangesPicture, nextFlash, placeSticker, stickerText, zoomMultiplierLabel } from '../src/cameraEffects';
 
 function check(value: unknown, message: string) { if (!value) throw new Error(message); }
 const run = (name: string, fn: () => void) => { fn(); console.log('PASS', name); };
@@ -55,4 +55,10 @@ run('placing stickers fans out and caps at the maximum', () => {
   for (let i = 0; i < 10; i += 1) list = placeSticker(list, 'open', frame, 10 + i);
   check(list.length === MAX_STICKERS, 'sticker cap');
   check(placeSticker(list, 'open', frame, 99) === list, 'over the cap returns the same list');
+});
+run('hold-to-record: 15 s cap and a ring that fills from 0 to 1', () => {
+  check(MAX_VIDEO_SECONDS === 15, 'plan: max 15 s');
+  check(recordingProgress(0) === 0 && recordingProgress(7.5) === 0.5 && recordingProgress(15) === 1, 'linear');
+  check(recordingProgress(99) === 1 && recordingProgress(-1) === 0 && recordingProgress(Number.NaN) === 0, 'clamped');
+  check(HOLD_TO_RECORD_MS >= 200 && HOLD_TO_RECORD_MS <= 500, 'a hold is distinct from a tap');
 });

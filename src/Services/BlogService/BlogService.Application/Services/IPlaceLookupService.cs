@@ -6,4 +6,4 @@ public interface IPlaceLookupService
     Task<PlaceLookupResult?> GetAsync(Guid placeId, CancellationToken ct);
 }
 
-public sealed record PlaceLookupResult(Guid Id, string Name, double Latitude, double Longitude, string? GeometryWkt = null);
+public sealed record PlaceLookupResult(Guid Id, string Name, double Latitude, double Longitude, string? GeometryWkt = null, string? Category = null);

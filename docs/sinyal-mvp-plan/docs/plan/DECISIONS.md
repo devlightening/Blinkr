@@ -15,6 +15,19 @@
 
 ## Kararlar
 
+### D-007 — Hassas yerler: okulda medya sunucuda kapalı, EDUCATION kategorisinin tamamına uygulanıyor (2026-09-23)
+- Bağlam: 11_SAFETY §3 "okul/kreşte foto/video kapalı" diyor. Yer kataloğu yalnız normalize kategoriyi
+  saklıyor; OSM `school/kindergarten/university/college/library` hepsi `EDUCATION`'a düşüyor.
+- Karar: Kural sunucuda (`SensitivePlacePolicy`, BlogService create) `EDUCATION` kategorisinin tamamına
+  uygulanır (422 `MEDIA_NOT_ALLOWED_AT_PLACE`); istemci aynı kuralı önceden gösterir (medya düğmeleri
+  gizli, eklenmiş medya kaldırılabilir). Üniversite/kütüphanede de medya kapalı kalır.
+- Gerekçe: Çocuk güvenliğinde fazla kısıt, eksik kısıttan iyidir; alt kategori ayrımı katalog importuna
+  yeni alan gerektirir (ayrı iş). "Trust is server-owned" gereği istemci gizlemesi tek başına yetmez.
+- Etki: Hassas yer (sağlık/ibadet) mahremiyet uyarısı kamera yerine composer'ın medya adımında
+  gösterilir, çünkü yer kameradan sonra seçiliyor; sağlık yerlerinde kalıcı `HealthNotice` (112/911/999).
+  Kamera ekranında "en yakın yer çipi" yapılmadı: yer seçimi composer'ın tek sahipli nearby akışında
+  (kök CLAUDE.md §12.3), kamerada ikinci bir nearby isteği açmak o kuralı bozardı.
+
 ### D-006 — Faz 4 kapsamı: yorum/beğeni gerçek bug'larla birlikte, @bahsetme/yorum beğenisi/medya görüntüleyici ertelendi (2026-09-23)
 - Bağlam: Faz 4'e başlarken "yorum/beğeni zaten var" sanılan backend'de birbirine bağlı gerçek bug'lar
   çıktı: (1) `PostUnlikedConsumer` yanlış dosyadaydı ve sayacı negatife düşürebiliyordu; (2)

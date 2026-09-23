@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   BackHandler,
@@ -46,6 +47,8 @@ import { PlacePicker } from './PlacePicker';
 import { PlaceSymbol } from './PlaceSymbol';
 import { VideoPreview } from './VideoPreview';
 import { BlinkrButton } from './ui/BlinkrButton';
+import { MAX_VIDEO_SECONDS } from '../cameraEffects';
+import { accuracyUncertain, mediaAllowedAt, placeSensitivity } from '../placeSafety';
 import { BlinkrChip } from './ui/BlinkrChip';
 import { BlinkrHeader } from './ui/BlinkrHeader';
 import type {
@@ -145,6 +148,9 @@ export function SignalComposer({
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [step, setStep] = useState(initialStep ?? 0);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const { t } = useTranslation('create');
+  // The privacy reminder at a sensitive place is shown once per place per composer session.
+  const [privacyAckFor, setPrivacyAckFor] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) {
@@ -167,7 +173,10 @@ export function SignalComposer({
   const isMediaBusy = isMediaPreparing || isMediaUploading;
   const hasPayload = (content.trim().length === 0 || content.trim().length >= 5) && (title.trim().length > 0 || content.trim().length >= 5 || readyMedia.length > 0 || signalType !== 'GeneralObservation');
   const isRealtimePlaceBlocked = !canPublishAt(area);
-  const canPublish = Boolean(area && hasPayload && !isRealtimePlaceBlocked && !isSubmitting && !isMediaBusy && media.every((item) => item.status === 'ready'));
+  const sensitivity = placeSensitivity(area?.place?.category);
+  const mediaBlocked = !mediaAllowedAt(area?.place?.category);
+  const locationUncertain = area?.source !== 'map' && accuracyUncertain(area?.observationAccuracyMeters ?? area?.accuracyMeters);
+  const canPublish = Boolean(area && hasPayload && !(mediaBlocked && media.length > 0) && !isRealtimePlaceBlocked && !isSubmitting && !isMediaBusy && media.every((item) => item.status === 'ready'));
   const isPrimaryActionBlocked = step === 3 ? !canPublish : step === 0 ? !area || isSelectingArea : isMediaBusy;
   const placeName = useMemo(() => area?.place?.name ?? area?.name ?? 'Yaklaşık konum', [area]);
   const { primary: primaryPlaces, extended: extendedPlaces } = useMemo(
@@ -242,8 +251,8 @@ export function SignalComposer({
     }
 
     const result = source === 'camera'
-      ? await ImagePicker.launchCameraAsync({ allowsEditing: false, mediaTypes: ['images', 'videos'], quality: 0.84, videoMaxDuration: 45 })
-      : await ImagePicker.launchImageLibraryAsync({ allowsEditing: false, mediaTypes: ['images', 'videos'], quality: 0.84, videoMaxDuration: 45 });
+      ? await ImagePicker.launchCameraAsync({ allowsEditing: false, mediaTypes: ['images', 'videos'], quality: 0.84, videoMaxDuration: MAX_VIDEO_SECONDS })
+      : await ImagePicker.launchImageLibraryAsync({ allowsEditing: false, mediaTypes: ['images', 'videos'], quality: 0.84, videoMaxDuration: MAX_VIDEO_SECONDS });
 
     if (result.canceled || !result.assets[0]) return;
     attachCapturedAsset(result.assets[0]);
@@ -326,6 +335,15 @@ export function SignalComposer({
             )}
 
             {step === 0 && <>
+            {locationUncertain ? (
+              <View accessibilityRole="alert" style={styles.safetyNotice} testID="location-uncertain">
+                <AlertCircle color={colors.warning} size={20} />
+                <View style={styles.flex}>
+                  <Text style={styles.safetyTitle}>{t('safety.uncertainTitle')}</Text>
+                  <Text style={styles.uncertain}>{t('safety.uncertainBody', { meters: Math.round(area?.observationAccuracyMeters ?? area?.accuracyMeters ?? 0) })}</Text>
+                </View>
+              </View>
+            ) : null}
             {area?.place ? (
               <View style={[styles.placeCard, styles.placeCardSelected]}>
                 <View style={[styles.placeTile, { borderColor: categoryTone(area.place.category) }]}><PlaceSymbol category={area.place.category} color={categoryTone(area.place.category)} size={24} /></View>
@@ -462,10 +480,30 @@ export function SignalComposer({
               <Text style={styles.sectionLabel}>Fotoğraf veya video</Text>
               <Text style={styles.sectionHint}>İSTEĞE BAĞLI</Text>
             </View>
-            <View style={styles.sourceRow}>
+            {mediaBlocked ? (
+              <View accessibilityRole="alert" style={styles.safetyNotice} testID="no-media-notice">
+                <AlertCircle color={colors.warning} size={20} />
+                <View style={styles.flex}>
+                  <Text style={styles.safetyTitle}>{t('safety.noMediaTitle')}</Text>
+                  <Text style={styles.policyText}>{t('safety.noMediaBody')}</Text>
+                  {media.length > 0 ? <BlinkrButton label={t('safety.removeMedia')} onPress={() => setMedia([])} style={styles.safetyAction} variant="secondary" /> : null}
+                </View>
+              </View>
+            ) : null}
+            {sensitivity && !mediaBlocked && privacyAckFor !== area?.place?.id ? (
+              <View accessibilityRole="alert" style={styles.safetyNotice} testID="privacy-notice">
+                <ShieldCheck color={colors.warning} size={20} />
+                <View style={styles.flex}>
+                  <Text style={styles.safetyTitle}>{t('safety.privacyTitle')}</Text>
+                  <Text style={styles.policyText}>{t('safety.privacyBody')}</Text>
+                  <BlinkrButton label={t('safety.gotIt')} onPress={() => setPrivacyAckFor(area?.place?.id ?? null)} style={styles.safetyAction} variant="secondary" />
+                </View>
+              </View>
+            ) : null}
+            {mediaBlocked ? null : <View style={styles.sourceRow}>
               <BlinkrButton icon={<Camera color={colors.text} size={18} />} label="Kamera" onPress={() => (onRequestCamera ? onRequestCamera() : pickMedia('camera'))} style={styles.mediaButton} variant="secondary" />
               <BlinkrButton icon={<ImageIcon color={colors.text} size={18} />} label="Galeri" onPress={() => pickMedia('library')} style={styles.mediaButton} variant="secondary" />
-            </View>
+            </View>}
 
             {media.map((item) => (
               <View key={item.id} style={styles.mediaDraft}>
@@ -503,6 +541,7 @@ export function SignalComposer({
             {!!content && <Text style={styles.summaryText}>{content}</Text>}
             {!!media.length && <Text style={styles.placeMeta}>{media.length} medya eklendi</Text>}
             {!hasPayload && <Text style={styles.errorText}>Paylaşım içeriği eksik veya çok kısa.</Text>}
+            {mediaBlocked && media.length > 0 ? <Text style={styles.errorText}>{t('safety.noMediaTitle')}</Text> : null}
             <View style={styles.sectionHeadingRow}>
               <Text style={styles.sectionLabel}>Haritada görünüm</Text>
               <ShieldCheck color={colors.mint} size={18} />
@@ -609,6 +648,10 @@ const styles = StyleSheet.create({
   segmentTextActive: { color: colors.ink },
   policySummary: { alignItems: 'flex-start', backgroundColor: colors.greenSoft, borderRadius: radii.md, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
   policyText: { ...typography.caption, color: colors.mint, flex: 1 },
+  safetyNotice: { alignItems: 'flex-start', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
+  safetyTitle: { ...typography.bodyStrong, color: colors.text },
+  safetyAction: { alignSelf: 'flex-start', marginTop: spacing.sm },
+  uncertain: { ...typography.caption, color: colors.warning, marginTop: spacing.xs },
   footer: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   backButton: { minWidth: 96 },
   primaryButton: { flex: 1 },

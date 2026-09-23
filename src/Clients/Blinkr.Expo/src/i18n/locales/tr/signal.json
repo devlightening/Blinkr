@@ -60,5 +60,10 @@
     "zoomHint": "Yakınlaştırmak için iki parmakla aç, kapatmak için aşağı kaydır",
     "counter": "{{index}} / {{total}}"
   },
-  "back": "Geri"
+  "back": "Geri",
+  "health": {
+    "title": "Acil bir durumdaysan",
+    "body": "{{number}}'yi ara ya da en yakın acile git. Bekleme süreleri kullanıcı bildirimidir.",
+    "call": "{{number}}'yi ara"
+  }
 }

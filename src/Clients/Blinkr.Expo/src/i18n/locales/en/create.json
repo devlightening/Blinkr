@@ -1,1 +1,13 @@
-{ "share": "Share a new signal" }
+{
+  "share": "Share a new signal",
+  "safety": {
+    "noMediaTitle": "Photos and videos are off here",
+    "noMediaBody": "At schools and kindergartens only text signals can be shared, for children's safety.",
+    "removeMedia": "Remove the attached media",
+    "privacyTitle": "Mind other people's privacy",
+    "privacyBody": "Don't share other people's faces when filming here. Respect people's privacy.",
+    "gotIt": "Got it",
+    "uncertainTitle": "Location uncertain",
+    "uncertainBody": "Your device's location accuracy is {{meters}} m. Stepping outside may give a better fix."
+  }
+}

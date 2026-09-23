@@ -92,6 +92,10 @@ public class PostsController : ControllerBase
         {
             return StatusCode(StatusCodes.Status403Forbidden, new { error = "forbidden", message = ex.Message });
         }
+        catch (PlaceMediaNotAllowedException ex)
+        {
+            return UnprocessableEntity(new { error = SensitivePlacePolicy.MediaNotAllowedCode, code = SensitivePlacePolicy.MediaNotAllowedCode, message = ex.Message });
+        }
         catch (PlaceProximityException ex)
         {
             return UnprocessableEntity(new { error = "PLACE_PROXIMITY_REQUIRED", message = ex.Message });

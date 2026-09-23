@@ -1,13 +1,14 @@
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import { CameraOff, Images, SwitchCamera, X, Zap, ZapOff } from 'lucide-react-native';
+import { CameraOff, Images, SwitchCamera, Type, X, Zap, ZapOff } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, Linking, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Circle } from 'react-native-svg';
 
-import { MAX_VIDEO_SECONDS, clampZoom, flashLabel, formatRecording, lensById, nextFlash, zoomMultiplierLabel, type FlashMode } from '../../cameraEffects';
+import { HOLD_TO_RECORD_MS, MAX_VIDEO_SECONDS, clampZoom, recordingProgress, flashLabel, formatRecording, lensById, nextFlash, zoomMultiplierLabel, type FlashMode } from '../../cameraEffects';
 import { friendlyError } from '../../productPresentation';
 import { colors, radii, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
@@ -23,6 +24,8 @@ type Props = {
   submitLabel?: string;
   /** Snaps are photo-only: no video mode, no video from the gallery. */
   photoOnly?: boolean;
+  /** "Aa": leave the camera for a text-only signal (sinyal-mvp-plan P5.2). Hidden when absent (snaps). */
+  onTextOnly?: () => void;
 };
 
 type Mode = 'photo' | 'video';
@@ -38,7 +41,7 @@ const videoMime = (uri: string) => (/\.mov(\?|$)/i.test(uri) ? 'video/quicktime'
  * as recorded, because a lens cannot be applied to a recording. It only hands a file to `onCapture`; publishing
  * (place, proximity, server trust) stays in the composer.
  */
-export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = false }: Props) {
+export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = false, onTextOnly }: Props) {
   const insets = useSafeAreaInsets();
   const camera = useRef<CameraView>(null);
   const mounted = useRef(true);
@@ -46,6 +49,10 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
   const zoomRef = useRef(0);
   const zoomStartRef = useRef(0);
   const readyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Hold-to-record: the shutter was held long enough; recording starts once the camera is in video mode.
+  const holdRef = useRef(false);
+  const heldRecording = useRef(false);
+  const [holdPending, setHoldPending] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [micPermission, requestMic] = useMicrophonePermissions();
   const [stage, setStage] = useState<'camera' | 'edit'>('camera');
@@ -134,8 +141,36 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
     } finally {
       recordingRef.current = false;
       if (mounted.current) setRecording(false);
+      if (mounted.current && heldRecording.current) { heldRecording.current = false; setMode('photo'); }
     }
   }, [busy, ready, micPermission, requestMic, onCapture]);
+
+  // Snapchat-style: holding the shutter records. expo-camera only records in video mode, so a hold switches the
+  // mode first and starts once the preview has had a moment to reconfigure; releasing stops it.
+  useEffect(() => {
+    if (!holdPending || mode !== 'video') return undefined;
+    const timer = setTimeout(() => {
+      setHoldPending(false);
+      if (holdRef.current) { heldRecording.current = true; void toggleRecording(); }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [holdPending, mode, toggleRecording]);
+
+  const startHold = () => {
+    if (photoOnly || busy || !ready || recordingRef.current) return;
+    holdRef.current = true;
+    setMode('video');
+    setHoldPending(true);
+  };
+
+  const endHold = () => {
+    if (!holdRef.current) return;
+    holdRef.current = false;
+    setHoldPending(false);
+    // Switching mode while a clip is still being written can drop it; the recording finally-block switches back.
+    if (recordingRef.current) { camera.current?.stopRecording(); return; }
+    setMode('photo');
+  };
 
   const pickFromLibrary = async () => {
     if (busy || recording) return;
@@ -297,13 +332,27 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
             accessibilityRole="button"
             aria-disabled={!ready}
             disabled={!ready || busy}
+            accessibilityHint={mode === 'photo' && !photoOnly ? 'Basılı tutarsan video kaydeder (en fazla 15 sn).' : undefined}
+            delayLongPress={HOLD_TO_RECORD_MS}
+            onLongPress={mode === 'photo' ? startHold : undefined}
             onPress={mode === 'photo' ? takePhoto : toggleRecording}
+            onPressOut={endHold}
             pressScale={0.94}
             style={[styles.shutterRing, recording && styles.shutterRingRecording, !ready && styles.dim]}
+            testID="shutter"
           >
+            {recording ? (
+              <Svg accessibilityLabel={`kayıt ilerlemesi ${Math.round(recordingProgress(seconds) * 100)}`} height={RING} style={StyleSheet.absoluteFill} width={RING}>
+                <Circle cx={RING / 2} cy={RING / 2} fill="none" r={RING_R} stroke={colors.danger} strokeDasharray={`${RING_C} ${RING_C}`} strokeDashoffset={RING_C * (1 - recordingProgress(seconds))} strokeLinecap="round" strokeWidth={4} transform={`rotate(-90 ${RING / 2} ${RING / 2})`} />
+              </Svg>
+            ) : null}
             <View style={[styles.shutterCore, mode === 'video' && styles.shutterCoreVideo, recording && styles.shutterCoreRecording]} />
           </AnimatedPressable>
-          <View style={styles.gallery} />
+          {onTextOnly ? (
+            <AnimatedPressable accessibilityLabel="Sadece yazılı sinyal" accessibilityRole="button" disabled={recording || busy} onPress={onTextOnly} pressScale={0.9} style={[styles.gallery, (recording || busy) && styles.dim]}>
+              <Type color={colors.text} size={26} />
+            </AnimatedPressable>
+          ) : <View style={styles.gallery} />}
         </View>
       </View>
     </View>
@@ -311,6 +360,9 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
 }
 
 const CHROME_HEIGHT = 130;
+const RING = 76;
+const RING_R = (RING - 4) / 2;
+const RING_C = 2 * Math.PI * RING_R;
 const styles = StyleSheet.create({
   screen: { backgroundColor: '#000000', flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center' },

@@ -1,6 +1,8 @@
 import { Bookmark, Camera, Check, Clock3, Compass, Flag, Image as ImageIcon, MapPin, MessageCircle, RefreshCw, Share2, ShieldCheck, X } from 'lucide-react-native';
 import { ActivityIndicator, Alert, Image, Linking, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import * as Localization from 'expo-localization';
 
 import { toAbsoluteUrl } from '../api';
 import { formatAge, formatCategory, formatDistance, meaningfulTitle, signalLabels } from '../presentation';
@@ -8,6 +10,7 @@ import { isPlaceSaved, savePlace, unsavePlace } from '../savedPlaces';
 import { categoryTone, colors, radii, signalColors, spacing, typography } from '../theme';
 import type { AuthResponse, BlinkrMedia, BlinkrPlace, CoordinateSignal, RecentSignal, SignalType } from '../types';
 import type { ReportReasonId } from '../friends';
+import { emergencyNumber, placeSensitivity } from '../placeSafety';
 import { recheckSignal, signalValueLabel, trustLabel } from '../productPresentation';
 import { AnimatedPressable } from './AnimatedPressable';
 import { ReportPanel } from './ReportPanel';
@@ -112,6 +115,23 @@ const ActionTile = ({ label, icon, onPress, accessibilityLabel, selected }: { la
     <Text numberOfLines={1} style={styles.actionLabel}>{label}</Text>
   </AnimatedPressable>
 );
+
+/** Health places: a calm, permanent pointer to real help (sinyal-mvp-plan 11_SAFETY §3 HealthNotice). */
+const HealthNotice = () => {
+  const { t } = useTranslation('signal');
+  const number = emergencyNumber(Localization.getLocales()[0]?.regionCode);
+  return (
+    <View accessibilityRole="summary" style={styles.healthNotice} testID="health-notice">
+      <View style={styles.flex1}>
+        <Text style={styles.healthTitle}>{t('health.title')}</Text>
+        <Text style={styles.subtitle}>{t('health.body', { number })}</Text>
+      </View>
+      <AnimatedPressable accessibilityRole="button" onPress={() => { Linking.openURL(`tel:${number}`).catch(() => {}); }} pressScale={0.95} style={styles.healthCall}>
+        <Text style={styles.healthCallText}>{t('health.call', { number })}</Text>
+      </AnimatedPressable>
+    </View>
+  );
+};
 
 const ReportLink = ({ onPress }: { onPress: () => void }) => (
   <AnimatedPressable accessibilityLabel="Bu sinyali bildir" accessibilityRole="button" onPress={onPress} pressScale={0.97} style={styles.reportLink}>
@@ -287,6 +307,8 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
               </View>
             )}
 
+            {placeSensitivity(place.category) === 'health' ? <HealthNotice /> : null}
+
             <View style={styles.statusBanner}>
               <View style={styles.statusIcon}>
                 {stateType ? <SignalSymbol color={colors.mint} size={22} type={stateType} /> : <Clock3 color={colors.textSecondary} size={22} />}
@@ -397,6 +419,11 @@ const styles = StyleSheet.create({
   primaryAction: { flexBasis: 146, flexGrow: 1, minWidth: 146, paddingHorizontal: 10 },
   actionTile: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, gap: 4, justifyContent: 'center', minHeight: 56, width: 54 },
   actionLabel: { ...typography.micro, color: colors.text },
+  healthNotice: { alignItems: 'center', backgroundColor: colors.errorSoft, borderColor: colors.errorLine, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
+  healthTitle: { ...typography.bodyStrong, color: colors.text },
+  healthCall: { alignItems: 'center', backgroundColor: colors.danger, borderRadius: radii.pill, justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.md },
+  healthCallText: { ...typography.label, color: colors.ink },
+  flex1: { flex: 1 },
   itemLinks: { flexDirection: 'row', gap: spacing.xs, justifyContent: 'flex-end' },
   reportLink: { alignItems: 'center', flexDirection: 'row', gap: 4, minHeight: 36, paddingHorizontal: spacing.sm },
   reportText: { ...typography.label, color: colors.textSecondary, fontWeight: '400' },

@@ -60,5 +60,10 @@
     "zoomHint": "Pinch to zoom, swipe down to close",
     "counter": "{{index}} / {{total}}"
   },
-  "back": "Back"
+  "back": "Back",
+  "health": {
+    "title": "If this is an emergency",
+    "body": "Call {{number}} or go to the nearest emergency room. Waiting times are reported by users.",
+    "call": "Call {{number}}"
+  }
 }

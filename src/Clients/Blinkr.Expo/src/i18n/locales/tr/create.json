@@ -1,1 +1,13 @@
-{ "share": "Yeni sinyal paylaş" }
+{
+  "share": "Yeni sinyal paylaş",
+  "safety": {
+    "noMediaTitle": "Bu yerde fotoğraf ve video kapalı",
+    "noMediaBody": "Okul ve kreşlerde çocukların güvenliği için yalnız yazılı sinyal paylaşılabilir.",
+    "removeMedia": "Eklenen medyayı kaldır",
+    "privacyTitle": "Başkalarının mahremiyetine dikkat",
+    "privacyBody": "Burada çekim yaparken başkalarının yüzlerini paylaşma. İnsanların mahremiyetine saygı göster.",
+    "gotIt": "Anladım",
+    "uncertainTitle": "Konum belirsiz",
+    "uncertainBody": "Cihazının konum doğruluğu {{meters}} m. Açık alana çıkınca daha doğru bir konum alınabilir."
+  }
+}
