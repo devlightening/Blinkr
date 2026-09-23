@@ -1,4 +1,4 @@
-import { ArrowLeft, MessageCircle, Users, X } from 'lucide-react-native';
+import { ArrowLeft, Layers, MapPin, MessageCircle, ShieldCheck, Users, X, Zap } from 'lucide-react-native';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -83,8 +83,10 @@ export function DevComponentPreview({ onBack }: { onBack: () => void }) {
 
         <Section title="StatRow">
           <StatRow items={[
-            { key: 'signals', icon: <MessageCircle color={colors.mint} size={20} />, label: 'sinyal', value: '12' },
-            { key: 'freshness', icon: <MessageCircle color={colors.mint} size={20} />, label: 'tazelik', value: 'Taze' },
+            { key: 'signals', icon: <Layers color={colors.mint} size={18} />, text: '12 sinyal' },
+            { key: 'freshness', icon: <Zap color={colors.mint} size={18} />, text: 'Canlı' },
+            { key: 'confidence', icon: <ShieldCheck color={colors.mint} size={18} />, text: 'Orta güven' },
+            { key: 'distance', icon: <MapPin color={colors.mint} size={18} />, text: '283 m' },
           ]}
           />
         </Section>

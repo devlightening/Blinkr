@@ -83,7 +83,7 @@ $headers = @{ Accept = "application/json" }
 Write-Host "BLK-AUTH-01 smoke via $GatewayBaseUrl" -ForegroundColor Cyan
 
 $register = Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/auth/register" -Headers $headers -Body @{
-    userName = "auth_smoke_$suffix"
+    userName = "e2e_auth_smoke_$suffix"
     email = $email
     password = $password
 }

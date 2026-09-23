@@ -40,7 +40,7 @@ function Check {
 function New-User {
     param([string]$Prefix)
     $suffix = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-    $name = "$Prefix$suffix"
+    $name = "e2e_$Prefix$suffix"
     $r = Invoke-Api -Method POST -Path "/api/auth/register" -Body @{ userName = $name; email = "$name@blinkr.local"; password = "BlinkrSmoke!2026" }
     if ($r.Status -ne 200) { throw "cannot register $name : HTTP $($r.Status) $($r.Raw)" }
     Start-Sleep -Milliseconds 5

@@ -43,7 +43,7 @@ function Upload-And-Fetch {
 
 Write-Host "BLK-MEDIA-PRIVACY-01 metadata stripping via $GatewayBaseUrl"
 $suffix = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-$reg = Invoke-RestMethod -Method POST -Uri "$GatewayBaseUrl/api/auth/register" -ContentType "application/json" -Body (@{ userName = "mp_$suffix"; email = "mp_$suffix@blinkr.local"; password = "BlinkrSmoke!2026" } | ConvertTo-Json)
+$reg = Invoke-RestMethod -Method POST -Uri "$GatewayBaseUrl/api/auth/register" -ContentType "application/json" -Body (@{ userName = "e2e_mp_$suffix"; email = "mp_$suffix@blinkr.local"; password = "BlinkrSmoke!2026" } | ConvertTo-Json)
 $token = $reg.token
 $gps = Ascii "GPSLatitude=39.9208"
 

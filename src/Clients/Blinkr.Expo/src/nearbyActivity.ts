@@ -1,5 +1,6 @@
 import { distanceMeters } from './nearbyRequestOwnership';
 import { meaningfulTitle, signalLabels } from './presentation';
+import { freshnessTier, isLive } from './freshness';
 import { isFresh } from './productPresentation';
 import type { BlinkrPlace, CoordinateSignal, SignalType, UnifiedMapResponse } from './types';
 
@@ -19,8 +20,10 @@ export type ActivityItem = {
   signalValue: string | null;
   /** When the observation was made; drives the age label. */
   observedAtUtc: string | null;
-  /** Only Place state can be verified live (server-owned trust); coordinate signals never are. */
+  /** Only Place state can be verified at the place (server-owned trust); coordinate signals never are. */
   verifiedLive: boolean;
+  /** Verified and under 15 minutes old (`freshness.ts`): the only rows called "Canlı". */
+  live: boolean;
   activeSignalCount: number;
   place?: BlinkrPlace;
   signal?: CoordinateSignal;
@@ -28,13 +31,8 @@ export type ActivityItem = {
 
 type Origin = { latitude: number; longitude: number };
 
-const MINUTES = 60_000;
-
-/** 0 = observed in the last 15 minutes, 1 = older but still inside its lifetime. */
-const recencyBucket = (observedAtUtc: string | null, now: number) => {
-  const observed = observedAtUtc ? Date.parse(observedAtUtc) : Number.NaN;
-  return Number.isFinite(observed) && now - observed < 15 * MINUTES ? 0 : 1;
-};
+/** 0 = observed in the last 15 minutes, 1 = older but still inside its lifetime (the shared rule, `freshness.ts`). */
+const recencyBucket = (observedAtUtc: string | null, now: number) => (freshnessTier(observedAtUtc, null, now) === 'live' ? 0 : 1);
 
 /**
  * Turns one map response into the ranked list of what is happening around the device right now.
@@ -70,6 +68,7 @@ export const buildNearbyActivity = (
       signalValue: state.signalValue ?? null,
       observedAtUtc: state.observedAtUtc ?? place.lastActivityUtc ?? null,
       verifiedLive: true,
+      live: isLive(state.observedAtUtc ?? place.lastActivityUtc, state.expiresAtUtc, true, now),
       activeSignalCount: state.activeSignalCount ?? 1,
       place,
     });
@@ -91,6 +90,7 @@ export const buildNearbyActivity = (
       signalValue: signal.signalValue ?? null,
       observedAtUtc: signal.createdAtUtc ?? null,
       verifiedLive: false,
+      live: false,
       activeSignalCount: 1,
       signal,
     });
@@ -105,7 +105,7 @@ export const buildNearbyActivity = (
 
 export const filterActivity = (items: ActivityItem[], filter: ActivityFilter) => {
   switch (filter) {
-    case 'live': return items.filter((item) => item.verifiedLive);
+    case 'live': return items.filter((item) => item.live);
     case 'crowd': return items.filter((item) => item.signalType === 'Crowd');
     case 'queue': return items.filter((item) => item.signalType === 'Queue');
     case 'other': return items.filter((item) => item.signalType !== 'Crowd' && item.signalType !== 'Queue');

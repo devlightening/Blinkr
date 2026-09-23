@@ -70,6 +70,7 @@ run('only place state can be verified live', () => {
   const items = build({ places: [place('p', 100)], signals: [signal('s', 100)] });
   check(items.find((i) => i.kind === 'place')!.verifiedLive === true, 'place state is server verified');
   check(items.find((i) => i.kind === 'signal')!.verifiedLive === false, 'coordinate signals are never verified live');
+  check(items.find((i) => i.kind === 'signal')!.live === false, 'coordinate signals are never called live');
 });
 run('the list is capped and deterministic', () => {
   const many = Array.from({ length: 60 }, (_, index) => place(`p${index}`, 100 + index));

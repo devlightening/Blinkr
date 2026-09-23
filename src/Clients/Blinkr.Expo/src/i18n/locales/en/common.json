@@ -40,5 +40,29 @@
   },
   "report": {
     "selfHarmHelp": "If someone's life is in danger, call {{number}} now. This report will be reviewed first."
+  },
+  "freshness": {
+    "live": "Live",
+    "fresh": "Fresh",
+    "recent": "Recent",
+    "old": "Older",
+    "expired": "Expired",
+    "none": "None yet"
+  },
+  "confidence": {
+    "high": "High confidence",
+    "medium": "Medium confidence",
+    "low": "Few confirmations"
+  },
+  "stats": {
+    "signals_one": "{{count}} signal",
+    "signals_other": "{{count}} signals"
+  },
+  "nearby": {
+    "summary_one": "{{count}} signal · {{live}} live · within {{km}} km",
+    "summary_other": "{{count}} signals · {{live}} live · within {{km}} km"
+  },
+  "media": {
+    "loadFailed": "Couldn't load the image"
   }
 }

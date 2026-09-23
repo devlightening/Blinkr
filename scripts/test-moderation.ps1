@@ -37,7 +37,7 @@ function Check {
 
 function Register-SmokeUser {
     param([string]$Label, [string]$Suffix)
-    $userName = "mod_${Label}_$Suffix"
+    $userName = "e2e_mod_${Label}_$Suffix"
     $r = Invoke-Api -Method POST -Path "/api/auth/register" -Body @{ userName = $userName; email = "$userName@blinkr.local"; password = "BlinkrSmoke!2026" }
     [pscustomobject]@{ UserName = $userName; Email = "$userName@blinkr.local"; Token = $r.Json.token; Refresh = $r.Json.refreshToken; Id = $r.Json.userId }
 }

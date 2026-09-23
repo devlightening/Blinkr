@@ -33,7 +33,7 @@ function Check {
 
 Write-Host "BLK-AVATAR-01 avatar catalogue via $GatewayBaseUrl"
 $suffix = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-$name = "avatar_$suffix"
+$name = "e2e_avatar_$suffix"
 $email = "$name@blinkr.local"
 $password = "BlinkrSmoke!2026"
 

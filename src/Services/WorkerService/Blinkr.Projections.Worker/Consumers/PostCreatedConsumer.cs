@@ -103,6 +103,7 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
                 AudienceType = message.AudienceType ?? "Public",
                 IdentityDisclosure = message.IdentityDisclosure ?? "LimitedProfile",
                 LocationPrecision = message.LocationPrecision ?? "ApproximateArea",
+                PublicationTrust = message.PublicationTrust,
                 SourceType = message.SourceType ?? "Community",
                 ExpiresAt = message.ExpiresAt,
                 Media = mediaList

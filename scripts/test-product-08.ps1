@@ -1,3 +1,6 @@
+param([switch]$Cleanup)
+
+# -Cleanup: afterwards remove every test account and what it created (scripts/cleanup-test-data.cjs, plan-devam A1).
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 Push-Location $repo
@@ -20,4 +23,7 @@ try {
         }
     } finally { Pop-Location }
     Write-Host 'PASS automated product acceptance; PHYSICAL_RETEST_REQUIRED'
-} finally { Pop-Location }
+} finally {
+    if ($Cleanup) { & node scripts/cleanup-test-data.cjs }
+    Pop-Location
+}

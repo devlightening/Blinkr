@@ -27,7 +27,7 @@ function Wait-ForProjection {
 }
 
 $stamp = Get-Date -Format "yyyyMMddHHmmssfff"
-$userName = "structured_$stamp"
+$userName = "e2e_structured_$stamp"
 $registration = @{
     userName = $userName
     email = "$userName@blinkr.local"

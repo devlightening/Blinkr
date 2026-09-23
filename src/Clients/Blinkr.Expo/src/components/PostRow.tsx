@@ -1,6 +1,8 @@
 import { EyeOff, Image as ImageIcon, MapPin, Radio } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { freshnessLabelKey, freshnessTier } from '../freshness';
 import { formatAge, meaningfulTitle, signalLabels } from '../presentation';
 import { signalValueLabel } from '../productPresentation';
 import { colors, radii, signalColors, spacing, typography } from '../theme';
@@ -10,7 +12,9 @@ import { SignalSymbol } from './SignalSymbol';
 /** One published signal as a compact row: what, how it was tagged, where, and whether it is still live. */
 export function PostRow({ post }: { post: AuthoredPost }) {
   const tone = signalColors[post.signalType] ?? colors.mint;
-  const expired = post.expiresAt ? Date.parse(post.expiresAt) < Date.now() : false;
+  const { t } = useTranslation('common');
+  // The shared freshness rule (plan-devam A8). The profile list does not carry the server trust, so it never says "Canlı".
+  const freshness = freshnessTier(post.createdAtUtc, post.expiresAt);
   const anonymous = post.identityDisclosure === 'AnonymousMap';
   const value = signalValueLabel(post.signalType, post.signalValue);
   const title = meaningfulTitle(post.title, signalLabels[post.signalType]);
@@ -28,7 +32,9 @@ export function PostRow({ post }: { post: AuthoredPost }) {
           {anonymous ? <View style={styles.chipRow}><EyeOff color={colors.textSecondary} size={12} /><Text style={styles.chipMuted}>Anonim</Text></View> : null}
           {post.mediaUrls?.length ? <View style={styles.chipRow}><ImageIcon color={colors.textSecondary} size={12} /><Text style={styles.chipMuted}>{post.mediaUrls.length}</Text></View> : null}
           {post.locationName ? <View style={styles.chipRow}><MapPin color={colors.textSecondary} size={12} /><Text numberOfLines={1} style={[styles.chipMuted, styles.place]}>{post.locationName}</Text></View> : null}
-          {expired ? <Text style={styles.chipMuted}>Sona erdi</Text> : <View style={styles.chipRow}><Radio color={colors.primary} size={12} /><Text style={styles.chipLive}>Canlı</Text></View>}
+          {freshness === 'live'
+            ? <View style={styles.chipRow}><Radio color={colors.primary} size={12} /><Text style={styles.chipLive}>{t(freshnessLabelKey(freshness, false))}</Text></View>
+            : <Text style={styles.chipMuted}>{t(freshnessLabelKey(freshness, false))}</Text>}
         </View>
       </View>
     </View>

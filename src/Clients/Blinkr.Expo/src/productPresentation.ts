@@ -1,3 +1,4 @@
+import { freshnessTier } from './freshness';
 import { SIGNAL_CATALOG } from './signalCatalog';
 import type { ComposerArea, SignalType } from './types';
 
@@ -11,10 +12,8 @@ export const signalOptions: Partial<Record<SignalType, Array<{ value: string; la
 export const signalValueLabel = (type?: SignalType | null, value?: string | null) =>
   signalOptions[type ?? 'GeneralObservation']?.find(item => item.value.toUpperCase() === value?.toUpperCase())?.label
     ?? ({ EMPTY: 'Sakin', LONG: 'Uzun sıra' } as Record<string, string>)[value?.toUpperCase() ?? ''] ?? value ?? '';
-export const freshnessOpacity = (created?: string | null, now = Date.now()) => {
-  const age = created ? now - Date.parse(created) : 0;
-  return age < 15 * 60_000 ? 1 : age < 60 * 60_000 ? 0.9 : 0.65;
-};
+// One freshness rule for the whole app (plan-devam A8).
+export { freshnessOpacity } from './freshness';
 /**
  * How much of a signal's life is left, 1 (just posted) to 0 (expired) - what `FreshnessRing` draws
  * (03_DESIGN_SYSTEM.md §6). Unlike `freshnessOpacity` (a coarse dim-with-age step for lists), this is
@@ -28,10 +27,7 @@ export const freshnessProgress = (createdAtUtc: string | null | undefined, expir
   return Math.min(1, Math.max(0, (expires - now) / (expires - created)));
 };
 /** The pulse (03_DESIGN_SYSTEM.md §6) is only for signals genuinely still young, not merely "not yet expired". */
-export const isFreshnessPulseDue = (createdAtUtc: string | null | undefined, now = Date.now()) => {
-  const created = createdAtUtc ? Date.parse(createdAtUtc) : Number.NaN;
-  return Number.isFinite(created) && now - created < 15 * 60_000;
-};
+export const isFreshnessPulseDue = (createdAtUtc: string | null | undefined, now = Date.now()) => freshnessTier(createdAtUtc, null, now) === 'live';
 export const isFresh = (created?: string | null, expires?: string | null, now = Date.now()) =>
   Boolean(created && Number.isFinite(Date.parse(created)) && now - Date.parse(created) < 180 * 60_000
     && (!expires || Date.parse(expires) > now));

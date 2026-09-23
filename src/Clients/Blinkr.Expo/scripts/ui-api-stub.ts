@@ -254,7 +254,7 @@ const feedNow = Date.now();
 const feedItem = (id: string, extra: Record<string, unknown> = {}) => ({
   id, title: '', content: 'Kuyruk kapıya kadar.', signalType: 'Queue', signalValue: 'Over15', authorId: 'u-zeynep', authorName: 'zeynep', anonymous: false,
   createdAtUtc: new Date(feedNow - 6 * 60_000).toISOString(), expiresAtUtc: new Date(feedNow + 50 * 60_000).toISOString(), expired: false,
-  likeCount: 4, commentCount: 1, isLikedByCurrentUser: false, placeId: 'kent', locationName: 'Kent Eczanesi', distanceMeters: 350, media: [], ...extra,
+  likeCount: 4, commentCount: 1, isLikedByCurrentUser: false, placeId: 'kent', locationName: 'Kent Eczanesi', distanceMeters: 350, media: [], verified: true, ...extra,
 });
 export const getDiscoverNearby = async (_auth: unknown, _lat: number, _lon: number, page = 1) => {
   if (flag('feedfail')) throw new Error('Network request failed');

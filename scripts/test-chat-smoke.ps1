@@ -68,7 +68,7 @@ function Leaks-Exception {
 
 function New-SmokeUser {
     param([string]$Label, [string]$Suffix)
-    $userName = "chat_${Label}_$Suffix"
+    $userName = "e2e_chat_${Label}_$Suffix"
     $r = Invoke-Api -Method POST -Path "/api/auth/register" -Body @{
         userName = $userName
         email = "$userName@blinkr.local"

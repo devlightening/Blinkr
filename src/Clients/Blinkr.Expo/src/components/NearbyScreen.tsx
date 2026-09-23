@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 import { Compass, MapPin, Radio, WifiOff } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, AppState, FlatList, Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -82,7 +83,7 @@ function ActivityRow({ item, index, onPress }: { item: ActivityItem; index: numb
           </View>
         </View>
         <View style={styles.cardEnd}>
-          {item.verifiedLive
+          {item.live
             ? <View style={styles.liveChip}><Radio color={colors.mint} size={13} /><Text style={styles.liveText}>Canlı</Text></View>
             : null}
           {item.activeSignalCount > 1 ? <Text style={styles.count}>{item.activeSignalCount} sinyal</Text> : null}
@@ -98,6 +99,7 @@ function ActivityRow({ item, index, onPress }: { item: ActivityItem; index: numb
  * infinite scroll. Location is only requested when the person asks for it here.
  */
 export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedded = false }: Props) {
+  const { t } = useTranslation('common');
   const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState<Phase>('checking');
   const [items, setItems] = useState<ActivityItem[]>([]);
@@ -188,7 +190,7 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedd
       {embedded ? null : <Text accessibilityRole="header" style={styles.title}>Yakında</Text>}
       <Text style={styles.subtitle}>
         {phase === 'ready'
-          ? `${items.length} taze sinyal · ${(ACTIVITY_RADIUS_METERS / 1000).toLocaleString('tr-TR', { minimumFractionDigits: 1 })} km içinde${updatedAt ? ` · ${formatAge(new Date(updatedAt).toISOString())} güncellendi` : ''}`
+          ? `${t('nearby.summary', { count: counts.all, live: counts.live, km: (ACTIVITY_RADIUS_METERS / 1000).toLocaleString('tr-TR', { minimumFractionDigits: 1 }) })}${updatedAt ? ` · ${formatAge(new Date(updatedAt).toISOString())} güncellendi` : ''}`
           : 'Çevrendeki taze yer durumları'}
       </Text>
     </View>

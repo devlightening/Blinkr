@@ -16,7 +16,7 @@ public record DiscoverItemDto(
     Guid? AuthorId, string AuthorName, bool Anonymous,
     DateTime CreatedAtUtc, DateTime? ExpiresAtUtc, bool Expired,
     int LikeCount, int CommentCount, bool IsLikedByCurrentUser,
-    Guid? PlaceId, string? LocationName, int? DistanceMeters, IReadOnlyList<DiscoverMediaDto> Media, bool Sensitive);
+    Guid? PlaceId, string? LocationName, int? DistanceMeters, IReadOnlyList<DiscoverMediaDto> Media, bool Sensitive, bool Verified);
 public record DiscoverPageDto(IReadOnlyList<DiscoverItemDto> Items, int Page, int PageSize, bool HasMore);
 
 /// <summary>
@@ -37,12 +37,16 @@ public class DiscoverController : ControllerBase
 
     private readonly IMongoCollection<PostDocument> _posts;
     private readonly SocialGraphClient _graph;
+    private readonly bool _hideTestAccounts;
 
-    public DiscoverController(IMongoDatabase database, SocialGraphClient graph)
+    public DiscoverController(IMongoDatabase database, SocialGraphClient graph, IConfiguration configuration)
     {
         _posts = database.GetCollection<PostDocument>("posts");
         _graph = graph;
+        _hideTestAccounts = configuration.GetValue<bool>(TestAccounts.HideSetting);
     }
+
+    private bool IsHiddenTestPost(PostDocument d) => TestAccounts.HideFrom(User, _hideTestAccounts) && TestAccounts.IsTestName(d.AuthorName);
 
     /// <summary>GET /api/discover/nearby?lat&amp;lon&amp;radiusMeters&amp;page&amp;pageSize</summary>
     [HttpGet("nearby")]
@@ -65,7 +69,7 @@ public class DiscoverController : ControllerBase
 
         var graph = await _graph.GetAsync(ct);
         var hidden = graph?.Hidden ?? new HashSet<Guid>();
-        var visible = docs.Where(d => d.IdentityDisclosure == "AnonymousMap" || !hidden.Contains(d.AuthorId)).ToList();
+        var visible = docs.Where(d => (d.IdentityDisclosure == "AnonymousMap" || !hidden.Contains(d.AuthorId)) && !IsHiddenTestPost(d)).ToList();
         var byId = visible.ToDictionary(d => d.Id);
         var ordered = DiscoverRanking.Order(visible.Select(d => new DiscoverRanking.Candidate(
             d.Id, d.AuthorId, d.IdentityDisclosure == "AnonymousMap", d.CreatedAtUtc, DistanceOf(d, lat, lon), d.LikeCount, d.CommentCount, ContentTextFilter.IsSensitive(d.Title, d.Content))), now, pageSize);
@@ -96,7 +100,7 @@ public class DiscoverController : ControllerBase
             Builders<PostDocument>.Filter.Gt(p => p.CreatedAtUtc, now - FollowingWindow));
         var docs = await _posts.Find(filter).SortByDescending(p => p.CreatedAtUtc).Skip((page - 1) * pageSize).Limit(pageSize + 1).ToListAsync(ct);
         var me = User.GetUserId();
-        var items = docs.Take(pageSize).Select(d => ToItem(d, me, now, null)).ToList();
+        var items = docs.Take(pageSize).Where(d => !IsHiddenTestPost(d)).Select(d => ToItem(d, me, now, null)).ToList();
         return Ok(new DiscoverPageDto(items, page, pageSize, docs.Count > pageSize));
     }
 
@@ -121,6 +125,7 @@ public class DiscoverController : ControllerBase
             d.LikeCount, d.CommentCount, me.HasValue && (d.LikedByUserIds?.Contains(me.Value) ?? false),
             d.PlaceId, d.LocationName, distance,
             (d.Media ?? new()).Select(m => new DiscoverMediaDto(m.Url, m.ThumbnailUrl, m.Type)).ToList(),
-            ContentTextFilter.IsSensitive(d.Title, d.Content));
+            ContentTextFilter.IsSensitive(d.Title, d.Content),
+            d.PublicationTrust == "VERIFIED_LIVE");
     }
 }

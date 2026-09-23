@@ -27,6 +27,8 @@ export type DiscoverItem = {
   media: DiscoverMedia[];
   /** Light swearing: published, ranked lower by the server and labelled "Hassas içerik" (Faz 10 P10.1). */
   sensitive?: boolean;
+  /** The server verified the author was at the place (VERIFIED_LIVE): only then may the card say "Canlı". */
+  verified?: boolean;
 };
 export type DiscoverPage = { items: DiscoverItem[]; page: number; pageSize: number; hasMore: boolean };
 export type DiscoverTab = 'nearby' | 'following' | 'places';

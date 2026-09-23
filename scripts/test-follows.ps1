@@ -36,7 +36,7 @@ function Check {
 
 function Register-SmokeUser {
     param([string]$Label, [string]$Suffix)
-    $userName = "fol_${Label}_$Suffix"
+    $userName = "e2e_fol_${Label}_$Suffix"
     $r = Invoke-Api -Method POST -Path "/api/auth/register" -Body @{ userName = $userName; email = "$userName@blinkr.local"; password = "BlinkrSmoke!2026" }
     if ($r.Status -ne 200 -and $r.Status -ne 201) { throw "Register $Label failed: HTTP $($r.Status)" }
     [pscustomobject]@{ UserName = $userName; Token = $r.Json.token; Id = $r.Json.userId }

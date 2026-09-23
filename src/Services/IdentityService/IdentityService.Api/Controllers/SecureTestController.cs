@@ -26,9 +26,11 @@ namespace IdentityService.Api.Controllers
     {
         private readonly IUserService _userService;
         private readonly AppDbContext _db;
+        private readonly IConfiguration _configuration;
 
-        public UsersController(IUserService userService, AppDbContext db)
+        public UsersController(IUserService userService, AppDbContext db, IConfiguration configuration)
         {
+            _configuration = configuration;
             _userService = userService;
             _db = db;
         }
@@ -128,8 +130,11 @@ namespace IdentityService.Api.Controllers
 
             var term = q.Trim();
             var hidden = await BlockQueries.HiddenFromAsync(_db, ViewerId());
+            // Development only: smoke-test accounts stay out of a real person's search (plan-devam Faz A1).
+            var hideTests = TestAccounts.HideFrom(User, _configuration.GetValue<bool>(TestAccounts.HideSetting));
             var found = await _db.Users
                 .Where(u => !hidden.Contains(u.Id) && EF.Functions.ILike(u.UserName, $"%{term}%"))
+                .Where(u => !hideTests || (!u.UserName.StartsWith(TestAccounts.Prefix) && !System.Text.RegularExpressions.Regex.IsMatch(u.UserName, TestAccounts.LegacyPattern)))
                 .OrderBy(u => u.UserName)
                 .Take(20)
                 .Select(u => new { u.Id, u.UserName, u.AvatarKey })

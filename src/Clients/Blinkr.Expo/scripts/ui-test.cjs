@@ -680,6 +680,10 @@ async function main() {
     await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'discover.png') });
     await page.getByTestId('feed-card-n-1').getByRole('button', { name: 'Yorumlar', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Yorumlar' })).toBeVisible();
+    // plan-devam A7: one like/comment row in the sheet (its own), not the card's as well.
+    await expect(page.getByTestId('like-button')).toHaveCount(1);
+    await expect(page.getByTestId('feed-like-n-1')).toHaveCount(1); // only the card behind the sheet
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'discover-thread.png') });
     await page.getByRole('button', { name: 'Kapat' }).last().click();
     await page.getByTestId('feed-card-n-1').getByRole('button', { name: 'Haritada göster' }).click();
     await expect(page.getByLabel('opened')).toHaveText('place:kent');
@@ -876,7 +880,9 @@ async function main() {
     await page.goto(url + '?scene=nearby');
     await expect(page.getByRole('heading', { name: 'Yakında' })).toBeVisible();
     await expect(page.getByLabel(/Kent Meydanı, .*Haritada aç/)).toBeVisible();
-    await expect(page.getByText(/5 taze sinyal/)).toBeVisible();
+    // plan-devam A8: one freshness rule, so the header live count, the 'Canlı' chip and its rows always agree.
+    await expect(page.getByText(/5 sinyal · \d+ canlı/)).toBeVisible();
+    const liveInHeader = Number((await page.getByText(/5 sinyal · \d+ canlı/).textContent()).match(/· (\d+) canlı/)[1]);
     const rowLabels = await page.getByLabel(/Haritada aç/).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label').split(',')[0]));
     // Freshest bucket (< 15 min) by distance, then the older bucket by distance.
     if (rowLabels.join('|') !== 'Kent Meydanı|Yol çalışması|Masal Parkı|Yıldırım Beyazıt Kafe|Merkez Eczanesi') throw new Error('Yakında order wrong: ' + rowLabels.join('|'));
@@ -890,8 +896,9 @@ async function main() {
     await page.getByRole('button', { name: /Tümü, 5 sonuç/ }).waitFor();
     await page.getByRole('button', { name: /Bekleme, 2 sonuç/ }).click();
     await expect(page.getByLabel(/Haritada aç/)).toHaveCount(2);
-    await page.getByRole('button', { name: /Canlı, 4 sonuç/ }).click();
-    await expect(page.getByLabel(/Haritada aç/)).toHaveCount(4);
+    await page.getByRole('button', { name: new RegExp(`Canlı, ${liveInHeader} sonuç`) }).click();
+    await expect(page.getByLabel(/Haritada aç/)).toHaveCount(liveInHeader);
+    if (liveInHeader < 1) throw new Error('stub should have at least one live place');
     await page.getByRole('button', { name: /Tümü, 5 sonuç/ }).click();
     await page.getByLabel(/Kent Meydanı, .*Haritada aç/).click();
     await expect(page.getByLabel('opened')).toHaveText('place:p1');

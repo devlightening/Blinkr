@@ -1,43 +1,39 @@
 import type { ReactNode } from 'react';
-import { Fragment } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { colors, radii, spacing, typography } from '../../theme';
 
 export type StatItem = {
   key: string;
+  /** Each item has its own icon (count, freshness, trust and distance never share one - plan-devam A5). */
   icon: ReactNode;
-  /** The number or state word itself, e.g. "Taze", "283 m", "12". */
-  value: string;
-  /** The axis name, shown once beneath the value - never repeated inside `value` (sinyal-mvp-plan AUDIT #1: "Taze tazelik", "Orta güven güven"). */
-  label: string;
+  /**
+   * One short phrase that already says what it is: "Canlı", "Orta güven", "283 m", "3 sinyal". There is no
+   * separate axis label under it any more - "Taze / tazelik", "Orta / güven" read as the word twice (plan-devam A4).
+   */
+  text: string;
+  accessibilityLabel?: string;
 };
 
 /**
- * A row of 2-4 small stats (icon + value + one label), separated by hairline dividers. Replaces the
- * repeated one-off `Stat` markup that used to duplicate the axis word inside the value ("Orta güven güven").
+ * A calm row of 2-4 facts, icon + phrase (`⚡ Canlı  🛡 Orta güven  📍 283 m`). Each icon marks where a fact starts, so no
+ * separator is needed - a dot at the end of a wrapped line read as a stray character.
  */
 export function StatRow({ items, style }: { items: StatItem[]; style?: StyleProp<ViewStyle> }) {
   return (
-    <View style={[styles.row, style]}>
-      {items.map((item, index) => (
-        <Fragment key={item.key}>
-          {index > 0 ? <View style={styles.divider} /> : null}
-          <View style={styles.stat}>
-            {item.icon}
-            <Text numberOfLines={1} style={styles.value}>{item.value}</Text>
-            <Text numberOfLines={1} style={styles.label}>{item.label}</Text>
-          </View>
-        </Fragment>
+    <View accessibilityRole="summary" style={[styles.row, style]}>
+      {items.map((item) => (
+        <View accessibilityLabel={item.accessibilityLabel ?? item.text} accessible key={item.key} style={styles.stat} testID={`stat-${item.key}`}>
+          {item.icon}
+          <Text numberOfLines={1} style={styles.text}>{item.text}</Text>
+        </View>
       ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { alignItems: 'stretch', backgroundColor: colors.background, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', paddingVertical: spacing.md },
-  stat: { alignItems: 'center', flex: 1, gap: 2, paddingHorizontal: 4 },
-  value: { ...typography.bodyStrong, color: colors.text, fontSize: 15 },
-  label: { ...typography.caption, color: colors.textSecondary },
-  divider: { backgroundColor: colors.border, width: 1 },
+  row: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, columnGap: spacing.lg, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.md, rowGap: spacing.xs },
+  stat: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+  text: { ...typography.bodyStrong, color: colors.text },
 });

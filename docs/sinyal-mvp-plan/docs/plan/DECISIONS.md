@@ -15,6 +15,16 @@
 
 ## Kararlar
 
+### D-016 — plan-devam Faz A: test verisi izolasyonu, tek tazelik kuralı, "Canlı" yalnız doğrulanmış sinyalde (2026-09-23)
+- Bağlam: Kullanıcı elle testte Keşfet/aramada smoke kayıtları, 20.038 seed gönderisi, tekrarlı StatRow etiketleri ve tutarsız "taze/canlı" sayıları gördü (plan-devam A1-A8).
+- Karar:
+  - Test hesapları artık `e2e_` önekiyle açılır (tüm `scripts/test-*.ps1` ve `tests/PlacePosting`). Geliştirme ortamında (`TestAccounts:Hide`) `e2e_` ve eski `ad_zamanDamgası` biçimli hesaplar test hesabı olmayan kişilerden Keşfet, harita pinleri ve kişi aramasında gizlenir; testler kendi verisini görmeye devam eder.
+  - `scripts/cleanup-test-data.cjs` test hesaplarını ve ürettiklerini siler (sinyaller API üzerinden geçici admin ile → PostDeleted zinciri; sohbet/bildirim/hikâye Mongo'dan; hesaplar Postgres'ten). Demo hesaplar (`sentetik_01..08`, seed-chat kişileri) korunur. `--backup` önce pg_dump + mongodump alır. Koşucuda `-Cleanup` anahtarıyla isteğe bağlı.
+  - Tazelik tek fonksiyondan (`src/freshness.ts`): canlı < 15 dk, güncel < 45 dk, sonrası eski. "Canlı" yalnız sunucunun doğruladığı (VERIFIED_LIVE) gözlemde; doğrulanmamış genç sinyal "Taze". Bunun için okuma modeline `PublicationTrust` eklendi ve Keşfet `verified` döndürür.
+  - StatRow değer + ayrı etiket yerine tek ifade + kendi ikonu ("2 sinyal · Orta güven · ~120 m"); gözlem zamanı yoksa tazelik öğesi gösterilmez.
+- Uygulanamayan: A2/A3 toplu silme (795 test hesabı, 765 test sinyali, ahmet'teki 20.024 seed gönderisi) otomatik izin denetiminden geçmedi; betikler hazır, kullanıcı onayıyla çalıştırılacak. Kullanıcının kendi yazdığı eski küfürlü 5 gönderi silinmedi (kullanıcı içeriği); metin filtresi bunları artık Keşfet'te "Hassas içerik" olarak işaretleyip geriye itiyor.
+- Etki: Faz C'deki Sinyal Kartı "Konumda" rozeti için `PublicationTrust` hazır.
+
 ### D-015 — P10.2-P10.4 moderasyon: raporlar Identity'de, gizleme koleksiyon taşıma ile, görsel moderasyon sağlayıcısı ertelendi (2026-09-23)
 - Bağlam: 11 §4 ağırlıklı rapor skoru ≥ 3 → auto_hide, admin inceleme kuyruğu, yaptırım merdiveni, denetim izi ve `MODERATION_PROVIDER` ile görsel moderasyon istiyor.
 - Karar:

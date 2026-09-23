@@ -34,7 +34,7 @@ function Register { param($UserName, $Email, $Password = "BlinkrSmoke!2026") Inv
 
 Write-Host "BLK-AUTH-02 registration rules via $GatewayBaseUrl"
 $suffix = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-$name = "reg_user_$suffix"
+$name = "e2e_reg_user_$suffix"
 $email = "reg_user_$suffix@blinkr.local"
 
 $first = Register -UserName $name -Email $email

@@ -66,7 +66,7 @@ function Post-At {
 
 Write-Host "BLK-SENSITIVE-01 no media at schools via $GatewayBaseUrl"
 $suffix = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-$reg = Invoke-Api -Method POST -Path "/api/auth/register" -Body @{ userName = "sens_$suffix"; email = "sens_$suffix@blinkr.local"; password = "BlinkrSmoke!2026" }
+$reg = Invoke-Api -Method POST -Path "/api/auth/register" -Body @{ userName = "e2e_sens_$suffix"; email = "sens_$suffix@blinkr.local"; password = "BlinkrSmoke!2026" }
 $token = $reg.Json.token
 
 $school = Find-Place -Query "okul" -Category "EDUCATION" -Lat 39.92 -Lon 32.85

@@ -1,4 +1,4 @@
-import { Bookmark, Camera, Check, Clock3, Compass, Flag, Image as ImageIcon, MapPin, MessageCircle, RefreshCw, Share2, ShieldCheck, X } from 'lucide-react-native';
+import { Bookmark, Camera, Check, Clock3, Compass, Flag, Image as ImageIcon, Layers, MapPin, MessageCircle, RefreshCw, Share2, ShieldCheck, X, Zap } from 'lucide-react-native';
 import { ActivityIndicator, Alert, Image, Linking, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +11,7 @@ import { categoryTone, colors, radii, signalColors, spacing, typography } from '
 import type { AuthResponse, BlinkrMedia, BlinkrPlace, CoordinateSignal, RecentSignal, SignalType } from '../types';
 import type { ReportReasonId } from '../friends';
 import { emergencyNumber, placeSensitivity } from '../placeSafety';
+import { confidenceKey, freshnessLabelKey, freshnessTier } from '../freshness';
 import { recheckSignal, signalValueLabel, trustLabel } from '../productPresentation';
 import { AnimatedPressable } from './AnimatedPressable';
 import { ReportPanel } from './ReportPanel';
@@ -25,6 +26,7 @@ import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
 import { BlinkrSheetPanel } from './ui/BlinkrSheetPanel';
 import { BlinkrSignalCard } from './ui/BlinkrSignalCard';
 import { StatRow } from './ui/BlinkrStatRow';
+import { MediaImage } from './ui/BlinkrMediaImage';
 
 type Props = {
   /** Signed-in session: likes and comments. Without it the thread is read-only. */
@@ -47,16 +49,6 @@ type Props = {
 
 const MAX_PHOTOS = 3;
 
-// The axis name ("güven") is the StatRow label, shown once; the value never repeats it (sinyal-mvp-plan AUDIT #1: "Orta güven güven").
-const formatConfidence = (label?: string | null) =>
-  label?.toUpperCase() === 'HIGH' ? 'Yüksek' : label?.toUpperCase() === 'MEDIUM' ? 'Orta' : 'Yeni';
-
-const formatFreshness = (freshness?: string | null) => {
-  if (freshness?.toUpperCase() === 'FRESH') return 'Taze';
-  if (['RECENT', 'STALE'].includes(freshness?.toUpperCase() ?? '')) return 'Yakın zamanda';
-  if (freshness?.toUpperCase() === 'EXPIRED') return 'Süresi doldu';
-  return 'Beklemede';
-};
 
 const openDirections = (place: BlinkrPlace) => {
   const label = encodeURIComponent(place.name);
@@ -75,7 +67,7 @@ const MediaThumb = ({ media, style }: { media: BlinkrMedia; style: object }) => 
     const videoUrl = toAbsoluteUrl(media.url);
     if (videoUrl) return <VideoPreview style={style} uri={videoUrl} />;
   }
-  return <Image accessibilityIgnoresInvertColors source={{ uri: url }} style={style} />;
+  return <MediaImage style={style} uri={url} />;
 };
 
 /** Real photos only: whatever media the place's recent signals actually carry, never a placeholder. */
@@ -170,6 +162,7 @@ const SignalItem = ({ signal, index, onReport, onOpenThread }: { signal: RecentS
 };
 
 export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading, onClose, onCreateSignal, onRecheck, onReportSignal, place, signal, userId }: Props) {
+  const { t } = useTranslation('common');
   const state = place?.currentState;
   const recheck = onRecheck ? recheckSignal(state) : null;
   const recentSignals = place?.recentSignals ?? [];
@@ -204,6 +197,8 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
   const tone = place ? categoryTone(place.category) : colors.mint;
   const stateType = state?.signalType ?? null;
   const distance = place ? formatDistance(place.distanceMeters) : '';
+  // Place state only holds server-verified observations, so the shared rule may call it "Canlı" (freshness.ts).
+  const freshness = freshnessTier(state?.observedAtUtc ?? place?.lastActivityUtc, state?.expiresAtUtc);
 
   return (
     <Sheet onClose={onClose}>
@@ -321,10 +316,11 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
 
             <StatRow
               items={[
-                { key: 'signals', icon: <MessageCircle color={colors.mint} size={22} />, label: 'sinyal', value: String(state?.activeSignalCount ?? recentSignals.length) },
-                { key: 'freshness', icon: <Clock3 color={colors.mint} size={22} />, label: 'tazelik', value: formatFreshness(state?.freshness) },
-                { key: 'confidence', icon: <ShieldCheck color={colors.mint} size={22} />, label: 'güven', value: formatConfidence(state?.confidence) },
-                ...(distance ? [{ key: 'distance', icon: <MapPin color={colors.mint} size={22} />, label: 'uzaklık', value: distance }] : []),
+                { key: 'signals', icon: <Layers color={colors.mint} size={18} />, text: t('common:stats.signals', { count: state?.activeSignalCount ?? recentSignals.length }) },
+                // No observation time: say nothing rather than "Henüz yok" next to a signal count.
+                ...(freshness !== 'none' ? [{ key: 'freshness', icon: <Zap color={colors.mint} size={18} />, text: t(freshnessLabelKey(freshness, true)) }] : []),
+                { key: 'confidence', icon: <ShieldCheck color={colors.mint} size={18} />, text: t(confidenceKey(state?.confidence)) },
+                ...(distance ? [{ key: 'distance', icon: <MapPin color={colors.mint} size={18} />, text: distance }] : []),
               ]}
               style={styles.stats}
             />

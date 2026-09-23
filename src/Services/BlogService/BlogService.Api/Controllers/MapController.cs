@@ -4,6 +4,7 @@ using BlogService.Application.DTOs.PostDtos;
 using BlogService.Application.Services.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Shared.Moderation;
 
 namespace BlogService.Api.Controllers;
 
@@ -68,8 +69,11 @@ public sealed class MapController : ControllerBase
 
         await Task.WhenAll(postsTask, placesTask);
 
+        // Development only: smoke-test signals stay out of a real person's map (plan-devam Faz A1).
+        var hideTests = TestAccounts.HideFrom(User, _configuration.GetValue<bool>(TestAccounts.HideSetting));
         var signals = postsTask.Result.Items
             .Where(post => post.PlaceId is null && post.Latitude.HasValue && post.Longitude.HasValue && post.IsLive)
+            .Where(post => !hideTests || !TestAccounts.IsTestName(post.AuthorName))
             .Take(limit)
             .Select(ToSignalItem)
             .ToArray();

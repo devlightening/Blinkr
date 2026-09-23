@@ -72,7 +72,7 @@ if (args.Contains("--catalog"))
 {
     using var http = new HttpClient { BaseAddress = new Uri("http://localhost:5080"), Timeout = TimeSpan.FromSeconds(30) };
     (await http.GetAsync("/health")).EnsureSuccessStatusCode();
-    var user = "geometry_" + Guid.NewGuid().ToString("N")[..12];
+    var user = "e2e_geometry_" + Guid.NewGuid().ToString("N")[..12];
     var registration = await http.PostAsJsonAsync("/api/auth/register", new { userName = user, email = user + "@blinkr.local", password = "BlinkrSmoke!2026" });
     registration.EnsureSuccessStatusCode();
     var auth = await registration.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();

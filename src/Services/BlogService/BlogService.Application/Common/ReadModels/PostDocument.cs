@@ -45,6 +45,13 @@ public class PostDocument
     /// </summary>
     [BsonIgnoreIfNull]
     public string? ModerationState { get; set; }
+    /// <summary>
+    /// The server's publication trust (VERIFIED_LIVE / NEARBY_PLACE_POST / ...), so a feed or card can say "Canlı" or
+    /// "Konumda" only when the server verified it (plan-devam A8/C3). Null on posts projected before it was kept.
+    /// Must match the other two PostDocument copies.
+    /// </summary>
+    [BsonIgnoreIfNull]
+    public string? PublicationTrust { get; set; }
     public List<PostCommentReadModel> Comments { get; set; } = new();
 
     [BsonIgnore]

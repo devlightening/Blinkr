@@ -40,5 +40,29 @@
   },
   "report": {
     "selfHarmHelp": "Birinin hayatı tehlikedeyse hemen acil çağrı numarasını ara: {{number}}. Bu bildirim öncelikli incelenecek."
+  },
+  "freshness": {
+    "live": "Canlı",
+    "fresh": "Taze",
+    "recent": "Güncel",
+    "old": "Eski",
+    "expired": "Süresi doldu",
+    "none": "Henüz yok"
+  },
+  "confidence": {
+    "high": "Yüksek güven",
+    "medium": "Orta güven",
+    "low": "Az doğrulama"
+  },
+  "stats": {
+    "signals_one": "{{count}} sinyal",
+    "signals_other": "{{count}} sinyal"
+  },
+  "nearby": {
+    "summary_one": "{{count}} sinyal · {{live}} canlı · {{km}} km içinde",
+    "summary_other": "{{count}} sinyal · {{live}} canlı · {{km}} km içinde"
+  },
+  "media": {
+    "loadFailed": "Görsel yüklenemedi"
   }
 }

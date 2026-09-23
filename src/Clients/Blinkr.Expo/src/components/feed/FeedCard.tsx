@@ -1,16 +1,18 @@
 import { EyeOff, Heart, MapPin, MessageCircle, Radio, Send, ShieldAlert } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { toAbsoluteUrl } from '../../api';
 import { canLikeFeedItem, feedDistanceLabel, type DiscoverItem } from '../../discoverFeed';
 import { formatCount } from '../../engagement';
+import { freshnessLabelKey, freshnessTier } from '../../freshness';
 import { formatAge, meaningfulTitle, signalLabels } from '../../presentation';
 import { signalValueLabel } from '../../productPresentation';
 import { colors, radii, signalColors, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
 import { SignalSymbol } from '../SignalSymbol';
+import { MediaImage } from '../ui/BlinkrMediaImage';
 
 type Props = {
   item: DiscoverItem;
@@ -21,22 +23,27 @@ type Props = {
   onShowOnMap?: (item: DiscoverItem) => void;
   /** Send it to a friend in chat (P8.7). */
   onShare?: (item: DiscoverItem) => void;
+  /** Inside the comments sheet the sheet has its own like/comment row: showing both read as a duplicate (plan-devam A7). */
+  hideActions?: boolean;
 };
 
 /**
  * One signal in the Keşfet feed (sinyal-mvp-plan P7.3): who (or "Topluluk üyesi" for anonymous), what type and value,
  * how fresh, how far (coarse), the photo if any, and likes/comments. Still a place signal, not a free-form post.
  */
-export function FeedCard({ item, myUserId, onLike, onOpenThread, onOpenAuthor, onShowOnMap, onShare }: Props) {
+export function FeedCard({ item, myUserId, onLike, onOpenThread, onOpenAuthor, onShowOnMap, onShare, hideActions = false }: Props) {
   const { t, i18n } = useTranslation('feed');
   const lang = i18n.language === 'en' ? 'en' : 'tr';
   const tone = signalColors[item.signalType] ?? colors.mint;
   const value = signalValueLabel(item.signalType, item.signalValue);
   const title = meaningfulTitle(item.title, signalLabels[item.signalType]);
   const photo = item.media.find((media) => media.type !== 'Video') ?? item.media[0];
-  const photoUrl = photo ? toAbsoluteUrl(photo.thumbnailUrl ?? photo.url) : null;
+  const photoIsVideo = photo?.type === 'Video';
+  // A video is only drawn from its thumbnail; its .mp4 url is not an image (plan-devam A6).
+  const photoUrl = photo ? toAbsoluteUrl(photoIsVideo ? photo.thumbnailUrl : photo.thumbnailUrl ?? photo.url) : null;
   const distance = feedDistanceLabel(item.distanceMeters, lang);
   const likeable = canLikeFeedItem(item, myUserId);
+  const freshness = freshnessTier(item.createdAtUtc, item.expiresAtUtc);
 
   return (
     <View style={[styles.card, item.expired && styles.expired]} testID={`feed-card-${item.id}`}>
@@ -58,9 +65,10 @@ export function FeedCard({ item, myUserId, onLike, onOpenThread, onOpenAuthor, o
             </Text>
           </View>
         </AnimatedPressable>
-        {item.expired
-          ? <Text style={styles.meta}>{t('discover.expired')}</Text>
-          : <View style={styles.live}><Radio color={colors.primary} size={12} /><Text style={styles.liveText}>{t('discover.live')}</Text></View>}
+        {/* One freshness rule (plan-devam A8): "Canlı" only for a server-verified signal under 15 minutes. */}
+        {freshness === 'live' && item.verified
+          ? <View style={styles.live}><Radio color={colors.primary} size={12} /><Text style={styles.liveText}>{t(freshnessLabelKey(freshness, true))}</Text></View>
+          : <Text style={styles.meta}>{t(freshnessLabelKey(item.expired ? 'expired' : freshness, Boolean(item.verified)))}</Text>}
       </View>
 
       <AnimatedPressable accessibilityLabel={`${signalLabels[item.signalType] ?? ''}${value ? `, ${value}` : ''}. ${t('discover.comments')}`} accessibilityRole="button" onPress={() => onOpenThread(item)} pressScale={0.99}>
@@ -78,10 +86,10 @@ export function FeedCard({ item, myUserId, onLike, onOpenThread, onOpenAuthor, o
         </View>
         {title ? <Text style={styles.title}>{title}</Text> : null}
         {item.content ? <Text numberOfLines={4} style={styles.content}>{item.content}</Text> : null}
-        {photoUrl ? <Image accessibilityIgnoresInvertColors resizeMode="cover" source={{ uri: photoUrl }} style={styles.photo} /> : null}
+        {photo ? <MediaImage style={styles.photo} uri={photoUrl} video={photoIsVideo} /> : null}
       </AnimatedPressable>
 
-      <View style={styles.actions}>
+      {hideActions ? null : <View style={styles.actions}>
         <AnimatedPressable
           accessibilityLabel={item.isLikedByCurrentUser ? 'Beğeniyi geri al' : 'Beğen'}
           accessibilityRole="button"
@@ -110,7 +118,7 @@ export function FeedCard({ item, myUserId, onLike, onOpenThread, onOpenAuthor, o
             <Text style={styles.meta}>{t('discover.showOnMap')}</Text>
           </AnimatedPressable>
         ) : null}
-      </View>
+      </View>}
     </View>
   );
 }

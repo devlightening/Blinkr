@@ -1128,3 +1128,52 @@ Her tartismada su cumleyi karar filtresi olarak kullan:
 > Blinkr insanlarin uygulamada daha fazla zaman gecirmesi icin degil, gercek dunyada daha iyi yer kararlari vermesi icin vardir.
 
 Bir degisiklik bu amaci guclendiriyor, bilgiyi daha taze ve guvenilir yapiyor, mahremiyeti koruyor ve cekirdek donguyu daha dayanikli hale getiriyorsa Blinkr'in dogru yonundedir.
+
+## 28. Devam Paketi (plan-devam, 2026-09-23)
+
+> Bu paketteki `docs/plan/` referansları `docs/sinyal-mvp-plan/docs/plan/` klasörünü kasteder. Paket `docs/plan-devam/` altındadır; tek takip dosyası `docs/plan-devam/PROGRESS_DEVAM.md`.
+> mimari tanımları hâlâ oradadır. Bu paket **sıradaki işleri** ve **sırayı** tanımlar.
+
+### Şu an neredeyiz
+Faz 0–9 işlevsel olarak tamamlandı, Faz 10'un yarısı bitti (P10.1, P10.3, P10.4, P10.8, P10.9).
+Ancak kullanıcı uygulamayı elle test etti ve **plandaki bazı görsel/UX hedeflerinin koda yansımadığını**
+tespit etti. Ayrıntı: `docs/plan-devam/00_BURADAN_DEVAM.md`.
+
+### Yeni yürütme sırası
+```
+Faz A  Doğrulama ve temizlik      (test verisi, seed, gerçek hatalar)   ← ŞİMDİ BURADAN BAŞLA
+Faz B  Palet ve tema (D-006)      (uygulanmamış; şimdi uygulanacak)
+Faz C  Sinyal Kartı + harita      (Faz 3'ün eksik kalan görsel kısmı)
+Faz D  Kamera-öncelikli oluşturma (Faz 5'in eksik kalan kısmı)
+Faz E  Sohbet yenileme            (Faz 8'in eksik kalan kısmı)
+Faz F  Faz 10 kalanları           (P10.10, P10.7, P10.6)
+Faz G  Faz 11 + 12                (i18n, a11y, performans, analitik, QA, yayın)
+```
+
+### Bu paketin dosyaları
+| Dosya | İçerik |
+|---|---|
+| `docs/plan-devam/00_BURADAN_DEVAM.md` | Durum tespiti, neden bu sıra, çalışma kuralları |
+| `docs/plan-devam/01_FAZ_A_DOGRULAMA_TEMIZLIK.md` | A1–A9 |
+| `docs/plan-devam/02_FAZ_B_PALET_VE_TEMA.md` | B1–B11, kesin token değerleri |
+| `docs/plan-devam/03_FAZ_C_SINYAL_KARTI_VE_HARITA.md` | C1–C13 |
+| `docs/plan-devam/04_FAZ_D_OLUSTURMA_AKISI.md` | D1–D11 |
+| `docs/plan-devam/05_FAZ_E_SOHBET.md` | E1–E9 |
+| `docs/plan-devam/06_FAZ_F_FAZ10_KALANLARI.md` | F1–F7 |
+| `docs/plan-devam/07_FAZ_G_KAPANIS_I18N_QA_YAYIN.md` | G1–G14 |
+| `docs/plan-devam/PROGRESS_DEVAM.md` | Tek takip dosyası (bunu güncelle) |
+
+### Değişmeyen kurallar (mevcut CLAUDE.md'den)
+- Yerel IP kuralı: `src/Clients/Blinkr.Expo/src/api.ts` içindeki yerel IP commit'lenmez.
+- `git add -A` sonrası kullanıcının özel dosyalarını `git reset` ile dışarıda bırak.
+- Commit sonu `Co-Authored-By`, her commit sonrası push.
+- Yeni her kullanıcı metni i18n (tr + en); renk/ölçü yalnızca `theme.ts` token'ları.
+- Secret / ücretli servis / veri silen migration dışında soru sorma; her sapma DECISIONS.md'ye.
+- Her faz sonunda: kabul betikleri + `typecheck` + testler + iOS/Android export, sonra
+  `PROGRESS_DEVAM.md` güncelle ve commit at.
+
+### Ek kural (bu paketle gelir)
+**"Tamam" demek ekranda görünmek demektir.** Bir görevi kapatmadan önce ilgili ekranın simülatörde
+gerçekten değiştiğini doğrula. Kabul kriteri "kod yazıldı" değil, "ekranda şu görünüyor" biçiminde
+yazılmıştır; doğrulayamadığın maddeyi `[~]` bırak ve nedenini yaz.
+

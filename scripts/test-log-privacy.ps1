@@ -56,7 +56,7 @@ foreach ($f in $logFiles) { $offsets[$f.FullName] = $f.Length }
 $since = (Get-Date).ToUniversalTime().AddSeconds(-2).ToString("yyyy-MM-ddTHH:mm:ssZ")
 
 $suffix = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-$userName = "logpriv_$suffix"
+$userName = "e2e_logpriv_$suffix"
 $reg = Invoke-Api -Method POST -Path "/api/auth/register" -Body @{ userName = $userName; email = "$userName@blinkr.local"; password = "BlinkrSmoke!2026" }
 Check "register" ($reg.Status -eq 200 -or $reg.Status -eq 201) "HTTP $($reg.Status)"
 $token = $reg.Json.token

@@ -269,7 +269,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
           <BlinkrSheetPanel maxHeightRatio={0.92}>
             <SignalThreadPanel
               auth={auth}
-              header={<FeedCard item={thread} myUserId={auth.userId} onLike={() => {}} onOpenThread={() => {}} />}
+              header={<FeedCard hideActions item={thread} myUserId={auth.userId} onLike={() => {}} onOpenThread={() => {}} />}
               onClose={() => setThread(null)}
               postId={thread.id}
               refresh={refresh.current}

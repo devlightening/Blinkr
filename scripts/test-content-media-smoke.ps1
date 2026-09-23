@@ -39,8 +39,8 @@ function Register-User {
     param([string]$Prefix)
     $suffix = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
     $auth = Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/auth/register" -Body @{
-        userName = "$Prefix$suffix"
-        email = "$Prefix$suffix@blinkr.local"
+        userName = "e2e_$Prefix$suffix"
+        email = "e2e_$Prefix$suffix@blinkr.local"
         password = "BlinkrSmoke!2026"
     }
     return @{ Accept = "application/json"; Authorization = "Bearer $($auth.body.token)" }

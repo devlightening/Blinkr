@@ -35,7 +35,7 @@ function Assert-Truthy {
 function Register-User {
     $suffix = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
     $auth = Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/auth/register" -ExpectedStatus @(200) -Body @{
-        userName = "location_smoke_$suffix"
+        userName = "e2e_location_smoke_$suffix"
         email = "location_smoke_$suffix@blinkr.local"
         password = "BlinkrSmoke!2026"
     }

@@ -35,14 +35,14 @@ function Check {
 
 Write-Host "BLK-SAVED-01 saved places via $GatewayBaseUrl"
 $suffix = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-$name = "saved_$suffix"
+$name = "e2e_saved_$suffix"
 $password = "BlinkrSmoke!2026"
 $reg = Invoke-Api -Method POST -Path "/api/auth/register" -Body @{ userName = $name; email = "$name@blinkr.local"; password = $password }
 $deviceA = $reg.Json.token
 $login = Invoke-Api -Method POST -Path "/api/auth/login" -Body @{ userName = "$name@blinkr.local"; password = $password }
 $deviceB = $login.Json.token
 Check "two sessions of one account" ([bool]$deviceA -and [bool]$deviceB) "login HTTP $($login.Status) $($login.Raw)"
-$other = (Invoke-Api -Method POST -Path "/api/auth/register" -Body @{ userName = "other_$suffix"; email = "other_$suffix@blinkr.local"; password = $password }).Json.token
+$other = (Invoke-Api -Method POST -Path "/api/auth/register" -Body @{ userName = "e2e_other_$suffix"; email = "other_$suffix@blinkr.local"; password = $password }).Json.token
 
 $p1 = [guid]::NewGuid(); $p2 = [guid]::NewGuid(); $p3 = [guid]::NewGuid()
 $save = Invoke-Api -Method PUT -Path "/api/users/me/saved-places/$p1" -Token $deviceA -Body @{ name = "Kahve Durağı"; category = "CAFE"; latitude = 37.07; longitude = 36.25 }
