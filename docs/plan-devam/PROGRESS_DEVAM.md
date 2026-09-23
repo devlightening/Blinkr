@@ -8,7 +8,7 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz B (Faz A tamam; A2/A3 silme kullanıcı onayı bekliyor) |
+| Aktif faz | Faz C (A, B tamam; A2/A3 silme kullanıcı onayı bekliyor) |
 | Önceki durum | Faz 0–9 işlevsel tamam · Faz 10 yarım (P10.1/3/4/8/9 bitti) |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | F1: gerçek destek/itiraz e-posta adresi kullanıcıdan alınacak |
@@ -28,17 +28,17 @@
 
 ## Faz B — Palet ve tema (D-006)
 
-- [ ] B1 Ham palet
-- [ ] B2 Semantik token'lar
-- [ ] B3 Açık tema varsayılan
-- [ ] B4 Tipografi
-- [ ] B5 Köşe, boşluk, buton
-- [ ] B6 Gölge
-- [ ] B7 Hareket
-- [ ] B8 Sinyal tipi renkleri
-- [ ] B9 Harita stili + pin okunabilirliği
-- [ ] B10 Bileşen önizleme güncellemesi
-- [ ] B11 Ham renk taraması
+- [x] B1 Ham palet — `palette` (paper/ink/coal/chalk/sage/sun + 8 tint/ink çifti); eski mint*/ink9xx ham anahtarları kalktı
+- [x] B2 Semantik token'lar — eski adlar korunarak yeni değerler + `semanticColors` (bg/border/text/accent/state) iki tema
+- [x] B3 Açık tema varsayılan — themeBoot (tercih > sistem > açık), Ayarlar > Görünüm (Sistem/Açık/Koyu), değişince yeniden yükleme (D-017)
+- [x] B4 Tipografi — Outfit (Türkçe glifler cmap'te doğrulandı) başlık/rakam/buton; yeni ölçek; iki ALL CAPS etiket cümle düzenine çevrildi
+- [x] B5 Köşe, boşluk, buton — 10/16/24/32, buton 40/48/56, `screenPadding` 16
+- [x] B6 Gölge — açıkta 0 2 12 / 0 8 24 yumuşak gölge, koyuda gölge yok (kenarlık + kademe)
+- [x] B7 Hareket — bouncy {14,200} hafif taşar, gentle taşmasız, basma 0.96, `ReduceMotion.System` (basma ve sheet)
+- [x] B8 Sinyal tipi renkleri — tint+ink çiftleri; eşleme D-017
+- [x] B9 Harita stili + pin okunabilirliği — açık/koyu Google stili + iOS `userInterfaceStyle`; pin tint dolgu, ink ikon, 2px kenarlık, gölge, seçili beyaz hale 1.2x (iki temada ekran görüntüsüyle doğrulandı)
+- [x] B10 Bileşen önizleme güncellemesi — yeni ölçek, renk kartelası ve tip çiftleri; kontrast iki temada `test:theme` ile (hepsi ≥ 4,5:1)
+- [x] B11 Ham renk taraması — UI .tsx dosyalarında ham hex/rgba sıfır (kalan: avatar çizimi ve çıkartma metni sanat sabitleri); medya ortüleri `media` token'larında
 
 ## Faz C — Sinyal Kartı ve harita
 
@@ -118,6 +118,11 @@
 - **Doğrulama:** backend kabul betikleri (discover, friends, text-filter, moderation, engagement, content-media, safety, auth, real-catalog) PASS; `typecheck`, `test:nearby`, `test:ui`, `test:i18n` PASS; iOS + Android `expo export` PASS. "Ekranda doğrulama" react-native-web ekran görüntüleriyle yapıldı (`.tmp/product-ui/`); simülatör/fiziksel cihazda kullanıcı bakmalı.
 - **Bekleyen (kullanıcı onayı):** A2/A3 toplu silme komutları yukarıda.
 - **Bilinen sorunlar:** "Bu alanı tara" ve görünür sayısı haritada duruyor (C11).
+
+### Faz B — 2026-09-23
+- **Yapılanlar:** açık tema varsayılan + koyu tema, Ayarlar > Görünüm, Outfit tipografi, yeni yarıçap/buton/gölge/hareket token'ları, tint+ink sinyal renkleri, açık/koyu harita stili ve yeniden tasarlanan pinler, medya ekranları için sabit koyu palet, ham renk taraması, bileşen önizleme.
+- **Doğrulama:** `typecheck`, `test:theme` (iki temada tüm metin çiftleri AA), `test:nearby`, `test:product`, `test:i18n`, `test:ui` PASS; iOS + Android export PASS. Ekran görüntüleri iki temada (`.tmp/product-ui/shot-*.png`, `?theme=dark`). Gerçek cihazda Outfit'in yüklenmesi ve tema değişiminde yeniden açılış kullanıcı tarafından görülmeli.
+- **Ertelenen:** yok. **Not:** yeni ölçek her ekranda satır yüksekliklerini değiştirdi; C/D/E'de yeniden yazılan ekranlar zaten yeni token'larla kurulacak.
 
 ## Performans ölçümleri (Faz G)
 

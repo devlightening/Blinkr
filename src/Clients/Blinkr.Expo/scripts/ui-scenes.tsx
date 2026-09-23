@@ -1,3 +1,4 @@
+import './ui-theme-boot';
 import { useState } from 'react';
 import { Coffee, Layers3, MessageCircle, Radio, Users } from 'lucide-react-native';
 import { ScrollView, Text, View } from 'react-native';
@@ -24,6 +25,7 @@ import { ProfileScreen } from '../src/components/ProfileScreen';
 import { FriendsScreen } from '../src/components/friends/FriendsScreen';
 import { OnboardingScreen } from '../src/components/OnboardingScreen';
 import { SettingsScreen } from '../src/components/SettingsScreen';
+import { ThemeProvider } from '../src/components/ThemeProvider';
 import { sendReport } from '../src/api';
 import { UserProfileSheet } from '../src/components/friends/UserProfileSheet';
 import { ChatListScreen } from '../src/components/chat/ChatListScreen';
@@ -42,7 +44,7 @@ import { ClusterVisual, MarkerVisual } from '../src/components/MapMarkerVisuals'
 import { MapTopChrome } from '../src/components/map/MapTopChrome';
 import { DiscoverScreen } from '../src/components/feed/DiscoverScreen';
 import type { MapLayer } from '../src/mapSelection';
-import { colors, signalColors, typography } from '../src/theme';
+import { colors, getThemeMode, signalColors, typography } from '../src/theme';
 import type { AuthResponse, BlinkrPlace, SignalType } from '../src/types';
 
 /** Browser-only scenes for visual review against the design package. Never shipped in the app bundle. */
@@ -57,7 +59,7 @@ function Kit() {
       <ScrollView contentContainerStyle={{ gap: 16, padding: 16, paddingBottom: 140 }}>
         <BlinkrHeader
           right={<HeaderAvatar userId="scene" userName="alper" />}
-          subtitle={<Text style={{ ...typography.caption, color: colors.mint }}>CANLI ÇEVRE · 4 görünür</Text>}
+          subtitle={<Text style={{ ...typography.caption, color: colors.mint }}>Canlı çevre · 4 görünür</Text>}
         />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {[
@@ -108,8 +110,7 @@ function Kit() {
           <TypeBadge signalType="TemporaryStatus" tone={signalColors.TemporaryStatus} typeLabel="Geçici durum" valueLabel="Kapalı" />
         </View>
         <LevelMeter accessibilityLabel="Doluluk seviyesi: kalabalık" level={2} />
-        {/* P1.3: Bricolage Grotesque display steps - Turkish diacritics for a layout/sizing sanity check
-            (this browser preview does not have the real font file, so it is not a glyph-rendering test). */}
+        {/* plan-devam B4: Outfit display steps with Turkish diacritics (the preview serves the real font files). */}
         <BlinkrText variant="display">Şişli'de İğneada Çığlığı</BlinkrText>
         <BlinkrText variant="title1">Öğrenci Şöförü Çok Üşüyor</BlinkrText>
         <BlinkrText color={colors.textSecondary} variant="title2">Ğüzel Çorlu Işığı</BlinkrText>
@@ -179,11 +180,14 @@ function MapChrome() {
   const [layer, setLayer] = useState<MapLayer>('all');
   const [typeFilter, setTypeFilter] = useState<Set<SignalType>>(new Set());
   const [tab, setTab] = useState<BlinkrTab>('map');
+  // A stand-in for the base map in the active theme (the real app styles Google/Apple maps the same way, mapDarkStyle.ts).
+  const dark = getThemeMode() === 'dark';
+  const land = dark ? '#16191D' : '#F6F4EE'; const road = dark ? '#272C32' : '#FFFFFF'; const water = dark ? '#0F1418' : '#D3E6EF';
   return (
-    <View style={{ backgroundColor: '#1B2521', flex: 1, overflow: 'hidden' }}>
-      <View style={{ backgroundColor: '#22302B', height: 26, left: -40, position: 'absolute', right: -40, top: 330, transform: [{ rotate: '-18deg' }] }} />
-      <View style={{ backgroundColor: '#22302B', bottom: -40, left: 190, position: 'absolute', top: -40, transform: [{ rotate: '14deg' }], width: 22 }} />
-      <View style={{ backgroundColor: '#0E2A3A', bottom: 120, height: 110, left: -20, position: 'absolute', right: -20, transform: [{ rotate: '-6deg' }] }} />
+    <View style={{ backgroundColor: land, flex: 1, overflow: 'hidden' }}>
+      <View style={{ backgroundColor: road, height: 26, left: -40, position: 'absolute', right: -40, top: 330, transform: [{ rotate: '-18deg' }] }} />
+      <View style={{ backgroundColor: road, bottom: -40, left: 190, position: 'absolute', top: -40, transform: [{ rotate: '14deg' }], width: 22 }} />
+      <View style={{ backgroundColor: water, bottom: 120, height: 110, left: -20, position: 'absolute', right: -20, transform: [{ rotate: '-6deg' }] }} />
       <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} pointerEvents="none">
         {[
           <View key="c12" style={{ left: 120, position: 'absolute', top: 250 }}><ClusterVisual count={12} /></View>,
@@ -400,7 +404,7 @@ function Settings() {
   const [chosen, setChosen] = useState('none');
   return (
     <View style={{ backgroundColor: colors.background, flex: 1 }}>
-      <SettingsScreen auth={qaAuth} onAuthChange={() => {}} onBack={() => setChosen('back')} onLogout={() => setChosen('logout')} onSessionExpired={() => {}} />
+      <ThemeProvider><SettingsScreen auth={qaAuth} onAuthChange={() => {}} onBack={() => setChosen('back')} onLogout={() => setChosen('logout')} onSessionExpired={() => {}} /></ThemeProvider>
       <Text accessibilityLabel="chosen" style={{ height: 0, opacity: 0, position: 'absolute' }}>{chosen}</Text>
     </View>
   );

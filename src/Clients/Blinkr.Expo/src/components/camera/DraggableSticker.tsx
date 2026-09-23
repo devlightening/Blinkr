@@ -4,7 +4,8 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
 import { clampToFrame, isOverTrash, textOnColor, type PlacedSticker } from '../../cameraEffects';
-import { colors, radii, spacing, typography } from '../../theme';
+// Drawn over live camera/photo/video: always the dark media palette, whatever the app theme (plan-devam B3).
+import { media, mediaColors as colors, radii, spacing, typography } from '../../theme';
 
 type Props = {
   sticker: PlacedSticker;
@@ -98,11 +99,11 @@ export function DraggableSticker({ sticker, glyph, text, frame, onCommit, onRemo
 
 const styles = StyleSheet.create({
   host: { left: 0, position: 'absolute', top: 0 },
-  pill: { alignItems: 'center', backgroundColor: 'rgba(16, 23, 20, 0.88)', borderColor: colors.primary, borderRadius: radii.pill, borderWidth: 1.5, flexDirection: 'row', gap: spacing.xs, paddingHorizontal: 12, paddingVertical: 7 },
+  pill: { alignItems: 'center', backgroundColor: media.chipStrong, borderColor: colors.primary, borderRadius: radii.pill, borderWidth: 1.5, flexDirection: 'row', gap: spacing.xs, paddingHorizontal: 12, paddingVertical: 7 },
   glyph: { fontSize: 20 },
   text: { ...typography.bodyStrong, color: colors.text, fontVariant: ['tabular-nums'] },
   overlayText: { ...typography.title, borderRadius: radii.md, maxWidth: 280, overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 4, textAlign: 'center' },
-  plainText: { textShadowColor: 'rgba(0, 0, 0, 0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
-  highlight: { backgroundColor: 'rgba(0, 0, 0, 0.45)', borderWidth: 2 },
+  plainText: { textShadowColor: media.textShadow, textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
+  highlight: { backgroundColor: media.scrim, borderWidth: 2 },
   remove: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: radii.pill, height: 22, justifyContent: 'center', position: 'absolute', right: -8, top: -10, width: 22 },
 });

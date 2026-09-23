@@ -394,7 +394,7 @@ export function SignalComposer({
               <View style={styles.placeCard}>
                 <View style={[styles.placeTile, { borderColor: colors.mint }]}><MapPin color={colors.mint} size={24} /></View>
                 <View style={styles.flex}>
-                  <Text style={styles.summaryLabel}>HARİTA KONUMU</Text>
+                  <Text style={styles.summaryLabel}>Harita konumu</Text>
                   <Text numberOfLines={1} style={styles.placeName}>{placeName}</Text>
                   <Text style={styles.placeMeta}>Yaklaşık alan olarak paylaşılacak</Text>
                 </View>
@@ -511,7 +511,7 @@ export function SignalComposer({
 
             <View style={styles.sectionHeadingRow}>
               <Text style={styles.sectionLabel}>Fotoğraf veya video</Text>
-              <Text style={styles.sectionHint}>İSTEĞE BAĞLI</Text>
+              <Text style={styles.sectionHint}>İsteğe bağlı</Text>
             </View>
             {mediaBlocked ? (
               <View accessibilityRole="alert" style={styles.safetyNotice} testID="no-media-notice">
@@ -637,7 +637,7 @@ export function SignalComposer({
 
 const styles = StyleSheet.create({
   host: { ...StyleSheet.absoluteFill, backgroundColor: colors.background, zIndex: 100 },
-  backdropShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(8, 12, 10, 0.32)' },
+  backdropShade: { ...StyleSheet.absoluteFill, backgroundColor: colors.scrim },
   top: { left: 0, paddingHorizontal: spacing.md, position: 'absolute', right: 0, top: 0 },
   stepLabel: { ...typography.caption, color: colors.textSecondary },
   close: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.pill, borderWidth: 1, height: 40, justifyContent: 'center', width: 40 },

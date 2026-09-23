@@ -4,7 +4,8 @@ import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, Te
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DEFAULT_TIMER, MAX_CAPTION_LENGTH, cleanCaption, nextTimer, sendButtonLabel, timerLabel, toggleRecipient } from '../../snapPresentation';
-import { colors, radii, spacing, typography } from '../../theme';
+// Drawn over live camera/photo/video: always the dark media palette, whatever the app theme (plan-devam B3).
+import { media, mediaColors as colors, radii, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
 import type { CapturedMedia } from '../camera/PhotoEditor';
@@ -60,7 +61,7 @@ export function SnapSendStep({ asset, recipients, selected, onSelectedChange, fi
             maxLength={MAX_CAPTION_LENGTH}
             onChangeText={(value) => setCaption(value.replace(/\n/g, ' '))}
             placeholder="Yazı ekle"
-            placeholderTextColor="rgba(255, 255, 255, 0.7)"
+            placeholderTextColor={media.textSoft}
             style={styles.caption}
             value={caption}
           />
@@ -119,15 +120,15 @@ export function SnapSendStep({ asset, recipients, selected, onSelectedChange, fi
 }
 
 const styles = StyleSheet.create({
-  screen: { ...StyleSheet.absoluteFill, backgroundColor: '#000000', zIndex: 250 },
+  screen: { ...StyleSheet.absoluteFill, backgroundColor: media.black, zIndex: 250 },
   top: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.md },
-  round: { alignItems: 'center', backgroundColor: 'rgba(32, 38, 43, 0.85)', borderRadius: radii.pill, height: 40, justifyContent: 'center', width: 40 },
+  round: { alignItems: 'center', backgroundColor: media.chipStrong, borderRadius: radii.pill, height: 40, justifyContent: 'center', width: 40 },
   title: { ...typography.heading, color: colors.text },
-  timerChip: { alignItems: 'center', backgroundColor: 'rgba(32, 38, 43, 0.85)', borderRadius: radii.pill, flexDirection: 'row', gap: 6, height: 40, paddingHorizontal: spacing.md },
+  timerChip: { alignItems: 'center', backgroundColor: media.chipStrong, borderRadius: radii.pill, flexDirection: 'row', gap: 6, height: 40, paddingHorizontal: spacing.md },
   timerText: { ...typography.bodyStrong, color: colors.text, fontVariant: ['tabular-nums'] },
   preview: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.lg, flex: 1, justifyContent: 'flex-end', marginHorizontal: spacing.md, marginVertical: spacing.md, overflow: 'hidden' },
   captionWrap: { bottom: spacing.xl, left: 0, position: 'absolute', right: 0 },
-  caption: { ...typography.body, backgroundColor: 'rgba(0, 0, 0, 0.55)', color: colors.text, minHeight: 44, paddingHorizontal: spacing.lg, textAlign: 'center', width: '100%' },
+  caption: { ...typography.body, backgroundColor: media.scrimStrong, color: colors.text, minHeight: 44, paddingHorizontal: spacing.lg, textAlign: 'center', width: '100%' },
   recipients: { maxHeight: 210, paddingHorizontal: spacing.md },
   recipientsHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   recipientsTitle: { ...typography.heading, color: colors.text, fontSize: 16, lineHeight: 21 },

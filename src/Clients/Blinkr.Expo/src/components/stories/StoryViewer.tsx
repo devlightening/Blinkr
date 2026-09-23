@@ -8,7 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { deleteStory, listStoryViewers, listUserStories, markStorySeen, sendMessage, startConversation, storyMediaSource } from '../../api';
 import { formatAge } from '../../presentation';
 import { firstUnseenIndex, nextStep, previousStep, segmentFill, storyReplyText, storySeconds, type Story, type StoryTrayItem, type StoryViewer as Viewer } from '../../stories';
-import { colors, radii, spacing, typography } from '../../theme';
+// Drawn over live camera/photo/video: always the dark media palette, whatever the app theme (plan-devam B3).
+import { media, mediaColors as colors, radii, spacing, typography } from '../../theme';
 import type { AuthResponse } from '../../types';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
@@ -228,7 +229,7 @@ export function StoryViewer({ auth, authors, startAuthorId, onClose, refresh = {
               maxLength={300}
               onChangeText={setReply}
               placeholder={t('stories.replyPlaceholder', { name: author?.authorName ?? '' })}
-              placeholderTextColor="rgba(255,255,255,0.7)"
+              placeholderTextColor={media.textSoft}
               style={styles.replyInput}
               value={reply}
             />
@@ -249,7 +250,7 @@ function VideoReady({ onReady }: { onReady: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: '#000000', bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 50 },
+  screen: { backgroundColor: media.black, bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 50 },
   center: { alignSelf: 'center', position: 'absolute', top: '48%' },
   error: { ...typography.body, color: colors.text },
   zones: { bottom: 120, flexDirection: 'row', left: 0, position: 'absolute', right: 0, top: 90 },
@@ -257,25 +258,25 @@ const styles = StyleSheet.create({
   zoneRight: { flex: 2 },
   top: { gap: spacing.sm, left: 0, paddingHorizontal: spacing.md, position: 'absolute', right: 0, top: 0 },
   bars: { flexDirection: 'row', gap: 4 },
-  bar: { backgroundColor: 'rgba(255,255,255,0.35)', borderRadius: 2, flex: 1, height: 3, overflow: 'hidden' },
-  barFill: { backgroundColor: '#FFFFFF', height: 3 },
+  bar: { backgroundColor: media.line, borderRadius: 2, flex: 1, height: 3, overflow: 'hidden' },
+  barFill: { backgroundColor: colors.white, height: 3 },
   head: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   name: { ...typography.bodyStrong, color: colors.text, flexShrink: 1 },
-  age: { ...typography.caption, color: 'rgba(255,255,255,0.8)' },
+  age: { ...typography.caption, color: media.textSoft },
   close: { alignItems: 'center', height: 44, justifyContent: 'center', marginLeft: 'auto', width: 44 },
-  caption: { ...typography.bodyStrong, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: radii.md, bottom: 140, color: colors.text, overflow: 'hidden', paddingHorizontal: spacing.md, paddingVertical: spacing.xs, position: 'absolute' },
+  caption: { ...typography.bodyStrong, alignSelf: 'center', backgroundColor: media.scrim, borderRadius: radii.md, bottom: 140, color: colors.text, overflow: 'hidden', paddingHorizontal: spacing.md, paddingVertical: spacing.xs, position: 'absolute' },
   bottom: { bottom: 0, gap: spacing.sm, left: 0, paddingHorizontal: spacing.md, position: 'absolute', right: 0 },
   notice: { ...typography.caption, color: colors.text, textAlign: 'center' },
   row: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'center' },
-  pill: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: radii.pill, flexDirection: 'row', gap: 6, minHeight: 44, paddingHorizontal: spacing.md },
+  pill: { alignItems: 'center', backgroundColor: media.lineSoft, borderRadius: radii.pill, flexDirection: 'row', gap: 6, minHeight: 44, paddingHorizontal: spacing.md },
   pillText: { ...typography.bodyStrong, color: colors.text },
   danger: { backgroundColor: colors.danger },
-  panel: { backgroundColor: 'rgba(16,23,20,0.92)', borderRadius: radii.card, gap: spacing.sm, padding: spacing.md },
+  panel: { backgroundColor: media.panel, borderRadius: radii.card, gap: spacing.sm, padding: spacing.md },
   panelTitle: { ...typography.bodyStrong, color: colors.text },
   viewerList: { maxHeight: 200 },
   viewerRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, minHeight: 40 },
   replyRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  replyInput: { ...typography.body, borderColor: 'rgba(255,255,255,0.6)', borderRadius: radii.pill, borderWidth: 1, color: colors.text, flex: 1, minHeight: 44, paddingHorizontal: spacing.md },
+  replyInput: { ...typography.body, borderColor: media.textFaint, borderRadius: radii.pill, borderWidth: 1, color: colors.text, flex: 1, minHeight: 44, paddingHorizontal: spacing.md },
   send: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: radii.pill, height: 44, justifyContent: 'center', width: 44 },
   dim: { opacity: 0.4 },
 });

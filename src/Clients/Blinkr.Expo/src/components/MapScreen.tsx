@@ -36,8 +36,8 @@ import {
   type NearbySource,
   distanceMeters,
 } from '../nearbyRequestOwnership';
-import { colors, motion, radii, shadow, shadowSoft } from '../theme';
-import { mapDarkStyle } from '../mapDarkStyle';
+import { colors, getThemeMode, media, motion, radii, shadow, shadowSoft } from '../theme';
+import { mapDarkStyle, mapLightStyle } from '../mapDarkStyle';
 import { AnimatedPressable } from './AnimatedPressable';
 import type {
   AuthResponse,
@@ -823,7 +823,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
   return (
     <View style={styles.screen}>
       <MapView
-        customMapStyle={Platform.OS === 'android' ? mapDarkStyle : undefined}
+        customMapStyle={Platform.OS === 'android' ? (getThemeMode() === 'dark' ? mapDarkStyle : mapLightStyle) : undefined}
         initialRegion={focusPlace ? { latitude: focusPlace.latitude, longitude: focusPlace.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 } : ISTANBUL_REGION}
         mapPadding={{ top: chromeTop, right: 14, bottom: bottomBarClearance(insets.bottom), left: 14 }}
         onRegionChangeComplete={handleRegionChangeComplete}
@@ -838,7 +838,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
         showsUserLocation={locationReadiness === 'ready'}
         style={StyleSheet.absoluteFill}
         toolbarEnabled={false}
-        userInterfaceStyle="dark"
+        userInterfaceStyle={getThemeMode()}
       >
         {mapItems.map(item => item.type === 'cluster'
           ? <BlinkrClusterMarker key={item.id} latitude={item.latitude} longitude={item.longitude} count={item.pointCount} onPress={() => expandCluster(item)} />
@@ -950,7 +950,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.mapCanvas, flex: 1 },
-  cameraLayer: { ...StyleSheet.absoluteFill, backgroundColor: '#000000', zIndex: 200 },
+  cameraLayer: { ...StyleSheet.absoluteFill, backgroundColor: media.black, zIndex: 200 },
   emptyMap: { position: 'absolute', left: 28, right: 28, backgroundColor: colors.glass, borderColor: colors.border, borderWidth: 1, borderRadius: radii.card, padding: 16, ...shadowSoft },
   emptyMapText: { color: colors.text, fontSize: 15, lineHeight: 22, textAlign: 'center' },
   emptyMapAction: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },

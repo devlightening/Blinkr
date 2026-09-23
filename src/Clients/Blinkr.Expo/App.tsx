@@ -1,4 +1,4 @@
-import { BricolageGrotesque_600SemiBold, BricolageGrotesque_700Bold } from '@expo-google-fonts/bricolage-grotesque';
+import { Outfit_600SemiBold, Outfit_700Bold, Outfit_800ExtraBold } from '@expo-google-fonts/outfit';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { BlinkrMark } from './src/components/BlinkrMark';
@@ -55,7 +55,7 @@ export default function App() {
   // P1.3 (sinyal-mvp-plan): loading never blocks on this - `fontsSettled` is true whether the font
   // loaded or genuinely failed, so a slow/broken font file can never strand someone on the splash
   // screen. Text simply renders in the system font until (or unless) it settles true with `fontsLoaded`.
-  const [fontsLoaded, fontError] = useFonts({ BricolageGrotesque_600SemiBold, BricolageGrotesque_700Bold });
+  const [fontsLoaded, fontError] = useFonts({ Outfit_600SemiBold, Outfit_700Bold, Outfit_800ExtraBold });
   const fontsSettled = fontsLoaded || Boolean(fontError);
   const [auth, setAuth] = useState<AuthResponse | null>(null);
   const [isRestoring, setIsRestoring] = useState(true);

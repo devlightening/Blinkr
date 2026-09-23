@@ -1,3 +1,4 @@
+import "./ui-theme-boot";
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { View, Text, Pressable } from 'react-native';

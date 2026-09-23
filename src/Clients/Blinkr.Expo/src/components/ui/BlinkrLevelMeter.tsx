@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { levelScale, radii, spacing } from '../../theme';
+import { colors, levelScale, radii, spacing } from '../../theme';
 
 type Props = {
   /** 0-3, already resolved for the signal's own direction (parking reads the opposite way - invert
@@ -24,5 +24,5 @@ export function LevelMeter({ level, accessibilityLabel }: Props) {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 3 },
   bar: { borderRadius: radii.sm / 2, height: spacing.sm, width: spacing.sm },
-  barEmpty: { backgroundColor: 'rgba(255, 255, 255, 0.12)' },
+  barEmpty: { backgroundColor: colors.meterEmpty },
 });

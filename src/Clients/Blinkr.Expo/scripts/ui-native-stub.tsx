@@ -67,3 +67,10 @@ export const getLocales = () => {
 // expo-font: the harness never loads the real font file - it just needs `useFonts` to settle immediately
 // so App.tsx-style loading gates never hang (only reachable if a scene imports App.tsx, which none do today).
 export const useFonts = () => [true, null] as const;
+// expo-secure-store (sync read, themeBoot) and expo-updates (theme reload) - web preview stand-ins.
+export const getItem = (key: string) => localStorage.getItem(key);
+export const reloadAsync = async () => { window.location.reload(); };
+// @expo-google-fonts/outfit: the browser falls back to its own font; the names only need to exist.
+export const Outfit_600SemiBold = 'Outfit_600SemiBold';
+export const Outfit_700Bold = 'Outfit_700Bold';
+export const Outfit_800ExtraBold = 'Outfit_800ExtraBold';

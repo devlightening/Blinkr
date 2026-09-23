@@ -5,7 +5,7 @@ import { freshnessOpacity } from '../productPresentation';
 import {
   PLACE_PIN, PLACE_PIN_PATH, SIGNAL_BUBBLE, SIGNAL_BUBBLE_PATH, clusterHaloRadius, clusterLabel, lifetimeFraction, markerScale, ringDash, type MarkerGeometry,
 } from '../markerGeometry';
-import { categoryTone, colors, signalColors } from '../theme';
+import { categoryTone, colors, palette, signalInks, signalTints, typography } from '../theme';
 import type { BlinkrPlace, CoordinateSignal } from '../types';
 import { PlaceSymbol } from './PlaceSymbol';
 import { SignalSymbol } from './SignalSymbol';
@@ -15,13 +15,15 @@ import { SignalSymbol } from './SignalSymbol';
  * rendered by the browser review harness; `BlinkrMapMarker` wraps them in a native <Marker>.
  *
  * Design (see markerGeometry.ts):
- *  - Place = teardrop pin whose sharp tip is the exact location. Three colours only: the category tone,
- *    the dark surface and the lime accent. A Place with live, server-verified activity is filled with its
- *    tone, has a soft glow and carries a small badge showing WHAT is happening (crowd, queue, ...).
- *    A catalogue Place without activity is smaller and quiet, so the map stays readable.
+ *  - plan-devam B9: pastel pins must not disappear on a light map, so every active pin has a 2 px outline in
+ *    `pinBorder` (ink on light, chalk on dark) and a soft shadow; its fill is the signal type's tint and its icon
+ *    the type's ink. A selected pin gets a white halo and grows to 1.2x.
+ *  - Place = teardrop pin whose sharp tip is the exact location. With live, server-verified activity it is filled
+ *    with the live signal type's tint and shows the place's category icon in the type's ink. A catalogue Place
+ *    without activity is smaller and quiet (surface fill, soft outline), so the map stays readable.
  *  - Signal = round speech bubble with a tail. A ring around it drains as the signal ages, so freshness is
  *    visible without opening it.
- *  - Cluster = dark disc with a lime ring inside a heat halo that grows with the count.
+ *  - Cluster = surface disc with an accent ring inside a halo that grows with the count.
  */
 
 const SURFACE = colors.surface;
@@ -45,67 +47,71 @@ function HeadGlyph({ geometry, scale, size, children }: { geometry: MarkerGeomet
   );
 }
 
+const SELECTED_SCALE = 1.2;
+
 function PlacePin({ place, selected }: { place: BlinkrPlace; selected: boolean }) {
   const g = PLACE_PIN;
   const tone = categoryTone(place.category);
   const state = place.currentState;
   const live = (state?.activeSignalCount ?? 0) > 0;
-  const scale = markerScale(!live && !selected);
+  const scale = markerScale(!live && !selected) * (selected ? SELECTED_SCALE : 1);
   const stateType = state?.signalType ?? null;
-  const stateTone = stateType ? signalColors[stateType] ?? colors.primary : colors.primary;
-  const stroke = selected ? colors.white : live ? colors.background : tone;
-  const uid = `${tone.replace('#', '')}${selected ? 's' : ''}`;
+  const fill = live && stateType ? signalTints[stateType] ?? palette.sage300 : live ? palette.sage300 : SURFACE;
+  const glyph = live && stateType ? signalInks[stateType] ?? colors.text : tone;
+  const stroke = live || selected ? colors.pinBorder : colors.border;
+  const uid = `${fill.replace('#', '')}${selected ? 's' : ''}`;
   return (
     <View style={{ height: g.height * scale, width: g.width * scale }}>
       <Frame geometry={g} scale={scale}>
         <Defs>
           <RadialGradient cx="50%" cy="50%" id={`glow-${uid}`} r="50%">
-            <Stop offset="0%" stopColor={selected ? colors.primary : tone} stopOpacity={selected ? 0.3 : 0.16} />
-            <Stop offset="100%" stopColor={tone} stopOpacity={0} />
+            <Stop offset="0%" stopColor={colors.white} stopOpacity={0.9} />
+            <Stop offset="100%" stopColor={colors.white} stopOpacity={0} />
           </RadialGradient>
           <LinearGradient id={`body-${uid}`} x1="0" x2="0" y1="0" y2="1">
-            <Stop offset="0%" stopColor={tone} />
-            <Stop offset="100%" stopColor={tone} stopOpacity={0.78} />
+            <Stop offset="0%" stopColor={fill} />
+            <Stop offset="100%" stopColor={fill} stopOpacity={0.92} />
           </LinearGradient>
         </Defs>
-        {live || selected ? <Circle cx={g.headX} cy={g.headY} fill={`url(#glow-${uid})`} r={g.headRadius + 9} /> : null}
-        <Ellipse cx={g.tipX} cy={g.tipY} fill="#000000" opacity={0.35} rx={8} ry={2.6} />
-        <Path d={PLACE_PIN_PATH} fill={live ? `url(#body-${uid})` : SURFACE} stroke={stroke} strokeLinejoin="round" strokeWidth={selected ? 3.2 : 2.6} />
-        <Circle cx={g.headX} cy={g.headY} fill={live ? SURFACE : SURFACE_HIGH} r={live ? 15.5 : 15} />
+        {selected ? <Circle cx={g.headX} cy={g.headY} fill={`url(#glow-${uid})`} r={g.headRadius + 9} /> : null}
+        <Ellipse cx={g.tipX} cy={g.tipY} fill={palette.ink900} opacity={0.18} rx={8} ry={2.6} />
+        <Path d={PLACE_PIN_PATH} fill={`url(#body-${uid})`} stroke={stroke} strokeLinejoin="round" strokeWidth={live || selected ? 2 : 1.5} />
+        {live ? null : <Circle cx={g.headX} cy={g.headY} fill={SURFACE_HIGH} r={15} />}
       </Frame>
-      <HeadGlyph geometry={g} scale={scale} size={22}><PlaceSymbol category={place.category} color={tone} size={22 * scale} /></HeadGlyph>
+      <HeadGlyph geometry={g} scale={scale} size={22}><PlaceSymbol category={place.category} color={glyph} size={22 * scale} /></HeadGlyph>
       {live && stateType ? (
-        <View style={[styles.badge, { backgroundColor: stateTone, borderColor: colors.background, height: 22 * scale, left: (g.headX + g.pad + 13) * scale, top: (g.pad - 2) * scale, width: 22 * scale }]}>
-          <SignalSymbol color={colors.ink} size={13 * scale} type={stateType} />
+        <View style={[styles.badge, { backgroundColor: SURFACE, borderColor: colors.pinBorder, height: 22 * scale, left: (g.headX + g.pad + 13) * scale, top: (g.pad - 2) * scale, width: 22 * scale }]}>
+          <SignalSymbol color={glyph} size={13 * scale} type={stateType} />
         </View>
-      ) : live ? <View style={[styles.liveDot, { right: 9 * scale, top: 5 * scale }]} /> : null}
+      ) : null}
     </View>
   );
 }
 
 function SignalBubble({ signal, selected, now }: { signal: CoordinateSignal; selected: boolean; now: number }) {
   const g = SIGNAL_BUBBLE;
-  const tone = signalColors[signal.signalType] ?? colors.coral;
+  const tint = signalTints[signal.signalType] ?? palette.stone;
+  const ink = signalInks[signal.signalType] ?? palette.stoneInk;
   const remaining = lifetimeFraction(signal.createdAtUtc, signal.expiresAt, now);
   const ringRadius = g.headRadius + 3.5;
-  const uid = `${tone.replace('#', '')}${selected ? 's' : ''}`;
+  const scale = selected ? SELECTED_SCALE : 1;
+  const uid = `${tint.replace('#', '')}${selected ? 's' : ''}`;
   return (
-    <View style={{ height: g.height, width: g.width }}>
-      <Frame geometry={g} scale={1}>
+    <View style={{ height: g.height * scale, width: g.width * scale }}>
+      <Frame geometry={g} scale={scale}>
         <Defs>
           <RadialGradient cx="50%" cy="50%" id={`signal-glow-${uid}`} r="50%">
-            <Stop offset="0%" stopColor={selected ? colors.primary : tone} stopOpacity={selected ? 0.3 : 0.14} />
-            <Stop offset="100%" stopColor={tone} stopOpacity={0} />
+            <Stop offset="0%" stopColor={colors.white} stopOpacity={0.9} />
+            <Stop offset="100%" stopColor={colors.white} stopOpacity={0} />
           </RadialGradient>
         </Defs>
-        <Circle cx={g.headX} cy={g.headY} fill={`url(#signal-glow-${uid})`} r={g.headRadius + 10} />
-        <Ellipse cx={g.tipX} cy={g.tipY} fill="#000000" opacity={0.35} rx={7} ry={2.4} />
-        <Circle cx={g.headX} cy={g.headY} fill="none" r={ringRadius} stroke="#FFFFFF" strokeOpacity={0.16} strokeWidth={3} />
-        <Circle cx={g.headX} cy={g.headY} fill="none" r={ringRadius} rotation={-90} origin={`${g.headX}, ${g.headY}`} stroke={tone} strokeDasharray={ringDash(remaining, ringRadius)} strokeLinecap="round" strokeWidth={3} />
-        <Path d={SIGNAL_BUBBLE_PATH} fill={SURFACE} stroke={selected ? colors.white : tone} strokeLinejoin="round" strokeWidth={selected ? 3 : 2.2} />
-        <Circle cx={g.headX} cy={g.headY} fill={SURFACE_HIGH} r={g.headRadius - 6} />
+        {selected ? <Circle cx={g.headX} cy={g.headY} fill={`url(#signal-glow-${uid})`} r={g.headRadius + 10} /> : null}
+        <Ellipse cx={g.tipX} cy={g.tipY} fill={palette.ink900} opacity={0.18} rx={7} ry={2.4} />
+        <Circle cx={g.headX} cy={g.headY} fill="none" r={ringRadius} stroke={colors.pinBorder} strokeOpacity={0.12} strokeWidth={3} />
+        <Circle cx={g.headX} cy={g.headY} fill="none" r={ringRadius} rotation={-90} origin={`${g.headX}, ${g.headY}`} stroke={ink} strokeDasharray={ringDash(remaining, ringRadius)} strokeLinecap="round" strokeWidth={3} />
+        <Path d={SIGNAL_BUBBLE_PATH} fill={tint} stroke={colors.pinBorder} strokeLinejoin="round" strokeWidth={2} />
       </Frame>
-      <HeadGlyph geometry={g} scale={1} size={24}><SignalSymbol color={tone} size={24} type={signal.signalType} /></HeadGlyph>
+      <HeadGlyph geometry={g} scale={scale} size={24}><SignalSymbol color={ink} size={24 * scale} type={signal.signalType} /></HeadGlyph>
     </View>
   );
 }
@@ -134,7 +140,8 @@ export function ClusterVisual({ count }: { count: number }) {
           </RadialGradient>
         </Defs>
         <Circle cx={center} cy={center} fill="url(#heat)" r={halo + 8} />
-        <Circle cx={center} cy={center} fill={colors.background} r={24} stroke={colors.primary} strokeWidth={3.2} />
+        <Circle cx={center} cy={center} fill={colors.surface} r={24} stroke={colors.pinBorder} strokeWidth={2} />
+        <Circle cx={center} cy={center} fill="none" r={21} stroke={colors.primary} strokeWidth={2.4} />
         <Circle cx={center} cy={center} fill="none" r={29} stroke={colors.primary} strokeOpacity={0.3} strokeWidth={1.5} />
       </Svg>
       <View pointerEvents="none" style={styles.clusterCount}><Text style={styles.count}>{clusterLabel(count)}</Text></View>
@@ -148,5 +155,5 @@ const styles = StyleSheet.create({
   liveDot: { backgroundColor: colors.primary, borderColor: colors.background, borderRadius: 7, borderWidth: 2, height: 14, position: 'absolute', width: 14 },
   clusterTarget: { alignItems: 'center', height: CLUSTER_SIZE, justifyContent: 'center', width: CLUSTER_SIZE },
   clusterCount: { alignItems: 'center', justifyContent: 'center', position: 'absolute' },
-  count: { color: colors.white, fontSize: 19, fontWeight: '800' },
+  count: { ...typography.title, color: colors.text, fontVariant: ['tabular-nums'] },
 });

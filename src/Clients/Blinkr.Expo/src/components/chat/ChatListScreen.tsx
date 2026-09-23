@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
   screen: { backgroundColor: colors.background, flex: 1 },
   header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingBottom: spacing.sm, paddingHorizontal: spacing.lg },
   title: { ...typography.headline, color: colors.text },
-  newButton: { alignItems: 'center', backgroundColor: 'rgba(95, 211, 160, 0.14)', borderRadius: radii.pill, height: 40, justifyContent: 'center', width: 40 },
+  newButton: { alignItems: 'center', backgroundColor: colors.primaryTint, borderRadius: radii.pill, height: 40, justifyContent: 'center', width: 40 },
   centerFill: { flex: 1, justifyContent: 'center' },
   skeleton: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   list: { paddingTop: spacing.xs },

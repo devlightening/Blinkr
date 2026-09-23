@@ -563,7 +563,11 @@ async function main() {
     // P1.9: the dev-only component preview (Ayarlar > Geliştirici), the same catalogue the "Kit" scene covers, native-runnable.
     await page.getByRole('button', { name: 'Bileşen önizleme' }).click();
     await expect(page.getByRole('heading', { name: 'Bileşen Önizleme' })).toBeVisible();
-    await expect(page.getByText('Display 30/36')).toBeVisible();
+    // plan-devam B10: the preview shows the new scale and the active theme's colours.
+    await expect(page.getByText('Display 34/40')).toBeVisible();
+    await expect(page.getByText('Title1 24/30')).toBeVisible();
+    await expect(page.getByText('Renk (açık tema)')).toBeVisible();
+    await page.waitForTimeout(250); await page.screenshot({ path: path.join(out, 'dev-component-preview.png'), fullPage: true });
     await page.getByRole('tab', { name: 'Takip' }).click();
     await expect(page.getByRole('tab', { name: 'Takip' })).toHaveAttribute('aria-selected', 'true');
     await page.getByRole('button', { name: 'Toast göster' }).click();

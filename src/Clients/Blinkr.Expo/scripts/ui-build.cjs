@@ -25,7 +25,9 @@ async function buildPreview(out) {
 async function servePreview(out) {
   const server = http.createServer(async (req, res) => {
     if (req.url === '/app.js') { res.setHeader('Content-Type', 'text/javascript'); res.end(await fs.readFile(path.join(out, 'app.js'))); }
-    else { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end('<html><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body,#root{height:100%;margin:0}#root{display:flex;flex-direction:column}*{box-sizing:border-box}</style><div id="root"></div><script src="/app.js"></script></html>'); }
+    // The app's own display font (plan-devam B4), so screenshots show Outfit exactly as the device does.
+    else if (req.url.startsWith('/fonts/Outfit_')) { const name = path.basename(req.url); const weight = name.replace('Outfit_', '').replace('.ttf', ''); res.setHeader('Content-Type', 'font/ttf'); res.end(await fs.readFile(path.resolve('node_modules/@expo-google-fonts/outfit', weight, name))); }
+    else { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end('<html><meta name="viewport" content="width=device-width,initial-scale=1"><style>@font-face{font-family:Outfit_600SemiBold;src:url(/fonts/Outfit_600SemiBold.ttf)}@font-face{font-family:Outfit_700Bold;src:url(/fonts/Outfit_700Bold.ttf)}@font-face{font-family:Outfit_800ExtraBold;src:url(/fonts/Outfit_800ExtraBold.ttf)}html,body,#root{height:100%;margin:0}#root{display:flex;flex-direction:column}*{box-sizing:border-box}</style><div id="root"></div><script src="/app.js"></script></html>'); }
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   return server;

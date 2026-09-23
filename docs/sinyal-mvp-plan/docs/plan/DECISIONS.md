@@ -15,6 +15,16 @@
 
 ## Kararlar
 
+### D-017 — plan-devam Faz B: tema önyüklemede seçilir, değişince uygulama yeniden yüklenir; kontrast için tonlar bir adım koyu (2026-09-23)
+- Bağlam: B3 anlık tema değişimi ister; ama yüzlerce ekran stilini modül yüklenirken `StyleSheet.create` ile kuruyor. Ayrıca planın bazı açık tema tonları (sage600 üzerinde beyaz yazı 3,4:1; butter/sky ink) WCAG AA'yı tutturmuyordu.
+- Karar:
+  - Tema `src/themeBoot.ts`'te (index.ts'in ilk importu) tercih (senkron SecureStore) > sistem > açık sırasıyla seçilir; `applyThemeMode` token tablolarını yerinde doldurur. Tercih değişince (veya "Sistem" seçiliyken cihaz teması değişince) uygulama `expo-updates` `reloadAsync` ile yeniden yüklenir (geliştirme derlemesinde dev-settings). Oturum güvenli depoda olduğu için veri kaybı yok; bütün yüzeyler, harita dahil, yeni temayla çizilir.
+  - Açık temada birincil dolgu ve vurgu metni sage700 (#2E7A60, beyaz yazıyla 5,2:1); ink500 #636C74, butterInk #8A620B, skyInk #1D72A1 — hepsi AA. Plan adları (sage600 vb.) palette korunuyor.
+  - Blinkr'ın sinyal tipleri planın sekiz renginden şöyle eşlendi: Doluluk apricot, Bekleme butter, Geçici durum coral, Etkinlik grape, Fırsat bubblegum, Yeni açılış sky, Gözlem stone (Trafik/Hava/Park tipleri Blinkr'da yok; periwinkle yedekte).
+  - Kamera/snap/hikâye ekranları görüntü üstünde çizildiği için tema ne olursa olsun koyu medya paletini kullanır.
+  - Sheet girişleri taşmasız yay kullanır (taşan sheet altında boşluk parlıyordu); taşmalı yay kartlar/pinler içindir (Faz C).
+- Etki: Tema değişince ~1 sn yeniden açılış. `expo-updates` bağımlılığı eklendi (yayın hazırlığında da gerekli). `@expo-google-fonts/bricolage-grotesque` kaldırıldı, `@expo-google-fonts/outfit` eklendi.
+
 ### D-016 — plan-devam Faz A: test verisi izolasyonu, tek tazelik kuralı, "Canlı" yalnız doğrulanmış sinyalde (2026-09-23)
 - Bağlam: Kullanıcı elle testte Keşfet/aramada smoke kayıtları, 20.038 seed gönderisi, tekrarlı StatRow etiketleri ve tutarsız "taze/canlı" sayıları gördü (plan-devam A1-A8).
 - Karar:

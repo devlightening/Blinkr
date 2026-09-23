@@ -80,7 +80,7 @@ export function BlinkrBottomBar({ active, onTab, onShare, chatUnread = false, pr
             style={[styles.camera, shareDisabled && styles.cameraDisabled]}
           >
             <View style={styles.cameraRing} />
-            <Plus color={colors.ink} size={24} strokeWidth={2.6} />
+            <Plus color={colors.onCreate} size={24} strokeWidth={2.6} />
           </AnimatedPressable>
         </View>
         <TabItem active={active === 'chat'} onPress={() => onTab('chat')} tab="chat" unread={chatUnread} />
@@ -98,11 +98,11 @@ const styles = StyleSheet.create({
   bar: { alignItems: 'center', backgroundColor: colors.glass, borderColor: colors.border, borderRadius: radii.xl, borderWidth: 1, flexDirection: 'row', height: sizes.bottomBar, maxWidth: 460, paddingHorizontal: spacing.sm, width: '100%', ...shadow },
   item: { alignItems: 'center', flex: 1, justifyContent: 'center', minHeight: sizes.touch },
   iconTile: { alignItems: 'center', borderRadius: radii.md, height: 30, justifyContent: 'center', width: 48 },
-  iconTileActive: { backgroundColor: 'rgba(95, 211, 160, 0.14)' },
+  iconTileActive: { backgroundColor: colors.primaryTint },
   label: { ...typography.micro, marginTop: 1 },
   unreadDot: { backgroundColor: colors.danger, borderColor: colors.surface, borderRadius: 5, borderWidth: 2, height: 10, position: 'absolute', right: 12, top: 2, width: 10 },
   cameraSlot: { alignItems: 'center', flex: 1, justifyContent: 'center' },
   camera: { alignItems: 'center', backgroundColor: colors.flare, borderRadius: radii.pill, height: sizes.camera + 6, justifyContent: 'center', width: sizes.camera + 6, ...shadowSoft },
-  cameraRing: { borderColor: 'rgba(255, 200, 69, 0.35)', borderRadius: radii.pill, borderWidth: 2, bottom: -4, left: -4, position: 'absolute', right: -4, top: -4 },
+  cameraRing: { borderColor: colors.createRing, borderRadius: radii.pill, borderWidth: 2, bottom: -4, left: -4, position: 'absolute', right: -4, top: -4 },
   cameraDisabled: { opacity: 0.5 },
 });

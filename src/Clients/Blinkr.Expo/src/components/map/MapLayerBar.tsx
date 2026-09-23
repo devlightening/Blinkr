@@ -46,6 +46,6 @@ const styles = StyleSheet.create({
   // Content-sized segments that share leftover space equally, so every label fits without the
   // selected pill stealing room from its neighbours.
   option: { alignItems: 'center', borderRadius: radii.md, flexBasis: 'auto', flexDirection: 'row', flexGrow: 1, flexShrink: 1, gap: 6, justifyContent: 'center', minHeight: 40, paddingHorizontal: 8 },
-  optionSelected: { backgroundColor: 'rgba(95, 211, 160, 0.16)' },
+  optionSelected: { backgroundColor: colors.primaryTint },
   label: { ...typography.caption, fontWeight: '600' },
 });

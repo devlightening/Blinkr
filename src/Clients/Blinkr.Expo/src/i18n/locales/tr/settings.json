@@ -13,5 +13,12 @@
     "privateTitle": "Gizli hesap",
     "privateHint": "Açıksa yalnız onayladığın kişiler sinyal listeni ve takip listelerini görür. Haritadaki sinyallerin yine herkese açıktır.",
     "privateFailed": "Ayar kaydedilemedi. Tekrar dene."
+  },
+  "appearance": {
+    "title": "Görünüm",
+    "system": "Sistem",
+    "light": "Açık",
+    "dark": "Koyu",
+    "hint": "Seçimin hemen uygulanır; uygulama bir saniyeliğine yeniden açılır."
   }
 }

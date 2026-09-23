@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { BackHandler, KeyboardAvoidingView, Platform, Pressable, StyleSheet } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown, ReduceMotion } from 'react-native-reanimated';
 
 import { colors, springs } from '../theme';
 
@@ -15,11 +15,13 @@ export function Sheet({ children, onClose }: { children: ReactNode; onClose: () 
       <Pressable accessibilityLabel="Kapat" onPress={onClose} style={styles.backdrop} />
     </Animated.View>
     <Animated.View
+      // Calm spring: a sheet that overshoots upwards would flash a gap under itself. Reduce motion is respected.
       entering={SlideInDown.springify()
-        .damping(springs.bouncy.damping)
-        .stiffness(springs.bouncy.stiffness)
-        .mass(springs.bouncy.mass)}
-      exiting={SlideOutDown.duration(200)}
+        .damping(springs.gentle.damping)
+        .stiffness(springs.gentle.stiffness)
+        .mass(springs.gentle.mass)
+        .reduceMotion(ReduceMotion.System)}
+      exiting={SlideOutDown.duration(200).reduceMotion(ReduceMotion.System)}
     >
       {children}
     </Animated.View>

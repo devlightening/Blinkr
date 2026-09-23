@@ -4,7 +4,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Gesture } from 'react-native-gesture-handler';
 
 import { lensAfterSwipe, lensById } from '../../cameraEffects';
-import { colors, radii, spacing, typography } from '../../theme';
+// Drawn over live camera/photo/video: always the dark media palette, whatever the app theme (plan-devam B3).
+import { media, mediaColors as colors, radii, spacing, typography } from '../../theme';
 
 /** How long the lens name stays in the middle after a swipe (sinyal-mvp-plan 05 §1.2: "filtre adı 1 sn ortada"). */
 const NAME_MS = 1000;
@@ -48,5 +49,5 @@ export function useLensSwipe(lensId: string, onChange: (id: string) => void, dis
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', bottom: 0, justifyContent: 'center', left: 0, position: 'absolute', right: 0, top: 0 },
-  name: { ...typography.title, backgroundColor: 'rgba(0, 0, 0, 0.35)', borderRadius: radii.pill, color: colors.text, overflow: 'hidden', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
+  name: { ...typography.title, backgroundColor: media.scrimTop, borderRadius: radii.pill, color: colors.text, overflow: 'hidden', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
 });

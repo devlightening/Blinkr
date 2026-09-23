@@ -11,7 +11,8 @@ import Svg, { Circle } from 'react-native-svg';
 import { HOLD_TO_RECORD_MS, MAX_VIDEO_SECONDS, clampZoom, recordingProgress, flashLabel, formatRecording, lensById, nextFlash, zoomMultiplierLabel, type FlashMode } from '../../cameraEffects';
 import { capturedAtOf } from '../../galleryCapture';
 import { friendlyError } from '../../productPresentation';
-import { colors, radii, spacing, typography } from '../../theme';
+// Drawn over live camera/photo/video: always the dark media palette, whatever the app theme (plan-devam B3).
+import { media, mediaColors as colors, radii, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
 import { FilterOverlay } from './FilterOverlay';
@@ -369,21 +370,21 @@ const RING = 76;
 const RING_R = (RING - 4) / 2;
 const RING_C = 2 * Math.PI * RING_R;
 const styles = StyleSheet.create({
-  screen: { backgroundColor: '#000000', flex: 1 },
+  screen: { backgroundColor: media.black, flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center' },
   closeAbsolute: { left: spacing.md, position: 'absolute' },
-  topScrim: { backgroundColor: 'rgba(0, 0, 0, 0.32)', height: CHROME_HEIGHT, left: 0, position: 'absolute', right: 0, top: 0 },
-  bottomScrim: { backgroundColor: 'rgba(0, 0, 0, 0.42)', bottom: 0, height: 280, left: 0, position: 'absolute', right: 0 },
+  topScrim: { backgroundColor: media.scrimTop, height: CHROME_HEIGHT, left: 0, position: 'absolute', right: 0, top: 0 },
+  bottomScrim: { backgroundColor: media.scrim, bottom: 0, height: 280, left: 0, position: 'absolute', right: 0 },
   topBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', left: spacing.md, position: 'absolute', right: spacing.md },
   topRight: { flexDirection: 'row', gap: spacing.sm },
-  round: { alignItems: 'center', backgroundColor: 'rgba(16, 23, 20, 0.62)', borderRadius: radii.pill, height: 44, justifyContent: 'center', width: 44 },
+  round: { alignItems: 'center', backgroundColor: media.chip, borderRadius: radii.pill, height: 44, justifyContent: 'center', width: 44 },
   dim: { opacity: 0.4 },
   autoBadge: { ...typography.label, color: colors.flare, fontSize: 9, position: 'absolute', right: 8, top: 6 },
-  timer: { alignItems: 'center', backgroundColor: 'rgba(16, 23, 20, 0.7)', borderRadius: radii.pill, flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 8 },
+  timer: { alignItems: 'center', backgroundColor: media.chip, borderRadius: radii.pill, flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 8 },
   recDot: { backgroundColor: colors.danger, borderRadius: radii.pill, height: 10, width: 10 },
   timerText: { ...typography.bodyStrong, color: colors.text, fontVariant: ['tabular-nums'] },
-  zoom: { alignItems: 'center', backgroundColor: 'rgba(16, 23, 20, 0.62)', borderRadius: radii.pill, bottom: 178, height: 40, justifyContent: 'center', position: 'absolute', right: spacing.md, width: 56 },
-  zoomActive: { backgroundColor: 'rgba(255, 200, 69, 0.22)' },
+  zoom: { alignItems: 'center', backgroundColor: media.chip, borderRadius: radii.pill, bottom: 178, height: 40, justifyContent: 'center', position: 'absolute', right: spacing.md, width: 56 },
+  zoomActive: { backgroundColor: media.sunSoft },
   zoomText: { ...typography.bodyStrong, color: colors.text },
   zoomTextActive: { color: colors.flare },
   bottom: { bottom: 0, gap: spacing.md, left: 0, position: 'absolute', right: 0 },
@@ -391,11 +392,11 @@ const styles = StyleSheet.create({
   error: { ...typography.caption, color: colors.danger, paddingHorizontal: spacing.lg, textAlign: 'center' },
   modes: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, justifyContent: 'center' },
   modeChip: { borderRadius: radii.pill, paddingHorizontal: 16, paddingVertical: 8 },
-  modeChipActive: { backgroundColor: 'rgba(255, 255, 255, 0.14)', borderColor: colors.flare, borderWidth: 1 },
-  modeText: { ...typography.bodyStrong, color: 'rgba(255, 255, 255, 0.75)' },
+  modeChipActive: { backgroundColor: media.lineSoft, borderColor: colors.flare, borderWidth: 1 },
+  modeText: { ...typography.bodyStrong, color: media.textSoft },
   modeTextActive: { color: colors.flare },
   shutterRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.xl },
-  gallery: { alignItems: 'center', backgroundColor: 'rgba(32, 43, 38, 0.9)', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, height: 56, justifyContent: 'center', width: 56 },
+  gallery: { alignItems: 'center', backgroundColor: media.chipStrong, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, height: 56, justifyContent: 'center', width: 56 },
   shutterRing: { alignItems: 'center', borderColor: colors.flare, borderRadius: radii.pill, borderWidth: 3, height: 76, justifyContent: 'center', width: 76 },
   shutterRingRecording: { borderColor: colors.danger },
   shutterCore: { backgroundColor: colors.text, borderRadius: radii.pill, height: 58, width: 58 },

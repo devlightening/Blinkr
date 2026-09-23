@@ -9,7 +9,7 @@ type Props = TextProps & { variant?: TextVariant; color?: string };
 
 /**
  * A `Text` with the design system's named type steps (03_DESIGN_SYSTEM.md §3): `display`/`title1`/
- * `title2` render in Bricolage Grotesque (loaded in `App.tsx`), everything else in the platform system
+ * `title2` render in Outfit (loaded in `App.tsx`), everything else in the platform system
  * font, exactly as before. An unloaded/failed custom font name is not an error - the platform silently
  * falls back to its default font for an unregistered `fontFamily`, so this needs no separate fallback.
  *

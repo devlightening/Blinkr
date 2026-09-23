@@ -13,5 +13,12 @@
     "privateTitle": "Private account",
     "privateHint": "When on, only people you approve see your signal list and follow lists. Your signals on the map stay public.",
     "privateFailed": "Couldn't save the setting. Try again."
+  },
+  "appearance": {
+    "title": "Appearance",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark",
+    "hint": "Applies right away; the app reopens for a second."
   }
 }

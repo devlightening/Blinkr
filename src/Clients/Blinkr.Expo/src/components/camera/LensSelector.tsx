@@ -1,7 +1,8 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CAMERA_LENSES } from '../../cameraEffects';
-import { colors, radii, spacing, typography } from '../../theme';
+// Drawn over live camera/photo/video: always the dark media palette, whatever the app theme (plan-devam B3).
+import { media, mediaColors as colors, radii, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 
 type Props = {
@@ -44,9 +45,9 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.4 },
   row: { gap: spacing.md, paddingHorizontal: spacing.lg },
   item: { alignItems: 'center', gap: 4, minWidth: 60 },
-  ring: { alignItems: 'center', borderColor: 'rgba(255, 255, 255, 0.35)', borderRadius: radii.pill, borderWidth: 2, height: 52, justifyContent: 'center', width: 52 },
+  ring: { alignItems: 'center', borderColor: media.line, borderRadius: radii.pill, borderWidth: 2, height: 52, justifyContent: 'center', width: 52 },
   ringSelected: { borderColor: colors.flare, borderWidth: 3 },
   swatch: { borderRadius: radii.pill, height: 40, width: 40 },
-  name: { ...typography.caption, color: 'rgba(255, 255, 255, 0.7)', fontWeight: '600' },
+  name: { ...typography.caption, color: media.textSoft, fontWeight: '600' },
   nameSelected: { color: colors.flare, fontWeight: '800' },
 });

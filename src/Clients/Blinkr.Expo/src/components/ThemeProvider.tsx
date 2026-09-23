@@ -1,46 +1,60 @@
 import * as SecureStore from 'expo-secure-store';
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useColorScheme } from 'react-native';
+import * as Updates from 'expo-updates';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Appearance, NativeModules } from 'react-native';
 
-import { resolveThemeMode, semanticColors, type SemanticPalette, type ThemeMode, type ThemePreference } from '../theme';
-
-const PREFERENCE_KEY = 'blinkr.theme.preference.v1';
-const isPreference = (value: unknown): value is ThemePreference => value === 'system' || value === 'dark' || value === 'light';
+import { getThemeMode, resolveThemeMode, semanticColors, type SemanticPalette, type ThemeMode, type ThemePreference } from '../theme';
+import { bootPreference, THEME_PREFERENCE_KEY } from '../themeBoot';
 
 type ThemeContextValue = {
   preference: ThemePreference;
   mode: ThemeMode;
   palette: SemanticPalette;
+  /** Saves the choice and reloads the app so every surface (the map included) repaints in the new theme. */
   setPreference: (preference: ThemePreference) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 /**
- * Infrastructure for P1.2 (sinyal-mvp-plan Faz 1): tracks the appearance preference (system/dark/light),
- * persists it, and resolves the effective mode. Wrapping the app in this changes nothing visually by
- * itself - no screen reads `useTheme()` yet, so everything keeps using the existing flat dark tokens
- * from `theme.ts` until it is migrated. That migration, and the "Görünüm" setting that lets someone
- * change `preference`, come with the screens that actually consume `palette`.
+ * Screens build their styles once at load, so a theme change is applied by reloading the JS bundle (about a second,
+ * no data lost: the session is in secure storage). `Updates.reloadAsync` works in release builds and Expo Go; in a
+ * development build it is not allowed, so the dev-settings module reloads there.
  */
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const systemScheme = useColorScheme();
-  const [preference, setPreferenceState] = useState<ThemePreference>('system');
+export const reloadApp = async () => {
+  try {
+    await Updates.reloadAsync();
+  } catch {
+    // Development build: expo-updates refuses to reload there, the dev menu module does not.
+    (NativeModules.DevSettings as { reload?: () => void } | undefined)?.reload?.();
+  }
+};
 
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [preference, setPreferenceState] = useState<ThemePreference>(bootPreference);
+  const preferenceRef = useRef(preference);
+  preferenceRef.current = preference;
+  const mode = getThemeMode();
+
+  // Following the system: when the device switches between light and dark, repaint to match.
   useEffect(() => {
-    let cancelled = false;
-    SecureStore.getItemAsync(PREFERENCE_KEY)
-      .then((stored) => { if (!cancelled && isPreference(stored)) setPreferenceState(stored); })
-      .catch(() => { /* default preference ("system") stands */ });
-    return () => { cancelled = true; };
+    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
+      if (preferenceRef.current !== 'system') return;
+      const next = resolveThemeMode('system', colorScheme === 'dark' || colorScheme === 'light' ? colorScheme : null);
+      if (next !== getThemeMode()) void reloadApp();
+    });
+    return () => subscription.remove();
   }, []);
 
   const setPreference = (next: ThemePreference) => {
     setPreferenceState(next);
-    SecureStore.setItemAsync(PREFERENCE_KEY, next).catch(() => { /* preference still applies this session */ });
+    const systemScheme = Appearance.getColorScheme();
+    const nextMode = resolveThemeMode(next, systemScheme === 'dark' || systemScheme === 'light' ? systemScheme : null);
+    SecureStore.setItemAsync(THEME_PREFERENCE_KEY, next)
+      .catch(() => { /* not saved: applies to this session only */ })
+      .finally(() => { if (nextMode !== getThemeMode()) void reloadApp(); });
   };
 
-  const mode = resolveThemeMode(preference, systemScheme as ThemeMode | null | undefined);
   const value = useMemo<ThemeContextValue>(() => ({ preference, mode, palette: semanticColors[mode], setPreference }), [preference, mode]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

@@ -8,7 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { openSnap, snapMediaSource } from '../../api';
 import { friendlyError } from '../../productPresentation';
 import { timerLabel } from '../../snapPresentation';
-import { colors, radii, spacing, typography } from '../../theme';
+// Drawn over live camera/photo/video: always the dark media palette, whatever the app theme (plan-devam B3).
+import { media, mediaColors as colors, radii, spacing, typography } from '../../theme';
 import type { AuthResponse, SnapOpenResult } from '../../types';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
@@ -171,21 +172,21 @@ export function SnapViewer({ auth, conversationId, messageId, senderName, sender
 }
 
 const styles = StyleSheet.create({
-  screen: { ...StyleSheet.absoluteFill, backgroundColor: '#000000', zIndex: 300 },
+  screen: { ...StyleSheet.absoluteFill, backgroundColor: media.black, zIndex: 300 },
   top: { left: 0, paddingHorizontal: spacing.md, position: 'absolute', right: 0, top: 0 },
-  track: { backgroundColor: 'rgba(255, 255, 255, 0.28)', borderRadius: 2, height: 3, overflow: 'hidden' },
+  track: { backgroundColor: media.track, borderRadius: 2, height: 3, overflow: 'hidden' },
   trackSpacer: { height: 3 },
   fill: { backgroundColor: colors.text, height: 3 },
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   headerCopy: { flex: 1 },
   sender: { ...typography.bodyStrong, color: colors.text },
-  meta: { ...typography.caption, color: 'rgba(255, 255, 255, 0.72)' },
-  close: { alignItems: 'center', backgroundColor: 'rgba(16, 20, 23, 0.55)', borderRadius: radii.pill, height: 36, justifyContent: 'center', width: 36 },
+  meta: { ...typography.caption, color: media.textSoft },
+  close: { alignItems: 'center', backgroundColor: media.chip, borderRadius: radii.pill, height: 36, justifyContent: 'center', width: 36 },
   center: { ...StyleSheet.absoluteFill, alignItems: 'center', gap: spacing.md, justifyContent: 'center', padding: spacing.xl },
   errorTitle: { ...typography.body, color: colors.text, textAlign: 'center' },
   errorButton: { minWidth: 140 },
   bottom: { alignItems: 'center', bottom: 0, gap: spacing.md, left: 0, position: 'absolute', right: 0 },
-  caption: { ...typography.body, backgroundColor: 'rgba(0, 0, 0, 0.58)', color: colors.text, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, textAlign: 'center', width: '100%' },
-  reply: { alignItems: 'center', backgroundColor: 'rgba(16, 20, 23, 0.7)', borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, minHeight: 44, paddingHorizontal: spacing.lg },
+  caption: { ...typography.body, backgroundColor: media.scrimStrong, color: colors.text, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, textAlign: 'center', width: '100%' },
+  reply: { alignItems: 'center', backgroundColor: media.chip, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, minHeight: 44, paddingHorizontal: spacing.lg },
   replyText: { ...typography.bodyStrong, color: colors.text },
 });

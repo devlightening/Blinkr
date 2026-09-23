@@ -14,6 +14,9 @@ import { Avatar } from './Avatar';
 import { DevComponentPreview } from './DevComponentPreview';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
+import { SegmentedControl } from './ui/BlinkrSegmentedControl';
+import { useTheme } from './ThemeProvider';
+import type { ThemePreference } from '../theme';
 
 type Props = {
   auth: AuthResponse;
@@ -50,6 +53,7 @@ function Row({ icon, title, value, onPress, danger = false }: { icon: React.Reac
  */
 export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, onLogout, isPrivate = false, onPrivacyChange }: Props) {
   const { t } = useTranslation('settings');
+  const theme = useTheme();
   const [privateOn, setPrivateOn] = useState(isPrivate);
   const [privacyError, setPrivacyError] = useState<string | null>(null);
   useEffect(() => { setPrivateOn(isPrivate); }, [isPrivate]);
@@ -154,6 +158,22 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
             </View>
           </View>
 
+          {/* plan-devam B3: Sistem / Açık / Koyu. Choosing one reloads the app so every surface, the map included, repaints. */}
+          <Text style={styles.section}>{t('appearance.title')}</Text>
+          <View style={[styles.group, styles.appearance]}>
+            <SegmentedControl<ThemePreference>
+              accessibilityLabel={t('appearance.title')}
+              onChange={theme.setPreference}
+              options={[
+                { value: 'system', label: t('appearance.system') },
+                { value: 'light', label: t('appearance.light') },
+                { value: 'dark', label: t('appearance.dark') },
+              ]}
+              value={theme.preference}
+            />
+            <Text style={styles.noteText}>{t('appearance.hint')}</Text>
+          </View>
+
           {__DEV__ ? (
             <>
               <Text style={styles.section}>Geliştirici</Text>
@@ -205,6 +225,7 @@ const styles = StyleSheet.create({
   content: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   section: { ...typography.label, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.lg },
   group: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, overflow: 'hidden' },
+  appearance: { gap: spacing.sm, padding: spacing.md },
   row: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: 52, paddingHorizontal: spacing.lg },
   rowIcon: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.sm + 2, height: 32, justifyContent: 'center', width: 32 },
   glyph: { ...typography.bodyStrong, color: colors.text },

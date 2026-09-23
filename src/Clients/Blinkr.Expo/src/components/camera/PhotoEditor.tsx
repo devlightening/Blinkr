@@ -7,7 +7,8 @@ import { captureRef } from 'react-native-view-shot';
 
 import { MAX_STICKERS, STICKERS, TEXT_COLORS, TEXT_MAX, TEXT_STYLE_LABELS, TRASH_ZONE, nextTextStyle, placeText, textOnColor, type TextStyleId, lensById, lensChangesPicture, placeSticker, signalFromStickers, stickerName, stickerText, type PlacedSticker, type StickerSignal } from '../../cameraEffects';
 import { friendlyError } from '../../productPresentation';
-import { colors, radii, spacing, typography } from '../../theme';
+// Drawn over live camera/photo/video: always the dark media palette, whatever the app theme (plan-devam B3).
+import { media, mediaColors as colors, radii, spacing, typography } from '../../theme';
 import { useLensSwipe } from './LensSwipe';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { BlinkrButton } from '../ui/BlinkrButton';
@@ -125,7 +126,7 @@ export function PhotoEditor({ photo, lensId, onLensChange, onRetake, onDone, sub
                 multiline
                 onChangeText={(value) => setWriting((w) => (w ? { ...w, value } : w))}
                 placeholder="Yaz…"
-                placeholderTextColor="rgba(255,255,255,0.6)"
+                placeholderTextColor={media.textFaint}
                 style={[styles.writeInput, writing.style === 'solid' ? { backgroundColor: writing.color, color: textOnColor(writing.color) } : { color: writing.color }]}
                 value={writing.value}
               />
@@ -191,9 +192,9 @@ export function PhotoEditor({ photo, lensId, onLensChange, onRetake, onDone, sub
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: '#000000', flex: 1 },
+  screen: { backgroundColor: media.black, flex: 1 },
   top: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.md },
-  back: { alignItems: 'center', backgroundColor: 'rgba(16, 23, 20, 0.7)', borderRadius: radii.pill, height: 44, justifyContent: 'center', width: 44 },
+  back: { alignItems: 'center', backgroundColor: media.chip, borderRadius: radii.pill, height: 44, justifyContent: 'center', width: 44 },
   title: { ...typography.bodyStrong, color: colors.text },
   stage: { alignItems: 'center', flex: 1, justifyContent: 'center' },
   frame: { backgroundColor: colors.surface, borderRadius: radii.lg, overflow: 'hidden' },
@@ -206,15 +207,15 @@ const styles = StyleSheet.create({
   error: { ...typography.caption, color: colors.danger, paddingHorizontal: spacing.lg },
   use: { marginHorizontal: spacing.lg },
   dim: { opacity: 0.4 },
-  writeLayer: { alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.45)', bottom: 0, gap: spacing.md, justifyContent: 'center', left: 0, padding: spacing.md, position: 'absolute', right: 0, top: 0 },
+  writeLayer: { alignItems: 'center', backgroundColor: media.scrim, bottom: 0, gap: spacing.md, justifyContent: 'center', left: 0, padding: spacing.md, position: 'absolute', right: 0, top: 0 },
   writeInput: { ...typography.title, borderRadius: radii.md, maxWidth: '90%', minWidth: 120, paddingHorizontal: 12, paddingVertical: 6, textAlign: 'center' },
   writeTools: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'center' },
   writeStyle: { borderColor: colors.text, borderRadius: radii.pill, borderWidth: 1, minHeight: 36, justifyContent: 'center', paddingHorizontal: 12 },
   writeStyleText: { ...typography.label, color: colors.text },
-  swatch: { borderColor: 'rgba(255,255,255,0.4)', borderRadius: radii.pill, borderWidth: 1, height: 28, width: 28 },
+  swatch: { borderColor: media.line, borderRadius: radii.pill, borderWidth: 1, height: 28, width: 28 },
   swatchActive: { borderColor: colors.flare, borderWidth: 3 },
   writeDone: { alignItems: 'center', backgroundColor: colors.flare, borderRadius: radii.pill, justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.lg },
   writeDoneText: { ...typography.bodyStrong, color: colors.ink },
-  trash: { alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.55)', borderColor: colors.text, borderRadius: radii.pill, borderWidth: 1.5, height: TRASH_ZONE.size, justifyContent: 'center', position: 'absolute', width: TRASH_ZONE.size },
+  trash: { alignItems: 'center', backgroundColor: media.scrimStrong, borderColor: colors.text, borderRadius: radii.pill, borderWidth: 1.5, height: TRASH_ZONE.size, justifyContent: 'center', position: 'absolute', width: TRASH_ZONE.size },
   flareButton: { backgroundColor: colors.flare },
 });

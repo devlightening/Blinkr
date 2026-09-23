@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, sizes, spacing, typography } from '../theme';
+import { colors, getThemeMode, radii, signalInks, signalTints, sizes, spacing, typography } from '../theme';
 import { AnimatedPressable } from './AnimatedPressable';
 import { Avatar } from './Avatar';
 import { BlinkrButton } from './ui/BlinkrButton';
@@ -52,11 +52,34 @@ export function DevComponentPreview({ onBack }: { onBack: () => void }) {
       </View>
 
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]} showsVerticalScrollIndicator={false}>
-        <Section title="Metin (P1.3)">
-          <BlinkrText variant="display">Display 30/36</BlinkrText>
-          <BlinkrText variant="title1">Title1 22/28</BlinkrText>
-          <BlinkrText color={colors.textSecondary} variant="title2">Title2 18/24</BlinkrText>
-          <BlinkrText variant="body">Body - Şişli'de İğneada Çığlığı</BlinkrText>
+        <Section title="Metin (plan-devam B4)">
+          <BlinkrText variant="display">Display 34/40</BlinkrText>
+          <BlinkrText variant="title1">Title1 24/30</BlinkrText>
+          <BlinkrText variant="title2">Title2 19/25</BlinkrText>
+          <BlinkrText variant="heading">Headline 16/21 · Şişli İğneada</BlinkrText>
+          <BlinkrText variant="body">Body 15/21 - Şişli'de İğneada Çığlığı</BlinkrText>
+          <BlinkrText variant="callout">Callout 14/19</BlinkrText>
+          <BlinkrText color={colors.textSecondary} variant="caption">Caption 12/16</BlinkrText>
+          <BlinkrText color={colors.textSecondary} variant="micro">Micro 11/13</BlinkrText>
+          <BlinkrText variant="number">1.234 · 12:05 · 283 m</BlinkrText>
+        </Section>
+
+        <Section title={`Renk (${getThemeMode() === 'dark' ? 'koyu' : 'açık'} tema)`}>
+          <View style={styles.swatches}>
+            {([['Zemin', colors.background], ['Yüzey', colors.surface], ['Gömük', colors.surfaceElevated], ['Vurgu', colors.primary], ['Yumuşak vurgu', colors.greenSoft], ['Oluştur', colors.flare], ['Metin', colors.text], ['İkincil metin', colors.textSecondary], ['Tehlike', colors.danger]] as const).map(([name, value]) => (
+              <View key={name} style={styles.swatch}>
+                <View style={[styles.swatchChip, { backgroundColor: value }]} />
+                <Text style={styles.swatchText}>{name}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.swatches}>
+            {(Object.keys(signalTints) as (keyof typeof signalTints)[]).map((type) => (
+              <View key={type} style={[styles.typePair, { backgroundColor: signalTints[type] }]}>
+                <Text style={[styles.swatchText, { color: signalInks[type] }]}>{type}</Text>
+              </View>
+            ))}
+          </View>
         </Section>
 
         <Section title="Buton, Chip, Kart">
@@ -120,6 +143,11 @@ export function DevComponentPreview({ onBack }: { onBack: () => void }) {
 }
 
 const styles = StyleSheet.create({
+  swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  swatch: { alignItems: 'center', gap: 4, width: 72 },
+  swatchChip: { borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, height: 40, width: 56 },
+  swatchText: { ...typography.micro, color: colors.textSecondary, textAlign: 'center' },
+  typePair: { borderRadius: radii.pill, paddingHorizontal: spacing.md, paddingVertical: 6 },
   screen: { ...StyleSheet.absoluteFill, backgroundColor: colors.background, zIndex: 20 },
   bar: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.sm, paddingHorizontal: spacing.lg },
   back: { alignItems: 'center', height: sizes.touch, justifyContent: 'center', marginLeft: -spacing.sm, width: sizes.touch },
