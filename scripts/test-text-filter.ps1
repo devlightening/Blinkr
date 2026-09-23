@@ -65,8 +65,8 @@ $a = Register-SmokeUser -Label "a" -Suffix $suffix
 $b = Register-SmokeUser -Label "b" -Suffix $suffix
 $lat = 37.0746; $lon = 36.2464
 
-function New-Post([string]$Title, [string]$Content) {
-    Invoke-Api -Method POST -Path "/api/posts" -Token $a.Token -Body @{ title = $Title; content = $Content; latitude = $lat; longitude = $lon; accuracyMeters = 25; locationName = "Osmaniye"; signalType = "GeneralObservation"; audienceType = "Public"; identityDisclosure = "LimitedProfile"; locationPrecision = "ApproximateArea" }
+function New-Post([string]$Title, [string]$Content, $User = $a) {
+    Invoke-Api -Method POST -Path "/api/posts" -Token $User.Token -Body @{ title = $Title; content = $Content; latitude = $lat; longitude = $lon; accuracyMeters = 25; locationName = "Osmaniye"; signalType = "GeneralObservation"; audienceType = "Public"; identityDisclosure = "LimitedProfile"; locationPrecision = "ApproximateArea" }
 }
 
 # Posts
@@ -87,7 +87,8 @@ Check "an edit into a threat is refused" (Is-Blocked $edit) "HTTP $($edit.Status
 $mild = New-Post "Sıra" "amk yine kuyruk var $suffix"
 Check "light swearing is published" ($mild.Status -eq 201) "HTTP $($mild.Status)"
 $mildId = $mild.Json.postId
-$clean = New-Post "Sakin" "Kafe sakin $suffix"
+# Another author: the feed shows at most two signals per person per page (DiscoverRanking diversity).
+$clean = New-Post "Sakin" "Kafe sakin $suffix" $b
 $cleanId = $clean.Json.postId
 $feed = Wait-For -Path "/api/discover/nearby?lat=$lat&lon=$lon&radiusMeters=2000&pageSize=30" -Token $b.Token -Until { param($r) @($r.Json.items | Where-Object { $_.id -eq $mildId }).Count -gt 0 -and @($r.Json.items | Where-Object { $_.id -eq $cleanId }).Count -gt 0 }
 $mildItem = @($feed.Json.items | Where-Object { $_.id -eq $mildId })[0]

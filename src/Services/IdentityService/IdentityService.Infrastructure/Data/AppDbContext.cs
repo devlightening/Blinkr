@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<Friendship> Friendships => Set<Friendship>();
     public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
     public DbSet<Report> Reports => Set<Report>();
+    public DbSet<ModerationAction> ModerationActions => Set<ModerationAction>();
     public DbSet<Follow> Follows => Set<Follow>();
     public DbSet<SavedPlace> SavedPlaces => Set<SavedPlace>();
 
@@ -50,7 +51,18 @@ public class AppDbContext : DbContext
             entity.Property(r => r.Note).HasMaxLength(SafetyRules.MaxNoteLength);
             entity.HasIndex(r => new { r.ReporterId, r.TargetType, r.TargetId }).IsUnique();
             entity.HasIndex(r => new { r.TargetType, r.TargetId });
+            entity.HasIndex(r => new { r.Status, r.CreatedAtUtc });
             entity.HasOne<User>().WithMany().HasForeignKey(r => r.ReporterId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ModerationAction>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+            entity.Property(a => a.TargetId).IsRequired().HasMaxLength(SafetyRules.MaxTargetIdLength);
+            entity.Property(a => a.Action).IsRequired().HasMaxLength(32);
+            entity.Property(a => a.Note).HasMaxLength(SafetyRules.MaxModerationNoteLength);
+            entity.HasIndex(a => new { a.TargetType, a.TargetId });
+            entity.HasIndex(a => a.CreatedAtUtc);
         });
 
         modelBuilder.Entity<SavedPlace>(entity =>

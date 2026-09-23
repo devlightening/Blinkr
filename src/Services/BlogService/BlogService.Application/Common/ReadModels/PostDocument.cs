@@ -38,6 +38,13 @@ public class PostDocument
     /// </summary>
     [BsonRepresentation(BsonType.String)]
     public List<Guid> LikedByUserIds { get; set; } = new();
+    /// <summary>
+    /// Moderation (Faz 10): always null in "posts" - hidden/removed signals are moved to "posts_moderated" by the
+    /// projection worker. Declared so documents written with the field still deserialize. Must match
+    /// `Blinkr.Projections.Worker.Documents.PostDocument.ModerationState`.
+    /// </summary>
+    [BsonIgnoreIfNull]
+    public string? ModerationState { get; set; }
     public List<PostCommentReadModel> Comments { get; set; } = new();
 
     [BsonIgnore]

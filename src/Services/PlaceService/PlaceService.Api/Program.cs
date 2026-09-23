@@ -35,6 +35,8 @@ builder.Services.AddHttpClient<IPlaceDiscoveryProvider, OverpassPlaceDiscoveryPr
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<PostCreatedPlaceSignalConsumer>();
+    x.AddConsumer<PostModerationPlaceSignalConsumer>();
+    x.AddConsumer<PostDeletedPlaceSignalConsumer>();
     x.UsingRabbitMq((context, cfg) =>
     {
         cfg.Host(builder.Configuration["RabbitMq:Host"] ?? "localhost", "/", h =>
@@ -46,6 +48,16 @@ builder.Services.AddMassTransit(x =>
         cfg.ReceiveEndpoint("place-service-post-created", e =>
         {
             e.ConfigureConsumer<PostCreatedPlaceSignalConsumer>(context);
+        });
+
+        cfg.ReceiveEndpoint("place-service-post-moderation", e =>
+        {
+            e.ConfigureConsumer<PostModerationPlaceSignalConsumer>(context);
+        });
+
+        cfg.ReceiveEndpoint("place-service-post-deleted", e =>
+        {
+            e.ConfigureConsumer<PostDeletedPlaceSignalConsumer>(context);
         });
     });
 });

@@ -35,6 +35,14 @@ namespace Blinkr.Projections.Worker.Documents
         /// </summary>
         [BsonRepresentation(BsonType.String)]
         public List<Guid> LikedByUserIds { get; set; } = new List<Guid>();
+        /// <summary>
+        /// Moderation (Faz 10): null = visible; "hidden" (reports or a moderator; can be restored) or "removed" only
+        /// ever appear in the "posts_moderated" collection, never in "posts" (PostModerationChangedConsumer).
+        /// Not written when null, and mirrored in both BlogService PostDocument copies, whose class maps reject
+        /// unknown elements.
+        /// </summary>
+        [BsonIgnoreIfNull]
+        public string? ModerationState { get; set; }
         public List<Comment> Comments { get; set; } = new List<Comment>();
         
         /// <summary>

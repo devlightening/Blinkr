@@ -1,3 +1,4 @@
+using IdentityService.Api.Moderation;
 using IdentityService.Domain.Entities;
 using IdentityService.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -115,7 +116,12 @@ namespace IdentityService.Api.Controllers
     {
         private static readonly Regex SignalId = new(@"^[A-Za-z0-9\-_]{1,64}$", RegexOptions.Compiled);
         private readonly AppDbContext _db;
-        public ReportsController(AppDbContext db) => _db = db;
+        private readonly ModerationService _moderation;
+        public ReportsController(AppDbContext db, ModerationService moderation)
+        {
+            _db = db;
+            _moderation = moderation;
+        }
 
         private static bool TryReason(string? raw, out ReportReason reason)
         {
@@ -126,11 +132,16 @@ namespace IdentityService.Api.Controllers
                 case "inappropriate": reason = ReportReason.Inappropriate; return true;
                 case "wrong_info": reason = ReportReason.WrongInfo; return true;
                 case "other": reason = ReportReason.Other; return true;
+                case "hate": reason = ReportReason.Hate; return true;
+                case "nudity": reason = ReportReason.Nudity; return true;
+                case "violence": reason = ReportReason.Violence; return true;
+                case "privacy": reason = ReportReason.Privacy; return true;
+                case "self_harm": reason = ReportReason.SelfHarm; return true;
                 default: reason = default; return false;
             }
         }
 
-        /// <summary>POST /api/reports - { targetType: user|signal, targetId, reason: spam|harassment|inappropriate|wrong_info|other, note? }</summary>
+        /// <summary>POST /api/reports - { targetType: user|signal, targetId, reason: spam|harassment|hate|nudity|violence|privacy|self_harm|inappropriate|wrong_info|other, note? }</summary>
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] ReportRequest request)
         {
@@ -174,9 +185,16 @@ namespace IdentityService.Api.Controllers
             if (await _db.Reports.CountAsync(r => r.ReporterId == me && r.CreatedAtUtc >= since) >= SafetyRules.MaxReportsPerDay)
                 return StatusCode(StatusCodes.Status429TooManyRequests, new { error = "TOO_MANY_REPORTS", message = "Bugün çok fazla bildirim gönderdin. Yarın tekrar dene." });
 
-            _db.Reports.Add(new Report { ReporterId = me, TargetType = type.Value, TargetId = targetId, Reason = reason, Note = note });
+            var weight = await _moderation.ReporterWeightAsync(me);
+            _db.Reports.Add(new Report { ReporterId = me, TargetType = type.Value, TargetId = targetId, Reason = reason, Note = note, Weight = weight });
             try { await _db.SaveChangesAsync(); }
-            catch (DbUpdateException) { _db.ChangeTracker.Clear(); /* duplicate from a race: already reported */ }
+            catch (DbUpdateException) { _db.ChangeTracker.Clear(); return Ok(new { reported = true }); /* duplicate from a race: already reported */ }
+            // Enough weighted reports hide a signal until a moderator looks (11 §4). Never fails the report itself.
+            if (type == ReportTargetType.Signal)
+            {
+                try { await _moderation.AfterSignalReportAsync(targetId); }
+                catch (Exception) { /* logged inside; the report is saved and the next one retries */ }
+            }
             return Ok(new { reported = true });
         }
     }

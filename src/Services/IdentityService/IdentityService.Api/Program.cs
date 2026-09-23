@@ -69,6 +69,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // DI: Application <-> Infrastructure
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IdentityService.Api.Moderation.ModerationService>();
 
 // Authentication & Authorization: IdentityService is the sole JWT authority for the MVP.
 var jwtOptions = BlinkrJwtOptions.FromConfiguration(builder.Configuration, builder.Environment.EnvironmentName);
@@ -105,7 +106,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+// Moderation endpoints (Faz 10 P10.4). JwtBearer maps the "role" claim to ClaimTypes.Role on the way in, so the
+// policy accepts either type instead of relying on [Authorize(Roles)] with RoleClaimType = "role".
+builder.Services.AddAuthorization(options =>
+    options.AddPolicy(IdentityService.Api.Moderation.AdminModerationController.AdminPolicy, policy => policy
+        .RequireAuthenticatedUser()
+        .RequireAssertion(ctx => ctx.User.Claims.Any(c =>
+            (c.Type == BlinkrJwtOptions.RoleClaimType || c.Type == System.Security.Claims.ClaimTypes.Role) && c.Value == "Admin"))));
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>(

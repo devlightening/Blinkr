@@ -1,9 +1,12 @@
-import { Check, Flag } from 'lucide-react-native';
+import * as Localization from 'expo-localization';
+import { Check, Flag, LifeBuoy } from 'lucide-react-native';
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { success } from '../haptics';
 import { REPORT_NOTE_MAX, canSendReport, cleanBio, reportReasons, type ReportReasonId, type ReportTarget } from '../friends';
+import { emergencyNumber } from '../placeSafety';
 import { friendlyError } from '../productPresentation';
 import { colors, radii, spacing, typography } from '../theme';
 import { AnimatedPressable } from './AnimatedPressable';
@@ -23,6 +26,7 @@ type Props = {
  * note is optional. The acknowledgement is honest: the report is stored, nothing more is promised.
  */
 export function ReportPanel({ target, subject, onSubmit, onDone }: Props) {
+  const { t } = useTranslation('common');
   const [reason, setReason] = useState<ReportReasonId | null>(null);
   const [note, setNote] = useState('');
   const [sending, setSending] = useState(false);
@@ -53,6 +57,13 @@ export function ReportPanel({ target, subject, onSubmit, onDone }: Props) {
         <View style={styles.doneIcon}><Check color={colors.primary} size={28} strokeWidth={2.6} /></View>
         <Text accessibilityRole="header" style={styles.doneTitle}>Bildirimin alındı</Text>
         <Text style={styles.doneText}>{target === 'user' ? 'Teşekkürler. Bildirimin kaydedildi. İstersen bu kişiyi engelleyerek onunla tüm teması kesebilirsin.' : 'Teşekkürler. Bildirimin kaydedildi.'}</Text>
+        {reason === 'self_harm' ? (
+          // A self-harm report is reviewed first; the reporter is shown where to get help right now (11 §4).
+          <View accessibilityRole="alert" style={styles.help} testID="report-self-harm-help">
+            <LifeBuoy color={colors.warning} size={20} />
+            <Text style={styles.helpText}>{t('report.selfHarmHelp', { number: emergencyNumber(Localization.getLocales()[0]?.regionCode) })}</Text>
+          </View>
+        ) : null}
         <BlinkrButton label="Tamam" onPress={onDone} size="lg" />
       </View>
     );
@@ -121,4 +132,6 @@ const styles = StyleSheet.create({
   doneIcon: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: radii.pill, height: 56, justifyContent: 'center', width: 56 },
   doneTitle: { ...typography.title, color: colors.text },
   doneText: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
+  help: { alignItems: 'flex-start', backgroundColor: colors.surfaceElevated, borderColor: colors.warning, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
+  helpText: { ...typography.body, color: colors.text, flex: 1 },
 });

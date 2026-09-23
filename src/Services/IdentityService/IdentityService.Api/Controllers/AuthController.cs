@@ -1,5 +1,6 @@
 ﻿using IdentityService.Application.DTOs;
 using IdentityService.Application.Interfaces;
+using IdentityService.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IdentityService.Api.Controllers
@@ -28,7 +29,19 @@ namespace IdentityService.Api.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var response = await _userService.LoginAsync(request);
+            AuthResponse? response;
+            try { response = await _userService.LoginAsync(request); }
+            catch (AccountSuspendedException ex)
+            {
+                var closed = ex.UntilUtc >= Sanctions.Forever;
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    error = "ACCOUNT_SUSPENDED",
+                    code = "ACCOUNT_SUSPENDED",
+                    until = closed ? (DateTime?)null : ex.UntilUtc,
+                    message = closed ? "Bu hesap topluluk kurallarını ihlal ettiği için kapatıldı." : "Bu hesap topluluk kuralları nedeniyle geçici olarak askıya alındı.",
+                });
+            }
             if (response == null) return Unauthorized("Invalid credentials.");
             return Ok(response);
         }

@@ -44,6 +44,9 @@ public class StoriesController : ControllerBase
     [RequestSizeLimit(MaxRequestBytes)]
     public async Task<IActionResult> Create([FromQuery] int durationSeconds = 5, [FromQuery] string? caption = null, CancellationToken ct = default)
     {
+        // Moderation sanction (Faz 10 P10.4): no posting while restricted; carried in the access token.
+        if (PostingRestriction.RestrictedUntil(User, DateTime.UtcNow) is { } restrictedUntil)
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = PostingRestriction.ErrorCode, code = PostingRestriction.ErrorCode, until = restrictedUntil, message = "Topluluk kuralları nedeniyle şu an paylaşım yapamazsın." });
         var captionReview = ContentTextFilter.Review(caption);
         if (captionReview.Verdict == TextVerdict.Blocked) return UnprocessableEntity(new { code = ContentTextFilter.BlockedCode, message = "Bu içerik topluluk kurallarına uymuyor." });
         caption = captionReview.Text;

@@ -66,6 +66,9 @@ const readError = async (response: Response) => {
       };
       // Refused by the server's text filter (Faz 10 P10.1): the app's own words, in the app's language.
       if (payload.code === 'CONTENT_BLOCKED' || payload.error === 'CONTENT_BLOCKED') return i18n.t('errors:contentBlocked');
+      // Moderation sanctions (Faz 10 P10.4).
+      if (payload.code === 'POSTING_RESTRICTED') return i18n.t('errors:postingRestricted');
+      if (payload.code === 'ACCOUNT_SUSPENDED') return i18n.t('errors:accountSuspended');
       const validationMessages = Object.values(payload.errors ?? {}).flat().filter(Boolean);
       const message = validationMessages[0]
         || payload.detail

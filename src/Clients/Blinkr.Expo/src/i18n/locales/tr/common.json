@@ -37,5 +37,8 @@
     "title": "Kişisel bilgi paylaşmak üzeresin",
     "masked": "TC kimlik numaraları ve plakalar paylaşımda otomatik gizlenir.",
     "visible": "Telefon numarası ya da açık adres herkese görünür. Gerekmiyorsa sil."
+  },
+  "report": {
+    "selfHarmHelp": "Birinin hayatı tehlikedeyse hemen acil çağrı numarasını ara: {{number}}. Bu bildirim öncelikli incelenecek."
   }
 }

@@ -15,6 +15,17 @@
 
 ## Kararlar
 
+### D-015 — P10.2-P10.4 moderasyon: raporlar Identity'de, gizleme koleksiyon taşıma ile, görsel moderasyon sağlayıcısı ertelendi (2026-09-23)
+- Bağlam: 11 §4 ağırlıklı rapor skoru ≥ 3 → auto_hide, admin inceleme kuyruğu, yaptırım merdiveni, denetim izi ve `MODERATION_PROVIDER` ile görsel moderasyon istiyor.
+- Karar:
+  - Raporların sahibi IdentityService (zaten oradaydı). Ağırlık: 1 günden genç hesap 0,5, diğerleri 1. Açık raporların ağırlıklı toplamı 3'e ulaşınca `PostModerationChangedIntegrationEvent` (hidden) yayınlanır; her karar `ModerationActions` tablosuna (denetim izi) ancak olay yayınlandıktan sonra yazılır.
+  - Gizleme okuma yollarına tek tek filtre eklenerek değil, worker'ın dokümanı `posts`'tan `posts_moderated`'a taşımasıyla yapılır (PlaceService'te `place_signals` → `place_signals_moderated`); geri alma geri taşır. Böylece harita, akışlar, arama, profil ve detay filtre unutulsa bile gizli sinyali gösteremez. EventStore'a olay yazılmaz: moderasyon içeriğin değil görünürlüğün kararıdır ve Identity'de denetim iziyle tutulur.
+  - Admin: `/api/admin/reports`, `/api/admin/reports/resolve`, `/api/admin/actions` (yalnız Admin rolü; JwtBearer "role" talebini `ClaimTypes.Role`'e çevirdiği için `[Authorize(Roles)]` yerine iki türü de kabul eden politika). Arayüz: `scripts/moderation.ps1` (CLI) + `scripts/make-admin.ps1`; web sayfası yok (plan "en azından CLI script" diyor).
+  - Yaptırımlar: warn → restrict_24h (erişim token'ında `posting_restricted_until`; sinyal/yorum/hikâye 403 `POSTING_RESTRICTED`, sohbet serbest) → suspend_7d/ban (giriş 403 `ACCOUNT_SUSPENDED`, yenileme 401, refresh token'lar iptal). Kişiye uygulama içi bildirim (`ModerationNotice`).
+  - Görsel moderasyon sağlayıcısı (P10.2) ertelendi: openai/aws/google seçeneklerinin hepsi API anahtarı ve ücretli hesap ister (00_START_HERE kuralı: kullanıcıya sorulmadan eklenmez). `none` davranışı, yani yalnız rapor tabanlı çalışma, bugünkü durumdur.
+- Gerekçe: Tek sahip, tek denetim izi; taşıma yaklaşımı en az kodla en güvenli sonucu verir.
+- Etki: Kısıtlama/askı en geç bir erişim token ömrü (60 dk) içinde etkili olur. Gizliyken gelen beğeni/yorum/düzenleme okuma modeline yansımaz (geri alınınca eski hâli döner). İtiraz için gerçek bir destek iletişim adresi henüz yok; bildirim metni itiraz adresi içermiyor (P10.10 ile birlikte karar verilmeli). Bu işte bulunan eski bir hata da düzeltildi: PlaceService silinen sinyali canlı durumdan hiç çıkarmıyordu (`PostDeletedPlaceSignalConsumer`).
+
 ### D-014 — P10.1 metin filtresi: tek paylaşılan sınıf, başlangıç kelime listesi, özel sohbet maskelenmez (2026-09-23)
 - Bağlam: 11 §4 senkron metin filtresi (tr/en, normalizasyon), ağır ihlalde 422 `CONTENT_BLOCKED`, hafif küfürde yayın + sıralama cezası + "Hassas içerik", TC no./plaka maskeleme ve kişisel veri uyarısı istiyor.
 - Karar: `BuildingBlocks/Shared/Moderation/ContentTextFilter` (Blog, Notifications, Identity API'leri zaten `Shared`'a bağlı). Gönderi başlık/metni + düzenleme, yorum, hikâye alt yazısı ve bio: engelle + maskele. Sohbet mesajı ve snap alt yazısı: yalnız engelle (kişi kendi plakasını bir arkadaşına yazabilir). Hafif küfür okuma anında hesaplanır: Keşfet "Yakınımda" skoru ×0,5 ve `sensitive: true` (olay sözleşmesi değişmedi). Telefon ve açık adres yalnız uygulamada uyarılır (`textSafety.ts`, `PersonalDataNotice`); sunucu bunları değiştirmez.

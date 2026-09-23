@@ -611,6 +611,13 @@ async function main() {
     await expect(page.getByText('Bildirimin alındı')).toBeVisible();
     const sentSignal = await page.evaluate(() => window.__lastReport);
     if (!sentSignal || sentSignal.targetType !== 'signal' || sentSignal.targetId !== 'post-a' || sentSignal.reason !== 'wrong_info') throw new Error('Signal report wrong: ' + JSON.stringify(sentSignal));
+    await expect(page.getByTestId('report-self-harm-help')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Tamam' }).click();
+    // Faz 10: a self-harm report shows where to get help right away.
+    await page.getByRole('button', { name: 'Bu sinyali bildir' }).last().click();
+    await page.getByRole('radio', { name: 'Kendine zarar verme' }).click();
+    await page.getByRole('button', { name: 'Bildirimi gönder' }).click();
+    await expect(page.getByTestId('report-self-harm-help')).toContainText('112');
     await page.getByRole('button', { name: 'Tamam' }).click();
     await expect(page.getByText('Son sinyaller')).toBeVisible();
     // P5.3 sensitive places: no media at a school (and attached media can be removed), a privacy reminder at a

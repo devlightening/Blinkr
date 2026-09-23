@@ -240,10 +240,10 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 ## Faz 10 — Güvenlik, gizlilik, moderasyon
 
 - [x] P10.1 Metin filtresi — `Shared.Moderation.ContentTextFilter` (normalizasyon: Türkçe harf, leetspeak, tekrar, a.r.a.l.ı harf); tehdit/nefret/hedefli hakaret 422 `CONTENT_BLOCKED` (gönderi, düzenleme, yorum, sohbet, snap/hikâye alt yazısı, bio); TC no. ve plaka maskelenir (gönderi, yorum, hikâye, bio; özel sohbet hariç); hafif küfür Keşfet'te ×0,5 + "Hassas içerik"; uygulamada telefon/TC/plaka/adres uyarısı (composer, yorum, bio). Kanıt: `tests/ContentFilter` (BLK-TEXTFILTER-01, 38 kontrol), `test-text-filter.ps1` (BLK-TEXTFILTER-02) PASS, `text-safety.test.ts`, test:ui. Kelime listeleri başlangıç seviyesi (D-014).
-- [ ] P10.2 Görsel moderasyon sağlayıcı soyutlaması (`MODERATION_PROVIDER`), auto_hide
-- [ ] P10.3 Rapor akışı (UI: neden seçimi + not), ağırlıklı rapor skoru, auto_hide
-- [ ] P10.4 Admin uç noktaları + minimal admin sayfası/CLI; yaptırım merdiveni; kullanıcıya bildirim
-- [ ] P10.5 Hassas yer kuralları (uyarı, okulda medya kapalı, HealthNotice + ülke acil numarası)
+- [~] P10.2 Görsel moderasyon sağlayıcısı — **ertelendi (D-015)**: tüm sağlayıcılar API anahtarı/ücretli hesap ister. Bugün `none` davranışı: yalnız rapor tabanlı auto_hide (P10.3).
+- [x] P10.3 Rapor akışı — plan nedenleri (spam, taciz, nefret, çıplaklık, şiddet, mahremiyet, kendine zarar, yanlış bilgi, diğer), kendine zarar raporu kuyruğun başında ve raporlayana acil numara; ağırlıklı skor (1 günden genç hesap 0,5) ≥ 3 → sinyal harita/akış/profil/detay ve canlı yer durumundan kalkar (koleksiyon taşıma, D-015).
+- [x] P10.4 Admin — `/api/admin/reports|reports/resolve|actions` (yalnız Admin), `scripts/moderation.ps1` CLI, `scripts/make-admin.ps1`; sinyal: dismiss/hide/restore/remove; kişi: warn/restrict_24h/suspend_7d/ban; denetim izi `ModerationActions`; `ModerationNotice` bildirimi. Kanıt: `test-moderation.ps1` (BLK-MODERATION-01, 32 kontrol) PASS; ayrıca silinen yer sinyalinin canlı durumda kalma hatası düzeltildi.
+- [x] P10.5 Hassas yer kuralları — Faz 5 P5.3'te yapıldı: okulda medya sunucuda kapalı (BLK-SENSITIVE-01), sağlık/ibadet uyarısı, HealthNotice + ülkeye göre acil numara (`placeSafety.ts`). Kamera üzerindeki yer çipi hâlâ yok (D-007).
 - [ ] P10.6 18 yaş altı varsayılanları
 - [ ] P10.7 Hesap silme (2 adım, 30 gün, purge işi) + geri alma; veri indirme talebi
 - [x] P10.8 Konum gizliliği denetimi — ~30 log satırından koordinat çıkarıldı, çerçeve istek/HttpClient/YARP logları Warning, kapsama anahtarı logda tek yönlü kimlik; ev bulanıklaştırma mevcut ~110 m ızgara (D-013). Kanıt: `test-log-privacy.ps1` (BLK-LOGPRIV-01) PASS; önce eski servislerde sızıntıyı yakaladığı görüldü.

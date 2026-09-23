@@ -20,7 +20,8 @@ run('report reasons: "wrong information" only for a signal; every reason has a l
   const user = reportReasons('user').map((item) => item.id);
   const signal = reportReasons('signal').map((item) => item.id);
   check(!user.includes('wrong_info') && signal.includes('wrong_info'), 'wrong_info is for signals');
-  check(user.join() === 'spam,harassment,inappropriate,other' && signal.length === 5, 'the full lists');
+  check(user.join() === 'spam,harassment,hate,nudity,violence,privacy,self_harm,other' && signal.length === 9, 'the full lists');
+  check(!signal.includes('inappropriate'), 'the old catch-all is no longer offered');
   check([...reportReasons('user'), ...reportReasons('signal')].every((item) => item.label.length > 3), 'labels');
   check(new Set(signal).size === signal.length, 'ids are unique');
 });

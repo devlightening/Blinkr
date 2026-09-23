@@ -9,12 +9,14 @@ namespace Blinkr.Projections.Worker.Consumers;
 public class PostDeletedConsumer : IConsumer<PostDeletedIntegrationEvent>
 {
     private readonly IMongoCollection<PostDocument> _postsCollection;
+    private readonly IMongoCollection<PostDocument> _moderatedCollection;
     private readonly ILogger<PostDeletedConsumer> _logger;
     private readonly ProjectionInbox _inbox;
 
     public PostDeletedConsumer(IMongoDatabase database, ILogger<PostDeletedConsumer> logger, ProjectionInbox inbox)
     {
         _postsCollection = database.GetCollection<PostDocument>("posts");
+        _moderatedCollection = database.GetCollection<PostDocument>(PostModerationChangedConsumer.ModeratedCollection);
         _logger = logger;
         _inbox = inbox;
     }
@@ -34,6 +36,9 @@ public class PostDeletedConsumer : IConsumer<PostDeletedIntegrationEvent>
         {
             var filter = Builders<PostDocument>.Filter.Eq(p => p.Id, message.PostId);
             var result = await _postsCollection.DeleteOneAsync(filter);
+            // A hidden signal lives in the moderated collection; deleting it must not leave it there.
+            var moderated = await _moderatedCollection.DeleteOneAsync(filter);
+            if (moderated.DeletedCount > 0) result = moderated;
 
             if (result.DeletedCount == 0)
             {

@@ -12,5 +12,7 @@
     "deleteFailed": "Couldn't delete the comment. Try again.",
     "loadFailed": "Couldn't load comments."
   },
-  "contentBlocked": "This doesn't follow the community rules: threats, hate speech and targeted insults can't be posted."
+  "contentBlocked": "This doesn't follow the community rules: threats, hate speech and targeted insults can't be posted.",
+  "postingRestricted": "You can't post right now because of the community rules. You can post again when the limit ends.",
+  "accountSuspended": "This account has been suspended or closed because of the community rules."
 }

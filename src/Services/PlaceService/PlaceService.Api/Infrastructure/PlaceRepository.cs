@@ -26,6 +26,9 @@ public interface IPlaceRepository
     Task<IReadOnlyList<PlaceSignalDocument>> GetSignalsAsync(Guid placeId, int limit, CancellationToken ct);
     Task<IReadOnlyList<PlaceSignalDocument>> GetSignalsForPlacesAsync(IReadOnlyCollection<Guid> placeIds, int perPlaceLimit, CancellationToken ct);
     Task UpsertSignalAsync(PlaceSignalDocument signal, CancellationToken ct);
+    /// <summary>Moves a signal out of (hidden) or back into (restored) the live collection; true when something moved.</summary>
+    Task<bool> SetSignalModeratedAsync(Guid postId, bool hidden, CancellationToken ct);
+    Task DeleteSignalAsync(Guid postId, CancellationToken ct);
     Task EnsureIndexesAsync(CancellationToken ct);
 }
 
@@ -33,12 +36,15 @@ public sealed class PlaceRepository : IPlaceRepository
 {
     private readonly IMongoCollection<PlaceDocument> _places;
     private readonly IMongoCollection<PlaceSignalDocument> _signals;
+    /// <summary>Signals hidden or removed by moderation: out of live state and signal lists until restored.</summary>
+    private readonly IMongoCollection<PlaceSignalDocument> _moderatedSignals;
     private readonly IMongoCollection<PlaceDiscoveryCoverageDocument> _coverage;
 
     public PlaceRepository(IMongoDatabase database)
     {
         _places = database.GetCollection<PlaceDocument>("places");
         _signals = database.GetCollection<PlaceSignalDocument>("place_signals");
+        _moderatedSignals = database.GetCollection<PlaceSignalDocument>("place_signals_moderated");
         _coverage = database.GetCollection<PlaceDiscoveryCoverageDocument>("place_discovery_coverage");
     }
 
@@ -282,6 +288,23 @@ public sealed class PlaceRepository : IPlaceRepository
             signal,
             new ReplaceOptions { IsUpsert = true },
             ct);
+    }
+
+    public async Task<bool> SetSignalModeratedAsync(Guid postId, bool hidden, CancellationToken ct)
+    {
+        var (from, to) = hidden ? (_signals, _moderatedSignals) : (_moderatedSignals, _signals);
+        var signal = await from.Find(s => s.PostId == postId).FirstOrDefaultAsync(ct);
+        if (signal is null) return false;
+        // Target first, then source: a retry after a crash in between finishes the move instead of losing the signal.
+        await to.ReplaceOneAsync(s => s.PostId == postId, signal, new ReplaceOptions { IsUpsert = true }, ct);
+        await from.DeleteOneAsync(s => s.PostId == postId, ct);
+        return true;
+    }
+
+    public async Task DeleteSignalAsync(Guid postId, CancellationToken ct)
+    {
+        await _signals.DeleteOneAsync(s => s.PostId == postId, ct);
+        await _moderatedSignals.DeleteOneAsync(s => s.PostId == postId, ct);
     }
 
     public async Task EnsureIndexesAsync(CancellationToken ct)

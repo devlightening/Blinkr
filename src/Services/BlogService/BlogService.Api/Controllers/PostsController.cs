@@ -50,6 +50,9 @@ public class PostsController : ControllerBase
         // Get author gender from JWT claims (for map pin color)
         var authorGender = User.FindFirst("gender")?.Value;
         
+        // Moderation sanction (Faz 10 P10.4): no posting while restricted; carried in the access token.
+        if (PostingRestriction.RestrictedUntil(User, DateTime.UtcNow) is { } restrictedUntil)
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = PostingRestriction.ErrorCode, code = PostingRestriction.ErrorCode, until = restrictedUntil, message = "Topluluk kuralları nedeniyle şu an paylaşım yapamazsın." });
         // Synchronous text filter (Faz 10 P10.1): threats/hate refused, TC numbers and plates masked.
         var (verdict, texts) = ContentTextFilter.ReviewAll(dto.Title, dto.Content);
         if (verdict == TextVerdict.Blocked) return UnprocessableEntity(new { error = ContentTextFilter.BlockedCode, code = ContentTextFilter.BlockedCode, message = "Bu içerik topluluk kurallarına uymuyor." });
@@ -149,6 +152,9 @@ public class PostsController : ControllerBase
         var authorName = User.FindFirst("preferred_username")?.Value
                       ?? User.FindFirst("name")?.Value
                       ?? User.Identity?.Name;
+        // Moderation sanction (Faz 10 P10.4): no posting while restricted; carried in the access token.
+        if (PostingRestriction.RestrictedUntil(User, DateTime.UtcNow) is { } restrictedUntil)
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = PostingRestriction.ErrorCode, code = PostingRestriction.ErrorCode, until = restrictedUntil, message = "Topluluk kuralları nedeniyle şu an paylaşım yapamazsın." });
         var text = dto.CommentText?.Trim() ?? string.Empty;
         if (text.Length == 0) return BadRequest(new { code = "COMMENT_EMPTY" });
         if (text.Length > 500) return BadRequest(new { code = "COMMENT_TOO_LONG" });

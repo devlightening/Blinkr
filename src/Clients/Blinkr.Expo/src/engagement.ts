@@ -145,6 +145,7 @@ export const engagementErrorKey = (code: string | null | undefined) => {
     case 'COMMENT_FORBIDDEN': return 'errors:engagement.commentForbidden';
     case 'NOT_FOUND': return 'errors:engagement.notFound';
     case 'CONTENT_BLOCKED': return 'errors:contentBlocked';
+    case 'POSTING_RESTRICTED': return 'errors:postingRestricted';
     default: return 'errors:generic';
   }
 };

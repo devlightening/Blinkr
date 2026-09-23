@@ -78,6 +78,10 @@ namespace IdentityService.Infrastructure.Services
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
                 return null;
 
+            // Moderation (Faz 10 P10.4): a suspended account cannot start a session.
+            if (user.SuspendedUntilUtc is { } until && until > DateTime.UtcNow)
+                throw new AccountSuspendedException(until);
+
             return await GenerateAuthResponseAsync(user);
         }
 
@@ -124,6 +128,7 @@ namespace IdentityService.Infrastructure.Services
 
                 var user = await _context.Users.FindAsync(userId);
                 if (user == null) return null;
+                if (user.SuspendedUntilUtc is { } suspendedUntil && suspendedUntil > DateTime.UtcNow) return null;
 
                 var incomingHash = HashToken(refreshToken);
                 var storedToken = await _context.RefreshTokens
@@ -185,6 +190,7 @@ namespace IdentityService.Infrastructure.Services
             var now = DateTime.UtcNow;
             var expiresAt = now.Add(jwt.AccessTokenLifetime);
 
+            var restriction = Shared.Moderation.PostingRestriction.ClaimFor(user.RestrictedUntilUtc, now);
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(new[]
@@ -201,7 +207,7 @@ namespace IdentityService.Infrastructure.Services
                     new Claim("token_use", "access"),
                     new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
                     new Claim(JwtRegisteredClaimNames.Iat, EpochTime.GetIntDate(now).ToString(), ClaimValueTypes.Integer64)
-                }),
+                }.Concat(restriction is null ? Array.Empty<Claim>() : new[] { restriction })),
                 Expires = expiresAt,
                 SigningCredentials = new SigningCredentials(
                     new SymmetricSecurityKey(key),

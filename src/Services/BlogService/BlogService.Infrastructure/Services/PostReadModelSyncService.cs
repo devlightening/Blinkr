@@ -58,8 +58,13 @@ public class PostReadModelSyncService : IPostReadModelSyncService
 
             _logger.LogInformation("WS-11A: Found {Count} posts in MongoDB", mongoPostIds.Count);
 
-            // Find missing posts
-            var missingIds = postgresPostIds.Except(mongoPostIds).ToList();
+            // Find missing posts. A signal hidden or removed by moderation (Faz 10) lives in "posts_moderated" and is
+            // not missing: re-creating it here would undo the decision.
+            var moderatedIds = await _mongoDb.GetCollection<PostDocument>("posts_moderated")
+                .Find(_ => true)
+                .Project(p => p.Id)
+                .ToListAsync(cancellationToken);
+            var missingIds = postgresPostIds.Except(mongoPostIds).Except(moderatedIds).ToList();
             _logger.LogInformation("WS-11A: Found {Count} missing posts to sync", missingIds.Count);
 
             if (missingIds.Count == 0)

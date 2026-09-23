@@ -69,20 +69,28 @@ export const formatJoined = (iso: string | null | undefined) => {
 export const badgeText = (count: number) => (count > 99 ? '99+' : String(Math.max(0, Math.floor(count))));
 
 export type ReportTarget = 'user' | 'signal';
-export type ReportReasonId = 'spam' | 'harassment' | 'inappropriate' | 'wrong_info' | 'other';
+export type ReportReasonId = 'spam' | 'harassment' | 'hate' | 'nudity' | 'violence' | 'privacy' | 'self_harm' | 'inappropriate' | 'wrong_info' | 'other';
 export const REPORT_NOTE_MAX = 300;
 
 const REASON_LABELS: Record<ReportReasonId, string> = {
   spam: 'Spam ya da reklam',
   harassment: 'Taciz ya da rahatsız edici davranış',
+  hate: 'Nefret söylemi',
+  nudity: 'Çıplaklık ya da cinsel içerik',
+  violence: 'Şiddet',
+  privacy: 'Mahremiyet ihlali (izinsiz görüntü ya da bilgi)',
+  self_harm: 'Kendine zarar verme',
   inappropriate: 'Uygunsuz içerik',
   wrong_info: 'Yanlış ya da eski bilgi',
   other: 'Başka bir neden',
 };
 
-/** The reasons offered for a target. "Wrong information" only makes sense for a signal about a place. */
+/**
+ * The reasons offered for a target (sinyal-mvp-plan 11 §4). "Wrong information" only makes sense for a signal about a
+ * place. "inappropriate" is still accepted by the server for older app versions but no longer offered.
+ */
 export const reportReasons = (target: ReportTarget): { id: ReportReasonId; label: string }[] =>
-  (['spam', 'harassment', 'inappropriate', 'wrong_info', 'other'] as ReportReasonId[])
+  (['spam', 'harassment', 'hate', 'nudity', 'violence', 'privacy', 'self_harm', 'wrong_info', 'other'] as ReportReasonId[])
     .filter((id) => target === 'signal' || id !== 'wrong_info')
     .map((id) => ({ id, label: REASON_LABELS[id] }));
 

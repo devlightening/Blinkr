@@ -207,7 +207,7 @@ Sorumluluklar:
 - JWT uretimi
 - Profil: avatar (`AvatarCatalog`), kisa `Bio` (en fazla 160 karakter; bosluklar/satir sonlari sunucuda toparlanir)
 - Arkadaslik: `Friendship` tablosu (cift basina tek satir, `UserAId < UserBId` ile normalize; durum `Pending|Accepted|Declined`), istek gonder/kabul/reddet/geri al, arkadasi cikar. Karsilikli istek otomatik kabuldur.
-- Guvenlik: `UserBlock` (kim kimi engelledi; engel arkadasligi bitirir, arama ve profilde iki tarafi birbirinden gizler, arkadaslik istegini ve sohbeti durdurur; engellenen kisi bilgilendirilmez) ve `Report` (kullanici veya sinyal bildirimi: `spam|harassment|inappropriate|wrong_info|other`, en fazla 300 karakter not, ayni hedef icin tek kayit, kisi basina gunde en fazla 20). Bildirimler bir moderasyon kuyrugu icin saklanir; moderator araci henuz YOKTUR (bkz. 20.1).
+- Guvenlik: `UserBlock` (kim kimi engelledi; engel arkadasligi bitirir, arama ve profilde iki tarafi birbirinden gizler, arkadaslik istegini ve sohbeti durdurur; engellenen kisi bilgilendirilmez) ve `Report` (kullanici veya sinyal bildirimi: `spam|harassment|hate|nudity|violence|privacy|self_harm|wrong_info|other` (`inappropriate` eski istemciler icin hala kabul edilir), en fazla 300 karakter not, ayni hedef icin tek kayit, kisi basina gunde en fazla 20). Moderasyon (`IdentityService.Api/Moderation`): rapor agirligi (1 gunden genc hesap 0,5), acik raporlarin agirlikli toplami 3 olunca sinyal gizlenir (`PostModerationChangedIntegrationEvent`; worker dokumani `posts` -> `posts_moderated`, PlaceService `place_signals` -> `place_signals_moderated` tasir, boylece hicbir okuma yolu gizli sinyali gosteremez). Admin rolu `/api/admin/reports`, `/api/admin/reports/resolve`, `/api/admin/actions` kullanir (`scripts/moderation.ps1`, `scripts/make-admin.ps1`); her karar `ModerationActions` denetim izine yazilir. Yaptirimlar: `warn`, `restrict_24h` (erisim token'inda `posting_restricted_until`, sinyal/yorum/hikaye 403 `POSTING_RESTRICTED`), `suspend_7d`/`ban` (giris 403 `ACCOUNT_SUSPENDED`, yenileme 401).
 
 Kod: `src/Services/IdentityService`
 
@@ -687,7 +687,7 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 
 - `GET /api/blocks` (engelledigim kisiler), `POST /api/blocks` (`{ userId }`, idempotent; arkadasligi bitirir; `{ userId, relation: "blocked" }`), `DELETE /api/blocks/{userId}` (arkadaslik geri gelmez), `GET /api/blocks/status/{userId}` (`{ blocked }`, iki yonlu; sohbet servisi sorar)
 - Engel etkileri: arama sonucunda ve `GET /api/users/{id}` ile iki taraf birbirini goremez (engellenen icin 404; engelleyen icin `relation: "blocked"` ve bos profil); arkadaslik istegi 403 `REQUEST_NOT_ALLOWED`; sohbet/mesaj/snap 403 `CHAT_FORBIDDEN`.
-- `POST /api/reports` (`{ targetType: user|signal, targetId, reason: spam|harassment|inappropriate|wrong_info|other, note? }`; ayni hedef tekrar bildirilirse 200; 400 `INVALID_REPORT`/`NOTE_TOO_LONG`/`SELF`, 404 `USER_NOT_FOUND`, 429 `TOO_MANY_REPORTS`). Gateway: `/api/blocks/**` ve `/api/reports/**` IdentityService'e gider.
+- `POST /api/reports` (`{ targetType: user|signal, targetId, reason: spam|harassment|hate|nudity|violence|privacy|self_harm|wrong_info|other, note? }`; ayni hedef tekrar bildirilirse 200; 400 `INVALID_REPORT`/`NOTE_TOO_LONG`/`SELF`, 404 `USER_NOT_FOUND`, 429 `TOO_MANY_REPORTS`). Gateway: `/api/blocks/**` ve `/api/reports/**` IdentityService'e gider.
 
 ### Chat
 
@@ -936,7 +936,7 @@ Ancak `uygulandi` ile `uretimde tam dogrulandi` ayni sey degildir. `docs/BLK-PRO
 - Event delivery, reconciliation ve error queue operasyonlari load/failure altinda test edilmelidir.
 - MonitoringService ve dashboard/alerting uretim seviyesine getirilmelidir.
 - Backup, restore, disaster recovery ve data retention politikasi yazilmalidir.
-- Bildirimler (`Report`) saklaniyor ama moderator araci, inceleme kuyrugu, denetim izi ve otomatik aksiyon YOK; engelleme ve bildirme calisiyor, moderasyon operasyonu tamamlanmalidir.
+- Moderasyon kuyrugu, otomatik gizleme, yaptirimlar ve denetim izi var (BLK-MODERATION-01), fakat arayuzu yalniz CLI (`scripts/moderation.ps1`); gorsel moderasyon saglayicisi yok (API anahtari gerekir), itiraz icin gercek bir destek adresi yok, 24 saat icinde mudahale sureci operasyonel olarak kurulmali.
 - Hesap silme YOK: kullanici ve arkadaslik/engel/bildirim verisi Identity'de silinebilir, fakat EventStore'daki sinyaller, sohbet mesajlari ve snap dosyalari kullaniciya bagli kalir. Magaza yayini ve KVKK/GDPR icin uctan uca silme (event tombstone, sohbet ve medya temizligi) tasarlanmali; yarim silme yapilmamalidir.
 - Rate limit'ler hala eksiktir (arkadaslik/engel/rapor icin yalniz uygulama ici tavanlar var).
 - Push bildirimi yok: bekleyen arkadaslik istegi ve kaydedilen yerin canli durumu yalniz uygulama acikken gorunur.
