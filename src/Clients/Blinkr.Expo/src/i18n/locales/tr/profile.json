@@ -1,6 +1,48 @@
 {
   "title": "Profil",
-  "stat": { "signals": "Sinyal", "friends": "Arkadaş", "saved": "Kaydedilen" },
+  "stat": {
+    "signals": "Sinyal",
+    "friends": "Arkadaş",
+    "saved": "Kaydedilen"
+  },
   "editProfile": "Profili düzenle",
-  "logout": "Oturumu kapat"
+  "logout": "Oturumu kapat",
+  "follow": {
+    "follow": "Takip et",
+    "followBack": "Geri takip et",
+    "following": "Takip ediliyor",
+    "requested": "İstek gönderildi",
+    "unfollowConfirm": "Takibi bırak?",
+    "unfollow": "Takibi bırak",
+    "cancelRequest": "İsteği geri çek",
+    "failed": "İşlem tamamlanamadı. Tekrar dene.",
+    "followsYou": "Seni takip ediyor"
+  },
+  "stats": {
+    "signals": "Sinyal",
+    "followers": "Takipçi",
+    "following": "Takip"
+  },
+  "lists": {
+    "followers": "Takipçiler",
+    "following": "Takip",
+    "requests": "İstekler",
+    "emptyFollowers": "Henüz takipçi yok",
+    "emptyFollowing": "Henüz kimseyi takip etmiyor",
+    "emptyRequests": "Bekleyen takip isteği yok",
+    "loadMore": "Daha fazla",
+    "remove": "Çıkar",
+    "removeConfirm": "Takipçilerinden çıkarılsın mı? Bildirilmez.",
+    "accept": "Onayla",
+    "decline": "Sil",
+    "loadFailed": "Liste yüklenemedi.",
+    "close": "Kapat",
+    "requestsRow": "Takip istekleri · {{count}}",
+    "cancel": "Vazgeç"
+  },
+  "private": {
+    "title": "Bu hesap gizli",
+    "body": "Sinyallerini görmek için takip et.",
+    "badge": "Gizli hesap"
+  }
 }

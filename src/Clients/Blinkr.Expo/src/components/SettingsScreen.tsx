@@ -1,10 +1,11 @@
 import Constants from 'expo-constants';
 import { ArrowLeft, ChevronRight, Code2, Info, LogOut, ShieldCheck, UserX } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, BackHandler, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { listBlocks, unblockUser } from '../api';
+import { listBlocks, setAccountPrivacy, unblockUser } from '../api';
 import { friendlyError } from '../productPresentation';
 import { colors, radii, sizes, spacing, typography } from '../theme';
 import type { AuthResponse, BlockedUser } from '../types';
@@ -20,6 +21,9 @@ type Props = {
   onSessionExpired: () => void;
   onBack: () => void;
   onLogout: () => void;
+  /** Private account (sinyal-mvp-plan Faz 6, D-009). */
+  isPrivate?: boolean;
+  onPrivacyChange?: (isPrivate: boolean) => void;
 };
 
 type Page = 'main' | 'blocked' | 'dev';
@@ -44,7 +48,11 @@ function Row({ icon, title, value, onPress, danger = false }: { icon: React.Reac
  * Settings: who I blocked, what Blinkr does with my data, and where the map data comes from. Only real facts live here;
  * there are no switches that do nothing.
  */
-export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, onLogout }: Props) {
+export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, onLogout, isPrivate = false, onPrivacyChange }: Props) {
+  const { t } = useTranslation('settings');
+  const [privateOn, setPrivateOn] = useState(isPrivate);
+  const [privacyError, setPrivacyError] = useState<string | null>(null);
+  useEffect(() => { setPrivateOn(isPrivate); }, [isPrivate]);
   const insets = useSafeAreaInsets();
   const [page, setPage] = useState<Page>('main');
   const [blocked, setBlocked] = useState<BlockedUser[] | null>(null);
@@ -88,6 +96,19 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
     }
   };
 
+  const togglePrivate = async (next: boolean) => {
+    setPrivacyError(null);
+    setPrivateOn(next);
+    try {
+      const saved = await setAccountPrivacy(auth, next, refresh);
+      setPrivateOn(saved.isPrivate);
+      onPrivacyChange?.(saved.isPrivate);
+    } catch {
+      setPrivateOn(!next);
+      setPrivacyError(t('privacy.privateFailed'));
+    }
+  };
+
   if (page === 'dev') return <DevComponentPreview onBack={() => setPage('main')} />;
 
   return (
@@ -113,6 +134,16 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
           </View>
 
           <Text style={styles.section}>Gizlilik</Text>
+          <View style={styles.group}>
+            <View style={styles.row}>
+              <View style={styles.noteCopy}>
+                <Text style={styles.rowTitle}>{t('privacy.privateTitle')}</Text>
+                <Text style={styles.noteText}>{t('privacy.privateHint')}</Text>
+              </View>
+              <Switch accessibilityLabel={t('privacy.privateTitle')} onValueChange={(value) => { void togglePrivate(value); }} testID="private-switch" trackColor={{ false: colors.border, true: colors.primary }} value={privateOn} />
+            </View>
+          </View>
+          {privacyError ? <Text accessibilityRole="alert" style={styles.noteText}>{privacyError}</Text> : null}
           <View style={styles.note}>
             <ShieldCheck color={colors.primary} size={18} />
             <View style={styles.noteCopy}>

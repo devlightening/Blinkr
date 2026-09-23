@@ -1,6 +1,48 @@
 {
   "title": "Profile",
-  "stat": { "signals": "Signals", "friends": "Friends", "saved": "Saved" },
+  "stat": {
+    "signals": "Signals",
+    "friends": "Friends",
+    "saved": "Saved"
+  },
   "editProfile": "Edit profile",
-  "logout": "Log out"
+  "logout": "Log out",
+  "follow": {
+    "follow": "Follow",
+    "followBack": "Follow back",
+    "following": "Following",
+    "requested": "Requested",
+    "unfollowConfirm": "Unfollow?",
+    "unfollow": "Unfollow",
+    "cancelRequest": "Cancel request",
+    "failed": "Couldn't do that. Try again.",
+    "followsYou": "Follows you"
+  },
+  "stats": {
+    "signals": "Signals",
+    "followers": "Followers",
+    "following": "Following"
+  },
+  "lists": {
+    "followers": "Followers",
+    "following": "Following",
+    "requests": "Requests",
+    "emptyFollowers": "No followers yet",
+    "emptyFollowing": "Not following anyone yet",
+    "emptyRequests": "No follow requests",
+    "loadMore": "More",
+    "remove": "Remove",
+    "removeConfirm": "Remove from your followers? They won't be told.",
+    "accept": "Confirm",
+    "decline": "Delete",
+    "loadFailed": "Couldn't load the list.",
+    "close": "Close",
+    "requestsRow": "Follow requests · {{count}}",
+    "cancel": "Cancel"
+  },
+  "private": {
+    "title": "This account is private",
+    "body": "Follow to see their signals.",
+    "badge": "Private account"
+  }
 }

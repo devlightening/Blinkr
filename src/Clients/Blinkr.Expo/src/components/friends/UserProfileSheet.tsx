@@ -1,9 +1,12 @@
-import { Ban, Flag, MessageCircle, Radio, UserCheck, UserMinus } from 'lucide-react-native';
+import { Ban, Flag, Lock, MessageCircle, Radio, UserCheck, UserMinus } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { getPublicProfile, getUserPosts, sendReport } from '../../api';
 import { runFriendAction } from '../../friendActions';
+import { followerCountAfter, profileLocked, type FollowState } from '../../follows';
+import { formatCount } from '../../engagement';
 import { success, warning } from '../../haptics';
 import { formatJoined, primaryAction, relationLabel, type FriendAction } from '../../friends';
 import { friendlyError } from '../../productPresentation';
@@ -16,6 +19,8 @@ import { ReportPanel } from '../ReportPanel';
 import { Sheet } from '../Sheet';
 import { BlinkrButton } from '../ui/BlinkrButton';
 import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
+import { FollowButton } from './FollowButton';
+import { FollowListPanel, type FollowListTab } from './FollowListSheet';
 
 const SIGNALS_SHOWN = 5;
 
@@ -48,6 +53,11 @@ export function UserProfileSheet({ auth, user, onAuthChange, onSessionExpired, o
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [confirmBlock, setConfirmBlock] = useState(false);
   const [reporting, setReporting] = useState(false);
+  const [follow, setFollow] = useState<FollowState>('none');
+  const [followers, setFollowers] = useState(0);
+  const [listTab, setListTab] = useState<FollowListTab | null>(null);
+  const { t, i18n } = useTranslation('profile');
+  const lang = i18n.language === 'en' ? 'en' : 'tr';
   const mounted = useRef(true);
   useEffect(() => () => { mounted.current = false; }, []);
   const refresh = { onAuthRefresh: onAuthChange, onSessionExpired };
@@ -64,6 +74,8 @@ export function UserProfileSheet({ auth, user, onAuthChange, onSessionExpired, o
       if (signal.aborted) return;
       setProfile(next);
       setRelation(next.relation);
+      setFollow(next.follow ?? 'none');
+      setFollowers(next.followerCount ?? 0);
       setPosts(page?.items ?? []);
       setTotal(page?.total ?? 0);
     } catch (err) {
@@ -104,11 +116,22 @@ export function UserProfileSheet({ auth, user, onAuthChange, onSessionExpired, o
   const main = primaryAction(relation);
   const joined = formatJoined(profile?.joinedAtUtc);
   const status = relationLabel(relation);
+  // Following a private account (once accepted) opens it; until then the server says canSeeContent: false.
+  const locked = profileLocked(profile) && follow !== 'following';
 
   return (
     <Sheet onClose={onClose}>
       <BlinkrSheetPanel maxHeightRatio={0.9}>
-        {reporting ? (
+        {listTab && profile ? (
+          <FollowListPanel
+            auth={auth}
+            initialTab={listTab}
+            onClose={() => setListTab(null)}
+            ownerId={user.id}
+            ownerName={name}
+            refresh={refresh}
+          />
+        ) : reporting ? (
           <ReportPanel
             onDone={() => setReporting(false)}
             onSubmit={async (reason, note) => { await sendReport(auth, { targetType: 'user', targetId: user.id, reason, note }, refresh); }}
@@ -124,6 +147,20 @@ export function UserProfileSheet({ auth, user, onAuthChange, onSessionExpired, o
             {joined ? <Text style={styles.joined}>{joined}</Text> : null}
           </View>
 
+          {profile ? (
+            <View style={styles.statsRow}>
+              <AnimatedPressable accessibilityLabel={`${formatCount(followers, lang)} ${t('stats.followers')}`} accessibilityRole="button" disabled={locked} onPress={() => setListTab('followers')} pressScale={0.95} style={styles.statItem}>
+                <Text style={styles.statValue}>{formatCount(followers, lang)}</Text>
+                <Text style={styles.statLabel}>{t('stats.followers')}</Text>
+              </AnimatedPressable>
+              <AnimatedPressable accessibilityLabel={`${formatCount(profile.followingCount ?? 0, lang)} ${t('stats.following')}`} accessibilityRole="button" disabled={locked} onPress={() => setListTab('following')} pressScale={0.95} style={styles.statItem}>
+                <Text style={styles.statValue}>{formatCount(profile.followingCount ?? 0, lang)}</Text>
+                <Text style={styles.statLabel}>{t('stats.following')}</Text>
+              </AnimatedPressable>
+            </View>
+          ) : null}
+          {profile && profile.followsYou && follow !== 'self' ? <Text style={styles.followsYou}>{t('follow.followsYou')}</Text> : null}
+
           {loading && !profile ? <ActivityIndicator accessibilityLabel="Profil yükleniyor" color={colors.primary} style={styles.loading} /> : null}
           {error ? (
             <View style={styles.block}>
@@ -136,6 +173,17 @@ export function UserProfileSheet({ auth, user, onAuthChange, onSessionExpired, o
 
           {profile ? (
             <View style={styles.actions}>
+              {relation !== 'blocked' && follow !== 'self' ? (
+                <FollowButton
+                  auth={auth}
+                  followsYou={profile.followsYou}
+                  isPrivate={profile.isPrivate}
+                  onChange={(next, before) => { setFollow(next); setFollowers((count) => followerCountAfter(count, before, next)); }}
+                  refresh={refresh}
+                  state={follow}
+                  userId={user.id}
+                />
+              ) : null}
               {relation === 'incoming' ? (
                 <View style={styles.pair}>
                   <BlinkrButton disabled={busy} label="Kabul et" loading={busy} onPress={() => void act('accept')} style={styles.flex} />
@@ -198,7 +246,14 @@ export function UserProfileSheet({ auth, user, onAuthChange, onSessionExpired, o
             </View>
           ) : null}
 
-          {profile && relation !== 'blocked' ? (
+          {profile && relation !== 'blocked' && locked ? (
+            <View style={styles.locked} testID="private-lock">
+              <Lock color={colors.textSecondary} size={22} />
+              <Text style={styles.lockedTitle}>{t('private.title')}</Text>
+              <Text style={styles.noSignalsText}>{t('private.body')}</Text>
+            </View>
+          ) : null}
+          {profile && relation !== 'blocked' && !locked ? (
             <View style={styles.signals}>
               <View style={styles.signalsHead}>
                 <Text accessibilityRole="header" style={styles.signalsTitle}>Sinyalleri</Text>
@@ -249,4 +304,11 @@ const styles = StyleSheet.create({
   signalsCount: { ...typography.caption, color: colors.textSecondary },
   noSignals: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.md },
   noSignalsText: { ...typography.caption, color: colors.textSecondary },
+  statsRow: { flexDirection: 'row', gap: spacing.xl, justifyContent: 'center' },
+  statItem: { alignItems: 'center', minHeight: 44, minWidth: 64 },
+  statValue: { ...typography.heading, color: colors.text, fontVariant: ['tabular-nums'] },
+  statLabel: { ...typography.caption, color: colors.textSecondary },
+  followsYou: { ...typography.caption, color: colors.textSecondary, textAlign: 'center' },
+  locked: { alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.lg },
+  lockedTitle: { ...typography.bodyStrong, color: colors.text },
 });

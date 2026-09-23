@@ -8,7 +8,7 @@
 | Alan | Değer |
 |---|---|
 | Aktif faz | Faz 6 — profil, takip, kaydedilenler |
-| Son tamamlanan görev | P6.1 (takip backend) |
+| Son tamamlanan görev | P6.6 (takip istekleri + gizli hesap) |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
 
@@ -193,11 +193,11 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 ## Faz 6 — Profil, takip, kaydedilenler
 
 - [~] P6.1 Backend (IdentityService, D-009): takip/bırak/istek/kabul/red, takipçi çıkar, gizli hesap, takipçi/takip listeleri (sayfalı, engel süzmeli, gizlilikte kapalı), sayaçlar, engel takipleri siler, BlogService yazar listesi sunucuda gizlilik kontrollü. Kanıt: BLK-FOLLOW-01 (30 kontrol) PASS. **Ertelendi:** sessize alma (mute), öneriler, trigram arama (mevcut ILIKE arama kalıyor).
-- [ ] P6.2 Kendi profil ekranı: üst bölüm, sayaçlar, güven/seviye, bio, butonlar, rozetler şeridi
+- [~] P6.2 Kendi profil: Sinyal/Takipçi/Takip sayaçları (dokununca liste), gizli hesap etiketi, bekleyen takip isteği girişi; **e-posta profilden kaldırıldı** (yalnız Ayarlar > Hesap, plan 06 §1.1). Güven/seviye/rozetler yok (sunucuda karşılığı yok — P6.10).
 - [ ] P6.3 ProfileTabs: Izgara (3 sütun, rozetler, halka, soluk sona erenler, metin kareleri), Harita sekmesi, Kaydedilenler, Doğrulamalar
-- [ ] P6.4 Başka kullanıcı profili: FollowButton durumları, Mesaj, ortak takipçiler, gizli hesap kilidi, ⋯ menüsü
-- [ ] P6.5 Takipçi/takip listeleri + arama + takipçi çıkarma
-- [ ] P6.6 Takip istekleri ekranı (gizli hesap)
+- [~] P6.4 Başka kullanıcı profili: `FollowButton` (Takip et / Geri takip et / Takip ediliyor / İstek gönderildi; iyimser + geri alma; bırakmadan önce onay), "Seni takip ediyor", sayaçlar, gizli hesap kilidi; mevcut Mesaj/Engelle/Bildir korunuyor. Ortak takipçiler yok.
+- [x] P6.5 `FollowListSheet`/`FollowListPanel`: Takipçiler/Takip (sayfalı), her satırda takip düğmesi, kendi takipçini onaylı çıkarma; başka profilde aynı sheet içinde açılır (ikinci sheet yok). Liste içi arama yok.
+- [x] P6.6 Takip istekleri: listede "İstekler" sekmesi (Onayla/Sil) + Ayarlar'da "Gizli hesap" anahtarı.
 - [ ] P6.7 Profili düzenle: avatar (foto veya illüstrasyon seti), ad, kullanıcı adı (canlı kontrol, 14 gün kuralı), bio, şehir, bağlantı
 - [ ] P6.8 Kaydedilenler: koleksiyonlar, sinyal/yer kaydetme, cihazdaki kayıtlı yerlerin sunucuya göçü (`/me/saved/import`)
 - [ ] P6.9 Profil paylaş: link + QR kodu; derin link `/u/{username}`

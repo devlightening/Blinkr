@@ -109,7 +109,11 @@ async function main() {
     await page.goto(url + '?scene=profile');
     await expect(page.getByText('Kaydettiğin yerler')).toBeVisible();
     await expect(page.getByLabel(/haritada aç/)).toHaveCount(3);
-    await expect(page.getByText('Kaydedilen', { exact: true })).toBeVisible();
+    // Faz 6: Sinyal / Takipçi / Takip counts; the e-mail is only in Settings; a waiting follow request has its own entry.
+    await expect(page.getByText('Takipçi', { exact: true })).toBeVisible();
+    await expect(page.getByText('Takip', { exact: true })).toBeVisible();
+    await expect(page.getByText('alper@example.test')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Takip istekleri · 1' })).toBeVisible();
     await expect(page.getByText(/rozet|puan|yorum/i)).toHaveCount(0);
     // Own posts: the real total (Turkish thousands separator), newest first, paged as the list scrolls.
     await expect(page.getByLabel('20.030 sinyal')).toBeVisible();
@@ -405,7 +409,18 @@ async function main() {
     // Friends: profile numbers, requests, adding people, a person's public profile, bio editing and honest empty/error states.
     await page.goto(url + '?scene=profile');
     await expect(page.getByText('Kahve ve yürüyüş.')).toBeVisible();
-    await expect(page.getByRole('button', { name: '2 arkadaş, listeyi aç' })).toBeVisible();
+    // Own follower list: people who follow me, with their follow-back state; a follower can be removed after a confirm.
+    await page.getByRole('button', { name: '2 Takipçi' }).click();
+    await expect(page.getByRole('tab', { name: 'Takipçiler' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'İstekler' })).toBeVisible();
+    await page.getByRole('button', { name: 'can: Çıkar' }).click();
+    await expect(page.getByText(/Takipçilerinden çıkarılsın mı/)).toBeVisible();
+    await page.getByRole('button', { name: 'Çıkar', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'can: Çıkar' })).toHaveCount(0);
+    await page.getByRole('tab', { name: 'İstekler' }).click();
+    await page.getByRole('button', { name: 'Onayla' }).click();
+    await expect(page.getByText('Bekleyen takip isteği yok')).toBeVisible();
+    await page.getByRole('button', { name: 'Kapat' }).last().click();
     await expect(page.getByRole('button', { name: 'Arkadaşlar, 1 yeni istek' })).toBeVisible();
     await expect(page.getByRole('tab', { name: /Profil, bekleyen arkadaş isteği var/ }).or(page.getByRole('tab', { name: 'Profil' }))).toHaveCount(1);
     await page.getByRole('button', { name: 'Arkadaşlar, 1 yeni istek' }).click();
@@ -672,6 +687,40 @@ async function main() {
     await page.getByTestId('like-button').click();
     await expect(page.getByText('Beğeni kaydedilemedi. Tekrar dene.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Beğen', exact: true })).toBeVisible();
+    // Faz 6 follows: counts on a profile, follow is immediate for a public account (count +1), unfollow asks first.
+    await page.goto(url + '?scene=personProfile&who=u-arda');
+    await expect(page.getByText('Takipçi', { exact: true })).toBeVisible();
+    await expect(page.getByText('Seni takip ediyor')).toBeVisible();
+    await page.getByRole('button', { name: 'Geri takip et' }).click();
+    await expect(page.getByRole('button', { name: 'Takip ediliyor' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^4 Takipçi$/ })).toBeVisible();
+    await page.getByRole('button', { name: 'Takip ediliyor' }).click();
+    await page.getByRole('button', { name: 'Takibi bırak' }).click();
+    await expect(page.getByRole('button', { name: 'Geri takip et' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^3 Takipçi$/ })).toBeVisible();
+    // The follower list opens inside the same sheet and goes back to the profile.
+    await page.getByRole('button', { name: /^3 Takipçi$/ }).click();
+    await expect(page.getByRole('tab', { name: 'Takipçiler' })).toBeVisible();
+    await expect(page.getByText('ece', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Kapat' }).first().click();
+    await expect(page.getByRole('button', { name: 'Geri takip et' })).toBeVisible();
+    // A private account: locked content, following sends a request.
+    await page.goto(url + '?scene=personProfile&who=u-melis');
+    await expect(page.getByTestId('private-lock')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Sinyalleri' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Takip et', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'İstek gönderildi' })).toBeVisible();
+    await expect(page.getByTestId('private-lock')).toBeVisible();
+    // A failed follow rolls back and says so.
+    await page.goto(url + '?scene=personProfile&who=u-ece&followfail');
+    await page.getByRole('button', { name: 'Takip et', exact: true }).click();
+    await expect(page.getByText('İşlem tamamlanamadı. Tekrar dene.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Takip et', exact: true })).toBeVisible();
+    // Settings: the private-account switch.
+    await page.goto(url + '?scene=settings');
+    await expect(page.getByText('Gizli hesap', { exact: true })).toBeVisible();
+    await page.getByRole('switch', { name: 'Gizli hesap' }).click();
+    await expect(page.getByRole('switch', { name: 'Gizli hesap' })).toBeChecked();
     // Blocking a person: two-step confirm, the blocked profile offers only "unblock", and unblocking restores the normal buttons.
     await page.goto(url + '?scene=personProfile&who=u-melis');
     await page.getByRole('button', { name: 'Engelle', exact: true }).click();

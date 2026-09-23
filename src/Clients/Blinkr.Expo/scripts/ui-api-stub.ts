@@ -55,7 +55,34 @@ const userOf = (id: string) => chatUsers.find((u) => u.id === id);
 const inState = (state: Relation) => chatUsers.filter((u) => relationOf(u.id) === state);
 export const searchUsers = async (_auth: unknown, query: string) =>
   chatUsers.filter(u => u.userName.includes(query.toLowerCase()) && relationOf(u.id) !== 'blocked').map((u) => ({ ...u, relation: relationOf(u.id) }));
-export const getMyProfile = async () => ({ bio: myBio, friendCount: inState('friends').length, incomingRequestCount: inState('incoming').length });
+// Follows (Faz 6): u-melis is a private account; u-can follows me; I follow u-zeynep. ?followfail = follow requests fail.
+const follows: Record<string, 'none' | 'requested' | 'following'> = { 'u-zeynep': 'following' };
+const privateIds = new Set(['u-melis']);
+const followsMe = new Set(['u-can', 'u-arda']);
+let myPrivate = false;
+let myFollowRequests = flag('nofollowrequests') ? [] : [{ id: 'u-ece', userName: 'ece', avatarKey: null, createdAtUtc: '2026-09-22T10:00:00Z' }];
+const followerCountOf = (id: string) => (id === 'u-zeynep' ? 41 : id === 'u-melis' ? 7 : 3) + (follows[id] === 'following' ? 1 : 0);
+export const getMyProfile = async () => ({ bio: myBio, friendCount: inState('friends').length, incomingRequestCount: inState('incoming').length, followerCount: followsMe.size, followingCount: Object.values(follows).filter((f) => f === 'following').length, followRequestCount: myFollowRequests.length, isPrivate: myPrivate });
+export const followUser = async (_auth: unknown, id: string) => {
+  if (flag('followfail')) throw new Error('Network request failed');
+  follows[id] = privateIds.has(id) ? 'requested' : 'following';
+  return { userId: id, follow: follows[id] };
+};
+export const unfollowUser = async (_auth: unknown, id: string) => { follows[id] = 'none'; return { userId: id, follow: 'none' as const }; };
+const followUserRow = (id: string) => { const u = userOf(id)!; return { id, userName: u.userName, avatarKey: u.avatarKey ?? null, follow: (follows[id] ?? 'none'), followsYou: followsMe.has(id) }; };
+export const listFollowers = async (_auth: unknown, owner: string) => {
+  const ids = owner === 'qa' || owner === 'scene' ? [...followsMe] : ['u-arda', 'u-ece'];
+  return { items: ids.map(followUserRow), page: 1, pageSize: 30, totalCount: ids.length, hasMore: false };
+};
+export const listFollowing = async (_auth: unknown, owner: string) => {
+  const ids = owner === 'qa' || owner === 'scene' ? Object.keys(follows).filter((id) => follows[id] === 'following') : ['u-zeynep'];
+  return { items: ids.map(followUserRow), page: 1, pageSize: 30, totalCount: ids.length, hasMore: false };
+};
+export const listFollowRequests = async () => myFollowRequests;
+export const acceptFollowRequest = async (_auth: unknown, id: string) => { myFollowRequests = myFollowRequests.filter((r) => r.id !== id); followsMe.add(id); return { userId: id }; };
+export const declineFollowRequest = async (_auth: unknown, id: string) => { myFollowRequests = myFollowRequests.filter((r) => r.id !== id); return { userId: id }; };
+export const removeFollower = async (_auth: unknown, id: string) => { followsMe.delete(id); return { userId: id }; };
+export const setAccountPrivacy = async (_auth: unknown, isPrivate: boolean) => { myPrivate = isPrivate; return { isPrivate }; };
 export const setMyBio = async (_auth: unknown, bio: string | null) => {
   if (flag('biofail')) throw new Error('Network request failed');
   myBio = bio;
@@ -65,7 +92,8 @@ export const getPublicProfile = async (_auth: unknown, id: string) => {
   if (flag('profilefail')) throw new Error('Network request failed');
   const user = userOf(id);
   if (!user) throw new Error('not found');
-  return { ...user, bio: id === 'u-zeynep' ? 'Sabah kahvesi, akşam yürüyüşü.' : null, joinedAtUtc: '2026-03-10T09:00:00Z', relation: relationOf(id) };
+  const isPrivate = privateIds.has(id);
+  return { ...user, bio: id === 'u-zeynep' ? 'Sabah kahvesi, akşam yürüyüşü.' : null, joinedAtUtc: '2026-03-10T09:00:00Z', relation: relationOf(id), followerCount: followerCountOf(id), followingCount: 12, follow: follows[id] ?? 'none', followsYou: followsMe.has(id), isPrivate, canSeeContent: !isPrivate || follows[id] === 'following' };
 };
 export const getUserPosts = async (_auth: unknown, _id: string) => {
   if (flag('nosignals')) return { items: [], total: 0 };

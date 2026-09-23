@@ -1,5 +1,6 @@
 import { Bookmark, Camera, LogOut, Pencil, Radio, Settings, ShieldCheck, Users } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,7 +16,9 @@ import { AnimatedPressable } from './AnimatedPressable';
 import { Avatar } from './Avatar';
 import { AvatarPickerSheet } from './AvatarPickerSheet';
 import { EditProfileSheet } from './EditProfileSheet';
+import { FollowListSheet, type FollowListTab } from './friends/FollowListSheet';
 import { FriendsScreen } from './friends/FriendsScreen';
+import { UserProfileSheet } from './friends/UserProfileSheet';
 import { PlaceSymbol } from './PlaceSymbol';
 import { PostRow } from './PostRow';
 import { SettingsScreen } from './SettingsScreen';
@@ -53,6 +56,7 @@ type Props = {
  */
 export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCreateSignal, onOverlayOpenChange, onMessageUser, onRequestsChange }: Props) {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation('profile');
   const [saved, setSaved] = useState<SavedPlace[] | null>(null);
   const [savedError, setSavedError] = useState<string | null>(null);
   const [posts, setPosts] = useState<AuthoredPost[]>([]);
@@ -63,6 +67,12 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
   const [postsError, setPostsError] = useState<string | null>(null);
   const [bio, setBio] = useState<string | null>(null);
   const [friendCount, setFriendCount] = useState<number | null>(null);
+  const [followerCount, setFollowerCount] = useState<number | null>(null);
+  const [followingCount, setFollowingCount] = useState<number | null>(null);
+  const [followRequests, setFollowRequests] = useState(0);
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [followList, setFollowList] = useState<FollowListTab | null>(null);
+  const [person, setPerson] = useState<UserSummary | null>(null);
   const [incoming, setIncoming] = useState(0);
   const [friendsOpen, setFriendsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -120,6 +130,10 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
       const mine = await getMyProfile(auth, undefined, { onAuthRefresh: onAuthChange, onSessionExpired: onLogout });
       setBio(mine.bio ?? null);
       setFriendCount(mine.friendCount);
+      setFollowerCount(mine.followerCount ?? 0);
+      setFollowingCount(mine.followingCount ?? 0);
+      setFollowRequests(mine.followRequestCount ?? 0);
+      setIsPrivate(Boolean(mine.isPrivate));
       setIncoming(mine.incomingRequestCount);
       onRequestsChange?.(mine.incomingRequestCount);
     } catch { /* keep the previous numbers */ }
@@ -143,7 +157,7 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
   const hasMore = total !== null && posts.length < total && reachable;
   const capped = total !== null && posts.length < total && !reachable;
   const [avatarOpen, setAvatarOpen] = useState(false);
-  const overlayOpen = avatarOpen || friendsOpen || editOpen || settingsOpen;
+  const overlayOpen = avatarOpen || friendsOpen || editOpen || settingsOpen || Boolean(followList) || Boolean(person);
   useEffect(() => {
     onOverlayOpenChange?.(overlayOpen);
     return () => onOverlayOpenChange?.(false);
@@ -169,19 +183,19 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
               <Text accessibilityLabel={total === null ? 'Sinyal sayısı yükleniyor' : `${formatCount(total)} sinyal`} style={styles.statValue}>{total === null ? '–' : formatCount(total)}</Text>
               <Text style={styles.statLabel}>Sinyal</Text>
             </View>
-            <AnimatedPressable accessibilityLabel={friendCount === null ? 'Arkadaşlar' : `${friendCount} arkadaş, listeyi aç`} accessibilityRole="button" onPress={() => setFriendsOpen(true)} pressScale={0.95} style={styles.stat}>
-              <Text style={styles.statValue}>{friendCount === null ? '–' : formatCount(friendCount)}</Text>
-              <Text style={styles.statLabel}>Arkadaş</Text>
+            <AnimatedPressable accessibilityLabel={followerCount === null ? t('stats.followers') : `${formatCount(followerCount)} ${t('stats.followers')}`} accessibilityRole="button" onPress={() => setFollowList('followers')} pressScale={0.95} style={styles.stat}>
+              <Text style={styles.statValue}>{followerCount === null ? '–' : formatCount(followerCount)}</Text>
+              <Text style={styles.statLabel}>{t('stats.followers')}</Text>
             </AnimatedPressable>
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{saved ? saved.length : '–'}</Text>
-              <Text style={styles.statLabel}>Kaydedilen</Text>
-            </View>
+            <AnimatedPressable accessibilityLabel={followingCount === null ? t('stats.following') : `${formatCount(followingCount)} ${t('stats.following')}`} accessibilityRole="button" onPress={() => setFollowList('following')} pressScale={0.95} style={styles.stat}>
+              <Text style={styles.statValue}>{followingCount === null ? '–' : formatCount(followingCount)}</Text>
+              <Text style={styles.statLabel}>{t('stats.following')}</Text>
+            </AnimatedPressable>
           </View>
         </View>
         <View>
           <Text accessibilityRole="header" numberOfLines={1} style={styles.name}>{auth.userName}</Text>
-          <Text numberOfLines={1} style={styles.email}>{auth.email}</Text>
+          {isPrivate ? <Text style={styles.email}>{t('private.badge')}</Text> : null}
         </View>
         {bio
           ? <Text style={styles.bio}>{bio}</Text>
@@ -190,6 +204,9 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
               <Text style={styles.bioEmpty}>Kendini kısaca tanıt…</Text>
             </AnimatedPressable>
           )}
+        {followRequests > 0 ? (
+          <BlinkrButton label={t('lists.requestsRow', { count: followRequests })} onPress={() => setFollowList('requests')} variant="secondary" />
+        ) : null}
         <View style={styles.buttonRow}>
           <BlinkrButton label="Profili düzenle" onPress={() => setEditOpen(true)} style={styles.flex} variant="secondary" />
           <BlinkrButton
@@ -343,7 +360,30 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
           onSessionExpired={onLogout}
         />
       ) : null}
-      {settingsOpen ? <SettingsScreen auth={auth} onAuthChange={onAuthChange} onBack={() => setSettingsOpen(false)} onLogout={onLogout} onSessionExpired={onLogout} /> : null}
+      {followList ? (
+        <FollowListSheet
+          auth={auth}
+          initialTab={followList}
+          onClose={() => { setFollowList(null); void loadProfile(); }}
+          onCountsChange={() => { void loadProfile(); }}
+          onOpenUser={(user) => { setFollowList(null); setPerson(user); }}
+          ownerId={auth.userId}
+          ownerName={auth.userName}
+          refresh={{ onAuthRefresh: onAuthChange, onSessionExpired: onLogout }}
+          showRequests={isPrivate || followRequests > 0}
+        />
+      ) : null}
+      {person ? (
+        <UserProfileSheet
+          auth={auth}
+          onAuthChange={onAuthChange}
+          onClose={() => { setPerson(null); void loadProfile(); }}
+          onMessage={(user) => { setPerson(null); onMessageUser?.(user); }}
+          onSessionExpired={onLogout}
+          user={person}
+        />
+      ) : null}
+      {settingsOpen ? <SettingsScreen auth={auth} isPrivate={isPrivate} onAuthChange={onAuthChange} onBack={() => { setSettingsOpen(false); void loadProfile(); }} onLogout={onLogout} onPrivacyChange={setIsPrivate} onSessionExpired={onLogout} /> : null}
       {avatarOpen ? <AvatarPickerSheet auth={auth} onAuthChange={onAuthChange} onClose={() => setAvatarOpen(false)} onSessionExpired={onLogout} /> : null}
     </View>
   );

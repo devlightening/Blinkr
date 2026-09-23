@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 
-import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, CreateSignalInput, MediaKind, UnifiedMapResponse, PlacePresence, SnapOpenResult, UserSummary, AuthoredPost, Friend, FriendRequests, MyProfile, PublicProfile, Relation, BlockedUser } from './types';
+import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, CreateSignalInput, MediaKind, UnifiedMapResponse, PlacePresence, SnapOpenResult, UserSummary, AuthoredPost, Friend, FriendRequests, MyProfile, PublicProfile, Relation, BlockedUser, FollowPage, FollowRequestItem, FollowUser } from './types';
 import { resolveUploadContentType, safeUploadFileName } from './mediaContentType';
 import { COMMENT_PAGE_SIZE, type CommentPage, type CommentSort } from './engagement';
 
@@ -387,6 +387,26 @@ export const sendReport = (
   report: { targetType: 'user' | 'signal'; targetId: string; reason: string; note?: string },
   refresh: Refresh = {},
 ) => requestJson<{ reported: boolean }>('/api/reports', { auth, body: report, method: 'POST', ...refresh });
+
+/** Follows (D-009): follow a public account at once, a private one by request. */
+export const followUser = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<{ userId: string; follow: FollowUser['follow'] }>(`/api/follows/${userId}`, { auth, method: 'POST', ...refresh });
+export const unfollowUser = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<{ userId: string; follow: FollowUser['follow'] }>(`/api/follows/${userId}`, { auth, method: 'DELETE', ...refresh });
+export const listFollowers = (auth: AuthResponse, userId: string, page = 1, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<FollowPage>(`/api/users/${userId}/followers?page=${page}&pageSize=30`, { auth, signal, ...refresh });
+export const listFollowing = (auth: AuthResponse, userId: string, page = 1, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<FollowPage>(`/api/users/${userId}/following?page=${page}&pageSize=30`, { auth, signal, ...refresh });
+export const listFollowRequests = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<FollowRequestItem[]>('/api/follows/requests', { auth, signal, ...refresh });
+export const acceptFollowRequest = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<{ userId: string }>(`/api/follows/requests/${userId}/accept`, { auth, method: 'POST', ...refresh });
+export const declineFollowRequest = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<{ userId: string }>(`/api/follows/requests/${userId}/decline`, { auth, method: 'POST', ...refresh });
+export const removeFollower = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<{ userId: string }>(`/api/follows/followers/${userId}`, { auth, method: 'DELETE', ...refresh });
+export const setAccountPrivacy = (auth: AuthResponse, isPrivate: boolean, refresh: Refresh = {}) =>
+  requestJson<{ isPrivate: boolean }>('/api/users/me/privacy', { auth, body: { isPrivate }, method: 'PUT', ...refresh });
 
 /** Thrown when the server answers with a known `code` (e.g. `CANNOT_LIKE_OWN`), so the UI can show a translated message. */
 export class ApiCodeError extends Error {

@@ -231,6 +231,14 @@ export type PublicProfile = {
   bio?: string | null;
   joinedAtUtc: string;
   relation: Relation;
+  /** Faz 6 follows (D-009). Counts are public; the friend list never is. */
+  followerCount?: number;
+  followingCount?: number;
+  follow?: 'none' | 'requested' | 'following' | 'self';
+  followsYou?: boolean;
+  isPrivate?: boolean;
+  /** False for a private account the viewer does not follow: show the lock, not the signals. */
+  canSeeContent?: boolean;
 };
 
 /** My own profile numbers (from /api/users/me). */
@@ -238,7 +246,15 @@ export type MyProfile = {
   bio?: string | null;
   friendCount: number;
   incomingRequestCount: number;
+  followerCount?: number;
+  followingCount?: number;
+  followRequestCount?: number;
+  isPrivate?: boolean;
 };
+
+export type FollowUser = { id: string; userName: string; avatarKey?: string | null; follow: 'none' | 'requested' | 'following' | 'self'; followsYou: boolean };
+export type FollowPage = { items: FollowUser[]; page: number; pageSize: number; totalCount: number; hasMore: boolean };
+export type FollowRequestItem = { id: string; userName: string; avatarKey?: string | null; createdAtUtc: string };
 
 export type BlockedUser = { id: string; userName: string; avatarKey?: string | null; blockedAtUtc: string };
 export type Friend = { id: string; userName: string; avatarKey?: string | null; sinceUtc: string };
