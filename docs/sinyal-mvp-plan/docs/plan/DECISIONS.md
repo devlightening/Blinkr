@@ -15,6 +15,18 @@
 
 ## Kararlar
 
+### D-018 — plan-devam Faz C: Sinyal Kartı kapsamı ve sapmalar (2026-09-24)
+- Bağlam: C1–C13 merkez kartı, doğrulama, menü, görüntülenme ve harita düzeltmelerini istiyor.
+- Karar:
+  - Kart ortadan hafif taşan yayla büyüyerek açılır (pin konumundan uçan animasyon yerine; native harita marker'ının ekran koordinatını almak ek köprü ister). Aşağı sürükleme, overlay, X ve geri tuşu kapatır.
+  - "Evet" artık tek dokunuşla aynı tür/değerde normal bir sinyal yayınlar (cihazın gerçek konumuyla); canlı sayılıp sayılmadığına yine sunucu karar verir. "Değişti" composer'ı aynı türle açar (`replacesSignalId` bağlantısı sunucuda yok; eski sinyal süresi dolunca düşer, kişi başına tek ses kuralı yeni değeri öne alır).
+  - 500 m kuralı istemcide yalnız düğmeleri pasifleştirmek içindir; güven kuralı sunucuda değişmedi.
+  - Görüntülenme (C12) ayrı bir Mongo koleksiyonunda (`post_views`, kişi+sinyal+gün başına bir kayıt); EventStore'a olay yazılmaz, konum saklanmaz, sayıyı yalnız yazar görür.
+  - Ertelenen: ReactionBar (❤️ 🔥 😮 😂 🙏) — gönderiler için sunucuda yalnız beğeni var; "sessize al", "düzenle", "haritadan kaldır" menü öğeleri; Android'de tam ekran görselde iki parmak yakınlaştırma (iOS ScrollView zoom'u kullanıldı).
+  - Kümeye dokunma: zoom < 16 yakınlaştırır, 16+ kümedeki sinyalleri kart olarak açar.
+  - Geliştirme ortamında test hesabı gizleme artık yalnız oturum açmış gerçek kullanıcılara uygulanır (token'sız çağrılar betik/araçtır; uygulama her zaman oturum açar).
+- Etki: Pin'e dokunmak artık alttan yer sayfası açmıyor; yer sayfası kartın yer satırından/şeridinden açılıyor.
+
 ### D-017 — plan-devam Faz B: tema önyüklemede seçilir, değişince uygulama yeniden yüklenir; kontrast için tonlar bir adım koyu (2026-09-23)
 - Bağlam: B3 anlık tema değişimi ister; ama yüzlerce ekran stilini modül yüklenirken `StyleSheet.create` ile kuruyor. Ayrıca planın bazı açık tema tonları (sage600 üzerinde beyaz yazı 3,4:1; butter/sky ink) WCAG AA'yı tutturmuyordu.
 - Karar:

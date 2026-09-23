@@ -6,5 +6,9 @@
     "action": "Bu alanı tara",
     "inProgress": "Taranıyor"
   },
-  "locate": "Konumuma git"
+  "locate": "Konumuma git",
+  "empty": {
+    "title": "Bu bölgede canlı sinyal yok",
+    "action": "İlk sinyali bırak"
+  }
 }

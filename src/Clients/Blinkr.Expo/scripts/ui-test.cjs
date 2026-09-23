@@ -993,6 +993,52 @@ async function main() {
     await page.goto(url + '?scene=kit');
     await expect(page.getByRole('tab', { name: 'Sohbet' })).toBeVisible(); // default (no ?lang) is the device's own tr
 
+    // plan-devam Faz C: the Sinyal Kartı - centre card, place strip, on-site badge, uncropped media, pager,
+    // verify near/far, like, comments, menu, close.
+    await page.goto(url + '?scene=card');
+    await expect(page.getByTestId('signal-card-modal')).toBeVisible();
+    await expect(page.getByTestId('card-place-strip')).toContainText('BİM Merkez');
+    await expect(page.getByTestId('card-pager')).toContainText('1 / 3');
+    await expect(page.getByTestId('signal-card-card-1').getByTestId('card-on-site')).toContainText('Konumda');
+    await expect(page.getByTestId('signal-card-card-1')).toContainText('1 sa 28 dk kaldı');
+    await expect(page.getByTestId('signal-card-card-1').getByTestId('card-media')).toBeVisible();
+    const media = await page.getByTestId('signal-card-card-1').getByTestId('card-media').boundingBox();
+    if (Math.abs(media.width / media.height - 0.8) > 0.02) throw new Error('landscape photo should sit in a 4:5 frame, got ' + (media.width / media.height).toFixed(2));
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'signal-card.png') });
+    await expect(page.getByTestId('signal-card-card-1').getByTestId('card-like')).toContainText('12');
+    await page.getByTestId('signal-card-card-1').getByTestId('card-like').click();
+    await expect(page.getByTestId('signal-card-card-1').getByTestId('card-like')).toContainText('13');
+    await page.getByTestId('signal-card-card-1').getByTestId('card-verify-yes').click();
+    await expect(page.getByTestId('signal-card-card-1').getByTestId('card-verify-yes')).toContainText('Onayladın');
+    await page.getByRole('button', { name: 'Sonraki sinyal' }).click();
+    await expect(page.getByTestId('card-pager')).toContainText('2 / 3');
+    await page.getByRole('button', { name: 'Sonraki sinyal' }).click();
+    await expect(page.getByTestId('card-pager')).toContainText('3 / 3');
+    await expect(page.getByTestId('signal-card-card-3').getByTestId('card-text')).toContainText('Bugün erken kapattılar.');
+    await expect(page.getByTestId('signal-card-card-3')).toContainText('Topluluk üyesi');
+    await page.getByTestId('signal-card-card-3').getByTestId('card-menu').click();
+    await expect(page.getByTestId('card-menu-sheet')).toContainText('Sinyali bildir');
+    await expect(page.getByTestId('card-menu-sheet')).not.toContainText('Bu kişiyi engelle'); // anonymous: no author to block
+    await page.getByLabel('Kapat', { exact: true }).last().click({ position: { x: 20, y: 20 } });
+    await page.getByTestId('signal-card-card-3').getByTestId('card-comments').click();
+    await expect(page.getByRole('heading', { name: 'Yorumlar' })).toBeVisible();
+    await page.getByLabel('Kapat', { exact: true }).last().click({ position: { x: 20, y: 20 } });
+    await page.getByTestId('card-close').click();
+    await expect(page.getByText('kapandı')).toBeVisible();
+    // Far away: the verify buttons stay visible but disabled, with the reason.
+    await page.goto(url + '?scene=card&far');
+    await expect(page.getByTestId('signal-card-card-1').getByTestId('card-verify-hint')).toContainText('yakın olmalısın');
+    await expect(page.getByTestId('signal-card-card-1').getByTestId('card-verify-yes')).toBeDisabled();
+    // Own signal: views are shown to the author, delete is in the menu, verify says why not.
+    await page.goto(url + '?scene=card&cardmine');
+    await expect(page.getByTestId('signal-card-card-1')).toContainText('48');
+    await expect(page.getByTestId('signal-card-card-1').getByTestId('card-verify-hint')).toContainText('Kendi sinyalini');
+    await page.getByTestId('signal-card-card-1').getByTestId('card-menu').click();
+    await expect(page.getByTestId('card-menu-sheet')).toContainText('Sinyali sil');
+    await page.getByLabel('Kapat', { exact: true }).last().click({ position: { x: 20, y: 20 } });
+    await page.goto(url + '?scene=card&theme=dark');
+    await page.waitForTimeout(500); await page.screenshot({ path: path.join(out, 'signal-card-dark.png') });
+
     if(errors.length) throw new Error(errors.join('\n'));
     console.log('PASS browser-rendered components: selection, collapse, nearby/coordinate publish, submitting lock, value selection, branch search, save, close, responsive detail. Native map/media/iOS gestures require physical retest.');
   } finally { await browser.close(); server.close(); }

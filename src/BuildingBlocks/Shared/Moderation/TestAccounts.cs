@@ -19,7 +19,14 @@ public static class TestAccounts
     public static bool IsTestName(string? userName) =>
         userName is not null && (userName.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase) || Legacy.IsMatch(userName));
 
-    /// <summary>True when test content should be hidden from this viewer.</summary>
-    public static bool HideFrom(ClaimsPrincipal viewer, bool enabled) =>
-        enabled && !IsTestName(viewer.FindFirst("preferred_username")?.Value ?? viewer.FindFirst("username")?.Value);
+    /// <summary>
+    /// True when test content should be hidden from this viewer: a signed-in person who is not a test account. Calls without
+    /// a token are scripts and tools in a development stack (the app always signs in), so they see everything.
+    /// </summary>
+    public static bool HideFrom(ClaimsPrincipal viewer, bool enabled)
+    {
+        if (!enabled) return false;
+        var name = viewer.FindFirst("preferred_username")?.Value ?? viewer.FindFirst("username")?.Value;
+        return name is not null && !IsTestName(name);
+    }
 }

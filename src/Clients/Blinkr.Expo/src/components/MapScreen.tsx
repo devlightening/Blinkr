@@ -28,7 +28,9 @@ import { UserProfileSheet } from './friends/UserProfileSheet';
 import { selectMapData, filterBySignalTypes, type MapLayer } from '../mapSelection';
 import { loadTypeFilter, saveTypeFilter } from '../mapTypeFilterStorage';
 import { MapTypeFilterBar } from './map/MapTypeFilterBar';
-import { clusterMapPoints, zoomToLongitudeDelta } from '../mapClusters';
+import { clusterMapPoints, zoomToLongitudeDelta, type RenderableMapCluster } from '../mapClusters';
+
+const MAX_MAP_PINS = 300;
 import {
   NearbyRequestOwnership,
   type NearbyOrigin,
@@ -36,7 +38,7 @@ import {
   type NearbySource,
   distanceMeters,
 } from '../nearbyRequestOwnership';
-import { colors, getThemeMode, media, motion, radii, shadow, shadowSoft } from '../theme';
+import { colors, getThemeMode, media, motion, radii, shadow, shadowSoft, spacing, typography } from '../theme';
 import { mapDarkStyle, mapLightStyle } from '../mapDarkStyle';
 import { AnimatedPressable } from './AnimatedPressable';
 import type {
@@ -54,6 +56,8 @@ import type {
 } from '../types';
 import { ISTANBUL_REGION } from '../types';
 import { PostDetailSheet } from './PostDetailSheet';
+import { SignalCardModal } from './signal/SignalCardModal';
+import { fromCoordinateSignal, fromRecentSignal, type CardSignal } from '../signalCard';
 import { SignalCamera } from './camera/SignalCamera';
 import type { CapturedMedia } from './camera/PhotoEditor';
 import { SignalComposer, type ComposerExtras } from './SignalComposer';
@@ -118,6 +122,9 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
   const [selectedPlace, setSelectedPlace] = useState<BlinkrPlace | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<BlinkrPlace | null>(null);
   const [selectedSignal, setSelectedSignal] = useState<CoordinateSignal | null>(null);
+  // plan-devam C2: a pin (or a close-up cluster) opens the centre Sinyal Kartı; the place page is one tap further.
+  const [cardView, setCardView] = useState<{ key: string; place: BlinkrPlace | null; cards: CardSignal[]; loading: boolean } | null>(null);
+  const cardRequest = useRef<AbortController | null>(null);
   const [isComposerOpen, setComposerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
@@ -164,6 +171,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
     signals: new Map(visibleSignals.map((signal) => [`signal:${signal.postId}`, signal])),
   }), [visiblePlaces, visibleSignals]);
 
+  // plan-devam C13: at most 300 points reach the clusterer (the server already caps each layer); the rest never render.
   const mapItems = useMemo(() => clusterMapPoints([
     ...visiblePlaces.map((place) => ({
       id: `place:${place.id}`,
@@ -177,7 +185,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
       latitude: signal.latitude,
       longitude: signal.longitude,
     })),
-  ], region), [region, visiblePlaces, visibleSignals]);
+  ].slice(0, MAX_MAP_PINS), region), [region, visiblePlaces, visibleSignals]);
 
   const visibleItemCount = visiblePlaces.length + visibleSignals.length;
 
@@ -335,6 +343,24 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
     return () => clearTimeout(timer);
   }, [mapDirty, isLoading, region, mapLayer, loadPlaces]);
 
+  const openClusterCards = useCallback((item: RenderableMapCluster) => {
+    const ids = item.memberIds ?? [];
+    const memberPlaces = places.filter((place) => ids.includes(`place:${place.id}`));
+    const memberSignals = signals.filter((signal) => ids.includes(`signal:${signal.postId}`));
+    cardRequest.current?.abort();
+    const controller = new AbortController();
+    cardRequest.current = controller;
+    const key = `cluster:${item.id}`;
+    setCardView({ key, place: null, cards: memberSignals.map(fromCoordinateSignal), loading: memberPlaces.length > 0 });
+    Haptics.selectionAsync();
+    Promise.all(memberPlaces.map((place) => getPlace(place.id, controller.signal).then((detail) => ({ ...place, ...detail })).catch(() => place)))
+      .then((details) => {
+        if (controller.signal.aborted) return;
+        const placeCards = details.flatMap((place) => (place.recentSignals ?? []).map((signal) => fromRecentSignal(signal, place)));
+        setCardView((view) => (view?.key === key ? { ...view, cards: [...placeCards, ...view.cards], loading: false } : view));
+      });
+  }, [places, signals]);
+
   const expandCluster = useCallback((item: { latitude: number; longitude: number; expansionZoom: number }) => {
     const longitudeDelta = zoomToLongitudeDelta(item.expansionZoom);
     const target: Region = {
@@ -374,13 +400,37 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
     }
   }, []);
 
+  /** The Sinyal Kartı for a place: shown at once with the place strip, filled with its recent signals when they arrive. */
+  const openPlaceCard = useCallback((place: BlinkrPlace) => {
+    cardRequest.current?.abort();
+    const controller = new AbortController();
+    cardRequest.current = controller;
+    const key = `place:${place.id}`;
+    setCardView({ key, place, cards: (place.recentSignals ?? []).map((signal) => fromRecentSignal(signal, place)), loading: true });
+    getPlace(place.id, controller.signal)
+      .then((detail) => {
+        if (controller.signal.aborted) return;
+        const full = { ...place, ...detail };
+        setCardView((view) => (view?.key === key ? { key, place: full, cards: (detail.recentSignals ?? []).map((signal) => fromRecentSignal(signal, full)), loading: false } : view));
+      })
+      .catch(() => { if (!controller.signal.aborted) setCardView((view) => (view?.key === key ? { ...view, loading: false } : view)); });
+  }, []);
+
   const openPlaceDetailAfterTouch = useCallback((place: BlinkrPlace) => {
     const generation = ++overlayGeneration.current;
     InteractionManager.runAfterInteractions(() => {
       if (overlayGeneration.current !== generation) return;
       setSelectedSignal(null);
-      loadPlaceDetail(place);
+      openPlaceCard(place);
     });
+  }, [openPlaceCard]);
+
+  /** The place page (the former bottom sheet), reached from the card's place row or strip. */
+  const openPlacePage = useCallback((place: BlinkrPlace) => {
+    cardRequest.current?.abort();
+    setCardView(null);
+    setSelectedSignal(null);
+    loadPlaceDetail(place);
   }, [loadPlaceDetail]);
 
   const openSignalDetailAfterTouch = useCallback((signal: CoordinateSignal) => {
@@ -389,23 +439,37 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
     detailRequestSeq.current += 1;
     InteractionManager.runAfterInteractions(() => {
       if (overlayGeneration.current !== generation) return;
-      setIsDetailLoading(false);
-      setSelectedPlace(null);
-      setSelectedDetail(null);
-      setSelectedSignal(signal);
-      const controller = new AbortController();
-      detailRequest.current = controller;
-      setIsDetailLoading(true);
-      getSignalContent(signal.postId, controller.signal).then(content => {
-        if (detailRequest.current === controller && overlayGeneration.current === generation)
-          setSelectedSignal({ ...signal, ...content });
-      }).catch(err => {
-        if (detailRequest.current === controller && !controller.signal.aborted) setError(friendlyError(err));
-      }).finally(() => {
-        if (detailRequest.current === controller) setIsDetailLoading(false);
-      });
+      cardRequest.current?.abort();
+      setCardView({ key: `signal:${signal.postId}`, place: null, cards: [fromCoordinateSignal(signal)], loading: false });
     });
   }, []);
+
+  const confirmFromCard = useCallback(async (card: CardSignal) => {
+    if (!card.placeId || card.latitude === null || card.longitude === null) throw new Error(i18n.t('signal:card.confirmFailed'));
+    const position = await getFreshDeviceLocation();
+    await createSignal(auth, {
+      title: '',
+      content: '',
+      signalType: card.signalType,
+      signalValue: card.signalValue,
+      placeId: card.placeId,
+      latitude: card.latitude,
+      longitude: card.longitude,
+      accuracyMeters: Math.round(position.coords.accuracy ?? 50),
+      observationLatitude: position.coords.latitude,
+      observationLongitude: position.coords.longitude,
+      observationAccuracyMeters: position.coords.accuracy ?? null,
+      locationName: card.placeName ?? '',
+      audienceType: 'Public',
+      identityDisclosure: 'LimitedProfile',
+      locationPrecision: 'PlaceCenter',
+    }, onAuthChange, onLogout);
+    void loadPlaces(currentRegion.current, true, mapLayer === 'places');
+  }, [auth, getFreshDeviceLocation, loadPlaces, mapLayer, onAuthChange, onLogout]);
+
+  const placeForCard = (card: CardSignal): BlinkrPlace | null => (card.placeId && card.latitude !== null && card.longitude !== null
+    ? cardView?.place?.id === card.placeId ? cardView.place : { id: card.placeId, name: card.placeName ?? '', category: card.placeCategory, latitude: card.latitude, longitude: card.longitude }
+    : null);
 
   const closeDetailSheet = useCallback(() => {
     overlayGeneration.current += 1;
@@ -815,7 +879,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusSignal]);
 
-  const overlayOpen = isComposerOpen || searchOpen || cameraOpen || Boolean(selectedPlace) || Boolean(selectedSignal) || Boolean(searchProfileUser);
+  const overlayOpen = isComposerOpen || searchOpen || cameraOpen || Boolean(selectedPlace) || Boolean(selectedSignal) || Boolean(searchProfileUser) || Boolean(cardView);
   useEffect(() => { onOverlayOpenChange?.(overlayOpen); }, [overlayOpen, onOverlayOpenChange]);
 
   const chromeTop = insets.top + 140;
@@ -841,15 +905,16 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
         userInterfaceStyle={getThemeMode()}
       >
         {mapItems.map(item => item.type === 'cluster'
-          ? <BlinkrClusterMarker key={item.id} latitude={item.latitude} longitude={item.longitude} count={item.pointCount} onPress={() => expandCluster(item)} />
+          ? <BlinkrClusterMarker key={item.id} latitude={item.latitude} longitude={item.longitude} count={item.pointCount} onPress={() => (item.memberIds?.length ? openClusterCards(item) : expandCluster(item))} />
           : <BlinkrMapMarker key={item.id} place={markerLookup.places.get(item.id)} signal={markerLookup.signals.get(item.id)} now={now}
-              selected={item.id === `place:${selectedPlace?.id}` || item.id === `signal:${selectedSignal?.postId}`} onPlace={openPlaceDetailAfterTouch} onSignal={openSignalDetailAfterTouch} />)}
+              selected={item.id === `place:${selectedPlace?.id}` || item.id === `signal:${selectedSignal?.postId}` || item.id === cardView?.key} onPlace={openPlaceDetailAfterTouch} onSignal={openSignalDetailAfterTouch} />)}
       </MapView>
 
       {!isLoading && !error && visibleItemCount === 0 && !isComposerOpen && !selectedPlace && !selectedSignal && (
         <Animated.View entering={FadeIn.duration(motion.base)} style={[styles.emptyMap, { bottom: bottomBarClearance(insets.bottom) + 12 }]}>
-          <Text style={styles.emptyMapText}>Bu bölgede henüz taze sinyal yok.</Text>
-          <AnimatedPressable onPress={() => openComposer()} pressScale={0.94} style={styles.emptyMapAction}><Plus color={colors.mint} size={18} /><Text style={styles.emptyMapLink}>İlk sinyali bırak</Text></AnimatedPressable>
+          {/* plan-devam C11: one calm band instead of a count badge - what is here, and the next step. */}
+          <Text style={styles.emptyMapText}>{i18n.t('map:empty.title')}</Text>
+          <AnimatedPressable accessibilityRole="button" onPress={() => openComposer()} style={styles.emptyMapAction} testID="map-empty-action"><Plus color={colors.mint} size={18} /><Text style={styles.emptyMapLink}>{i18n.t('map:empty.action')}</Text></AnimatedPressable>
         </Animated.View>
       )}
 
@@ -929,6 +994,24 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
         />
       ) : null}
       {cameraOpen && <View style={styles.cameraLayer}><SignalCamera onCapture={handleCaptured} onClose={() => setCameraOpen(false)} onTextOnly={() => { setCameraOpen(false); startSignalOnly(); }} /></View>}
+      {cardView && !isComposerOpen ? (
+        <SignalCardModal
+          auth={auth}
+          cards={cardView.cards}
+          deviceOrigin={deviceSnapshot.current && Date.now() - deviceSnapshot.current.timestamp < MAX_NEARBY_LOCATION_AGE_MS ? deviceSnapshot.current : null}
+          key={cardView.key}
+          loading={cardView.loading}
+          onChanged={(card) => { const target = placeForCard(card); setCardView(null); openComposer(target, 1, { type: card.signalType, value: null }); }}
+          onClose={() => { cardRequest.current?.abort(); setCardView(null); }}
+          onConfirm={confirmFromCard}
+          onCreateSignal={cardView.place ? () => { const target = cardView.place; setCardView(null); openComposer(target); } : undefined}
+          onDeleted={() => { void loadPlaces(currentRegion.current, true, mapLayer === 'places'); }}
+          onOpenAuthor={(user) => { setCardView(null); setSearchProfileUser({ id: user.id, userName: user.userName }); }}
+          onOpenPlace={cardView.place ? () => openPlacePage(cardView.place!) : undefined}
+          place={cardView.place}
+          refresh={{ onAuthRefresh: onAuthChange, onSessionExpired: onLogout }}
+        />
+      ) : null}
       {!isComposerOpen && <PostDetailSheet
         isLoading={isDetailLoading}
         onClose={closeDetailSheet}
@@ -951,10 +1034,10 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.mapCanvas, flex: 1 },
   cameraLayer: { ...StyleSheet.absoluteFill, backgroundColor: media.black, zIndex: 200 },
-  emptyMap: { position: 'absolute', left: 28, right: 28, backgroundColor: colors.glass, borderColor: colors.border, borderWidth: 1, borderRadius: radii.card, padding: 16, ...shadowSoft },
-  emptyMapText: { color: colors.text, fontSize: 15, lineHeight: 22, textAlign: 'center' },
-  emptyMapAction: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  emptyMapLink: { fontSize: 15, color: colors.mint, fontWeight: '700' },
+  emptyMap: { alignItems: 'center', backgroundColor: colors.glass, borderColor: colors.border, borderRadius: radii.pill, borderWidth: 1, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'center', left: spacing.lg, paddingHorizontal: spacing.lg, paddingVertical: spacing.xs, position: 'absolute', right: spacing.lg, ...shadowSoft },
+  emptyMapText: { ...typography.callout, color: colors.text },
+  emptyMapAction: { alignItems: 'center', flexDirection: 'row', gap: 4, minHeight: 44 },
+  emptyMapLink: { ...typography.button, color: colors.mint },
   toast: { alignItems: 'center', borderRadius: radii.control, borderWidth: 1, flexDirection: 'row', gap: 10, left: 16, paddingHorizontal: 14, paddingVertical: 12, position: 'absolute', right: 16, zIndex: 15, ...shadow },
   successToast: { backgroundColor: colors.glass, borderColor: colors.greenLine },
   errorToast: { backgroundColor: colors.errorSoft, borderColor: colors.errorLine },

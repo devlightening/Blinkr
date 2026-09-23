@@ -352,3 +352,19 @@ export const getPlace = async (placeId: string) => {
   if (!found) throw new Error('not found');
   return found;
 };
+
+import { CARD_LANDSCAPE, CARD_PORTRAIT } from './ui-fixtures';
+// Sinyal Kartı (plan-devam Faz C): detail per card, views, delete. ?cardmine = the viewer wrote the first signal.
+const cardDetails: Record<string, Record<string, unknown>> = {
+  'card-1': { id: 'card-1', title: 'Sıra', content: 'Kasada uzun kuyruk var, 15 dakikadan fazla bekleniyor.', authorId: 'u-zeynep', authorName: 'zeynep', signalType: 'Queue', signalValue: 'Over15', publicationTrust: 'VERIFIED_LIVE', likeCount: 12, commentCount: 3, isLikedByCurrentUser: false, placeId: 'bim', media: [{ url: CARD_LANDSCAPE, type: 'Image', width: 1600, height: 900 }] },
+  'card-2': { id: 'card-2', title: '', content: 'Reyonlar dolu, kasalar sakin.', authorId: 'u-ece', authorName: 'ece', signalType: 'Crowd', signalValue: 'Busy', publicationTrust: 'NEARBY_PLACE_POST', likeCount: 2, commentCount: 0, placeId: 'bim', media: [{ url: CARD_PORTRAIT, type: 'Image', width: 1080, height: 1350 }] },
+  'card-3': { id: 'card-3', title: 'Kapalı', content: 'Bugün erken kapattılar.', authorId: '00000000-0000-0000-0000-000000000000', authorName: 'Topluluk üyesi', identityDisclosure: 'AnonymousMap', signalType: 'TemporaryStatus', signalValue: 'Closed', publicationTrust: 'VERIFIED_LIVE', likeCount: 0, commentCount: 0, placeId: 'bim', media: [] },
+};
+export const getSignalDetail = async (_auth: unknown, postId: string) => {
+  const detail = { ...(cardDetails[postId] ?? cardDetails['card-1']) };
+  if (postId === 'card-1' && flag('cardmine')) Object.assign(detail, { isMine: true, viewCount: 48 });
+  return { createdAt: new Date(Date.now() - 4 * 60_000).toISOString(), expiresAt: new Date(Date.now() + 88 * 60_000).toISOString(), ...detail };
+};
+export const recordedViews: string[] = [];
+export const recordPostViews = async (_auth: unknown, ids: string[]) => { recordedViews.push(...ids); (window as unknown as { __views?: string[] }).__views = recordedViews; };
+export const deleteSignal = async () => null;

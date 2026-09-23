@@ -74,3 +74,5 @@ export const reloadAsync = async () => { window.location.reload(); };
 export const Outfit_600SemiBold = 'Outfit_600SemiBold';
 export const Outfit_700Bold = 'Outfit_700Bold';
 export const Outfit_800ExtraBold = 'Outfit_800ExtraBold';
+// expo-blur: the browser preview draws the overlay tint without the blur.
+export const BlurView = View;

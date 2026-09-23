@@ -6,5 +6,9 @@
     "action": "Scan this area",
     "inProgress": "Scanning"
   },
-  "locate": "Go to my location"
+  "locate": "Go to my location",
+  "empty": {
+    "title": "No live signals in this area",
+    "action": "Leave the first signal"
+  }
 }

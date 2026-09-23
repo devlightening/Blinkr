@@ -27,9 +27,14 @@ export type RenderableMapCluster = {
   longitude: number;
   pointCount: number;
   type: 'cluster';
+  /** Ids of the points inside, only at zoom 16+ where a tap opens the Sinyal Kartı instead of zooming (plan-devam C9). */
+  memberIds?: string[];
 };
 
 export type RenderableMapItem = RenderableMapPoint | RenderableMapCluster;
+
+/** From this zoom on, a cluster is (nearly) one spot: tapping it shows its signals as cards (C9). */
+export const CARD_CLUSTER_ZOOM = 16;
 
 export const regionToZoom = (region: Region) => {
   const safeDelta = Math.max(0.0001, Math.min(360, region.longitudeDelta));
@@ -58,7 +63,8 @@ export const clusterMapPoints = (points: MapPoint[], region: Region): Renderable
   const south = region.latitude - region.latitudeDelta / 2;
   const north = region.latitude + region.latitudeDelta / 2;
 
-  return index.getClusters([west, south, east, north], regionToZoom(region)).map((feature) => {
+  const zoom = regionToZoom(region);
+  return index.getClusters([west, south, east, north], zoom).map((feature) => {
     const [longitude, latitude] = feature.geometry.coordinates;
     if ('cluster' in feature.properties && feature.properties.cluster) {
       return {
@@ -69,6 +75,7 @@ export const clusterMapPoints = (points: MapPoint[], region: Region): Renderable
         longitude,
         pointCount: feature.properties.point_count,
         type: 'cluster' as const,
+        ...(zoom >= CARD_CLUSTER_ZOOM ? { memberIds: index.getLeaves(feature.properties.cluster_id, 50).map((leaf) => leaf.properties.id) } : {}),
       };
     }
 

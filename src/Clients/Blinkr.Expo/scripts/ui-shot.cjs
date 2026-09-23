@@ -13,7 +13,7 @@ const { buildPreview, servePreview } = require('./ui-build.cjs');
     const page = await browser.newPage({ viewport: { width: +width, height: +height }, deviceScaleFactor: 2 });
     const errors = []; page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
     await page.goto(`http://127.0.0.1:${server.address().port}/?scene=${scene}${extra ? '&' + extra : ''}`);
-    await page.waitForTimeout(1400);
+    await page.waitForTimeout(2200);
     const file = path.join(out, `shot-${scene}${extra ? '-' + extra : ''}.png`);
     await page.screenshot({ path: file });
     console.log(file);

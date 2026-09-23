@@ -37,3 +37,8 @@ export const chatMessages: ChatMessage[] = [
   { id: 'm2', conversationId: 'c1', senderId: 'qa', text: 'Merhaba! Orada yer var mı?', createdAtUtc: minutesAgo(5), isRead: true },
   { id: 'm1', conversationId: 'c1', senderId: 'u-zeynep', text: 'Selam', createdAtUtc: minutesAgo(9), isRead: true },
 ];
+
+// Sinyal Kartı photos (plan-devam Faz C): a landscape and a 4:5 portrait, to check nothing is cropped.
+const cardPhoto = (w: number, h: number, fill: string) => 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="${fill}"/><circle cx="${w / 2}" cy="${h * 0.4}" r="${Math.min(w, h) * 0.22}" fill="#f4c95d"/><rect x="${w * 0.3}" y="${h * 0.62}" width="${w * 0.4}" height="${h * 0.3}" rx="30" fill="#f49ac2"/></svg>`);
+export const CARD_LANDSCAPE = cardPhoto(1600, 900, '#3e9a7a');
+export const CARD_PORTRAIT = cardPhoto(1080, 1350, '#6d4ac9');

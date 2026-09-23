@@ -76,7 +76,7 @@ $password = "BlinkrSmoke!2026"
 $headers = @{ Accept = "application/json" }
 
 $auth = Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/auth/register" -Headers $headers -Body @{
-    userName = "e2e_place_smoke_$suffix"
+    userName = "e2e_ps_$suffix"
     email = $email
     password = $password
 }
@@ -177,7 +177,7 @@ Assert-Equal ([int]$repeated.body.currentState.activeSignalCount) 1 "The same pe
 Assert-Equal ([double]$repeated.body.currentState.confidenceValue) ([double]$singleState.confidenceValue) "Repeating a value must not raise confidence."
 
 $second = Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/auth/register" -Headers $headers -Body @{
-    userName = "e2e_place_smoke_b_$suffix"
+    userName = "e2e_psb_$suffix"
     email = "place_smoke_b_$suffix@blinkr.local"
     password = $password
 }

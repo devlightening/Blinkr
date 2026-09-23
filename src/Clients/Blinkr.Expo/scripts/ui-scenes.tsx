@@ -25,6 +25,9 @@ import { ProfileScreen } from '../src/components/ProfileScreen';
 import { FriendsScreen } from '../src/components/friends/FriendsScreen';
 import { OnboardingScreen } from '../src/components/OnboardingScreen';
 import { SettingsScreen } from '../src/components/SettingsScreen';
+import { SignalCardModal } from '../src/components/signal/SignalCardModal';
+import { fromRecentSignal } from '../src/signalCard';
+import { CARD_LANDSCAPE, CARD_PORTRAIT } from './ui-fixtures';
 import { ThemeProvider } from '../src/components/ThemeProvider';
 import { sendReport } from '../src/api';
 import { UserProfileSheet } from '../src/components/friends/UserProfileSheet';
@@ -145,6 +148,38 @@ const detailPlace: BlinkrPlace = {
     { postId: 's2', title: 'Müzik var', text: 'Atmosfer şahane.', signalType: 'Event', createdAtUtc: iso(8), publicationTrust: 'NEARBY_PLACE_POST', authorName: null },
   ],
 };
+// Sinyal Kartı (plan-devam Faz C): a place with three signals. ?far = the viewer is 2 km away (verify disabled).
+function CardScene() {
+  const far = typeof location !== 'undefined' && location.search.includes('far');
+  const [closed, setClosed] = useState(false);
+  const cardPlace = { id: 'bim', name: 'BİM Merkez', category: 'SUPERMARKET', latitude: 37.0746, longitude: 36.2464 };
+  const recent = [
+    { postId: 'card-1', signalType: 'Queue' as const, signalValue: 'Over15', authorName: 'zeynep', publicationTrust: 'VERIFIED_LIVE', createdAtUtc: new Date(Date.now() - 4 * 60_000).toISOString(), expiresAtUtc: new Date(Date.now() + 88 * 60_000).toISOString(), media: [{ url: CARD_LANDSCAPE, mediaType: 'Image', width: 1600, height: 900 }] },
+    { postId: 'card-2', signalType: 'Crowd' as const, signalValue: 'Busy', authorName: 'ece', createdAtUtc: new Date(Date.now() - 20 * 60_000).toISOString(), expiresAtUtc: new Date(Date.now() + 40 * 60_000).toISOString(), media: [{ url: CARD_PORTRAIT, mediaType: 'Image', width: 1080, height: 1350 }] },
+    { postId: 'card-3', signalType: 'TemporaryStatus' as const, signalValue: 'Closed', authorName: null, text: 'Bugün erken kapattılar.', createdAtUtc: new Date(Date.now() - 30 * 60_000).toISOString(), expiresAtUtc: new Date(Date.now() + 30 * 60_000).toISOString(), media: [] },
+  ];
+  const cards = recent.map((signal) => fromRecentSignal(signal, cardPlace));
+  return (
+    <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
+      {closed ? <Text>kapandı</Text> : (
+        <SignalCardModal
+          auth={qaAuth}
+          cards={cards}
+          deviceOrigin={far ? { latitude: 37.0926, longitude: 36.2464 } : { latitude: 37.0748, longitude: 36.2465 }}
+          onChanged={() => setClosed(true)}
+          onClose={() => setClosed(true)}
+          onConfirm={async () => {}}
+          onDeleted={() => {}}
+          onOpenAuthor={() => {}}
+          onOpenPlace={() => {}}
+          place={cardPlace}
+          refresh={{}}
+        />
+      )}
+    </View>
+  );
+}
+
 function Detail() {
   const [answer, setAnswer] = useState('');
   const stale = typeof location !== 'undefined' && location.search.includes('stale');
@@ -435,7 +470,7 @@ function ReportableDetail() {
   );
 }
 
-const scenes: Record<string, () => React.JSX.Element> = { onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, discover: Discover, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
+const scenes: Record<string, () => React.JSX.Element> = { onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, card: CardScene, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, discover: Discover, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
 
 export function SceneHost({ name }: { name: string }) {
   const Scene = scenes[name];

@@ -2,7 +2,6 @@ import { Bookmark, Camera, Check, Clock3, Compass, Flag, Image as ImageIcon, Lay
 import { ActivityIndicator, Alert, Image, Linking, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import * as Localization from 'expo-localization';
 
 import { toAbsoluteUrl } from '../api';
 import { formatAge, formatCategory, formatDistance, meaningfulTitle, signalLabels } from '../presentation';
@@ -10,7 +9,7 @@ import { isPlaceSaved, savePlace, unsavePlace } from '../savedPlaces';
 import { categoryTone, colors, radii, signalColors, spacing, typography } from '../theme';
 import type { AuthResponse, BlinkrMedia, BlinkrPlace, CoordinateSignal, RecentSignal, SignalType } from '../types';
 import type { ReportReasonId } from '../friends';
-import { emergencyNumber, placeSensitivity } from '../placeSafety';
+import { placeSensitivity } from '../placeSafety';
 import { confidenceKey, freshnessLabelKey, freshnessTier } from '../freshness';
 import { recheckSignal, signalValueLabel, trustLabel } from '../productPresentation';
 import { AnimatedPressable } from './AnimatedPressable';
@@ -19,6 +18,7 @@ import { Sheet } from './Sheet';
 import { SignalSymbol } from './SignalSymbol';
 import { PlaceSymbol } from './PlaceSymbol';
 import { VideoPreview } from './VideoPreview';
+import { HealthNotice } from './signal/HealthNotice';
 import { SignalThreadPanel } from './signal/SignalThreadPanel';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { BlinkrChip } from './ui/BlinkrChip';
@@ -60,14 +60,24 @@ const openDirections = (place: BlinkrPlace) => {
   Linking.openURL(url ?? `https://maps.google.com/?q=${place.latitude},${place.longitude}`).catch(() => Alert.alert('Yol tarifi açılamadı'));
 };
 
-const MediaThumb = ({ media, style }: { media: BlinkrMedia; style: object }) => {
+/**
+ * One photo, never cropped (plan-devam C4): with `whole`, it is drawn "contain" over a blurred copy of itself, so a face at
+ * the edge of a wide or tall picture stays in view; small list thumbnails still fill their square.
+ */
+const MediaThumb = ({ media, style, whole = false }: { media: BlinkrMedia; style: object; whole?: boolean }) => {
   const url = toAbsoluteUrl(media.thumbnailUrl ?? media.url);
   if (!url) return null;
   if (media.mediaType === 'Video' && media.url) {
     const videoUrl = toAbsoluteUrl(media.url);
     if (videoUrl) return <VideoPreview style={style} uri={videoUrl} />;
   }
-  return <MediaImage style={style} uri={url} />;
+  if (!whole) return <MediaImage style={style} uri={url} />;
+  return (
+    <View style={[style, styles.wholeFrame]}>
+      <Image blurRadius={20} resizeMode="cover" source={{ uri: url }} style={StyleSheet.absoluteFill} />
+      <MediaImage resizeMode="contain" style={StyleSheet.absoluteFill} uri={url} />
+    </View>
+  );
 };
 
 /** Real photos only: whatever media the place's recent signals actually carry, never a placeholder. */
@@ -82,7 +92,7 @@ const PhotoRail = ({ signals }: { signals: RecentSignal[] }) => {
   return (
     <View style={styles.photoRail}>
       {shown.map(({ media, key }, index) => (
-        <MediaThumb key={key} media={media} style={[styles.photo, index === 0 ? styles.photoMain : styles.photoSide]} />
+        <MediaThumb key={key} media={media} style={[styles.photo, index === 0 ? styles.photoMain : styles.photoSide]} whole />
       ))}
       {extra > 0 && (
         <View style={[styles.photo, styles.photoSide, styles.photoMore]}>
@@ -107,23 +117,6 @@ const ActionTile = ({ label, icon, onPress, accessibilityLabel, selected }: { la
     <Text numberOfLines={1} style={styles.actionLabel}>{label}</Text>
   </AnimatedPressable>
 );
-
-/** Health places: a calm, permanent pointer to real help (sinyal-mvp-plan 11_SAFETY §3 HealthNotice). */
-const HealthNotice = () => {
-  const { t } = useTranslation('signal');
-  const number = emergencyNumber(Localization.getLocales()[0]?.regionCode);
-  return (
-    <View accessibilityRole="summary" style={styles.healthNotice} testID="health-notice">
-      <View style={styles.flex1}>
-        <Text style={styles.healthTitle}>{t('health.title')}</Text>
-        <Text style={styles.subtitle}>{t('health.body', { number })}</Text>
-      </View>
-      <AnimatedPressable accessibilityRole="button" onPress={() => { Linking.openURL(`tel:${number}`).catch(() => {}); }} pressScale={0.95} style={styles.healthCall}>
-        <Text style={styles.healthCallText}>{t('health.call', { number })}</Text>
-      </AnimatedPressable>
-    </View>
-  );
-};
 
 const ReportLink = ({ onPress }: { onPress: () => void }) => (
   <AnimatedPressable accessibilityLabel="Bu sinyali bildir" accessibilityRole="button" onPress={onPress} pressScale={0.97} style={styles.reportLink}>
@@ -316,7 +309,7 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
 
             <StatRow
               items={[
-                { key: 'signals', icon: <Layers color={colors.mint} size={18} />, text: t('common:stats.signals', { count: state?.activeSignalCount ?? recentSignals.length }) },
+                { key: 'signals', icon: <Layers color={colors.mint} size={18} />, text: t('common:stats.signals', { count: recentSignals.length || (state?.activeSignalCount ?? 0) }) },
                 // No observation time: say nothing rather than "Henüz yok" next to a signal count.
                 ...(freshness !== 'none' ? [{ key: 'freshness', icon: <Zap color={colors.mint} size={18} />, text: t(freshnessLabelKey(freshness, true)) }] : []),
                 { key: 'confidence', icon: <ShieldCheck color={colors.mint} size={18} />, text: t(confidenceKey(state?.confidence)) },
@@ -420,6 +413,7 @@ const styles = StyleSheet.create({
   healthCall: { alignItems: 'center', backgroundColor: colors.danger, borderRadius: radii.pill, justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.md },
   healthCallText: { ...typography.label, color: colors.ink },
   flex1: { flex: 1 },
+  wholeFrame: { overflow: 'hidden' },
   itemLinks: { flexDirection: 'row', gap: spacing.xs, justifyContent: 'flex-end' },
   reportLink: { alignItems: 'center', flexDirection: 'row', gap: 4, minHeight: 36, paddingHorizontal: spacing.sm },
   reportText: { ...typography.label, color: colors.textSecondary, fontWeight: '400' },

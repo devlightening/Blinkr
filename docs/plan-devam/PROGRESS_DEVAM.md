@@ -8,9 +8,9 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz C (A, B tamam; A2/A3 silme kullanıcı onayı bekliyor) |
+| Aktif faz | Faz D (A, B, C tamam; A2/A3 silme kullanıcı onayı bekliyor) |
 | Önceki durum | Faz 0–9 işlevsel tamam · Faz 10 yarım (P10.1/3/4/8/9 bitti) |
-| Son güncelleme | 2026-09-23 |
+| Son güncelleme | 2026-09-24 |
 | Engelleyici | F1: gerçek destek/itiraz e-posta adresi kullanıcıdan alınacak |
 
 
@@ -42,19 +42,19 @@
 
 ## Faz C — Sinyal Kartı ve harita
 
-- [ ] C1 CenterModal kabı
-- [ ] C2 Pin dokunuşu artık Sinyal Kartı'nı açar
-- [ ] C3 Kart içeriği
-- [ ] C4 Medya kırpması düzeltmesi
-- [ ] C5 Kart içi yatay kaydırma
-- [ ] C6 Etkileşimler
-- [ ] C7 Doğrulama akışı kartta
-- [ ] C8 ⋯ menüsü
-- [ ] C9 Kümeye dokunma
-- [ ] C10 Yer sayfası düzeltmeleri
-- [ ] C11 Harita üst barı
-- [ ] C12 Görüntülenme sayımı
-- [ ] C13 Performans
+- [x] C1 CenterModal kabı — overlay + blur + ortada kart (xl köşe, maks %82), yayla açılış, aşağı sürükle/overlay/X/geri ile kapanış (pinden uçan animasyon yerine ortadan; D-018)
+- [x] C2 Pin dokunuşu artık Sinyal Kartı'nı açar — yer pini üstte yer şeridiyle; yer sayfası şeritten/yer satırından
+- [x] C3 Kart içeriği — halka+avatar, ad, "Konumda", yaş + kalan süre, ⋯; medya + TypeBadge / metin kartı; yer satırı; 3 satır açıklama + devamı; HealthNotice; VerifyBar; ActionRow; en yeni yorum; "Yorum ekle…"
+- [x] C4 Medya kırpması düzeltmesi — 9:16–4:5 arası kendi oranı, dışı blur arka planla contain (`mediaFrame`, test); yer sayfası fotoğrafları da contain+blur
+- [x] C5 Kart içi yatay kaydırma — sayfalı liste + ‹ 1/3 › ; medya carousel içte
+- [~] C6 Etkileşimler — tam ekran görüntüleyici (iOS pinch-zoom, sürükle-kapat), çift dokunma ❤️ + kalp, yazar → profil, yer satırı → yer sayfası. ReactionBar ertelendi (D-018)
+- [x] C7 Doğrulama akışı kartta — Evet tek dokunuşla yayın + haptik, Değişti → composer; 500 m dışı/kendi sinyali/konum yok → pasif + neden
+- [~] C8 ⋯ menüsü — sinyali/kişiyi bildir, engelle, (kendi) sil; sessize al/düzenle/haritadan kaldır yok (D-018)
+- [x] C9 Kümeye dokunma — zoom < 16 yakınlaştır, 16+ kümedeki sinyaller kartta
+- [x] C10 Yer sayfası düzeltmeleri — fotoğraflar kırpılmıyor, sayı = liste, HealthNotice ortak bileşen
+- [x] C11 Harita üst barı — "Bu alanı tara" yalnız otomatik yükleme başarısızsa; görünür sayısı yok; boş durumda tek satır alt bant
+- [x] C12 Görüntülenme sayımı — ≥1 sn → 10 sn'de bir toplu `POST /api/posts/views`; yalnız yazar görür (BLK-CARD-01)
+- [~] C13 Performans — marker memo, en fazla 300 nokta, kart önbellekteki veriyle anında açılır; < 150 ms ölçümü cihazda (G9)
 
 ## Faz D — Kamera-öncelikli oluşturma
 
@@ -123,6 +123,12 @@
 - **Yapılanlar:** açık tema varsayılan + koyu tema, Ayarlar > Görünüm, Outfit tipografi, yeni yarıçap/buton/gölge/hareket token'ları, tint+ink sinyal renkleri, açık/koyu harita stili ve yeniden tasarlanan pinler, medya ekranları için sabit koyu palet, ham renk taraması, bileşen önizleme.
 - **Doğrulama:** `typecheck`, `test:theme` (iki temada tüm metin çiftleri AA), `test:nearby`, `test:product`, `test:i18n`, `test:ui` PASS; iOS + Android export PASS. Ekran görüntüleri iki temada (`.tmp/product-ui/shot-*.png`, `?theme=dark`). Gerçek cihazda Outfit'in yüklenmesi ve tema değişiminde yeniden açılış kullanıcı tarafından görülmeli.
 - **Ertelenen:** yok. **Not:** yeni ölçek her ekranda satır yüksekliklerini değiştirdi; C/D/E'de yeniden yazılan ekranlar zaten yeni token'larla kurulacak.
+
+### Faz C — 2026-09-24
+- **Yapılanlar:** merkez Sinyal Kartı (`signal/SignalCardModal`, `SignalCard`, `MediaCarousel`, `MediaViewer`, `HealthNotice`; saf mantık `signalCard.ts`), pin/küme dokunuşu kartı açar, tek dokunuşla doğrulama, bildir/engelle/sil, görüntülenme sayımı, kırpılmayan medya (kart ve yer sayfası), tek satır boş durum bandı. Sunucu: `GET /api/posts/{id}` `publicationTrust`, `isMine`, yazara `viewCount`, medya boyutları; `POST /api/posts/views`.
+- **Doğrulama:** `test-signal-card.ps1` (BLK-CARD-01) + engagement/discover/authz/map-core/nearby-ux/live-signal/friends PASS; `signal-card.test.ts`, `test:ui` (kart açık/uzak/kendi sinyali, beğeni, doğrulama, sayfalama, menü, yorumlar, kapanış; iki tema ekran görüntüsü), typecheck, i18n, theme, iOS + Android export PASS.
+- **Bulunan hata:** Faz A'daki `e2e_` öneki `e2e_location_smoke_` + ms damgasıyla 30 karakteri aşıyordu (kayıt 400); kısaltıldı.
+- **Ertelenen:** ReactionBar, menüde sessize al/düzenle/haritadan kaldır (D-018). **Cihazda bakılacak:** kart açılış süresi, nested kaydırma hissi, video otomatik oynatma.
 
 ## Performans ölçümleri (Faz G)
 

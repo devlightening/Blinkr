@@ -8,6 +8,7 @@ import { DISCOVER_PAGE_SIZE, DISCOVER_RADIUS_METERS, type DiscoverPage } from '.
 import type { Story, StoryTrayItem, StoryViewer } from './stories';
 import type { SignalShare } from './chatExtras';
 import type { AppNotification } from './notifications';
+import type { PostDetailDto } from './signalCard';
 import { i18n } from './i18n';
 
 type NearbyPlacesResponse = Array<BlinkrPlace & { distanceMeters?: number }> & {
@@ -495,6 +496,20 @@ const requestCoded = async <T>(path: string, options: RequestOptions = {}): Prom
   const text = await response.text();
   return text ? (JSON.parse(text) as T) : null;
 };
+
+/** Sinyal Kartı (plan-devam Faz C): the full signal, trust, own-ness and, for the author, views. */
+export const getSignalDetail = (auth: AuthResponse | null, postId: string, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<PostDetailDto>(`/api/posts/${postId}`, { auth, signal, ...refresh });
+
+/** Cards looked at for at least a second, sent in batches (C12). Counted once per person, signal and day. */
+export const recordPostViews = async (auth: AuthResponse, postIds: string[], refresh: Refresh = {}) => {
+  if (postIds.length === 0) return;
+  await request('/api/posts/views', { auth, body: { postIds }, method: 'POST', ...refresh });
+};
+
+/** The author removes their own signal (the whole chain follows: PostDeleted). */
+export const deleteSignal = (auth: AuthResponse, postId: string, refresh: Refresh = {}) =>
+  requestCoded<null>(`/api/posts/${postId}`, { auth, method: 'DELETE', ...refresh });
 
 /** Likes and comments (engagement.ts has the contract). */
 export const getPostEngagement = (auth: AuthResponse | null, postId: string, signal?: AbortSignal, refresh: Refresh = {}) =>

@@ -12,10 +12,12 @@ public class GetPostByIdHandler : IRequestHandler<GetPostByIdQuery, PostResponse
 {
 
     private readonly IMongoCollection<PostDocument> _postsCollection;
+    private readonly IMongoDatabase _database;
 
     public GetPostByIdHandler(IMongoDatabase database) 
     {
         _postsCollection = database.GetCollection<PostDocument>("posts");
+        _database = database;
     }
 
     public async Task<PostResponseDto?> Handle(GetPostByIdQuery request, CancellationToken ct)
@@ -46,6 +48,11 @@ public class GetPostByIdHandler : IRequestHandler<GetPostByIdQuery, PostResponse
         }
 
         var anonymous = postDocument.IdentityDisclosure == "AnonymousMap";
+        var isMine = request.RequestingUserId.HasValue && request.RequestingUserId.Value == postDocument.AuthorId;
+        // Only the author sees how many people looked at their card (plan-devam C12).
+        int? viewCount = isMine
+            ? (int)await _database.GetCollection<MongoDB.Bson.BsonDocument>("post_views").CountDocumentsAsync(new MongoDB.Bson.BsonDocument("PostId", postDocument.Id.ToString()), cancellationToken: ct)
+            : null;
 
         return new PostResponseDto
         {
@@ -71,10 +78,16 @@ public class GetPostByIdHandler : IRequestHandler<GetPostByIdQuery, PostResponse
             LocationPrecision = postDocument.LocationPrecision,
             SourceType = postDocument.SourceType,
             ExpiresAt = postDocument.ExpiresAt,
+            PublicationTrust = postDocument.PublicationTrust,
+            IsMine = isMine,
+            ViewCount = viewCount,
             Media = postDocument.Media?.Select(m => new PostMediaDto
             {
                 Id = m.Id,
                 Url = m.Url,
+                ThumbnailUrl = m.ThumbnailUrl,
+                Width = m.Width,
+                Height = m.Height,
                 Type = Enum.TryParse<MediaType>(m.Type, true, out var mediaType) ? mediaType : default
             }).ToList() ?? new List<PostMediaDto>()
         };
