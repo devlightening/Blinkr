@@ -1,1 +1,36 @@
-{ "explore": "Keşfet", "nearby": "Yakınımda", "following": "Takip" }
+{
+  "explore": "Keşfet",
+  "nearby": "Yakınımda",
+  "following": "Takip",
+  "discover": {
+    "title": "Keşfet",
+    "tabNearby": "Yakınımda",
+    "tabFollowing": "Takip",
+    "tabPlaces": "Yerler",
+    "subtitleNearby": "3 km içindeki canlı sinyaller, en tazesi önce",
+    "subtitleFollowing": "Takip ettiklerinin son 7 gündeki sinyalleri",
+    "subtitlePlaces": "Çevrendeki taze yer durumları",
+    "needLocationTitle": "Yakınındakileri görmek için konum gerekli",
+    "needLocationBody": "Konumun yalnızca yakındaki canlı sinyalleri bulmak için kullanılır; kesin konumun kimseyle paylaşılmaz.",
+    "useLocation": "Konumu kullan",
+    "openSettings": "Ayarları aç",
+    "blockedBody": "Konum izni kapalı. Ayarlar'dan açarsan çevrendeki canlı sinyalleri burada görürsün.",
+    "locating": "Konumun alınıyor…",
+    "loadFailed": "Akış yüklenemedi. Tekrar dene.",
+    "locationTimeout": "Konumun şu an alınamadı. Açık bir alana geçip tekrar dene.",
+    "staleNotice": "Yenilenemedi, son akış gösteriliyor.",
+    "emptyNearbyTitle": "Çevrende canlı sinyal yok",
+    "emptyNearbyBody": "3 km içinde şu an süresi dolmamış bir sinyal görünmüyor. İlk paylaşan sen olabilirsin.",
+    "emptyFollowingTitle": "Takip akışın boş",
+    "emptyFollowingBody": "Takip ettiğin kişilerin son 7 günde paylaştığı sinyaller burada görünür. Birinin profilinden takip et.",
+    "share": "Sinyal paylaş",
+    "retry": "Tekrar dene",
+    "end": "Hepsi bu kadar",
+    "loadMore": "Daha fazla",
+    "expired": "Sona erdi",
+    "live": "Canlı",
+    "showOnMap": "Haritada göster",
+    "comments": "Yorumlar",
+    "anonymous": "Topluluk üyesi"
+  }
+}

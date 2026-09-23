@@ -1,1 +1,36 @@
-{ "explore": "Explore", "nearby": "Nearby", "following": "Following" }
+{
+  "explore": "Explore",
+  "nearby": "Nearby",
+  "following": "Following",
+  "discover": {
+    "title": "Explore",
+    "tabNearby": "Nearby",
+    "tabFollowing": "Following",
+    "tabPlaces": "Places",
+    "subtitleNearby": "Live signals within 3 km, freshest first",
+    "subtitleFollowing": "What people you follow shared in the last 7 days",
+    "subtitlePlaces": "Fresh place updates around you",
+    "needLocationTitle": "Location needed to see what's nearby",
+    "needLocationBody": "Your location is only used to find live signals nearby; your exact location is never shared.",
+    "useLocation": "Use my location",
+    "openSettings": "Open Settings",
+    "blockedBody": "Location permission is off. Turn it on in Settings to see live signals around you.",
+    "locating": "Finding your location…",
+    "loadFailed": "Couldn't load the feed. Try again.",
+    "locationTimeout": "Couldn't get your location right now. Move somewhere open and try again.",
+    "staleNotice": "Couldn't refresh; showing the last feed.",
+    "emptyNearbyTitle": "No live signals around you",
+    "emptyNearbyBody": "Nothing unexpired within 3 km right now. You could be the first to share.",
+    "emptyFollowingTitle": "Your following feed is empty",
+    "emptyFollowingBody": "Signals shared by people you follow in the last 7 days show here. Follow someone from their profile.",
+    "share": "Share a signal",
+    "retry": "Try again",
+    "end": "That's everything",
+    "loadMore": "More",
+    "expired": "Expired",
+    "live": "Live",
+    "showOnMap": "Show on map",
+    "comments": "Comments",
+    "anonymous": "Community member"
+  }
+}

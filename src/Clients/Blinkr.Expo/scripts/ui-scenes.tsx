@@ -40,6 +40,7 @@ import { SignalComposer } from '../src/components/SignalComposer';
 import { AuthScreen } from '../src/components/AuthScreen';
 import { ClusterVisual, MarkerVisual } from '../src/components/MapMarkerVisuals';
 import { MapTopChrome } from '../src/components/map/MapTopChrome';
+import { DiscoverScreen } from '../src/components/feed/DiscoverScreen';
 import type { MapLayer } from '../src/mapSelection';
 import { colors, signalColors, typography } from '../src/theme';
 import type { AuthResponse, BlinkrPlace, SignalType } from '../src/types';
@@ -303,6 +304,15 @@ function Nearby() {
     </View>
   );
 }
+function Discover() {
+  const [opened, setOpened] = useState('');
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <DiscoverScreen auth={qaAuth} onAuthChange={() => {}} onCreateSignal={() => setOpened('camera')} onLogout={() => {}} onOpenPlace={(place) => setOpened(`place:${place.id}`)} onOpenSignal={(signal) => setOpened(`signal:${signal.postId}`)} />
+      <Text accessibilityLabel="opened" style={{ height: 0, opacity: 0, position: 'absolute' }}>{opened}</Text>
+    </View>
+  );
+}
 function Conversation() {
   return (
     <View style={{ backgroundColor: colors.background, flex: 1 }}>
@@ -421,7 +431,7 @@ function ReportableDetail() {
   );
 }
 
-const scenes: Record<string, () => React.JSX.Element> = { onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
+const scenes: Record<string, () => React.JSX.Element> = { onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, discover: Discover, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
 
 export function SceneHost({ name }: { name: string }) {
   const Scene = scenes[name];

@@ -656,6 +656,34 @@ async function main() {
     await expect(page.getByTestId('health-notice')).toContainText('112');
     await page.goto(url + '?scene=reportableDetail');
     await expect(page.getByTestId('health-notice')).toHaveCount(0);
+    // Faz 7 Keşfet: ranked nearby signals, anonymous without author, like in place, own signal not likeable,
+    // comments open the thread, following tab, places tab keeps the old list.
+    await page.goto(url + '?scene=discover');
+    await expect(page.getByRole('heading', { name: 'Keşfet' })).toBeVisible();
+    await expect(page.getByTestId('feed-card-n-1')).toBeVisible();
+    await expect(page.getByTestId('feed-card-n-2')).toContainText('Topluluk üyesi');
+    await expect(page.getByTestId('feed-card-n-2')).not.toContainText('zeynep');
+    await expect(page.getByTestId('feed-card-n-1')).toContainText('~350 m');
+    await page.getByTestId('feed-like-n-1').click();
+    await expect(page.getByTestId('feed-like-n-1')).toContainText('5');
+    await expect(page.getByTestId('feed-like-n-3')).toBeDisabled();
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'discover.png') });
+    await page.getByTestId('feed-card-n-1').getByRole('button', { name: 'Yorumlar', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Yorumlar' })).toBeVisible();
+    await page.getByRole('button', { name: 'Kapat' }).last().click();
+    await page.getByTestId('feed-card-n-1').getByRole('button', { name: 'Haritada göster' }).click();
+    await expect(page.getByLabel('opened')).toHaveText('place:kent');
+    await page.goto(url + '?scene=discover');
+    await page.getByRole('tab', { name: 'Takip' }).click();
+    await expect(page.getByTestId('feed-card-f-1')).toBeVisible();
+    await page.goto(url + '?scene=discover&nofollowing');
+    await page.getByRole('tab', { name: 'Takip' }).click();
+    await expect(page.getByText('Takip akışın boş')).toBeVisible();
+    await page.getByRole('tab', { name: 'Yerler' }).click();
+    await expect(page.getByText('Çevrendeki taze yer durumları').first()).toBeVisible();
+    await page.goto(url + '?scene=discover&feedfail');
+    await expect(page.getByText('Akış yüklenemedi. Tekrar dene.').first()).toBeVisible();
+    await expect(page.getByText('Network request failed')).toHaveCount(0);
     // Faz 4: likes and comments on a signal, inside the same sheet (no second sheet).
     await page.goto(url + '?scene=reportableDetail');
     await page.getByTestId('open-thread-post-a').click();

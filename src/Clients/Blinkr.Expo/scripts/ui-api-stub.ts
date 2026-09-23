@@ -237,6 +237,28 @@ export const sendSnap = async (_auth: unknown, conversationId: string, _media: u
   return { id: 'sent-' + sentSnaps.length, conversationId, senderId: 'qa', text: '', createdAtUtc: new Date().toISOString(), isRead: true, kind: 'snap', snap: { mediaType: 'Image', durationSeconds: options.durationSeconds, state: 'sent', expiresAtUtc: new Date(Date.now() + 86_400_000).toISOString() } };
 };
 
+// Keşfet feeds (?nofollowing = empty following feed, ?feedfail = both fail).
+const feedNow = Date.now();
+const feedItem = (id: string, extra: Record<string, unknown> = {}) => ({
+  id, title: '', content: 'Kuyruk kapıya kadar.', signalType: 'Queue', signalValue: 'Over15', authorId: 'u-zeynep', authorName: 'zeynep', anonymous: false,
+  createdAtUtc: new Date(feedNow - 6 * 60_000).toISOString(), expiresAtUtc: new Date(feedNow + 50 * 60_000).toISOString(), expired: false,
+  likeCount: 4, commentCount: 1, isLikedByCurrentUser: false, placeId: 'kent', locationName: 'Kent Eczanesi', distanceMeters: 350, media: [], ...extra,
+});
+export const getDiscoverNearby = async (_auth: unknown, _lat: number, _lon: number, page = 1) => {
+  if (flag('feedfail')) throw new Error('Network request failed');
+  const items = page > 1 ? [feedItem('n-4', { title: 'Dördüncü', authorName: 'ece', authorId: 'u-ece' })] : [
+    feedItem('n-1'),
+    feedItem('n-2', { signalType: 'Crowd', signalValue: 'Calm', content: 'Park sakin.', authorId: null, authorName: 'Topluluk üyesi', anonymous: true, placeId: null, locationName: 'Masal Parkı', distanceMeters: 1200 }),
+    feedItem('n-3', { signalType: 'Offer', signalValue: 'Available', content: 'Simit iki al bir öde.', authorId: 'qa', authorName: 'alper', distanceMeters: 50 }),
+  ];
+  return { items, page, pageSize: 20, hasMore: page === 1 };
+};
+export const getDiscoverFollowing = async (_auth: unknown, page = 1) => {
+  if (flag('feedfail')) throw new Error('Network request failed');
+  const items = flag('nofollowing') ? [] : [feedItem('f-1', { content: 'Takip ettiğimden.', distanceMeters: null })];
+  return { items, page, pageSize: 20, hasMore: false };
+};
+
 // Saved places on the account: the harness has no session, so savedPlaces.ts stays device-local (localStorage).
 export const listServerSavedPlaces = async () => [];
 export const putSavedPlace = async (_auth: unknown, place: { id: string }) => ({ placeId: place.id, saved: true });
@@ -274,4 +296,10 @@ export const addPostComment = async (_auth: unknown, _postId: string, text: stri
 export const deletePostComment = async (_auth: unknown, _postId: string, commentId: string) => {
   stubComments = stubComments.filter((c) => c.commentId !== commentId).map((c) => ({ ...c, replies: c.replies.filter((r) => r.commentId !== commentId) }));
   return null;
+};
+
+export const getPlace = async (placeId: string) => {
+  const found = catalogue.find((place) => place.id === placeId);
+  if (!found) throw new Error('not found');
+  return found;
 };

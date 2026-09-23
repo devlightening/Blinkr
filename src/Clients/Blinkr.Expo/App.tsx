@@ -17,7 +17,7 @@ import { initI18n } from './src/i18n';
 initI18n();
 import { MapScreen } from './src/components/MapScreen';
 import { ChatListScreen } from './src/components/chat/ChatListScreen';
-import { NearbyScreen } from './src/components/NearbyScreen';
+import { DiscoverScreen } from './src/components/feed/DiscoverScreen';
 import { OnboardingScreen } from './src/components/OnboardingScreen';
 import { ProfileScreen } from './src/components/ProfileScreen';
 import { ThemeProvider } from './src/components/ThemeProvider';
@@ -67,6 +67,7 @@ export default function App() {
   const [chatUnread, setChatUnread] = useState(false);
   const [chatConversationOpen, setChatConversationOpen] = useState(false);
   const [profileOverlayOpen, setProfileOverlayOpen] = useState(false);
+  const [discoverOverlayOpen, setDiscoverOverlayOpen] = useState(false);
   const [chatTarget, setChatTarget] = useState<UserSummary | null>(null);
   const [requestsWaiting, setRequestsWaiting] = useState(false);
   // null while the flag is being read; the introduction is shown once per signed-in person.
@@ -120,6 +121,7 @@ export default function App() {
     setChatTarget(null);
     setRequestsWaiting(false);
     setProfileOverlayOpen(false);
+    setDiscoverOverlayOpen(false);
     await clearAuth();
   }, []);
 
@@ -249,7 +251,7 @@ export default function App() {
                 )}
                 {activeTab === 'nearby' && (
                   <View style={styles.tabLayer}>
-                    <NearbyScreen onCreateSignal={() => openShare('camera')} onOpenPlace={openSavedPlace} onOpenSignal={openNearbySignal} />
+                    <DiscoverScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={() => openShare('camera')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOpenSignal={openNearbySignal} onOverlayOpenChange={setDiscoverOverlayOpen} />
                   </View>
                 )}
                 {activeTab === 'profile' && (
@@ -261,7 +263,7 @@ export default function App() {
                   active={activeTab}
                   chatUnread={chatUnread}
                   profileDot={requestsWaiting}
-                  hidden={(activeTab === 'map' && mapOverlayOpen) || (activeTab === 'chat' && chatConversationOpen) || (activeTab === 'profile' && profileOverlayOpen)}
+                  hidden={(activeTab === 'map' && mapOverlayOpen) || (activeTab === 'chat' && chatConversationOpen) || (activeTab === 'profile' && profileOverlayOpen) || (activeTab === 'nearby' && discoverOverlayOpen)}
                   onShare={openShare}
                   onTab={setActiveTab}
                 />

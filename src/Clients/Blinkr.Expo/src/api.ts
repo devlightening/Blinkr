@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, CreateSignalInput, MediaKind, UnifiedMapResponse, PlacePresence, SnapOpenResult, UserSummary, AuthoredPost, Friend, FriendRequests, MyProfile, PublicProfile, Relation, BlockedUser, FollowPage, FollowRequestItem, FollowUser } from './types';
 import { resolveUploadContentType, safeUploadFileName } from './mediaContentType';
 import { COMMENT_PAGE_SIZE, type CommentPage, type CommentSort } from './engagement';
+import { DISCOVER_PAGE_SIZE, DISCOVER_RADIUS_METERS, type DiscoverPage } from './discoverFeed';
 
 type NearbyPlacesResponse = Array<BlinkrPlace & { distanceMeters?: number }> & {
   coverageState?: string | null;
@@ -387,6 +388,12 @@ export const sendReport = (
   report: { targetType: 'user' | 'signal'; targetId: string; reason: string; note?: string },
   refresh: Refresh = {},
 ) => requestJson<{ reported: boolean }>('/api/reports', { auth, body: report, method: 'POST', ...refresh });
+
+/** Keşfet (Faz 7): ranked live signals nearby, and what followed people shared this week. */
+export const getDiscoverNearby = (auth: AuthResponse, latitude: number, longitude: number, page = 1, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<DiscoverPage>(`/api/discover/nearby?${new URLSearchParams({ lat: String(latitude), lon: String(longitude), radiusMeters: String(DISCOVER_RADIUS_METERS), page: String(page), pageSize: String(DISCOVER_PAGE_SIZE) })}`, { auth, signal, ...refresh });
+export const getDiscoverFollowing = (auth: AuthResponse, page = 1, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<DiscoverPage>(`/api/discover/following?page=${page}&pageSize=${DISCOVER_PAGE_SIZE}`, { auth, signal, ...refresh });
 
 /** Saved places on the account (P6.8): the same on every device. */
 type SavedPlaceRow = { id: string; name: string; category?: string | null; latitude: number; longitude: number; savedAtUtc?: string };

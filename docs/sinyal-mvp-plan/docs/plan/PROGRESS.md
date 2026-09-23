@@ -8,7 +8,7 @@
 | Alan | Değer |
 |---|---|
 | Aktif faz | Faz 7 — Keşfet akışı ve hikayeler |
-| Son tamamlanan görev | P7.1 (Keşfet backend) |
+| Son tamamlanan görev | P7.4 (Keşfet ekranı) |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
 
@@ -207,9 +207,9 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 ## Faz 7 — Keşfet akışı ve hikayeler
 
 - [~] P7.1 Backend: `GET /api/discover/nearby` (tazelik > yakınlık > log etkileşim skoru, sayfa başına kişi başı en fazla 2, kaba mesafe, anonimde yazar yok, engelliler dışarıda) ve `GET /api/discover/following` (takip edilenlerin son 7 gün, anonim hariç; kimlik servisi cevap vermezse 503). Eski `/api/v1/feed` ham koordinat ve anonim yazar adı döndürdüğü için kullanılmadı. Kanıt: BLK-DISCOVER-01 + `tests/PlacePosting` sıralama kontrolleri PASS. **Ertelendi:** yer durum şeridi, önerilen kişiler.
-- [ ] P7.2 Keşfet ekranı: başlık (arama, zil), StoryTray, Yakınımda|Takip, filtreler, yarıçap seçici
-- [ ] P7.3 SignalCard feed varyantı; yer durum kartları şeridi; önerilen kişiler kartı; boş durumlar
-- [ ] P7.4 Çekerek yenile, sonsuz kaydırma, sekmeye tekrar dokun = başa kaydır
+- [~] P7.2 `feed/DiscoverScreen`: Yakınımda | Takip | Yerler (eski Yakında listesi korunuyor). Arama/zil/StoryTray/filtre/yarıçap seçici yok (hikaye P7.5+, zil Faz 9).
+- [~] P7.3 `feed/FeedCard` (yazar/anonim, tip+değer, tazelik, kaba mesafe, foto, beğeni yerinde, yorumlar sheet'te, Haritada göster); boş/hata/iskelet durumları. Yer durum şeridi "Yerler" sekmesi olarak; önerilen kişiler yok.
+- [~] P7.4 Çekerek yenile, sayfalı kaydırma (bilinçli üst sınır 10 sayfa — "Decision utility over engagement"). Sekmeye tekrar dokununca başa kaydırma yok.
 - [ ] P7.5 Backend: stories tray, kullanıcı hikayeleri, seen, viewers
 - [ ] P7.6 StoryTray (harita + keşfet) sıralama ve görüldü durumları
 - [ ] P7.7 Hikaye görüntüleyici: ilerleme çubukları, dokun/tut/kaydır hareketleri, kullanıcılar arası küp geçiş, ön yükleme

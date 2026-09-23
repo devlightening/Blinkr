@@ -25,6 +25,8 @@ type Props = {
   onOpenSignal: (signal: CoordinateSignal) => void;
   /** Empty-state call to action; opens the camera/composer. */
   onCreateSignal?: () => void;
+  /** Shown inside Keşfet as its "Yerler" tab: the screen title comes from Keşfet. */
+  embedded?: boolean;
 };
 
 type Phase = 'checking' | 'needsPermission' | 'blocked' | 'locating' | 'loading' | 'ready' | 'error';
@@ -95,7 +97,7 @@ function ActivityRow({ item, index, onPress }: { item: ActivityItem; index: numb
  * It is a decision aid, not a feed: only fresh, unexpired information, freshest and closest first, capped, no
  * infinite scroll. Location is only requested when the person asks for it here.
  */
-export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal }: Props) {
+export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedded = false }: Props) {
   const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState<Phase>('checking');
   const [items, setItems] = useState<ActivityItem[]>([]);
@@ -182,8 +184,8 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal }: Prop
   const counts = useMemo(() => Object.fromEntries(FILTERS.map(({ id }) => [id, filterActivity(items, id).length])) as Record<ActivityFilter, number>, [items]);
 
   const header = (
-    <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
-      <Text accessibilityRole="header" style={styles.title}>Yakında</Text>
+    <View style={[styles.header, { paddingTop: embedded ? 0 : insets.top + spacing.md }]}>
+      {embedded ? null : <Text accessibilityRole="header" style={styles.title}>Yakında</Text>}
       <Text style={styles.subtitle}>
         {phase === 'ready'
           ? `${items.length} taze sinyal · ${(ACTIVITY_RADIUS_METERS / 1000).toLocaleString('tr-TR', { minimumFractionDigits: 1 })} km içinde${updatedAt ? ` · ${formatAge(new Date(updatedAt).toISOString())} güncellendi` : ''}`
