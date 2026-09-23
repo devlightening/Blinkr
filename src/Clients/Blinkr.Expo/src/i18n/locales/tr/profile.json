@@ -44,5 +44,8 @@
     "title": "Bu hesap gizli",
     "body": "Sinyallerini görmek için takip et.",
     "badge": "Gizli hesap"
+  },
+  "saved": {
+    "synced": "Hesabında saklanır"
   }
 }

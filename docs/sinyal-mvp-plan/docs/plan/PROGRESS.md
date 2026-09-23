@@ -8,7 +8,7 @@
 | Alan | Değer |
 |---|---|
 | Aktif faz | Faz 6 — profil, takip, kaydedilenler |
-| Son tamamlanan görev | P6.6 (takip istekleri + gizli hesap) |
+| Son tamamlanan görev | P6.8 (kayıtlı yerler senkron) |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
 
@@ -199,7 +199,7 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 - [x] P6.5 `FollowListSheet`/`FollowListPanel`: Takipçiler/Takip (sayfalı), her satırda takip düğmesi, kendi takipçini onaylı çıkarma; başka profilde aynı sheet içinde açılır (ikinci sheet yok). Liste içi arama yok.
 - [x] P6.6 Takip istekleri: listede "İstekler" sekmesi (Onayla/Sil) + Ayarlar'da "Gizli hesap" anahtarı.
 - [ ] P6.7 Profili düzenle: avatar (foto veya illüstrasyon seti), ad, kullanıcı adı (canlı kontrol, 14 gün kuralı), bio, şehir, bağlantı
-- [ ] P6.8 Kaydedilenler: koleksiyonlar, sinyal/yer kaydetme, cihazdaki kayıtlı yerlerin sunucuya göçü (`/me/saved/import`)
+- [~] P6.8 Kayıtlı yerler hesapta (IdentityService `SavedPlaces`, ekleme yapan EF göçü), iki cihazda aynı; cihazdaki eski kayıtlar ilk girişte bir kez `import` ile taşınıyor, cihaz yalnız çevrimdışı önbellek. Kanıt: BLK-SAVED-01 PASS. **Ertelendi:** koleksiyonlar, sinyal kaydetme.
 - [ ] P6.9 Profil paylaş: link + QR kodu; derin link `/u/{username}`
 - [ ] P6.10 Güven puanı açıklama sayfası, seviye ilerleme; rozet detayları
 - [ ] P6.11 Engelleme sonrası içerik anında her yerden kalkar (React Query önbellek temizliği)

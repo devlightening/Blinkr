@@ -237,6 +237,12 @@ export const sendSnap = async (_auth: unknown, conversationId: string, _media: u
   return { id: 'sent-' + sentSnaps.length, conversationId, senderId: 'qa', text: '', createdAtUtc: new Date().toISOString(), isRead: true, kind: 'snap', snap: { mediaType: 'Image', durationSeconds: options.durationSeconds, state: 'sent', expiresAtUtc: new Date(Date.now() + 86_400_000).toISOString() } };
 };
 
+// Saved places on the account: the harness has no session, so savedPlaces.ts stays device-local (localStorage).
+export const listServerSavedPlaces = async () => [];
+export const putSavedPlace = async (_auth: unknown, place: { id: string }) => ({ placeId: place.id, saved: true });
+export const deleteSavedPlace = async (_auth: unknown, placeId: string) => ({ placeId, saved: false });
+export const importSavedPlaces = async () => [];
+
 // --- Likes and comments (engagement.ts). ?likefail = the like request fails.
 export class ApiCodeError extends Error {
   constructor(public code: string, public status: number) { super(code); this.name = 'ApiCodeError'; }

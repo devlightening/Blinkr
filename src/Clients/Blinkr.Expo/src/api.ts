@@ -388,6 +388,17 @@ export const sendReport = (
   refresh: Refresh = {},
 ) => requestJson<{ reported: boolean }>('/api/reports', { auth, body: report, method: 'POST', ...refresh });
 
+/** Saved places on the account (P6.8): the same on every device. */
+type SavedPlaceRow = { id: string; name: string; category?: string | null; latitude: number; longitude: number; savedAtUtc?: string };
+export const listServerSavedPlaces = (auth: AuthResponse, refresh: Refresh = {}) =>
+  requestJson<SavedPlaceRow[]>('/api/users/me/saved-places', { auth, ...refresh });
+export const putSavedPlace = (auth: AuthResponse, place: { id: string; name: string; category?: string | null; latitude: number; longitude: number }, refresh: Refresh = {}) =>
+  requestJson<{ placeId: string; saved: boolean }>(`/api/users/me/saved-places/${place.id}`, { auth, body: { name: place.name, category: place.category ?? null, latitude: place.latitude, longitude: place.longitude }, method: 'PUT', ...refresh });
+export const deleteSavedPlace = (auth: AuthResponse, placeId: string, refresh: Refresh = {}) =>
+  requestJson<{ placeId: string; saved: boolean }>(`/api/users/me/saved-places/${placeId}`, { auth, method: 'DELETE', ...refresh });
+export const importSavedPlaces = (auth: AuthResponse, items: Array<{ id: string; name: string; category?: string | null; latitude: number; longitude: number }>, refresh: Refresh = {}) =>
+  requestJson<SavedPlaceRow[]>('/api/users/me/saved-places/import', { auth, body: { items }, method: 'POST', ...refresh });
+
 /** Follows (D-009): follow a public account at once, a private one by request. */
 export const followUser = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
   requestJson<{ userId: string; follow: FollowUser['follow'] }>(`/api/follows/${userId}`, { auth, method: 'POST', ...refresh });

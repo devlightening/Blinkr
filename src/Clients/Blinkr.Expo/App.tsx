@@ -25,6 +25,7 @@ import { BlinkrBottomBar, type BlinkrTab } from './src/components/ui/BlinkrBotto
 import { hasSeenOnboarding, markOnboardingSeen } from './src/onboardingStore';
 import { colors } from './src/theme';
 import type { AuthResponse, BlinkrPlace, CoordinateSignal, ShareMode, UserSummary } from './src/types';
+import { setSavedPlacesSession } from './src/savedPlaces';
 
 // While Sohbet is not on screen the tab-bar dot is refreshed at this gentle interval, foreground only.
 const UNREAD_POLL_MS = 30_000;
@@ -121,6 +122,11 @@ export default function App() {
     setProfileOverlayOpen(false);
     await clearAuth();
   }, []);
+
+  // Saved places sync with the account (P6.8); the module needs the current session and how to refresh it.
+  useEffect(() => {
+    setSavedPlacesSession(auth ? { auth, refresh: { onAuthRefresh: (next) => { void acceptAuth(next); }, onSessionExpired: () => { void logout(); } } } : null);
+  }, [auth, acceptAuth, logout]);
 
   const openShare = useCallback((mode: ShareMode = 'camera') => {
     setActiveTab('map');

@@ -223,7 +223,7 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
       <View style={styles.group}>
         <View style={styles.groupHeader}>
           <Text accessibilityRole="header" style={styles.groupTitle}>Kaydettiğin yerler</Text>
-          <Text style={styles.groupSub}>Bu cihazda saklanır</Text>
+          <Text style={styles.groupSub}>{t('saved.synced')}</Text>
         </View>
 
         {saved === null ? (

@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
     public DbSet<Report> Reports => Set<Report>();
     public DbSet<Follow> Follows => Set<Follow>();
+    public DbSet<SavedPlace> SavedPlaces => Set<SavedPlace>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -50,6 +51,16 @@ public class AppDbContext : DbContext
             entity.HasIndex(r => new { r.ReporterId, r.TargetType, r.TargetId }).IsUnique();
             entity.HasIndex(r => new { r.TargetType, r.TargetId });
             entity.HasOne<User>().WithMany().HasForeignKey(r => r.ReporterId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SavedPlace>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.HasIndex(p => new { p.UserId, p.PlaceId }).IsUnique();
+            entity.HasIndex(p => new { p.UserId, p.CreatedAtUtc });
+            entity.Property(p => p.Name).IsRequired().HasMaxLength(SavedPlaceRules.MaxNameLength);
+            entity.Property(p => p.Category).HasMaxLength(SavedPlaceRules.MaxCategoryLength);
+            entity.HasOne<User>().WithMany().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Follow>(entity =>

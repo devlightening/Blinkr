@@ -44,5 +44,8 @@
     "title": "This account is private",
     "body": "Follow to see their signals.",
     "badge": "Private account"
+  },
+  "saved": {
+    "synced": "Kept on your account"
   }
 }
