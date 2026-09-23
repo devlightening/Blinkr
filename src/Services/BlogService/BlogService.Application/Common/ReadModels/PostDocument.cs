@@ -31,6 +31,13 @@ public class PostDocument
     public DateTime? UpdatedAtUtc { get; set; }
 
     public int LikeCount { get; set; }
+    /// <summary>
+    /// Who has liked this post right now (an unlike removes the id). Must match
+    /// `Blinkr.Projections.Worker.Documents.PostDocument.LikedByUserIds` and
+    /// `BlogService.Infrastructure.ReadModels.PostDocument.LikedByUserIds`.
+    /// </summary>
+    [BsonRepresentation(BsonType.String)]
+    public List<Guid> LikedByUserIds { get; set; } = new();
     public List<PostCommentReadModel> Comments { get; set; } = new();
 
     [BsonIgnore]
@@ -59,6 +66,10 @@ public class PostCommentReadModel
     [BsonRepresentation(BsonType.String)]
     public Guid Id { get; set; }
     public Guid AuthorId { get; set; }
+    [BsonIgnoreIfNull]
+    public string? AuthorName { get; set; }
+    [BsonIgnoreIfNull]
+    public Guid? ParentCommentId { get; set; }
     public string Text { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
 }

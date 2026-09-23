@@ -6,7 +6,7 @@ import { toAbsoluteUrl } from '../api';
 import { formatAge, formatCategory, formatDistance, meaningfulTitle, signalLabels } from '../presentation';
 import { isPlaceSaved, savePlace, unsavePlace } from '../savedPlaces';
 import { categoryTone, colors, radii, signalColors, spacing, typography } from '../theme';
-import type { BlinkrMedia, BlinkrPlace, CoordinateSignal, RecentSignal, SignalType } from '../types';
+import type { AuthResponse, BlinkrMedia, BlinkrPlace, CoordinateSignal, RecentSignal, SignalType } from '../types';
 import type { ReportReasonId } from '../friends';
 import { recheckSignal, signalValueLabel, trustLabel } from '../productPresentation';
 import { AnimatedPressable } from './AnimatedPressable';
@@ -15,6 +15,7 @@ import { Sheet } from './Sheet';
 import { SignalSymbol } from './SignalSymbol';
 import { PlaceSymbol } from './PlaceSymbol';
 import { VideoPreview } from './VideoPreview';
+import { SignalThreadPanel } from './signal/SignalThreadPanel';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { BlinkrChip } from './ui/BlinkrChip';
 import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
@@ -23,6 +24,11 @@ import { BlinkrSignalCard } from './ui/BlinkrSignalCard';
 import { StatRow } from './ui/BlinkrStatRow';
 
 type Props = {
+  /** Signed-in session: likes and comments. Without it the thread is read-only. */
+  auth?: AuthResponse | null;
+  refresh?: { onAuthRefresh?: (auth: AuthResponse) => void; onSessionExpired?: () => void };
+  /** Reports a person (a comment's author). Rejects with the failure to show. */
+  onReportUser?: (userId: string, reason: ReportReasonId, note: string) => Promise<void>;
   isLoading: boolean;
   onClose: () => void;
   onCreateSignal: () => void;
@@ -114,7 +120,7 @@ const ReportLink = ({ onPress }: { onPress: () => void }) => (
   </AnimatedPressable>
 );
 
-const SignalItem = ({ signal, index, onReport }: { signal: RecentSignal; index: number; onReport?: () => void }) => {
+const SignalItem = ({ signal, index, onReport, onOpenThread }: { signal: RecentSignal; index: number; onReport?: () => void; onOpenThread?: () => void }) => {
   const type = signal.signalType ?? 'GeneralObservation';
   const firstMedia = signal.media?.[0];
   return (
@@ -130,21 +136,30 @@ const SignalItem = ({ signal, index, onReport }: { signal: RecentSignal; index: 
         trustLabel={trustLabel(signal.publicationTrust)}
         typeLabel={signalLabels[type] ?? 'Sinyal'}
       />
-      {onReport ? <ReportLink onPress={onReport} /> : null}
+      <View style={styles.itemLinks}>
+        {onOpenThread ? (
+          <AnimatedPressable accessibilityLabel="Beğeni ve yorumlar" accessibilityRole="button" onPress={onOpenThread} pressScale={0.97} style={styles.reportLink} testID={`open-thread-${signal.postId}`}>
+            <MessageCircle color={colors.textSecondary} size={14} />
+            <Text style={styles.reportText}>Yorumlar</Text>
+          </AnimatedPressable>
+        ) : null}
+        {onReport ? <ReportLink onPress={onReport} /> : null}
+      </View>
     </View>
   );
 };
 
-export function PostDetailSheet({ isLoading, onClose, onCreateSignal, onRecheck, onReportSignal, place, signal, userId }: Props) {
+export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading, onClose, onCreateSignal, onRecheck, onReportSignal, place, signal, userId }: Props) {
   const state = place?.currentState;
   const recheck = onRecheck ? recheckSignal(state) : null;
   const recentSignals = place?.recentSignals ?? [];
   const visible = Boolean(place || signal);
   const [saved, setSaved] = useState(false);
-  const [reportTarget, setReportTarget] = useState<{ postId: string; label: string } | null>(null);
+  const [reportTarget, setReportTarget] = useState<{ postId?: string; userId?: string; label: string } | null>(null);
+  const [thread, setThread] = useState<RecentSignal | null>(null);
 
-  // A different place or signal closes any half-filled report.
-  useEffect(() => { setReportTarget(null); }, [place?.id, signal?.postId]);
+  // A different place or signal closes any half-filled report and any open thread.
+  useEffect(() => { setReportTarget(null); setThread(null); }, [place?.id, signal?.postId]);
 
   useEffect(() => {
     let active = true;
@@ -172,17 +187,32 @@ export function PostDetailSheet({ isLoading, onClose, onCreateSignal, onRecheck,
 
   return (
     <Sheet onClose={onClose}>
-      {reportTarget && onReportSignal ? (
+      {reportTarget && (reportTarget.userId ? onReportUser : onReportSignal) ? (
         <BlinkrSheetPanel maxHeightRatio={0.9}>
           <ReportPanel
             onDone={() => setReportTarget(null)}
-            onSubmit={(reason, note) => onReportSignal(reportTarget.postId, reason, note)}
+            onSubmit={(reason, note) => (reportTarget.userId
+              ? onReportUser!(reportTarget.userId, reason, note)
+              : onReportSignal!(reportTarget.postId ?? '', reason, note))}
             subject={reportTarget.label}
-            target="signal"
+            target={reportTarget.userId ? 'user' : 'signal'}
           />
         </BlinkrSheetPanel>
       ) : null}
-      {!reportTarget && signal && !place && (
+      {!reportTarget && thread ? (
+        <BlinkrSheetPanel maxHeightRatio={0.92}>
+          <SignalThreadPanel
+            auth={auth}
+            header={<SignalItem index={0} signal={thread} />}
+            onBack={place ? () => setThread(null) : undefined}
+            onClose={onClose}
+            onReport={(target) => setReportTarget(target.kind === 'user' ? { userId: target.userId, label: target.label } : { postId: thread.postId, label: thread.title || target.label })}
+            postId={thread.postId}
+            refresh={refresh}
+          />
+        </BlinkrSheetPanel>
+      ) : null}
+      {!reportTarget && !thread && signal && !place && (
         <BlinkrSheetPanel maxHeightRatio={0.88}>
           <View style={styles.header}>
             <View style={[styles.signalIcon, { borderColor: signalColors[signal.signalType] ?? colors.mint }]}>
@@ -212,12 +242,27 @@ export function PostDetailSheet({ isLoading, onClose, onCreateSignal, onRecheck,
               tone={signalColors[signal.signalType] ?? colors.mint}
               typeLabel={signalLabels[signal.signalType ?? 'GeneralObservation'] ?? 'Sinyal'}
             />
-            {onReportSignal && signal.postId ? <ReportLink onPress={() => setReportTarget({ postId: signal.postId, label: signal.title || 'Yaklaşık konum sinyali' })} /> : null}
+            <View style={styles.itemLinks}>
+              {signal.postId ? (
+                <AnimatedPressable
+                  accessibilityLabel="Beğeni ve yorumlar"
+                  accessibilityRole="button"
+                  onPress={() => setThread({ postId: signal.postId, title: signal.title, text: signal.content ?? signal.textPreview, signalType: signal.signalType, signalValue: signal.signalValue, createdAtUtc: signal.createdAtUtc, authorName: signal.authorPreview, media: signal.media })}
+                  pressScale={0.97}
+                  style={styles.reportLink}
+                  testID="open-thread-signal"
+                >
+                  <MessageCircle color={colors.textSecondary} size={14} />
+                  <Text style={styles.reportText}>Beğeni ve yorumlar</Text>
+                </AnimatedPressable>
+              ) : null}
+              {onReportSignal && signal.postId ? <ReportLink onPress={() => setReportTarget({ postId: signal.postId, label: signal.title || 'Yaklaşık konum sinyali' })} /> : null}
+            </View>
           </ScrollView>
         </BlinkrSheetPanel>
       )}
 
-      {!reportTarget && place && (
+      {!reportTarget && !thread && place && (
         <BlinkrSheetPanel maxHeightRatio={0.9}>
           <ScrollView showsVerticalScrollIndicator={false}>
             <PhotoRail signals={recentSignals} />
@@ -309,7 +354,7 @@ export function PostDetailSheet({ isLoading, onClose, onCreateSignal, onRecheck,
               />
             ) : (
               <View style={styles.signalList}>
-                {recentSignals.map((item, index) => <SignalItem index={index} key={item.postId} onReport={onReportSignal ? () => setReportTarget({ postId: item.postId, label: item.title || `${place.name} sinyali` }) : undefined} signal={item} />)}
+                {recentSignals.map((item, index) => <SignalItem index={index} key={item.postId} onOpenThread={() => setThread(item)} onReport={onReportSignal ? () => setReportTarget({ postId: item.postId, label: item.title || `${place.name} sinyali` }) : undefined} signal={item} />)}
               </View>
             )}
           </ScrollView>
@@ -352,7 +397,8 @@ const styles = StyleSheet.create({
   primaryAction: { flexBasis: 146, flexGrow: 1, minWidth: 146, paddingHorizontal: 10 },
   actionTile: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, gap: 4, justifyContent: 'center', minHeight: 56, width: 54 },
   actionLabel: { ...typography.micro, color: colors.text },
-  reportLink: { alignItems: 'center', alignSelf: 'flex-end', flexDirection: 'row', gap: 4, minHeight: 36, paddingHorizontal: spacing.sm },
+  itemLinks: { flexDirection: 'row', gap: spacing.xs, justifyContent: 'flex-end' },
+  reportLink: { alignItems: 'center', flexDirection: 'row', gap: 4, minHeight: 36, paddingHorizontal: spacing.sm },
   reportText: { ...typography.label, color: colors.textSecondary, fontWeight: '400' },
   sectionHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm, marginTop: spacing.lg },
   sectionLabel: { ...typography.heading, color: colors.text },

@@ -1,4 +1,15 @@
 {
   "generic": "Can't connect right now. Please try again.",
-  "networkRequestFailed": "Couldn't connect. Check your internet and try again."
+  "networkRequestFailed": "Couldn't connect. Check your internet and try again.",
+  "engagement": {
+    "cannotLikeOwn": "You can't like your own signal.",
+    "commentEmpty": "A comment can't be empty.",
+    "commentTooLong": "A comment can be at most 500 characters.",
+    "commentForbidden": "Only the comment's author or the signal's owner can delete it.",
+    "notFound": "This signal is gone or has expired.",
+    "likeFailed": "Couldn't save your like. Try again.",
+    "commentFailed": "Couldn't send your comment. Try again.",
+    "deleteFailed": "Couldn't delete the comment. Try again.",
+    "loadFailed": "Couldn't load comments."
+  }
 }

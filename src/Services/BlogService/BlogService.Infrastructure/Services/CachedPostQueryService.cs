@@ -44,6 +44,7 @@ public class CachedPostQueryService : IPostQueryService
         return await GetByIdAsync(postId, cancellationToken);
     }
 
+
     public async Task<PostReadDto?> GetByIdAsync(Guid postId, CancellationToken cancellationToken = default)
     {
         var cacheKey = $"post:detail:{postId}";
@@ -688,6 +689,11 @@ public class CachedPostQueryService : IPostQueryService
             ExpiresAt = doc.ExpiresAt,
             LikeCount = doc.LikeCount,
             CommentCount = doc.CommentCount,
+            // Known limitation: this DTO is cached per-post (not per-viewer, see GetByIdAsync above),
+            // so a real per-user like state cannot be baked in here without leaking between users.
+            // The endpoint the mobile client actually calls for single-post detail (GET /api/posts/{id})
+            // does not go through this cached path - see GetPostByIdQueryHandler instead, which answers
+            // this correctly per request.
             IsLikedByCurrentUser = false,
             Comments = new(),
             Media = doc.Media?.Select(m => new MediaDto

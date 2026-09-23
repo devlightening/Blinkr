@@ -28,6 +28,13 @@ namespace Blinkr.Projections.Worker.Documents
         public DateTime? UpdatedAtUtc { get; set; }
 
         public int LikeCount { get; set; }
+        /// <summary>
+        /// Who has liked this post right now (not who ever has - an unlike removes the id). Lets a
+        /// per-request "did I like this?" check avoid poisoning the shared, user-independent
+        /// PostReadDto cache (kök CLAUDE.md §16: "Cache source of truth olmasin").
+        /// </summary>
+        [BsonRepresentation(BsonType.String)]
+        public List<Guid> LikedByUserIds { get; set; } = new List<Guid>();
         public List<Comment> Comments { get; set; } = new List<Comment>();
         
         /// <summary>

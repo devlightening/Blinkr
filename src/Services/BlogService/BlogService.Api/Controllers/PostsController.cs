@@ -133,23 +133,74 @@ public class PostsController : ControllerBase
     [Authorize(Policy = "api.write")]
     public async Task<IActionResult> AddComment(Guid postId, [FromBody] AddCommentDto dto)
     {
-        // DÜZELTME: CreatePostCommentCommand'in beklediği AuthorId'yi ekliyoruz.
         var authorId = User.GetUserId() ?? throw new UnauthorizedAccessException();
-        var command = new CreatePostCommentCommand(postId, dto.CommentText, authorId, dto.ParentCommentId);
+        var authorName = User.FindFirst("preferred_username")?.Value
+                      ?? User.FindFirst("name")?.Value
+                      ?? User.Identity?.Name;
+        var text = dto.CommentText?.Trim() ?? string.Empty;
+        if (text.Length == 0) return BadRequest(new { code = "COMMENT_EMPTY" });
+        if (text.Length > 500) return BadRequest(new { code = "COMMENT_TOO_LONG" });
 
-        var commentId = await _mediator.Send(command);
-        return Ok(new { CommentId = commentId });
+        try
+        {
+            var command = new CreatePostCommentCommand(postId, text, authorId, dto.ParentCommentId, authorName);
+            var commentId = await _mediator.Send(command);
+            return Ok(new { CommentId = commentId });
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new { code = "NOT_FOUND" });
+        }
+        catch (InvalidOperationException)
+        {
+            return NotFound(new { code = "NOT_FOUND" });
+        }
     }
 
+    /// <summary>DELETE /api/posts/{postId}/comments/{commentId} - comment author or post author; replies go with it.</summary>
+    [HttpDelete("{postId:guid}/comments/{commentId:guid}")]
+    [Authorize(Policy = "api.write")]
+    public async Task<IActionResult> RemoveComment(Guid postId, Guid commentId)
+    {
+        var userId = User.GetUserId() ?? throw new UnauthorizedAccessException();
+        try
+        {
+            await _mediator.Send(new RemovePostCommentCommand(postId, commentId, userId));
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new { code = "NOT_FOUND" });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { code = "COMMENT_FORBIDDEN" });
+        }
+    }
+
+    /// <summary>POST /api/posts/{postId}/likes toggles; answers { liked } (the state after the toggle).</summary>
     [HttpPost("{postId:guid}/likes")]
     [Authorize(Policy = "api.write")]
     public async Task<IActionResult> AddLike(Guid postId)
     {
-        // Get authenticated user ID - will be used by handler via ICurrentUserService
-        var userId = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated");
-        var command = new CreatePostLikeCommand(postId); // UserId handled by ICurrentUserService in handler
-        await _mediator.Send(command);
-        return Ok();
+        _ = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated");
+        try
+        {
+            var liked = await _mediator.Send(new CreatePostLikeCommand(postId)); // UserId via ICurrentUserService
+            return Ok(new { liked });
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new { code = "NOT_FOUND" });
+        }
+        catch (FluentValidation.ValidationException)
+        {
+            return BadRequest(new { code = "CANNOT_LIKE_OWN" });
+        }
+        catch (System.ComponentModel.DataAnnotations.ValidationException)
+        {
+            return BadRequest(new { code = "CANNOT_LIKE_OWN" });
+        }
     }
 
     // --- READ ENDPOINTS ---
@@ -158,7 +209,7 @@ public class PostsController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var post = await _mediator.Send(new GetPostByIdQuery(id));
+        var post = await _mediator.Send(new GetPostByIdQuery(id, User.GetUserId()));
         return post is null ? NotFound() : Ok(post);
     }
 
@@ -203,48 +254,25 @@ public class PostsController : ControllerBase
     }
 
     /// <summary>
-    /// GET /api/posts/{id}/comments - Get paginated comments for a post
+    /// GET /api/posts/{id}/comments?page&pageSize&sort=newest|oldest - top-level comments with their replies.
     /// </summary>
     [HttpGet("{postId:guid}/comments")]
     [AllowAnonymous]
-    [ProducesResponseType(typeof(PaginatedCommentsResponse), 200)]
+    [ProducesResponseType(typeof(PostCommentThreadPageDto), 200)]
     public async Task<IActionResult> GetComments(
         Guid postId,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string sort = "newest")
     {
         if (page < 1) page = 1;
-        if (pageSize < 1 || pageSize > 50) pageSize = 10;
+        if (page > 1000) page = 1000;
+        if (pageSize < 1 || pageSize > 50) pageSize = 20;
 
-        var post = await _postQueryService.GetPostByIdAsync(postId);
-        if (post == null)
-        {
-            return NotFound(new { message = "Post not found" });
-        }
-
-        // Get comments from post's Comments array
-        var allComments = post.Comments ?? new List<CommentDto>();
-        var totalCount = allComments.Count;
-        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
-
-        // Apply pagination
-        var paginatedComments = allComments
-            .OrderByDescending(c => c.CreatedAtUtc)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
-
-        var response = new PaginatedCommentsResponse
-        {
-            PostId = postId,
-            Items = paginatedComments,
-            Page = page,
-            PageSize = pageSize,
-            TotalCount = totalCount,
-            TotalPages = totalPages
-        };
-
-        return Ok(response);
+        var result = await _mediator.Send(new GetPostCommentsQuery(postId, User.GetUserId(), page, pageSize, sort));
+        if (result is null) return NotFound(new { code = "NOT_FOUND" });
+        Response.Headers.CacheControl = "private, no-store";
+        return Ok(result);
     }
 
     [HttpGet]

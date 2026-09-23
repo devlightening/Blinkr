@@ -38,6 +38,14 @@ public class PostDocument
     public DateTime? UpdatedAtUtc { get; set; }
 
     public int LikeCount { get; set; }
+    /// <summary>
+    /// Who has liked this post right now (not who ever has - an unlike removes the id). Used to
+    /// answer "did I like this?" per request, outside the shared PostReadDto cache (kök CLAUDE.md
+    /// §16: "Cache source of truth olmasin") so one user's like state never leaks to another's cached
+    /// read. Must match `Blinkr.Projections.Worker.Documents.PostDocument.LikedByUserIds`.
+    /// </summary>
+    [BsonRepresentation(MongoDB.Bson.BsonType.String)]
+    public List<Guid> LikedByUserIds { get; set; } = new();
     public List<CommentEntity> Comments { get; set; } = new();
     public List<MediaEntity> Media { get; set; } = new();
 
@@ -67,12 +75,18 @@ public class PostDocument
 
 public class CommentEntity
 {
+    /// <summary>The projection worker stores a comment id as a string (Blinkr.Projections.Worker.Entities.Comment);
+    /// reading it as a binary GUID threw on every post that had a comment.</summary>
     [BsonId]
-    [BsonGuidRepresentation(MongoDB.Bson.GuidRepresentation.Standard)]
+    [BsonRepresentation(MongoDB.Bson.BsonType.String)]
     public Guid Id { get; set; }
     
     [BsonGuidRepresentation(MongoDB.Bson.GuidRepresentation.Standard)]
     public Guid AuthorId { get; set; }
+    [BsonIgnoreIfNull]
+    public string? AuthorName { get; set; }
+    [BsonIgnoreIfNull]
+    public Guid? ParentCommentId { get; set; }
     public string Text { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
 }

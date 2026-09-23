@@ -558,6 +558,41 @@ async function main() {
     if (!sentSignal || sentSignal.targetType !== 'signal' || sentSignal.targetId !== 'post-a' || sentSignal.reason !== 'wrong_info') throw new Error('Signal report wrong: ' + JSON.stringify(sentSignal));
     await page.getByRole('button', { name: 'Tamam' }).click();
     await expect(page.getByText('Son sinyaller')).toBeVisible();
+    // Faz 4: likes and comments on a signal, inside the same sheet (no second sheet).
+    await page.goto(url + '?scene=reportableDetail');
+    await page.getByTestId('open-thread-post-a').click();
+    await expect(page.getByRole('heading', { name: 'Yorumlar' })).toBeVisible();
+    await expect(page.getByText('Sıra ne kadar?')).toBeVisible();
+    await expect(page.getByText('5 dakika kadar')).toBeVisible();
+    await expect(page.getByText('Teşekkürler')).toHaveCount(0); // second reply collapsed
+    await page.getByText('1 yanıtı gör').click();
+    await expect(page.getByText('Teşekkürler')).toBeVisible();
+    await expect(page.getByText('Paylaşan').first()).toBeVisible();
+    await expect(page.getByTestId('like-button')).toContainText('3');
+    await page.getByTestId('like-button').click();
+    await expect(page.getByTestId('like-button')).toContainText('4');
+    await expect(page.getByRole('button', { name: 'Beğeniyi geri al' })).toBeVisible();
+    await page.getByTestId('comment-input').fill('Şimdi boş mu?');
+    await page.getByTestId('comment-send').click();
+    await expect(page.getByText('Şimdi boş mu?')).toBeVisible();
+    await expect(page.getByTestId('comment-input')).toHaveValue('');
+    await page.getByRole('button', { name: 'Yanıtla' }).first().click();
+    await expect(page.getByText(/kişisine yanıt$/)).toBeVisible();
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'signal-thread.png') });
+    await page.getByRole('button', { name: 'Yanıtı iptal et' }).click();
+    await page.getByRole('button', { name: 'Yorum seçenekleri' }).first().click();
+    await page.getByRole('button', { name: 'Sil', exact: true }).click();
+    await expect(page.getByText('Yorumu sil?')).toBeVisible();
+    await page.getByRole('button', { name: 'Sil', exact: true }).click();
+    await expect(page.getByText('Şimdi boş mu?')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Geri', exact: true }).click();
+    await expect(page.getByText('Son sinyaller')).toBeVisible();
+    // A failed like rolls back and says so in plain words.
+    await page.goto(url + '?scene=reportableDetail&likefail');
+    await page.getByTestId('open-thread-post-a').click();
+    await page.getByTestId('like-button').click();
+    await expect(page.getByText('Beğeni kaydedilemedi. Tekrar dene.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Beğen', exact: true })).toBeVisible();
     // Blocking a person: two-step confirm, the blocked profile offers only "unblock", and unblocking restores the normal buttons.
     await page.goto(url + '?scene=personProfile&who=u-melis');
     await page.getByRole('button', { name: 'Engelle', exact: true }).click();

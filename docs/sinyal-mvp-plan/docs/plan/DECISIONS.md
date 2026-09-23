@@ -15,6 +15,27 @@
 
 ## Kararlar
 
+### D-006 — Faz 4 kapsamı: yorum/beğeni gerçek bug'larla birlikte, @bahsetme/yorum beğenisi/medya görüntüleyici ertelendi (2026-09-23)
+- Bağlam: Faz 4'e başlarken "yorum/beğeni zaten var" sanılan backend'de birbirine bağlı gerçek bug'lar
+  çıktı: (1) `PostUnlikedConsumer` yanlış dosyadaydı ve sayacı negatife düşürebiliyordu; (2)
+  `IsLikedByCurrentUser` hep `false`'du, read model'de kim beğendi (`LikedByUserIds`) yoktu; (3)
+  `GET /api/posts/{id}/comments` her zaman boş liste dönüyordu (paylaşılan önbellekteki DTO'da
+  `Comments = new()`); (4) Infrastructure `CommentEntity.Id` binary GUID okunuyordu, worker ise string
+  yazıyor — yorumu olan her gönderiyi okumak patlardı; (5) kendi gönderini beğenmek 500 dönüyordu; (6)
+  var olmayan bir gönderiye beğeni/yorum/güncelleme yeni bir EventStore akışı açıyordu (yeni aggregate
+  `Guid.Empty` değil rastgele Id alıyor, `Id == Guid.Empty` kontrolü hiç tutmuyordu → `Version < 0`).
+- Karar: Bu bug'lar düzeltildi; yorumlara yanıt (tek seviye), yazar adı, silme (yeni
+  `PostCommentRemovedEvent` → worker `post-comment-removed`), anonim gönderide yazarın kendi yorumunda
+  kimliğin gizlenmesi eklendi; mobilde aynı sheet içinde `SignalThreadPanel` (beğeni, yorum, yanıt,
+  sil, bildir, iyimser güncelleme + geri alma, 8 sn polling). **Ertelenenler:** @bahsetme çözümleme ve
+  bildirimi, yorum beğenisi (çift dokunma), yorum kapatma, moderasyon kancası (Faz 10), tam ekran medya
+  görüntüleyici (P4.7), beğenenler listesi (P4.8 — Identity'de toplu kullanıcı özeti uç noktası gerekir,
+  Faz 6 takipçi listeleriyle birlikte yapılacak).
+- Gerekçe: Önce var olanın doğru çalışması (kök CLAUDE.md §2.1 "Reliability is product value");
+  realtime D-005 gereği polling.
+- Etki: Yeni kabul testi `scripts/test-post-engagement.ps1` (BLK-ENGAGE-01) `test-product-08.ps1`'e eklendi.
+  `PostCommentAddedEvent`/`PostLikedEvent`'e eklenen alanlar isteğe bağlı (eski olaylar okunur).
+
 ### D-005 — P2.10 realtime gateway: dokunulmuyor, REST polling korunuyor (2026-09-22)
 - Bağlam: D-004, P2.10'u (socket.io tarzı realtime gateway) kök CLAUDE.md §6.5'in bilinçli REST
   polling kararıyla çeliştiği için kullanıcı onayına bloke etmişti.

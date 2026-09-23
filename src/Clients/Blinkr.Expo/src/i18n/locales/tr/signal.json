@@ -14,5 +14,51 @@
     "changed": "Değişti"
   },
   "live": "Canlı",
-  "drop": "Sinyal bırak"
+  "drop": "Sinyal bırak",
+  "engagement": {
+    "like": "Beğen",
+    "unlike": "Beğeniyi geri al",
+    "likes_one": "{{count}} beğeni",
+    "likes_other": "{{count}} beğeni",
+    "comments_one": "{{count}} yorum",
+    "comments_other": "{{count}} yorum",
+    "openComments": "Yorumları aç",
+    "viewLikers": "Beğenenleri gör"
+  },
+  "comments": {
+    "title": "Yorumlar",
+    "sortNewest": "En yeni",
+    "sortOldest": "En eski",
+    "empty": "Henüz yorum yok",
+    "emptyHint": "Bu yer hakkında bir şey sor ya da bildiğini yaz.",
+    "placeholder": "Yorum ekle…",
+    "replyPlaceholder": "{{name}} kişisine yanıt ver…",
+    "replyingTo": "{{name}} kişisine yanıt",
+    "cancelReply": "Yanıtı iptal et",
+    "reply": "Yanıtla",
+    "showReplies_one": "{{count}} yanıtı gör",
+    "showReplies_other": "{{count}} yanıtı gör",
+    "hideReplies": "Yanıtları gizle",
+    "delete": "Sil",
+    "deleteConfirm": "Yorumu sil?",
+    "deleteConfirmHint": "Yanıtları da silinir. Bu geri alınamaz.",
+    "report": "Bildir",
+    "author": "Paylaşan",
+    "sending": "Gönderiliyor",
+    "loadMore": "Daha fazla yorum",
+    "send": "Gönder",
+    "options": "Yorum seçenekleri",
+    "remaining": "{{count}} karakter kaldı",
+    "readOnly": "Yorum yapmak için giriş yap."
+  },
+  "likers": {
+    "title": "Beğenenler",
+    "empty": "Henüz beğenen yok"
+  },
+  "viewer": {
+    "close": "Görüntüleyiciyi kapat",
+    "zoomHint": "Yakınlaştırmak için iki parmakla aç, kapatmak için aşağı kaydır",
+    "counter": "{{index}} / {{total}}"
+  },
+  "back": "Geri"
 }

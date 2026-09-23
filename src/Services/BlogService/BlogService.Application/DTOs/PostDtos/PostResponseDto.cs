@@ -21,6 +21,8 @@
         // Engagement
         public int LikeCount { get; set; }
         public int CommentCount { get; set; }
+        /// <summary>Whether the requesting user currently has this post liked (false for an anonymous caller).</summary>
+        public bool IsLikedByCurrentUser { get; set; }
         
         // Location
         public string? LocationName { get; set; }

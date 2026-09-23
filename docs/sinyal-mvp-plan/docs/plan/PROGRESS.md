@@ -7,8 +7,8 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz 3 — backend'e bağımlı olmayan tüm alt maddeler bitti |
-| Son tamamlanan görev | P3.13 (harita aramasına Kişiler sekmesi eklendi) |
+| Aktif faz | Faz 4 — beğeni/yorum çekirdeği tamam (D-006) |
+| Son tamamlanan görev | P4.1-P4.6 (beğeni/yorum backend düzeltmeleri + SignalThreadPanel) |
 | Son güncelleme | 2026-09-23 |
 | Engelleyici | Faz 3'ün geri kalanı (P3.5-P3.7, P3.9, P3.11-P3.12) Faz 4/6/9 backend'ine bağımlı. Sıradaki mantıklı adım: Faz 4'ün backend'i (.NET'te yorum/beğeni uç noktaları) — Sinyal Kartı'nın geri kalanının önünü açar. |
 
@@ -166,14 +166,14 @@ takip özelliği gelince ayrı bir karar kaydı (D-00X) ile netleştirilmeli.
 
 ## Faz 4 — Gönderi detayı, yorumlar, medya görüntüleyici
 
-- [ ] P4.1 Backend: yorum uç noktaları, yanıtlar, beğeni, @bahsetme çözümleme, yorum kapatma, moderasyon kancası
-- [ ] P4.2 Gönderi detayı ekranı; karttan paylaşılan öğe geçişi
-- [ ] P4.3 Yorum listesi (sıralama: öne çıkan/en yeni), yanıtlar, "n yanıtı gör", sonsuz kaydırma
-- [ ] P4.4 CommentInput: klavyeye yapışık, hızlı emoji satırı, @ otomatik tamamlama, yanıtla modu
-- [ ] P4.5 Yorum eylemleri: beğen (çift dokunma), uzun basma menüsü, sil, bildir; "Paylaşan" rozeti
-- [ ] P4.6 Realtime yeni yorum; optimistic gönderim + hata geri alma
-- [ ] P4.7 Tam ekran medya görüntüleyici: pinch-zoom, kaydırarak kapatma, video kontrolleri
-- [ ] P4.8 Tepki verenler listesi (alt sayfa)
+- [~] P4.1 Backend: yorum uç noktaları, yanıtlar, beğeni — **6 gerçek bug düzeltildi (D-006)**, yanıt (tek seviye), yazar adı, silme (`PostCommentRemovedEvent`), `{ liked }` cevabı, hata kodları (`CANNOT_LIKE_OWN`, `COMMENT_EMPTY`, `COMMENT_TOO_LONG`, `COMMENT_FORBIDDEN`, `NOT_FOUND`), anonim gönderide yazar kimliği gizli. Kanıt: `test-post-engagement.ps1` (BLK-ENGAGE-01) PASS. **Ertelendi:** @bahsetme, yorum kapatma, moderasyon kancası (Faz 10).
+- [x] P4.2 Gönderi detayı — `components/signal/SignalThreadPanel.tsx`, mevcut detay sheet'inin içinde (ikinci sheet yok, rapor paneliyle aynı desen). Paylaşılan öğe geçiş animasyonu yok.
+- [x] P4.3 Yorum listesi: En yeni/En eski (öne çıkan yok — yorum beğenisi olmadan anlamsız), yanıtlar, "n yanıtı gör", "Daha fazla yorum" sayfalama.
+- [~] P4.4 CommentInput: yanıtla modu, 500 karakter sayacı. Emoji satırı ve @ tamamlama ertelendi (D-006).
+- [~] P4.5 Yorum eylemleri: ⋯ menüsü, iki adımlı sil, bildir (yazarı; anonim yazar için sinyal), "Paylaşan" rozeti. Yorum beğenisi ertelendi (D-006).
+- [x] P4.6 İyimser beğeni/yorum/silme + hata geri alma (yazılan metin kaybolmaz); "realtime" D-005 gereği 8 sn polling (yalnız panel açıkken).
+- [-] P4.7 Tam ekran medya görüntüleyici — ertelendi (D-006).
+- [-] P4.8 Beğenenler listesi — ertelendi, Faz 6 toplu kullanıcı özeti uç noktasına bağlı (D-006).
 
 ## Faz 5 — Kamera ve oluşturma akışı
 

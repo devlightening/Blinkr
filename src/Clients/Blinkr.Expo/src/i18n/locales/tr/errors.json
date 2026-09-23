@@ -1,4 +1,15 @@
 {
   "generic": "Şu anda bağlantı kurulamıyor. Lütfen tekrar dene.",
-  "networkRequestFailed": "Bağlantı kurulamadı. İnternetini kontrol edip tekrar dene."
+  "networkRequestFailed": "Bağlantı kurulamadı. İnternetini kontrol edip tekrar dene.",
+  "engagement": {
+    "cannotLikeOwn": "Kendi sinyalini beğenemezsin.",
+    "commentEmpty": "Yorum boş olamaz.",
+    "commentTooLong": "Yorum en fazla 500 karakter olabilir.",
+    "commentForbidden": "Bu yorumu yalnız yazarı veya sinyalin sahibi silebilir.",
+    "notFound": "Bu sinyal artık yok ya da süresi doldu.",
+    "likeFailed": "Beğeni kaydedilemedi. Tekrar dene.",
+    "commentFailed": "Yorum gönderilemedi. Tekrar dene.",
+    "deleteFailed": "Yorum silinemedi. Tekrar dene.",
+    "loadFailed": "Yorumlar yüklenemedi."
+  }
 }

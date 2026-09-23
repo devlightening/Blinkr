@@ -7,7 +7,7 @@ using FluentValidation;
 
 namespace BlogService.Application.Features.Mediatr.Handlers.PostLikeHandlers.PostLikeWriteHandlers;
 
-public class CreatePostLikeCommandHandler : IRequestHandler<CreatePostLikeCommand, Unit>
+public class CreatePostLikeCommandHandler : IRequestHandler<CreatePostLikeCommand, bool>
 {
     private readonly IEventStoreRepository _eventStoreRepo;
     private readonly ICurrentUserService _currentUser;
@@ -23,13 +23,13 @@ public class CreatePostLikeCommandHandler : IRequestHandler<CreatePostLikeComman
         _logger = logger;
     }
 
-    public async Task<Unit> Handle(CreatePostLikeCommand request, CancellationToken cancellationToken)
+    public async Task<bool> Handle(CreatePostLikeCommand request, CancellationToken cancellationToken)
     {
         var userId = _currentUser.UserId ?? throw new UnauthorizedAccessException("Authentication required.");
 
         // Load aggregate from EventStore (source of truth)
         var postAggregate = await _eventStoreRepo.LoadAsync<PostAggregate>(request.PostId, cancellationToken);
-        if (postAggregate.Id == Guid.Empty)
+        if (postAggregate.Version < 0 || postAggregate.IsDeleted) // no events = no such post (a new aggregate gets a random Id, never Guid.Empty)
         {
             _logger.LogWarning("WS-06: PostLike validation failed - Post not found (PostId={PostId})", request.PostId);
             throw new KeyNotFoundException($"Post with ID '{request.PostId}' not found.");
@@ -70,6 +70,6 @@ public class CreatePostLikeCommandHandler : IRequestHandler<CreatePostLikeComman
         // EventStoreToRabbitMqPublisher publishes the integration event after the domain event is persisted.
         await _eventStoreRepo.SaveAsync(postAggregate, cancellationToken);
 
-        return Unit.Value;
+        return !alreadyLiked;
     }
 }

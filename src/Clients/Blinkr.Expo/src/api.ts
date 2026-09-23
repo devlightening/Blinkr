@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, CreateSignalInput, MediaKind, UnifiedMapResponse, PlacePresence, SnapOpenResult, UserSummary, AuthoredPost, Friend, FriendRequests, MyProfile, PublicProfile, Relation, BlockedUser } from './types';
 import { resolveUploadContentType, safeUploadFileName } from './mediaContentType';
+import { COMMENT_PAGE_SIZE, type CommentPage, type CommentSort } from './engagement';
 
 type NearbyPlacesResponse = Array<BlinkrPlace & { distanceMeters?: number }> & {
   coverageState?: string | null;
@@ -386,6 +387,40 @@ export const sendReport = (
   report: { targetType: 'user' | 'signal'; targetId: string; reason: string; note?: string },
   refresh: Refresh = {},
 ) => requestJson<{ reported: boolean }>('/api/reports', { auth, body: report, method: 'POST', ...refresh });
+
+/** Thrown when the server answers with a known `code` (e.g. `CANNOT_LIKE_OWN`), so the UI can show a translated message. */
+export class ApiCodeError extends Error {
+  constructor(public code: string, public status: number) { super(code); this.name = 'ApiCodeError'; }
+}
+
+const requestCoded = async <T>(path: string, options: RequestOptions = {}): Promise<T | null> => {
+  const response = await request(path, options);
+  if (!response.ok) {
+    const raw = await response.text();
+    let code: string | null = null;
+    try { code = (JSON.parse(raw) as { code?: string }).code ?? null; } catch { /* not JSON */ }
+    throw new ApiCodeError(code ?? (response.status === 404 ? "NOT_FOUND" : "UNKNOWN"), response.status);
+  }
+  if (response.status === 204) return null;
+  const text = await response.text();
+  return text ? (JSON.parse(text) as T) : null;
+};
+
+/** Likes and comments (engagement.ts has the contract). */
+export const getPostEngagement = (auth: AuthResponse | null, postId: string, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<{ likeCount: number; commentCount: number; isLikedByCurrentUser: boolean; authorId: string }>(`/api/posts/${postId}`, { auth, signal, ...refresh });
+
+export const togglePostLike = async (auth: AuthResponse, postId: string, refresh: Refresh = {}) =>
+  (await requestCoded<{ liked: boolean }>(`/api/posts/${postId}/likes`, { auth, method: "POST", ...refresh }))?.liked ?? false;
+
+export const getPostComments = async (auth: AuthResponse | null, postId: string, page = 1, sort: CommentSort = "newest", signal?: AbortSignal, refresh: Refresh = {}) =>
+  (await requestCoded<CommentPage>(`/api/posts/${postId}/comments?${new URLSearchParams({ page: String(page), pageSize: String(COMMENT_PAGE_SIZE), sort })}`, { auth, signal, ...refresh }))!;
+
+export const addPostComment = async (auth: AuthResponse, postId: string, commentText: string, parentCommentId?: string | null, refresh: Refresh = {}) =>
+  (await requestCoded<{ commentId: string }>(`/api/posts/${postId}/comments`, { auth, body: { commentText, parentCommentId: parentCommentId ?? null }, method: "POST", ...refresh }))!.commentId;
+
+export const deletePostComment = (auth: AuthResponse, postId: string, commentId: string, refresh: Refresh = {}) =>
+  requestCoded<null>(`/api/posts/${postId}/comments/${commentId}`, { auth, method: "DELETE", ...refresh });
 
 /** Up to 20 places by id with their current state: how the places a person saved are doing right now. */
 export const getPlacesByIds = (ids: string[], signal?: AbortSignal) =>

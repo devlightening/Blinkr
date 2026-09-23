@@ -34,8 +34,15 @@ public class PostLikedConsumer : IConsumer<PostLikedIntegrationEvent>
 
         try
         {
-            var filter = Builders<PostDocument>.Filter.Eq(p => p.Id, message.PostId);
-            var update = Builders<PostDocument>.Update.Inc(p => p.LikeCount, 1);
+            // Only count a like from someone not already in the set - a replayed like under a new
+            // message id must not inflate LikeCount.
+            var filter = Builders<PostDocument>.Filter.And(
+                Builders<PostDocument>.Filter.Eq(p => p.Id, message.PostId),
+                Builders<PostDocument>.Filter.Not(
+                    Builders<PostDocument>.Filter.AnyEq(p => p.LikedByUserIds, message.LikerUserId)));
+            var update = Builders<PostDocument>.Update
+                .Inc(p => p.LikeCount, 1)
+                .AddToSet(p => p.LikedByUserIds, message.LikerUserId);
 
             var result = await _postsCollection.UpdateOneAsync(filter, update);
 

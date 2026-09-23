@@ -58,6 +58,8 @@ public class GetPostByIdHandler : IRequestHandler<GetPostByIdQuery, PostResponse
             UpdatedAt = postDocument.UpdatedAtUtc,
             LikeCount = postDocument.LikeCount,
             CommentCount = postDocument.CommentCount,
+            IsLikedByCurrentUser = request.RequestingUserId.HasValue
+                && (postDocument.LikedByUserIds?.Contains(request.RequestingUserId.Value) ?? false),
             LocationName = postDocument.LocationName,
             Latitude = latitude,
             Longitude = longitude,

@@ -45,12 +45,12 @@ public class CreatePostCommentCommandHandler : IRequestHandler<CreatePostComment
         var authorId = _currentUser.UserId ?? throw new UnauthorizedAccessException("Authentication required.");
 
         var postAggregate = await _eventStoreRepo.LoadAsync<PostAggregate>(request.PostId, ct);
-        if (postAggregate.Id == Guid.Empty)
+        if (postAggregate.Version < 0 || postAggregate.IsDeleted) // no events = no such post (a new aggregate gets a random Id, never Guid.Empty)
         {
             throw new KeyNotFoundException($"Post with ID '{request.PostId}' not found.");
         }
 
-        postAggregate.AddComment(authorId, commentText);
+        postAggregate.AddComment(authorId, commentText, request.ParentCommentId, request.AuthorName);
 
         // Get the event BEFORE saving (SaveAsync clears uncommitted events)
         var commentAddedEvent = postAggregate.GetUncommittedEvents().OfType<PostCommentAddedEvent>().LastOrDefault();

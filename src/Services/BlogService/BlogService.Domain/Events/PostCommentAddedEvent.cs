@@ -1,11 +1,19 @@
-﻿using BlogService.Domain.Common.Interfaces;
+using BlogService.Domain.Common.Interfaces;
 
 namespace BlogService.Domain.Events
 {
+    /// <param name="ParentCommentId">Top-level comment this one replies to; null for a top-level comment.
+    /// Optional so events written before replies existed still deserialize.</param>
+    /// <param name="AuthorName">Display name captured at write time (from the JWT), so read models and
+    /// notifications never have to call IdentityService per comment.</param>
+    /// <param name="PostOwnerId">Post author, so the notification consumer knows whom to notify.</param>
     public record PostCommentAddedEvent(
        Guid PostId,
        Guid CommentId,
        Guid AuthorId,
        string CommentText,
-       DateTime OccurredOn) : IDomainEvent;
+       DateTime OccurredOn,
+       Guid? ParentCommentId = null,
+       string? AuthorName = null,
+       Guid? PostOwnerId = null) : IDomainEvent;
 }

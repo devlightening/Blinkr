@@ -14,5 +14,51 @@
     "changed": "It changed"
   },
   "live": "Live",
-  "drop": "Drop a signal"
+  "drop": "Drop a signal",
+  "engagement": {
+    "like": "Like",
+    "unlike": "Unlike",
+    "likes_one": "{{count}} like",
+    "likes_other": "{{count}} likes",
+    "comments_one": "{{count}} comment",
+    "comments_other": "{{count}} comments",
+    "openComments": "Open comments",
+    "viewLikers": "See who liked"
+  },
+  "comments": {
+    "title": "Comments",
+    "sortNewest": "Newest",
+    "sortOldest": "Oldest",
+    "empty": "No comments yet",
+    "emptyHint": "Ask something about this place or share what you know.",
+    "placeholder": "Add a comment…",
+    "replyPlaceholder": "Reply to {{name}}…",
+    "replyingTo": "Replying to {{name}}",
+    "cancelReply": "Cancel reply",
+    "reply": "Reply",
+    "showReplies_one": "View {{count}} reply",
+    "showReplies_other": "View {{count}} replies",
+    "hideReplies": "Hide replies",
+    "delete": "Delete",
+    "deleteConfirm": "Delete comment?",
+    "deleteConfirmHint": "Its replies are deleted too. This can't be undone.",
+    "report": "Report",
+    "author": "Author",
+    "sending": "Sending",
+    "loadMore": "More comments",
+    "send": "Send",
+    "options": "Comment options",
+    "remaining": "{{count}} characters left",
+    "readOnly": "Sign in to comment."
+  },
+  "likers": {
+    "title": "Likes",
+    "empty": "No likes yet"
+  },
+  "viewer": {
+    "close": "Close viewer",
+    "zoomHint": "Pinch to zoom, swipe down to close",
+    "counter": "{{index}} / {{total}}"
+  },
+  "back": "Back"
 }

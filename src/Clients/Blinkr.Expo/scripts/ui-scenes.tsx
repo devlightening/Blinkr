@@ -417,7 +417,9 @@ function ReportableDetail() {
         isLoading={false}
         onClose={() => {}}
         onCreateSignal={() => {}}
+        auth={qaAuth}
         onReportSignal={async (postId, reason, note) => { await sendReport(qaAuth, { targetType: 'signal', targetId: postId, reason, note }); }}
+        onReportUser={async (userId, reason, note) => { await sendReport(qaAuth, { targetType: 'user', targetId: userId, reason, note }); }}
         place={place}
         userId="qa"
       />

@@ -619,8 +619,10 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 - `GET /api/posts/{id}`
 - `PUT /api/posts/{id}`
 - `DELETE /api/posts/{id}`
-- `POST /api/posts/{id}/comments`
-- `POST /api/posts/{id}/likes`
+- `POST /api/posts/{id}/comments` (`{ commentText, parentCommentId? }`; yanit tek seviyedir; 400 `COMMENT_EMPTY`/`COMMENT_TOO_LONG` (500), 404 `NOT_FOUND`)
+- `GET /api/posts/{id}/comments?page&pageSize&sort=newest|oldest` (ust seviye yorumlar + yanitlari; `Cache-Control: private, no-store`; AnonymousMap gonderide yazarin kendi yorumu `authorId` tasimaz, "Paylasan" olarak gorunur)
+- `DELETE /api/posts/{id}/comments/{commentId}` (yorumun veya gonderinin sahibi; yanitlar da silinir; 403 `COMMENT_FORBIDDEN`)
+- `POST /api/posts/{id}/likes` (toggle, `{ liked }` doner; kendi gonderisi 400 `CANNOT_LIKE_OWN`); `GET /api/posts/{id}` `isLikedByCurrentUser` tasir
 - `GET /api/posts-read/bounds`
 - `GET /api/posts-read/nearby`
 - `GET /api/posts-read/author/{id}?page&pageSize` (sayfa numarasi en fazla 1000; `X-Total-Count`): yazarin paylasimlari. Anonim (`AnonymousMap`) paylasimlar yalnizca yazarin kendisine doner ve o yanit `Cache-Control: private, no-store`'dur; baskalarina, giris yapmamislara ve herkese acik `?authorId=` listesine asla donmez (anayasa 10.3).

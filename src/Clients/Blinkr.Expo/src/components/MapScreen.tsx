@@ -937,7 +937,10 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
         onCreateSignal={() => openComposer(selectedDetail ?? selectedPlace)}
         // Confirming goes straight to the last step with the same value; "changed" asks for the new value.
         onRecheck={(mode, current) => openComposer(selectedDetail ?? selectedPlace, mode === 'confirm' ? 3 : 1, { type: current.type, value: mode === 'confirm' ? current.value : null })}
+        auth={auth}
+        refresh={{ onAuthRefresh: onAuthChange, onSessionExpired: onLogout }}
         onReportSignal={async (postId, reason, note) => { await sendReport(auth, { targetType: 'signal', targetId: postId, reason, note }, { onAuthRefresh: onAuthChange, onSessionExpired: onLogout }); }}
+        onReportUser={async (userId, reason, note) => { await sendReport(auth, { targetType: 'user', targetId: userId, reason, note }, { onAuthRefresh: onAuthChange, onSessionExpired: onLogout }); }}
         place={selectedDetail ?? selectedPlace}
         signal={selectedSignal}
         userId={auth.userId}

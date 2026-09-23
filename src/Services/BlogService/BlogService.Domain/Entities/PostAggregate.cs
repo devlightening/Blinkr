@@ -110,13 +110,36 @@ namespace BlogService.Domain.Entities
             ApplyNewEvent(new PostMediaAddedEvent(this.Id, mediaId, url, mediaType, DateTime.UtcNow));
         }
 
-        public void AddComment(Guid authorId, string commentText)
+        public Guid AddComment(Guid authorId, string commentText, Guid? parentCommentId = null, string? authorName = null)
         {
             if (IsDeleted) throw new InvalidOperationException("Silinmiş bir posta yorum yapılamaz.");
             if (string.IsNullOrWhiteSpace(commentText)) throw new ArgumentException("Yorum boş olamaz.");
 
+            // Replies are one level deep: replying to a reply attaches to that reply's top-level parent.
+            Guid? parentId = null;
+            if (parentCommentId.HasValue)
+            {
+                var parent = Comments.FirstOrDefault(c => c.Id == parentCommentId.Value)
+                    ?? throw new KeyNotFoundException("Yanıtlanan yorum bulunamadı.");
+                parentId = parent.ParentCommentId ?? parent.Id;
+            }
+
             var commentId = Guid.NewGuid();
-            ApplyNewEvent(new PostCommentAddedEvent(this.Id, commentId, authorId, commentText, DateTime.UtcNow));
+            ApplyNewEvent(new PostCommentAddedEvent(
+                this.Id, commentId, authorId, commentText, DateTime.UtcNow, parentId, authorName, AuthorId));
+            return commentId;
+        }
+
+        /// <summary>The comment's author or the post's author may remove a comment.</summary>
+        public void RemoveComment(Guid commentId, Guid requesterId)
+        {
+            var comment = Comments.FirstOrDefault(c => c.Id == commentId)
+                ?? throw new KeyNotFoundException("Yorum bulunamadı.");
+            if (comment.AuthorId != requesterId && AuthorId != requesterId)
+            {
+                throw new UnauthorizedAccessException("Bu yorumu yalnız yazarı veya gönderinin sahibi silebilir.");
+            }
+            ApplyNewEvent(new PostCommentRemovedEvent(Id, commentId, requesterId, DateTime.UtcNow));
         }
 
         public void AddLike(Guid userId)
@@ -124,7 +147,7 @@ namespace BlogService.Domain.Entities
             if (IsDeleted) return; // Silinmiş posta işlem yapma
             if (Likes.Any(like => like.UserId == userId)) return;
 
-            ApplyNewEvent(new PostLikedEvent(this.Id, userId, DateTime.UtcNow));
+            ApplyNewEvent(new PostLikedEvent(this.Id, userId, DateTime.UtcNow, AuthorId));
         }
 
         public void UnlikePost(Guid userId)
@@ -216,7 +239,21 @@ namespace BlogService.Domain.Entities
 
         private void Apply(PostCommentAddedEvent e)
         {
-            Comments.Add(new PostComment { Id = e.CommentId, PostId = e.PostId, AuthorId = e.AuthorId, CommentText = e.CommentText });
+            Comments.Add(new PostComment
+            {
+                Id = e.CommentId,
+                PostId = e.PostId,
+                AuthorId = e.AuthorId,
+                CommentText = e.CommentText,
+                ParentCommentId = e.ParentCommentId,
+                CreatedAtUtc = e.OccurredOn
+            });
+        }
+
+        private void Apply(PostCommentRemovedEvent e)
+        {
+            var removed = Comments.Where(c => c.Id == e.CommentId || c.ParentCommentId == e.CommentId).ToList();
+            foreach (var c in removed) Comments.Remove(c);
         }
 
         private void Apply(PostLikedEvent e)

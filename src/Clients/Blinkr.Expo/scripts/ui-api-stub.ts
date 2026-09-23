@@ -207,3 +207,36 @@ export const sendSnap = async (_auth: unknown, conversationId: string, _media: u
   (window as unknown as { __sentSnaps?: unknown }).__sentSnaps = sentSnaps;
   return { id: 'sent-' + sentSnaps.length, conversationId, senderId: 'qa', text: '', createdAtUtc: new Date().toISOString(), isRead: true, kind: 'snap', snap: { mediaType: 'Image', durationSeconds: options.durationSeconds, state: 'sent', expiresAtUtc: new Date(Date.now() + 86_400_000).toISOString() } };
 };
+
+// --- Likes and comments (engagement.ts). ?likefail = the like request fails.
+export class ApiCodeError extends Error {
+  constructor(public code: string, public status: number) { super(code); this.name = 'ApiCodeError'; }
+}
+type StubComment = { commentId: string; authorId: string | null; authorName: string; isPostAuthor: boolean; isMine: boolean; canDelete: boolean; parentCommentId: string | null; text: string; createdAtUtc: string; replies: StubComment[] };
+const stubNow = new Date().toISOString();
+let stubLiked = false;
+let stubLikes = 3;
+let stubComments: StubComment[] = [
+  { commentId: 'c1', authorId: 'u-can', authorName: 'can', isPostAuthor: false, isMine: false, canDelete: false, parentCommentId: null, text: 'Sıra ne kadar?', createdAtUtc: stubNow, replies: [
+    { commentId: 'c1r1', authorId: null, authorName: 'Paylaşan', isPostAuthor: true, isMine: false, canDelete: false, parentCommentId: 'c1', text: '5 dakika kadar', createdAtUtc: stubNow, replies: [] },
+    { commentId: 'c1r2', authorId: 'u-ece', authorName: 'ece', isPostAuthor: false, isMine: false, canDelete: false, parentCommentId: 'c1', text: 'Teşekkürler', createdAtUtc: stubNow, replies: [] },
+  ] },
+];
+const stubCount = () => stubComments.reduce((n, c) => n + 1 + c.replies.length, 0);
+export const getPostEngagement = async () => ({ likeCount: stubLikes, commentCount: stubCount(), isLikedByCurrentUser: stubLiked, authorId: 'u-author' });
+export const togglePostLike = async () => {
+  if (flag('likefail')) throw new ApiCodeError('UNKNOWN', 500);
+  stubLiked = !stubLiked; stubLikes += stubLiked ? 1 : -1;
+  return stubLiked;
+};
+export const getPostComments = async () => ({ postId: 'post-a', items: stubComments, page: 1, pageSize: 20, totalCount: stubComments.length, commentCount: stubCount(), hasMore: false });
+export const addPostComment = async (_auth: unknown, _postId: string, text: string, parentCommentId?: string | null) => {
+  const id = `srv-${stubCount() + 1}`;
+  const comment: StubComment = { commentId: id, authorId: 'qa', authorName: 'alper', isPostAuthor: false, isMine: true, canDelete: true, parentCommentId: parentCommentId ?? null, text, createdAtUtc: new Date().toISOString(), replies: [] };
+  stubComments = parentCommentId ? stubComments.map((c) => (c.commentId === parentCommentId ? { ...c, replies: [...c.replies, comment] } : c)) : [comment, ...stubComments];
+  return id;
+};
+export const deletePostComment = async (_auth: unknown, _postId: string, commentId: string) => {
+  stubComments = stubComments.filter((c) => c.commentId !== commentId).map((c) => ({ ...c, replies: c.replies.filter((r) => r.commentId !== commentId) }));
+  return null;
+};
