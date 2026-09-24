@@ -9,7 +9,7 @@ import { freshnessLabelKey, freshnessTier } from '../../freshness';
 import { formatAge, signalLabels } from '../../presentation';
 import { cardText } from '../../signalCard';
 import { signalValueLabel } from '../../productPresentation';
-import { colors, radii, signalColors, spacing, typography } from '../../theme';
+import { colors, radii, shadowSoft, signalColors, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
 import { SignalSymbol } from '../SignalSymbol';
@@ -125,7 +125,7 @@ export function FeedCard({ item, myUserId, onLike, onOpenThread, onOpenAuthor, o
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, gap: spacing.sm, padding: spacing.md },
+  card: { backgroundColor: colors.surface, borderRadius: radii.lg, gap: spacing.sm, padding: spacing.lg, ...shadowSoft },
   expired: { opacity: 0.6 },
   head: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   author: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: spacing.sm, minHeight: 44 },

@@ -31,7 +31,6 @@ import { MapSearchOverlay } from './map/MapSearchOverlay';
 import { UserProfileSheet } from './friends/UserProfileSheet';
 import { selectMapData, filterBySignalTypes, type MapLayer } from '../mapSelection';
 import { loadTypeFilter, saveTypeFilter } from '../mapTypeFilterStorage';
-import { MapTypeFilterBar } from './map/MapTypeFilterBar';
 import { clusterMapPoints, zoomToLongitudeDelta, type RenderableMapCluster } from '../mapClusters';
 import { tx } from '../i18n/tx';
 

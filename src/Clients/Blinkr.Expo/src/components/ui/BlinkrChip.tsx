@@ -32,8 +32,8 @@ export function BlinkrChip({ label, selected, onPress, icon, tone, disabled = fa
       style={[
         styles.chip,
         selected
-          ? { backgroundColor: colors.primary, borderColor: colors.primary }
-          : { backgroundColor: colors.glass, borderColor: colors.border },
+          ? { backgroundColor: colors.primary }
+          : { backgroundColor: colors.surfaceElevated },
         disabled && styles.disabled,
         style,
       ]}
@@ -45,7 +45,7 @@ export function BlinkrChip({ label, selected, onPress, icon, tone, disabled = fa
 }
 
 const styles = StyleSheet.create({
-  chip: { alignItems: 'center', borderRadius: radii.pill, borderWidth: 1, flexDirection: 'row', gap: 6, justifyContent: 'center', minHeight: 36, minWidth: 48, paddingHorizontal: 14 },
+  chip: { alignItems: 'center', borderRadius: radii.pill, flexDirection: 'row', gap: 6, justifyContent: 'center', minHeight: 36, minWidth: 48, paddingHorizontal: 14 },
   label: { ...typography.caption, fontWeight: '600' },
   disabled: { opacity: 0.45 },
 });

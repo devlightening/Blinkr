@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 
 import { freshnessOpacity } from '../productPresentation';
 import {
@@ -48,6 +48,8 @@ function HeadGlyph({ geometry, scale, size, children }: { geometry: MarkerGeomet
 }
 
 const SELECTED_SCALE = 1.2;
+/** Pin and cluster outline: white in both themes - it reads as a soft sticker on any map colour. */
+const PIN_OUTLINE = palette.white;
 
 function PlacePin({ place, selected }: { place: BlinkrPlace; selected: boolean }) {
   const g = PLACE_PIN;
@@ -58,7 +60,8 @@ function PlacePin({ place, selected }: { place: BlinkrPlace; selected: boolean }
   const stateType = state?.signalType ?? null;
   const fill = live && stateType ? signalTints[stateType] ?? palette.sage300 : live ? palette.sage300 : SURFACE;
   const glyph = live && stateType ? signalInks[stateType] ?? colors.text : tone;
-  const stroke = live || selected ? colors.pinBorder : colors.border;
+  // Soft outline, the way Snap Map draws its pins: white, never black.
+  const stroke = PIN_OUTLINE;
   const uid = `${fill.replace('#', '')}${selected ? 's' : ''}`;
   return (
     <View style={{ height: g.height * scale, width: g.width * scale }}>
@@ -75,12 +78,13 @@ function PlacePin({ place, selected }: { place: BlinkrPlace; selected: boolean }
         </Defs>
         {selected ? <Circle cx={g.headX} cy={g.headY} fill={`url(#glow-${uid})`} r={g.headRadius + 9} /> : null}
         <Ellipse cx={g.tipX} cy={g.tipY} fill={palette.ink900} opacity={0.18} rx={8} ry={2.6} />
-        <Path d={PLACE_PIN_PATH} fill={`url(#body-${uid})`} stroke={stroke} strokeLinejoin="round" strokeWidth={live || selected ? 2 : 1.5} />
+        <G opacity={0.16} transform="translate(0, 2)"><Path d={PLACE_PIN_PATH} fill={palette.ink900} /></G>
+        <Path d={PLACE_PIN_PATH} fill={`url(#body-${uid})`} stroke={stroke} strokeLinejoin="round" strokeWidth={live || selected ? 2.5 : 2} />
         {live ? null : <Circle cx={g.headX} cy={g.headY} fill={SURFACE_HIGH} r={15} />}
       </Frame>
       <HeadGlyph geometry={g} scale={scale} size={22}><PlaceSymbol category={place.category} color={glyph} size={22 * scale} /></HeadGlyph>
       {live && stateType ? (
-        <View style={[styles.badge, { backgroundColor: SURFACE, borderColor: colors.pinBorder, height: 22 * scale, left: (g.headX + g.pad + 13) * scale, top: (g.pad - 2) * scale, width: 22 * scale }]}>
+        <View style={[styles.badge, { backgroundColor: SURFACE, borderColor: PIN_OUTLINE, height: 22 * scale, left: (g.headX + g.pad + 13) * scale, top: (g.pad - 2) * scale, width: 22 * scale }]}>
           <SignalSymbol color={glyph} size={13 * scale} type={stateType} />
         </View>
       ) : null}
@@ -107,9 +111,10 @@ function SignalBubble({ signal, selected, now }: { signal: CoordinateSignal; sel
         </Defs>
         {selected ? <Circle cx={g.headX} cy={g.headY} fill={`url(#signal-glow-${uid})`} r={g.headRadius + 10} /> : null}
         <Ellipse cx={g.tipX} cy={g.tipY} fill={palette.ink900} opacity={0.18} rx={7} ry={2.4} />
-        <Circle cx={g.headX} cy={g.headY} fill="none" r={ringRadius} stroke={colors.pinBorder} strokeOpacity={0.12} strokeWidth={3} />
+        <Circle cx={g.headX} cy={g.headY} fill="none" r={ringRadius} stroke={PIN_OUTLINE} strokeOpacity={0.9} strokeWidth={3} />
         <Circle cx={g.headX} cy={g.headY} fill="none" r={ringRadius} rotation={-90} origin={`${g.headX}, ${g.headY}`} stroke={ink} strokeDasharray={ringDash(remaining, ringRadius)} strokeLinecap="round" strokeWidth={3} />
-        <Path d={SIGNAL_BUBBLE_PATH} fill={tint} stroke={colors.pinBorder} strokeLinejoin="round" strokeWidth={2} />
+        <G opacity={0.16} transform="translate(0, 2)"><Path d={SIGNAL_BUBBLE_PATH} fill={palette.ink900} /></G>
+        <Path d={SIGNAL_BUBBLE_PATH} fill={tint} stroke={PIN_OUTLINE} strokeLinejoin="round" strokeWidth={2.5} />
       </Frame>
       <HeadGlyph geometry={g} scale={scale} size={24}><SignalSymbol color={ink} size={24 * scale} type={signal.signalType} /></HeadGlyph>
     </View>
@@ -140,9 +145,8 @@ export function ClusterVisual({ count }: { count: number }) {
           </RadialGradient>
         </Defs>
         <Circle cx={center} cy={center} fill="url(#heat)" r={halo + 8} />
-        <Circle cx={center} cy={center} fill={colors.surface} r={24} stroke={colors.pinBorder} strokeWidth={2} />
-        <Circle cx={center} cy={center} fill="none" r={21} stroke={colors.primary} strokeWidth={2.4} />
-        <Circle cx={center} cy={center} fill="none" r={29} stroke={colors.primary} strokeOpacity={0.3} strokeWidth={1.5} />
+        <Circle cx={center} cy={center + 2} fill={palette.ink900} opacity={0.16} r={25} />
+        <Circle cx={center} cy={center} fill={colors.primary} r={24} stroke={PIN_OUTLINE} strokeWidth={3} />
       </Svg>
       <View pointerEvents="none" style={styles.clusterCount}><Text style={styles.count}>{clusterLabel(count)}</Text></View>
     </View>
@@ -155,5 +159,5 @@ const styles = StyleSheet.create({
   liveDot: { backgroundColor: colors.primary, borderColor: colors.background, borderRadius: 7, borderWidth: 2, height: 14, position: 'absolute', width: 14 },
   clusterTarget: { alignItems: 'center', height: CLUSTER_SIZE, justifyContent: 'center', width: CLUSTER_SIZE },
   clusterCount: { alignItems: 'center', justifyContent: 'center', position: 'absolute' },
-  count: { ...typography.title, color: colors.text, fontVariant: ['tabular-nums'] },
+  count: { ...typography.heading, color: colors.ink, fontVariant: ['tabular-nums'], fontWeight: '800' },
 });

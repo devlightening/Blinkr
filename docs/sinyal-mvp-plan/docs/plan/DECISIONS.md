@@ -15,6 +15,15 @@
 
 ## Kararlar
 
+### D-023 — Sinyal Kartı sunumu ve "yumuşak premium" görünüm (Snap Map örneği) (2026-09-24)
+- Bağlam: Kullanıcı cihazda kartın açılış animasyonunu kötü, genel görünümü "MVP/basic" buldu; Snapchat mantığında yumuşak ve küresel bir arayüz istedi.
+- Karar:
+  - Kart artık ortada büyüyen değil, Snap Map'in yer kartı gibi alttan yükselen, kenarlardan 10 pt içeride yüzen bir kart (köşe 32, çizgisiz, geniş yumuşak gölge). Harita bulanıklaştırılmıyor, hafifçe karartılıyor (`scrimSoft`); yer ve sayfa (1/3) kartın başlığında. Tek animasyon modeli UI thread'de: `progress` yay (`springs.sheet`, sönüm oranı ~0.87, sıçramasız) ile açılır; başlıktan sürüklenince parmağı izler, 120 pt ya da hızlı fırlatma kapatır; her kapanış önce animasyonla çıkar, sonra kaldırılır (eski sürümde PanResponder + layout animasyonu çakışıyordu ve kapanışta sıçrama vardı). Hareketi Azalt açıksa kısa solma.
+  - Harita üstü: arama tek hap (çizgisiz, yüzen gölge); katman ve tür filtreleri tek kaydırmalı çip satırında, seçili katman koyu hap (Snapchat'in seçili durumu gibi); konum ve liste düğmeleri yuvarlak, çizgisiz.
+  - Pinler: siyah dış çizgi yerine beyaz çizgi + yumuşak gölge; kümeler marka renginde dolu disk + beyaz çizgi (çift halka kalktı). Alt çubuk hap biçiminde, çizgisiz; (+) halkasız, sıcak ışıltılı.
+  - Genel: `colors.border` neredeyse görünmez bir kıl çizgiye indi (yüzeyler ton ve yumuşak gölgeyle ayrılıyor), çipler çizgisiz, segment kontrolü hap, akış kartları gölgeyle yükselir. Snapchat'in kendi sarısı kullanılmadı: marka adaçayı + güneş sarısı (yalnız oluştur/gönder) korunuyor.
+- Etki: plan-devam C1'in "ortada kart" kararı (D-018) bu kararla değişti.
+
 ### D-022 — plan-devam Faz G: i18n yöntemi, dil ayarı, analitik, ölçüm ve E2E kapsamı (2026-09-24)
 - Karar:
   - i18n: tüm kullanıcı metni `tx('ns:anahtar', 'Türkçe kaynak')` ile (`src/i18n/tx.ts`); Türkçe kaynak kodda kalır ki saf mantık testleri i18next olmadan çalışsın ve eksik anahtar asla ham anahtar göstermesin. i18n, tema gibi açılışta ekranlar yüklenmeden başlatılır (`initAsync: false`); modül yüklenirken kurulan etiketler (sinyal türleri, kategoriler) doğru dilde olur. Dil değiştirmek (Ayarlar > Dil) uygulamayı yeniden yükler — tema ile aynı yol. `scripts/i18n-scan.cjs` kodda kalan kullanıcı metnini bulur; `test:i18n` tek bulguda başarısız olur. Sunucunun Türkçe hata mesajları İngilizcede çevrilmiş genel metne düşer (sunucu mesajları çevrilmedi).

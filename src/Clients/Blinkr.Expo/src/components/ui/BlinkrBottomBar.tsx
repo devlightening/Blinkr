@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, radii, shadow, shadowSoft, sizes, spacing, typography } from '../../theme';
+import { colors, radii, shadow, shadowFloat, shadowSoft, sizes, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { useKeyboardVisible } from './useKeyboardVisible';
 import { tx } from '../../i18n/tx';
@@ -96,14 +96,15 @@ export const bottomBarClearance = (bottomInset: number) => sizes.bottomBar + Mat
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', left: spacing.md, position: 'absolute', right: spacing.md, zIndex: 20 },
-  bar: { alignItems: 'center', backgroundColor: colors.glass, borderColor: colors.border, borderRadius: radii.xl, borderWidth: 1, flexDirection: 'row', height: sizes.bottomBar, maxWidth: 460, paddingHorizontal: spacing.sm, width: '100%', ...shadow },
+  bar: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.pill, flexDirection: 'row', height: sizes.bottomBar + 4, maxWidth: 460, paddingHorizontal: spacing.sm, width: '100%', ...shadowFloat },
   item: { alignItems: 'center', flex: 1, justifyContent: 'center', minHeight: sizes.touch },
-  iconTile: { alignItems: 'center', borderRadius: radii.md, height: 30, justifyContent: 'center', width: 48 },
+  iconTile: { alignItems: 'center', borderRadius: radii.pill, height: 30, justifyContent: 'center', width: 52 },
   iconTileActive: { backgroundColor: colors.primaryTint },
   label: { ...typography.micro, marginTop: 1 },
   unreadDot: { backgroundColor: colors.danger, borderColor: colors.surface, borderRadius: 5, borderWidth: 2, height: 10, position: 'absolute', right: 12, top: 2, width: 10 },
   cameraSlot: { alignItems: 'center', flex: 1, justifyContent: 'center' },
-  camera: { alignItems: 'center', backgroundColor: colors.flare, borderRadius: radii.pill, height: sizes.camera + 6, justifyContent: 'center', width: sizes.camera + 6, ...shadowSoft },
-  cameraRing: { borderColor: colors.createRing, borderRadius: radii.pill, borderWidth: 2, bottom: -4, left: -4, position: 'absolute', right: -4, top: -4 },
+  // The one bright thing on screen, like Snapchat's capture button: solid sun, a warm glow instead of a ring.
+  camera: { alignItems: 'center', backgroundColor: colors.flare, borderRadius: radii.pill, elevation: 8, height: sizes.camera + 8, justifyContent: 'center', shadowColor: colors.flare, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 14, width: sizes.camera + 8 },
+  cameraRing: { display: 'none' },
   cameraDisabled: { opacity: 0.5 },
 });

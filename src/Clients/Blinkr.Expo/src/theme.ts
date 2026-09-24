@@ -59,6 +59,8 @@ export type ColorTokens = {
   blue: string; blueSoft: string; teal: string; amber: string; warning: string;
   error: string; errorSoft: string; errorLine: string;
   white: string; scrim: string; shadow: string;
+  /** A light dim that keeps the map readable behind a floating card (Snap Map-style). */
+  scrimSoft: string;
   /** Fixed "on dark" values for chrome drawn over photos/video in either theme. */
   mutedOnDark: string; surfaceOnDark: string; lineOnDark: string;
   /** Pin outline (2 px) so pastel pins stay visible on a light map (B9). */
@@ -74,7 +76,7 @@ export type ColorTokens = {
 const light: ColorTokens = {
   background: p.paper50, surface: p.white, surfaceElevated: p.paper100, glass: 'rgba(252, 251, 248, 0.92)',
   primary: p.sage700, primaryPressed: p.sage800, mint: p.sage700, darkGreen: p.sage700,
-  text: p.ink900, textSecondary: p.ink500, textMuted: p.ink400, border: p.paper300,
+  text: p.ink900, textSecondary: p.ink500, textMuted: p.ink400, border: 'rgba(21, 24, 27, 0.07)',
   orange: p.apricotInk, purple: p.grapeInk, pink: p.bubblegumInk, danger: p.coralInk,
   flare: p.sun500, flarePressed: p.sun600, onCreate: p.ink900,
   ink: p.white,
@@ -84,7 +86,7 @@ const light: ColorTokens = {
   coral: p.coralInk, coralSoft: '#FDE7E4', coralLine: '#F6C6BF',
   blue: p.skyInk, blueSoft: '#E4F2FB', teal: '#1E7F76', amber: p.butterInk, warning: p.apricotInk,
   error: p.coralInk, errorSoft: '#FDE7E4', errorLine: '#F6C6BF',
-  white: p.white, scrim: 'rgba(21, 24, 27, 0.32)', shadow: p.ink900,
+  white: p.white, scrim: 'rgba(21, 24, 27, 0.32)', shadow: p.ink900, scrimSoft: 'rgba(21, 24, 27, 0.2)',
   mutedOnDark: p.chalk300, surfaceOnDark: p.coal700, lineOnDark: 'rgba(255, 255, 255, 0.14)',
   pinBorder: p.ink900,
   primaryTint: 'rgba(46, 122, 96, 0.12)', createRing: 'rgba(255, 200, 61, 0.45)', meterEmpty: 'rgba(21, 24, 27, 0.10)',
@@ -93,7 +95,7 @@ const light: ColorTokens = {
 const dark: ColorTokens = {
   background: p.coal900, surface: p.coal800, surfaceElevated: p.coal700, glass: 'rgba(30, 34, 39, 0.92)',
   primary: p.sage400, primaryPressed: p.sage300, mint: p.sage400, darkGreen: p.sage600,
-  text: p.chalk50, textSecondary: p.chalk300, textMuted: '#7C858D', border: p.coal600,
+  text: p.chalk50, textSecondary: p.chalk300, textMuted: '#7C858D', border: 'rgba(255, 255, 255, 0.08)',
   orange: p.apricot, purple: p.grape, pink: p.bubblegum, danger: p.coral,
   flare: p.sun500, flarePressed: p.sun600, onCreate: p.ink900,
   ink: p.ink900,
@@ -103,7 +105,7 @@ const dark: ColorTokens = {
   coral: p.coral, coralSoft: '#2A1816', coralLine: '#4A2B26',
   blue: p.sky, blueSoft: '#16293A', teal: '#5CCBC0', amber: p.butter, warning: p.apricot,
   error: p.coral, errorSoft: '#2B1714', errorLine: '#4A2622',
-  white: p.white, scrim: 'rgba(10, 12, 14, 0.56)', shadow: p.black,
+  white: p.white, scrim: 'rgba(10, 12, 14, 0.56)', shadow: p.black, scrimSoft: 'rgba(0, 0, 0, 0.4)',
   mutedOnDark: p.chalk300, surfaceOnDark: p.coal700, lineOnDark: 'rgba(255, 255, 255, 0.14)',
   pinBorder: p.chalk50,
   primaryTint: 'rgba(127, 202, 169, 0.16)', createRing: 'rgba(255, 200, 61, 0.35)', meterEmpty: 'rgba(255, 255, 255, 0.12)',
@@ -173,6 +175,8 @@ export const levelScale = [p.sage500, p.butter, p.apricot, p.coral] as const;
 
 /** B6: soft shadows on light; dark uses borders and surface steps instead (shadow opacity 0). */
 export const shadow = { shadowColor: p.ink900, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 24, elevation: 6 };
+/** Floating surfaces over the map (the signal card, toasts): a wide, low shadow so they lift without a hard edge. */
+export const shadowFloat = { shadowColor: p.ink900, shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.16, shadowRadius: 34, elevation: 14 };
 export const shadowSoft = { shadowColor: p.ink900, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 2 };
 
 let currentMode: ThemeMode = 'light';
@@ -300,6 +304,8 @@ export const springs = {
   bouncy: { damping: 14, stiffness: 200, mass: 1 },
   /** Serious contexts - no overshoot. */
   gentle: { damping: 22, stiffness: 240, mass: 1 },
+  /** Sheets and the signal card: settles fast with no visible bounce (damping ratio ~0.87). */
+  sheet: { damping: 30, stiffness: 300, mass: 1 },
 };
 export const pressScale = 0.96;
 

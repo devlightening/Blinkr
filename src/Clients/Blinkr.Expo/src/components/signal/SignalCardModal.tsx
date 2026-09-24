@@ -1,21 +1,21 @@
-import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, ChevronRight, Flag, Trash2, UserX, X } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Animated as RNAnimated, BackHandler, FlatList, PanResponder, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
-import Animated, { FadeIn, FadeOut, ReduceMotion, ZoomIn, ZoomOut } from 'react-native-reanimated';
+import { ActivityIndicator, BackHandler, FlatList, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { Easing, FadeIn, FadeOut, interpolate, ReduceMotion, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { blockUser, deleteSignal, getPostComments, getSignalDetail, recordPostViews, sendReport, togglePostLike } from '../../api';
 import type { SignalShare } from '../../chatExtras';
 import type { ReportReasonId } from '../../friends';
 import { distanceMeters } from '../../nearbyRequestOwnership';
-import { formatCategory } from '../../presentation';
+import { formatCategory, formatDistance } from '../../presentation';
 import { recheckSignal } from '../../productPresentation';
 import { isPlaceSaved, savePlace, unsavePlace } from '../../savedPlaces';
 import { stepIndex, verifyState, withDetail, type CardSignal } from '../../signalCard';
-import { colors, getThemeMode, radii, shadow, spacing, springs, typography } from '../../theme';
+import { colors, radii, shadowFloat, spacing, springs, typography } from '../../theme';
 import type { AuthResponse, BlinkrPlace } from '../../types';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { PlaceSymbol } from '../PlaceSymbol';
@@ -53,11 +53,15 @@ type Props = {
 };
 
 const VIEW_AFTER_MS = 1000;
+const CARD_MARGIN = 10;
+const HEADER_HEIGHT = 64;
 const VIEW_FLUSH_MS = 10_000;
 
 /**
- * The Sinyal Kartı host (plan-devam Faz C): a centred card over the dimmed, blurred map. It grows in from small with a
- * light spring, closes on the overlay, the X, a downward drag or back. Several signals of one place or cluster sit side
+ * The Sinyal Kartı host (plan-devam Faz C, reworked after device feedback): like a Snap Map place card, it rises from
+ * the bottom over a lightly dimmed map - the map stays visible and in context. One animation model on the UI thread: a
+ * progress value (0 hidden, 1 shown) springs in, the card follows the finger when dragged by its header, and every close
+ * (drag, overlay, X, back) animates out first and only then unmounts, so nothing ever jumps. Several signals of one place or cluster sit side
  * by side (swipe, or ‹ ›). The card fills itself from GET /api/posts/{id}; a card seen for a second is counted as a
  * view (sent every 10 s, never for your own).
  */
@@ -65,8 +69,8 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
   const { t } = useTranslation(['signal', 'common']);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const cardWidth = screenWidth - spacing.lg * 2;
-  const maxHeight = screenHeight * 0.82 - (place ? 56 : 0);
+  const cardWidth = screenWidth - CARD_MARGIN * 2;
+  const maxHeight = Math.min(screenHeight * 0.8, screenHeight - insets.top - 24);
   const [cards, setCards] = useState(initialCards);
   const [index, setIndex] = useState(Math.min(initialIndex, Math.max(0, initialCards.length - 1)));
   const [topComments, setTopComments] = useState<Record<string, TopComment>>({});
@@ -135,7 +139,21 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
     return () => { alive = false; };
   }, [auth.userId, place]);
 
-  const close = useCallback(() => onClose(), [onClose]);
+  // --- presentation: one progress value + the drag offset, both on the UI thread ---
+  const reduceMotion = useReducedMotion();
+  const progress = useSharedValue(0);
+  const drag = useSharedValue(0);
+  const closing = useRef(false);
+  useEffect(() => {
+    progress.value = reduceMotion ? withTiming(1, { duration: 160 }) : withSpring(1, springs.sheet);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const finishClose = useCallback(() => onClose(), [onClose]);
+  const close = useCallback(() => {
+    if (closing.current) return;
+    closing.current = true;
+    progress.value = withTiming(0, { duration: reduceMotion ? 120 : 220, easing: Easing.bezier(0.4, 0, 1, 1) }, (done) => { if (done) runOnJS(finishClose)(); });
+  }, [finishClose, progress, reduceMotion]);
   useEffect(() => {
     const back = BackHandler.addEventListener('hardwareBackPress', () => {
       if (viewer) setViewer(null); else close();
@@ -144,16 +162,24 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
     return () => back.remove();
   }, [close, viewer]);
 
-  // Drag the handle (or the card top) down to close.
-  const dragY = useRef(new RNAnimated.Value(0)).current;
-  const pan = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_, g) => g.dy > 8 && Math.abs(g.dy) > Math.abs(g.dx),
-    onPanResponderMove: RNAnimated.event([null, { dy: dragY }], { useNativeDriver: false }),
-    onPanResponderRelease: (_, g) => {
-      if (g.dy > 110 || g.vy > 1.2) close();
-      else RNAnimated.spring(dragY, { toValue: 0, useNativeDriver: false }).start();
-    },
-  }), [close, dragY]);
+  // Drag the card by its header: it follows the finger (with resistance upwards), a firm pull or flick closes it.
+  const pan = useMemo(() => Gesture.Pan()
+    .activeOffsetY([-8, 8])
+    .failOffsetX([-16, 16])
+    .onUpdate((e) => { drag.value = e.translationY > 0 ? e.translationY : e.translationY / 6; })
+    .onEnd((e) => {
+      if (e.translationY > 120 || e.velocityY > 900) runOnJS(close)();
+      else drag.value = withSpring(0, springs.sheet);
+    }), [close, drag]);
+
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.25, 1], [0, 1, 1]),
+    transform: [
+      { translateY: (1 - progress.value) * (maxHeight * 0.6 + 80) + drag.value },
+      { scale: interpolate(progress.value, [0, 1], [0.97, 1]) },
+    ],
+  }), [maxHeight, progress, drag]);
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: progress.value * interpolate(drag.value, [0, 400], [1, 0.3], 'clamp') }), [progress, drag]);
 
   const update = (postId: string, change: (card: CardSignal) => CardSignal) => setCards((list) => list.map((c) => (c.postId === postId ? change(c) : c)));
 
@@ -218,104 +244,105 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
     return distanceMeters(deviceOrigin, { latitude: lat, longitude: lon });
   };
 
-  const entering = ZoomIn.springify().damping(springs.bouncy.damping).stiffness(springs.bouncy.stiffness).reduceMotion(ReduceMotion.System);
-
   return (
     <View style={styles.host} testID="signal-card-modal">
-      <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(160)} style={StyleSheet.absoluteFill}>
-        <BlurView intensity={24} style={StyleSheet.absoluteFill} tint={getThemeMode() === 'dark' ? 'dark' : 'light'} />
+      <Animated.View pointerEvents="box-none" style={[StyleSheet.absoluteFill, backdropStyle]}>
         <Pressable accessibilityLabel={t('signal:card.close')} onPress={close} style={[StyleSheet.absoluteFill, styles.scrim]} testID="card-backdrop" />
       </Animated.View>
 
-      <RNAnimated.View pointerEvents="box-none" style={[styles.center, { paddingBottom: insets.bottom, paddingTop: insets.top }, { transform: [{ translateY: dragY }] }]}>
-        {place ? (
-          <AnimatedPressable accessibilityRole="button" disabled={!onOpenPlace} onPress={onOpenPlace} style={[styles.placeStrip, { width: cardWidth }]} testID="card-place-strip">
-            <PlaceSymbol category={place.category} color={colors.text} size={18} />
-            <View style={styles.flex}>
-              <Text numberOfLines={1} style={styles.stripName}>{place.name}</Text>
-              <Text numberOfLines={1} style={styles.stripMeta}>{formatCategory(place.category)}{cards.length ? ` · ${t('common:stats.signals', { count: cards.length })}` : ''}</Text>
-            </View>
-            {onOpenPlace ? <ChevronRight color={colors.textSecondary} size={18} /> : null}
-          </AnimatedPressable>
-        ) : null}
-
-        <Animated.View entering={entering} exiting={ZoomOut.duration(160).reduceMotion(ReduceMotion.System)} style={[styles.card, { maxHeight, width: cardWidth }]}>
-          <View {...pan.panHandlers} style={styles.handleArea}>
-            <View style={styles.handle} />
-            <AnimatedPressable accessibilityLabel={t('signal:card.close')} accessibilityRole="button" hitSlop={8} onPress={close} style={styles.close} testID="card-close">
-              <X color={colors.textSecondary} size={20} />
-            </AnimatedPressable>
-          </View>
-
-          {cards.length === 0 && loading ? (
-            <View style={styles.empty} testID="card-loading"><ActivityIndicator color={colors.primary} /></View>
-          ) : cards.length === 0 ? (
-            <View style={styles.empty} testID="card-empty">
-              <Text style={styles.emptyTitle}>{t('signal:card.noSignals')}</Text>
-              <Text style={styles.emptyBody}>{t('signal:card.noSignalsHint')}</Text>
-              {onCreateSignal ? <BlinkrButton label={t('signal:card.firstSignal')} onPress={onCreateSignal} /> : null}
-            </View>
-          ) : (
-            <FlatList
-              data={cards}
-              getItemLayout={(_, i) => ({ index: i, length: cardWidth, offset: cardWidth * i })}
-              horizontal
-              initialScrollIndex={index}
-              keyExtractor={(card) => card.postId}
-              onMomentumScrollEnd={onPageEnd}
-              pagingEnabled
-              ref={listRef}
-              renderItem={({ item }) => {
-                const recheck = recheckSignal({ signalType: item.signalType, signalValue: item.signalValue, freshness: 'FRESH', expiresAtUtc: item.expiresAtUtc });
-                return (
-                  <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: maxHeight - 36, width: cardWidth }}>
-                    <SignalCard
-                      card={item}
-                      confirmed={confirmed.has(item.postId)}
-                      distanceMeters={distanceTo(item)}
-                      onDoubleTapLike={() => { void like(item, true); }}
-                      onLike={() => { void like(item); }}
-                      onMenu={() => setMenuOpen(true)}
-                      onOpenAuthor={() => { if (item.authorId) onOpenAuthor({ id: item.authorId, userName: item.authorName ?? '' }); }}
-                      onOpenMedia={(start) => setViewer({ items: item.media, start })}
-                      onOpenPlace={item.placeId && onOpenPlace ? onOpenPlace : undefined}
-                      onOpenThread={() => setThread(item.postId)}
-                      onSave={place ? () => { void toggleSave(); } : undefined}
-                      onShare={() => setShare({ postId: item.postId, signalType: item.signalType, signalValue: item.signalValue, title: item.text.slice(0, 80), locationName: item.placeName })}
-                      onVerify={(mode) => { void verify(item, mode); }}
-                      saved={saved}
-                      showVerify={Boolean(item.placeId && recheck)}
-                      topComment={topComments[item.postId] ?? null}
-                      verify={verifyState(item, distanceTo(item))}
-                      verifyBusy={verifyBusy}
-                      width={cardWidth}
-                    />
-                  </ScrollView>
-                );
-              }}
-              scrollEnabled={cards.length > 1}
-              showsHorizontalScrollIndicator={false}
-            />
-          )}
-        </Animated.View>
-
-        {cards.length > 1 ? (
-          <View style={styles.pager} testID="card-pager">
-            <AnimatedPressable accessibilityLabel={t('signal:card.prev')} accessibilityRole="button" disabled={index === 0} onPress={() => go(-1)} style={[styles.pagerButton, index === 0 && styles.dim]}>
-              <ChevronLeft color={colors.text} size={20} />
-            </AnimatedPressable>
-            <Text style={styles.pagerText}>{t('signal:card.position', { index: index + 1, count: cards.length })}</Text>
-            <AnimatedPressable accessibilityLabel={t('signal:card.next')} accessibilityRole="button" disabled={index === cards.length - 1} onPress={() => go(1)} style={[styles.pagerButton, index === cards.length - 1 && styles.dim]}>
-              <ChevronRight color={colors.text} size={20} />
-            </AnimatedPressable>
-          </View>
-        ) : null}
-        {notice ? (
+      {notice ? (
+        <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(140)} style={[styles.noticeWrap, { top: insets.top + spacing.md }]}>
           <AnimatedPressable accessibilityRole="alert" onPress={() => setNotice(null)} style={styles.notice}>
             <Text style={styles.noticeText}>{notice}</Text>
           </AnimatedPressable>
-        ) : null}
-      </RNAnimated.View>
+        </Animated.View>
+      ) : null}
+
+      <Animated.View style={[styles.card, { bottom: insets.bottom + CARD_MARGIN, left: CARD_MARGIN, maxHeight, right: CARD_MARGIN }, cardStyle]}>
+        <GestureDetector gesture={pan}>
+          <View collapsable={false} style={styles.header}>
+            <View style={styles.handle} />
+            <View style={styles.headerRow}>
+              {place ? (
+                <AnimatedPressable accessibilityRole="button" disabled={!onOpenPlace} onPress={onOpenPlace} pressScale={0.98} style={styles.placeStrip} testID="card-place-strip">
+                  <View style={styles.placeTile}><PlaceSymbol category={place.category} color={colors.text} size={18} /></View>
+                  <View style={styles.flex}>
+                    <Text numberOfLines={1} style={styles.stripName}>{place.name}</Text>
+                    <Text numberOfLines={1} style={styles.stripMeta}>{[formatCategory(place.category), cards.length ? t('common:stats.signals', { count: cards.length }) : null, current ? formatDistance(distanceTo(current)) : null].filter(Boolean).join(' · ')}</Text>
+                  </View>
+                  {onOpenPlace ? <ChevronRight color={colors.textSecondary} size={18} /> : null}
+                </AnimatedPressable>
+              ) : <View style={styles.flex} />}
+              {cards.length > 1 ? (
+                <View style={styles.pager} testID="card-pager">
+                  <AnimatedPressable accessibilityLabel={t('signal:card.prev')} accessibilityRole="button" disabled={index === 0} hitSlop={6} onPress={() => go(-1)} style={[styles.pagerButton, index === 0 && styles.dim]}>
+                    <ChevronLeft color={colors.text} size={18} />
+                  </AnimatedPressable>
+                  <Text style={styles.pagerText}>{t('signal:card.position', { index: index + 1, count: cards.length })}</Text>
+                  <AnimatedPressable accessibilityLabel={t('signal:card.next')} accessibilityRole="button" disabled={index === cards.length - 1} hitSlop={6} onPress={() => go(1)} style={[styles.pagerButton, index === cards.length - 1 && styles.dim]}>
+                    <ChevronRight color={colors.text} size={18} />
+                  </AnimatedPressable>
+                </View>
+              ) : null}
+              <AnimatedPressable accessibilityLabel={t('signal:card.close')} accessibilityRole="button" hitSlop={8} onPress={close} pressScale={0.9} style={styles.close} testID="card-close">
+                <X color={colors.text} size={18} strokeWidth={2.4} />
+              </AnimatedPressable>
+            </View>
+          </View>
+        </GestureDetector>
+
+        {cards.length === 0 && loading ? (
+          <View style={styles.empty} testID="card-loading"><ActivityIndicator color={colors.primary} /></View>
+        ) : cards.length === 0 ? (
+          <View style={styles.empty} testID="card-empty">
+            <Text style={styles.emptyTitle}>{t('signal:card.noSignals')}</Text>
+            <Text style={styles.emptyBody}>{t('signal:card.noSignalsHint')}</Text>
+            {onCreateSignal ? <BlinkrButton label={t('signal:card.firstSignal')} onPress={onCreateSignal} /> : null}
+          </View>
+        ) : (
+          <FlatList
+            data={cards}
+            getItemLayout={(_, i) => ({ index: i, length: cardWidth, offset: cardWidth * i })}
+            horizontal
+            initialScrollIndex={index}
+            keyExtractor={(card) => card.postId}
+            onMomentumScrollEnd={onPageEnd}
+            pagingEnabled
+            ref={listRef}
+            renderItem={({ item }) => {
+              const recheck = recheckSignal({ signalType: item.signalType, signalValue: item.signalValue, freshness: 'FRESH', expiresAtUtc: item.expiresAtUtc });
+              return (
+                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: maxHeight - HEADER_HEIGHT, width: cardWidth }}>
+                  <SignalCard
+                    card={item}
+                    confirmed={confirmed.has(item.postId)}
+                    distanceMeters={distanceTo(item)}
+                    onDoubleTapLike={() => { void like(item, true); }}
+                    onLike={() => { void like(item); }}
+                    onMenu={() => setMenuOpen(true)}
+                    onOpenAuthor={() => { if (item.authorId) onOpenAuthor({ id: item.authorId, userName: item.authorName ?? '' }); }}
+                    onOpenMedia={(start) => setViewer({ items: item.media, start })}
+                    onOpenPlace={item.placeId && onOpenPlace ? onOpenPlace : undefined}
+                    onOpenThread={() => setThread(item.postId)}
+                    onSave={place ? () => { void toggleSave(); } : undefined}
+                    onShare={() => setShare({ postId: item.postId, signalType: item.signalType, signalValue: item.signalValue, title: item.text.slice(0, 80), locationName: item.placeName })}
+                    onVerify={(mode) => { void verify(item, mode); }}
+                    saved={saved}
+                    showVerify={Boolean(item.placeId && recheck)}
+                    topComment={topComments[item.postId] ?? null}
+                    verify={verifyState(item, distanceTo(item))}
+                    verifyBusy={verifyBusy}
+                    hidePlace={Boolean(place)}
+                    width={cardWidth}
+                  />
+                </ScrollView>
+              );
+            }}
+            scrollEnabled={cards.length > 1}
+            showsHorizontalScrollIndicator={false}
+          />
+        )}
+      </Animated.View>
 
       {menuOpen && current ? (
         <Sheet onClose={() => { setMenuOpen(false); setConfirmDelete(false); }}>
@@ -379,25 +406,27 @@ function MenuRow({ icon, label, onPress, tone }: { icon: React.ReactNode; label:
 
 const styles = StyleSheet.create({
   host: { ...StyleSheet.absoluteFill, zIndex: 120 },
-  scrim: { backgroundColor: colors.scrim },
-  center: { ...StyleSheet.absoluteFill, alignItems: 'center', gap: spacing.sm, justifyContent: 'center' },
+  scrim: { backgroundColor: colors.scrimSoft },
   flex: { flex: 1 },
-  placeStrip: { alignItems: 'center', backgroundColor: colors.glass, borderColor: colors.border, borderRadius: radii.pill, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, minHeight: 48, paddingHorizontal: spacing.lg },
+  card: { backgroundColor: colors.surface, borderRadius: radii.xl, overflow: 'hidden', position: 'absolute', ...shadowFloat },
+  header: { minHeight: HEADER_HEIGHT, paddingBottom: spacing.xs, paddingHorizontal: spacing.md, paddingTop: spacing.xs },
+  handle: { alignSelf: 'center', backgroundColor: colors.lineStrong, borderRadius: radii.pill, height: 5, marginBottom: spacing.sm, width: 36 },
+  headerRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
+  placeStrip: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: spacing.sm, minHeight: 44 },
+  placeTile: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.md, height: 40, justifyContent: 'center', width: 40 },
   stripName: { ...typography.heading, color: colors.text },
   stripMeta: { ...typography.caption, color: colors.textSecondary },
-  card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.xl, borderWidth: 1, overflow: 'hidden', ...shadow },
-  handleArea: { alignItems: 'center', height: 36, justifyContent: 'center' },
-  handle: { backgroundColor: colors.border, borderRadius: radii.pill, height: 5, width: 40 },
-  close: { alignItems: 'center', height: 36, justifyContent: 'center', position: 'absolute', right: spacing.sm, top: 0, width: 44 },
+  close: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 34, justifyContent: 'center', width: 34 },
   empty: { alignItems: 'center', gap: spacing.sm, padding: spacing.xl },
   emptyTitle: { ...typography.title, color: colors.text, textAlign: 'center' },
   emptyBody: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
-  pager: { alignItems: 'center', backgroundColor: colors.glass, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.xs },
-  pagerButton: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
-  pagerText: { ...typography.number, color: colors.text },
-  dim: { opacity: 0.35 },
-  notice: { backgroundColor: colors.glass, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, marginHorizontal: spacing.lg, padding: spacing.md },
-  noticeText: { ...typography.body, color: colors.text, textAlign: 'center' },
+  pager: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, flexDirection: 'row', height: 34, paddingHorizontal: 2 },
+  pagerButton: { alignItems: 'center', height: 34, justifyContent: 'center', width: 30 },
+  pagerText: { ...typography.caption, color: colors.text, fontWeight: '700', minWidth: 34, textAlign: 'center' },
+  dim: { opacity: 0.3 },
+  noticeWrap: { left: spacing.lg, position: 'absolute', right: spacing.lg, zIndex: 2 },
+  notice: { backgroundColor: colors.text, borderRadius: radii.pill, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, ...shadowFloat },
+  noticeText: { ...typography.callout, color: colors.background, textAlign: 'center' },
   menu: { gap: spacing.xs },
   menuRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: 52, paddingHorizontal: spacing.sm },
   menuText: { ...typography.bodyStrong, color: colors.text },

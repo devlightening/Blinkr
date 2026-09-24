@@ -42,6 +42,8 @@ type Props = {
   onOpenAuthor: () => void;
   onOpenPlace?: () => void;
   onVerify: (mode: 'confirm' | 'changed') => void;
+  /** The host already shows the place in its header: no second place row inside the card. */
+  hidePlace?: boolean;
 };
 
 /**
@@ -51,7 +53,7 @@ type Props = {
  */
 export function SignalCard({
   card, width, distanceMeters, verify, showVerify, confirmed, verifyBusy, topComment, saved,
-  onLike, onDoubleTapLike, onOpenMedia, onOpenThread, onShare, onSave, onMenu, onOpenAuthor, onOpenPlace, onVerify,
+  onLike, onDoubleTapLike, onOpenMedia, onOpenThread, onShare, onSave, onMenu, onOpenAuthor, onOpenPlace, onVerify, hidePlace = false,
 }: Props) {
   const { t, i18n } = useTranslation(['signal', 'common']);
   const lang = i18n.language === 'en' ? 'en' : 'tr';
@@ -108,7 +110,7 @@ export function SignalCard({
           items={card.media}
           onDoubleTap={onDoubleTapLike}
           onOpen={onOpenMedia}
-          overlayStart={<View style={styles.badgeOnMedia}><TypeBadge signalType={type} tone={tone} typeLabel={typeLabel} valueLabel={valueLabel} /></View>}
+          overlayStart={<TypeBadge onMedia signalType={type} tone={tone} typeLabel={typeLabel} valueLabel={valueLabel} />}
           width={mediaWidth}
         />
       ) : (
@@ -123,7 +125,7 @@ export function SignalCard({
         </View>
       )}
 
-      {card.placeName ? (
+      {card.placeName && !hidePlace ? (
         <AnimatedPressable accessibilityHint={onOpenPlace ? t('signal:card.placePage') : undefined} accessibilityRole={onOpenPlace ? 'button' : undefined} disabled={!onOpenPlace} onPress={onOpenPlace} style={styles.placeRow} testID="card-place">
           {card.placeId ? <PlaceSymbol category={card.placeCategory} color={colors.textSecondary} size={18} /> : <MapPin color={colors.textSecondary} size={18} />}
           <Text numberOfLines={1} style={styles.placeName}>{card.placeName}</Text>
@@ -236,10 +238,10 @@ const styles = StyleSheet.create({
   placeName: { ...typography.bodyStrong, color: colors.text, flex: 1 },
   description: { ...typography.body, color: colors.text },
   more: { ...typography.label, color: colors.textSecondary, marginTop: 2 },
-  verify: { backgroundColor: colors.surfaceElevated, borderRadius: radii.md, gap: spacing.sm, padding: spacing.md },
+  verify: { backgroundColor: colors.surfaceElevated, borderRadius: radii.lg, gap: spacing.sm, padding: spacing.md },
   verifyTitle: { ...typography.heading, color: colors.text },
   verifyRow: { flexDirection: 'row', gap: spacing.sm },
-  verifyButton: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.pill, borderWidth: 1, flex: 1, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 44 },
+  verifyButton: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.pill, flex: 1, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 44 },
   verifyOn: { backgroundColor: colors.primary, borderColor: colors.primary },
   verifyText: { ...typography.button, color: colors.text },
   verifyTextOn: { color: colors.ink },

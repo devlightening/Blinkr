@@ -3,12 +3,11 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import type { MapLayer } from '../../mapSelection';
-import { colors, motion, radii, shadowSoft, sizes, spacing, typography } from '../../theme';
+import { colors, motion, radii, shadowFloat, shadowSoft, sizes, spacing, typography } from '../../theme';
 import type { SignalType } from '../../types';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { HeaderAvatar } from '../ui/BlinkrHeader';
-import { MapLayerBar } from './MapLayerBar';
-import { MapTypeFilterBar } from './MapTypeFilterBar';
+import { MapFilterRow } from './MapLayerBar';
 import { tx } from '../../i18n/tx';
 
 type Props = {
@@ -52,14 +51,13 @@ export function MapTopChrome({ userId, userName, avatarKey, layer, onLayerChange
         </AnimatedPressable>
         <HeaderAvatar avatarKey={avatarKey} onPress={onOpenProfile} userId={userId} userName={userName} />
       </View>
-      <MapLayerBar onChange={onLayerChange} value={layer} />
-      {layer !== 'places' && <MapTypeFilterBar active={activeTypeFilter} onToggle={onToggleTypeFilter} />}
+      <MapFilterRow activeTypes={activeTypeFilter} layer={layer} onLayerChange={onLayerChange} onToggleType={onToggleTypeFilter} />
 
       <View pointerEvents="box-none" style={styles.scanRow}>
         {scanAvailable ? (
           <Animated.View entering={FadeIn.duration(motion.base)}>
             <AnimatedPressable accessibilityLabel={tx('map:top.scan', 'Bu alanı tara')} accessibilityRole="button" disabled={isLoading} onPress={onScan} pressScale={0.97} style={styles.scanButton}>
-              {isLoading ? <ActivityIndicator color={colors.text} size="small" /> : <RefreshCw color={colors.text} size={17} />}
+              {isLoading ? <ActivityIndicator color={colors.background} size="small" /> : <RefreshCw color={colors.background} size={16} strokeWidth={2.4} />}
               <Text style={styles.scanText}>{isLoading ? tx('map:top.scanning', 'Taranıyor') : tx('map:top.scan', 'Bu alanı tara')}</Text>
             </AnimatedPressable>
           </Animated.View>
@@ -69,6 +67,7 @@ export function MapTopChrome({ userId, userName, avatarKey, layer, onLayerChange
             <Text style={styles.loadingText}>{tx('map:top.updating', 'Çevre güncelleniyor')}</Text>
           </View>
         ) : null}
+        <View pointerEvents="box-none" style={styles.sideButtons}>
         {onShowList ? (
           <AnimatedPressable accessibilityLabel={tx('map:a11y.showList', 'Liste olarak göster')} accessibilityRole="button" onPress={onShowList} pressScale={0.95} style={styles.locateButton} testID="map-show-list">
             <List color={colors.text} size={19} />
@@ -77,6 +76,7 @@ export function MapTopChrome({ userId, userName, avatarKey, layer, onLayerChange
         <AnimatedPressable accessibilityLabel={tx('map:top.locate', 'Konumuma git')} accessibilityRole="button" onPress={onLocate} pressScale={0.95} style={styles.locateButton}>
           <Navigation2 color={colors.text} fill={colors.text} size={19} strokeWidth={2} />
         </AnimatedPressable>
+        </View>
       </View>
     </View>
   );
@@ -84,13 +84,15 @@ export function MapTopChrome({ userId, userName, avatarKey, layer, onLayerChange
 
 const styles = StyleSheet.create({
   overlay: { left: 0, paddingHorizontal: 12, position: 'absolute', right: 0, top: 0 },
-  searchBar: { alignItems: 'center', backgroundColor: colors.glass, borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, minHeight: 56, paddingLeft: spacing.md, paddingRight: spacing.sm, paddingVertical: spacing.sm, ...shadowSoft },
+  // A single soft pill: no stroke, a wide low shadow - it floats over the map instead of sitting on it.
+  searchBar: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, minHeight: 52, paddingLeft: spacing.lg, paddingRight: 6, paddingVertical: 6, ...shadowFloat },
   searchField: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: spacing.sm, minHeight: sizes.touch },
-  searchPlaceholder: { ...typography.body, color: colors.textSecondary, flex: 1 },
-  scanRow: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'center', marginTop: 10, minHeight: 44 },
-  scanButton: { alignItems: 'center', backgroundColor: colors.glass, borderColor: colors.border, borderRadius: radii.pill, borderWidth: 1, flexDirection: 'row', gap: 8, minHeight: 44, paddingHorizontal: 16, ...shadowSoft },
-  scanText: { ...typography.bodyStrong, color: colors.text, fontSize: 14 },
-  locateButton: { alignItems: 'center', backgroundColor: colors.glass, borderColor: colors.border, borderRadius: radii.pill, borderWidth: 1, height: 44, justifyContent: 'center', position: 'absolute', right: 0, top: 0, width: 44, ...shadowSoft },
-  loadingBadge: { alignItems: 'center', backgroundColor: colors.glass, borderColor: colors.border, borderRadius: radii.pill, borderWidth: 1, flexDirection: 'row', gap: 8, minHeight: 40, paddingHorizontal: 14, ...shadowSoft },
-  loadingText: { ...typography.caption, color: colors.text, fontWeight: '600' },
+  searchPlaceholder: { ...typography.body, color: colors.textSecondary, flex: 1, fontWeight: '600' },
+  scanRow: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'center', minHeight: 44 },
+  scanButton: { alignItems: 'center', backgroundColor: colors.text, borderRadius: radii.pill, flexDirection: 'row', gap: 8, minHeight: 40, paddingHorizontal: 16, ...shadowSoft },
+  scanText: { ...typography.callout, color: colors.background, fontWeight: '700' },
+  locateButton: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.pill, height: 46, justifyContent: 'center', width: 46, ...shadowSoft },
+  sideButtons: { gap: spacing.sm, position: 'absolute', right: 0, top: 0 },
+  loadingBadge: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.pill, flexDirection: 'row', gap: 8, minHeight: 36, paddingHorizontal: 14, ...shadowSoft },
+  loadingText: { ...typography.caption, color: colors.text, fontWeight: '700' },
 });

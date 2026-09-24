@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
 
-import { colors, motion, radii, spacing, typography } from '../../theme';
+import { colors, motion, radii, shadowSoft, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 
 type Option<T extends string> = { value: T; label: string };
@@ -49,8 +49,8 @@ export function SegmentedControl<T extends string>({ options, value, onChange, a
 }
 
 const styles = StyleSheet.create({
-  track: { backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', padding: 3 },
-  indicator: { backgroundColor: colors.surface, borderRadius: radii.md - 3, bottom: 3, left: 3, position: 'absolute', top: 3 },
+  track: { backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, flexDirection: 'row', padding: 3 },
+  indicator: { backgroundColor: colors.surface, borderRadius: radii.pill, bottom: 3, left: 3, position: 'absolute', top: 3, ...shadowSoft },
   segment: { alignItems: 'center', flex: 1, justifyContent: 'center', minHeight: 36, paddingHorizontal: spacing.sm },
   label: { ...typography.label, color: colors.textSecondary },
   labelSelected: { color: colors.text },
