@@ -412,6 +412,8 @@ public static class ServiceCollectionExtensions
         // MassTransit
         services.AddMassTransit(busConfig =>
         {
+            // plan-devam F3: a deleted account's signals, comments, likes, views and media are erased here.
+            busConfig.AddConsumer<BlogService.Api.Consumers.UserDeletedConsumer>();
             busConfig.UsingRabbitMq((context, cfg) =>
             {
                 var rabbitMqConfig = config.GetSection("RabbitMq");
@@ -419,6 +421,11 @@ public static class ServiceCollectionExtensions
                 {
                     h.Username("user");
                     h.Password("password");
+                });
+                cfg.ReceiveEndpoint("blog-service-user-deleted", e =>
+                {
+                    e.UseMessageRetry(r => r.Intervals(TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30)));
+                    e.ConfigureConsumer<BlogService.Api.Consumers.UserDeletedConsumer>(context);
                 });
             });
         });

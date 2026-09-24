@@ -133,7 +133,7 @@ namespace IdentityService.Api.Controllers
             // Development only: smoke-test accounts stay out of a real person's search (plan-devam Faz A1).
             var hideTests = TestAccounts.HideFrom(User, _configuration.GetValue<bool>(TestAccounts.HideSetting));
             var found = await _db.Users
-                .Where(u => !hidden.Contains(u.Id) && EF.Functions.ILike(u.UserName, $"%{term}%"))
+                .Where(u => u.DeletedAtUtc == null && !hidden.Contains(u.Id) && EF.Functions.ILike(u.UserName, $"%{term}%"))
                 .Where(u => !hideTests || (!u.UserName.StartsWith(TestAccounts.Prefix) && !System.Text.RegularExpressions.Regex.IsMatch(u.UserName, TestAccounts.LegacyPattern)))
                 .OrderBy(u => u.UserName)
                 .Take(20)
@@ -148,7 +148,7 @@ namespace IdentityService.Api.Controllers
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id)
         {
-            var user = await _db.Users.Where(u => u.Id == id)
+            var user = await _db.Users.Where(u => u.Id == id && u.DeletedAtUtc == null)
                 .Select(u => new { u.Id, u.UserName, u.AvatarKey, u.Bio, u.CreatedAt, u.IsPrivate })
                 .FirstOrDefaultAsync();
 

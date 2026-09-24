@@ -5,11 +5,12 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/blinkr-icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Blinkr, çevrendeki taze sinyalleri göstermek ve seçtiğinde konumlu sinyal yayınlamak için konumunu kullanır."
+        "NSLocationWhenInUseUsageDescription": "Blinkr, yakınındaki yerleri ve taze sinyalleri göstermek ve bir yerde sinyal paylaştığında orada olduğunu doğrulamak için konumunu kullanır. Kesin konumun kimseye gösterilmez.",
+        "CFBundleAllowMixedLocalizations": true
       }
     },
     "android": {
@@ -23,10 +24,41 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.ACCESS_BACKGROUND_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "locales": {
+      "tr": "./locales/tr.json",
+      "en": "./locales/en.json"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Blinkr, sinyaline, hikayene veya snap'ine fotoğraf ya da video çekmen için kamerayı kullanır.",
+          "microphonePermission": "Blinkr, video çekerken sesi kaydetmek için mikrofonu kullanır.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Blinkr, galerinden seçtiğin fotoğraf ve videoları paylaşabilmen için fotoğraf arşivine erişir. Fotoğraflardaki konum bilgisi silinir.",
+          "cameraPermission": "Blinkr, sinyaline, hikayene veya snap'ine fotoğraf ya da video çekmen için kamerayı kullanır.",
+          "microphonePermission": "Blinkr, video çekerken sesi kaydetmek için mikrofonu kullanır."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Blinkr, yakınındaki yerleri ve taze sinyalleri göstermek ve bir yerde sinyal paylaştığında orada olduğunu doğrulamak için konumunu kullanır. Kesin konumun kimseye gösterilmez."
+        }
+      ]
+    ]
   }
 }

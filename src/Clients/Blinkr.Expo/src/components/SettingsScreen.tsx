@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { ArrowLeft, ChevronRight, Code2, Info, LogOut, ShieldCheck, UserX } from 'lucide-react-native';
+import { ArrowLeft, BookOpen, ChevronRight, Code2, Download, FileText, Info, LogOut, Lock, ShieldCheck, Trash2, UserX, Users } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +12,9 @@ import type { AuthResponse, BlockedUser } from '../types';
 import { AnimatedPressable } from './AnimatedPressable';
 import { Avatar } from './Avatar';
 import { DevComponentPreview } from './DevComponentPreview';
+import { LegalDocView } from './LegalDocView';
+import { DataRequestView } from './account/DataRequestView';
+import { DeleteAccountView } from './account/DeleteAccountView';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
 import { SegmentedControl } from './ui/BlinkrSegmentedControl';
@@ -29,7 +32,7 @@ type Props = {
   onPrivacyChange?: (isPrivate: boolean) => void;
 };
 
-type Page = 'main' | 'blocked' | 'dev';
+type Page = 'main' | 'blocked' | 'dev' | 'data' | 'delete' | 'community' | 'terms' | 'privacy';
 
 const appVersion = () => Constants.expoConfig?.version ?? '1.0.0';
 
@@ -118,10 +121,10 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
   return (
     <View style={styles.screen}>
       <View style={[styles.bar, { paddingTop: insets.top + spacing.sm }]}>
-        <AnimatedPressable accessibilityLabel="Geri dön" accessibilityRole="button" onPress={() => (page === 'blocked' ? setPage('main') : onBack())} pressScale={0.95} style={styles.back}>
+        <AnimatedPressable accessibilityLabel="Geri dön" accessibilityRole="button" onPress={() => (page !== 'main' ? setPage('main') : onBack())} pressScale={0.95} style={styles.back}>
           <ArrowLeft color={colors.text} size={22} />
         </AnimatedPressable>
-        <Text accessibilityRole="header" style={styles.title}>{page === 'blocked' ? 'Engellenen kişiler' : 'Ayarlar'}</Text>
+        <Text accessibilityRole="header" numberOfLines={1} style={styles.title}>{page === 'blocked' ? 'Engellenen kişiler' : page === 'main' ? 'Ayarlar' : t(`pages.${page}`)}</Text>
       </View>
 
       {page === 'main' ? (
@@ -130,6 +133,8 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
           <View style={styles.group}>
             <Row icon={<Text style={styles.glyph}>@</Text>} title="Kullanıcı adı" value={auth.userName} />
             <Row icon={<Text style={styles.glyph}>✉</Text>} title="E-posta" value={auth.email} />
+            <Row icon={<Download color={colors.text} size={18} />} onPress={() => setPage('data')} title={t('pages.data')} />
+            <Row icon={<Trash2 color={colors.danger} size={18} />} onPress={() => setPage('delete')} title={t('pages.delete')} />
           </View>
 
           <Text style={styles.section}>Güvenlik</Text>
@@ -185,6 +190,9 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
 
           <Text style={styles.section}>Hakkında</Text>
           <View style={styles.group}>
+            <Row icon={<Users color={colors.text} size={18} />} onPress={() => setPage('community')} title={t('pages.community')} />
+            <Row icon={<FileText color={colors.text} size={18} />} onPress={() => setPage('terms')} title={t('pages.terms')} />
+            <Row icon={<Lock color={colors.text} size={18} />} onPress={() => setPage('privacy')} title={t('pages.privacy')} />
             <Row icon={<Info color={colors.text} size={18} />} title="Sürüm" value={appVersion()} />
           </View>
           <Text style={styles.attribution}>Yer verileri © OpenStreetMap katkıcıları (ODbL). Taban harita Apple Maps / Google Maps’e aittir; Blinkr işaretleri yalnızca Blinkr verisinden çizilir.</Text>
@@ -193,6 +201,12 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
             <LogOut color={colors.danger} size={18} />
             <Text style={styles.logoutText}>Oturumu kapat</Text>
           </AnimatedPressable>
+        </ScrollView>
+      ) : page === 'data' || page === 'delete' || page === 'community' || page === 'terms' || page === 'privacy' ? (
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]} showsVerticalScrollIndicator={false}>
+          {page === 'data' ? <DataRequestView auth={auth} refresh={refresh} /> : null}
+          {page === 'delete' ? <DeleteAccountView auth={auth} onDeleted={onLogout} refresh={refresh} /> : null}
+          {page === 'community' || page === 'terms' || page === 'privacy' ? <LegalDocView id={page} /> : null}
         </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]} showsVerticalScrollIndicator={false}>
@@ -221,7 +235,7 @@ const styles = StyleSheet.create({
   screen: { ...StyleSheet.absoluteFill, backgroundColor: colors.background, zIndex: 20 },
   bar: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.sm, paddingHorizontal: spacing.lg },
   back: { alignItems: 'center', height: sizes.touch, justifyContent: 'center', marginLeft: -spacing.sm, width: sizes.touch },
-  title: { ...typography.title, color: colors.text },
+  title: { ...typography.title, color: colors.text, flex: 1 },
   content: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   section: { ...typography.label, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.lg },
   group: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, overflow: 'hidden' },

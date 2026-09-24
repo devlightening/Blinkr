@@ -999,6 +999,49 @@ async function main() {
     await page.goto(url + '?scene=conversation&emptychat');
     await expect(page.getByText('Henüz mesaj yok')).toBeVisible();
 
+    // plan-devam Faz F: legal texts (draft note, two languages share the screen), data request, two-step deletion,
+    // the pending-deletion screen, and the birth year at sign-up.
+    await page.goto(url + '?scene=settings');
+    await page.getByRole('button', { name: 'Topluluk kuralları' }).click();
+    await expect(page.getByTestId('legal-community')).toBeVisible();
+    await expect(page.getByTestId('legal-draft')).toContainText('taslaktır');
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'legal-community.png') });
+    await page.getByLabel('Geri dön').click();
+    await page.getByRole('button', { name: 'Gizlilik politikası' }).click();
+    await expect(page.getByTestId('legal-privacy')).toContainText('Kesin cihaz konumun');
+    await page.getByLabel('Geri dön').click();
+    await page.getByRole('button', { name: 'Verilerimi iste' }).click();
+    await page.getByRole('button', { name: 'Verilerimi iste' }).click();
+    await expect(page.getByTestId('data-request-done')).toContainText('Talebin alındı');
+    await page.getByLabel('Geri dön').click();
+    await page.getByRole('button', { name: 'Hesabı sil' }).click();
+    await expect(page.getByTestId('delete-account')).toContainText('30 gün');
+    await page.getByRole('button', { name: 'Devam et' }).click();
+    await expect(page.getByRole('button', { name: 'Hesabımı sil' })).toBeDisabled();
+    await page.getByLabel('Şifre', { exact: true }).fill('yanlis');
+    await page.getByRole('button', { name: 'Hesabımı sil' }).click();
+    await expect(page.getByText('Şifre doğru değil.')).toBeVisible();
+    await expect(page.getByLabel('chosen')).toHaveText('none');
+    await page.getByLabel('Şifre', { exact: true }).fill('dogru-sifre');
+    await page.getByRole('button', { name: 'Hesabımı sil' }).click();
+    await expect(page.getByLabel('chosen')).toHaveText('logout');
+    await page.goto(url + '?scene=pendingDeletion');
+    await expect(page.getByTestId('pending-deletion')).toContainText('24 Ekim 2026');
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'pending-deletion.png') });
+    await page.getByRole('button', { name: 'Silmeyi geri al' }).click();
+    await expect(page.getByLabel('chosen')).toHaveText('cancelled:none');
+    await page.goto(url + '?scene=auth');
+    await page.getByTestId('birth-year').fill('2020');
+    await expect(page.getByTestId('birth-year-hint')).toContainText('en az 13');
+    await page.getByTestId('birth-year').fill('2011');
+    await expect(page.getByTestId('birth-year-hint')).toContainText('gizli başlar');
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'auth-birth-year.png') });
+    await expect(page.getByTestId('auth-terms')).toContainText('sıfır tolerans');
+    await page.getByRole('link', { name: 'Kullanım şartları' }).click();
+    await expect(page.getByTestId('auth-legal')).toContainText('En az 13'.replace('En az', 'en az'));
+    await page.getByRole('button', { name: 'Metni kapat' }).click();
+    await expect(page.getByTestId('auth-legal')).toHaveCount(0);
+
     // User search opens with a hint, finds people by name and never lists yourself.
     await page.goto(url + '?scene=search');
     await expect(page.getByText(/en az 2 harf/)).toBeVisible();

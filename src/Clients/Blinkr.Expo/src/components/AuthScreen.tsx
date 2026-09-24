@@ -1,7 +1,8 @@
 import * as Haptics from 'expo-haptics';
-import { ArrowRight, Eye, EyeOff, Radio, ShieldCheck } from 'lucide-react-native';
+import { ArrowRight, Eye, EyeOff, Radio, ShieldCheck, X } from 'lucide-react-native';
 import { BlinkrMark } from './BlinkrMark';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -16,6 +17,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { authenticate } from '../api';
+import { checkBirthYear } from '../ageGate';
+import type { LegalDocId } from '../legalContent';
+import { LegalDocView } from './LegalDocView';
 import { friendlyError } from '../productPresentation';
 import { AnimatedPressable } from './AnimatedPressable';
 import { colors, motion, radii } from '../theme';
@@ -31,6 +35,11 @@ export function AuthScreen({ onAuthenticated }: Props) {
   const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [birthYear, setBirthYear] = useState('');
+  // The terms and guidelines open over the form (plan-devam F7: the EULA is accepted at sign-up, with the texts one tap away).
+  const [legal, setLegal] = useState<LegalDocId | null>(null);
+  const { t } = useTranslation('common');
+  const age = checkBirthYear(birthYear);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +48,7 @@ export function AuthScreen({ onAuthenticated }: Props) {
     setIsLoading(true);
     setError(null);
     try {
-      const auth = await authenticate(mode, { userName, email, password });
+      const auth = await authenticate(mode, mode === 'register' ? { userName, email, password, birthYear: age.year } : { userName, email, password });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onAuthenticated(auth);
     } catch (err) {
@@ -113,6 +122,26 @@ export function AuthScreen({ onAuthenticated }: Props) {
               </View>
             )}
 
+            {mode === 'register' && (
+              <View style={styles.field}>
+                <Text style={styles.label}>{t('auth.birthYear')}</Text>
+                <TextInput
+                  accessibilityLabel={t('auth.birthYear')}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  onChangeText={(value) => setBirthYear(value.replace(/[^0-9]/g, ''))}
+                  placeholder="2000"
+                  placeholderTextColor={colors.mutedSoft}
+                  style={styles.input}
+                  testID="birth-year"
+                  value={birthYear}
+                />
+                <Text style={[styles.hint, age.problem && age.problem !== 'empty' && styles.hintError]} testID="birth-year-hint">
+                  {age.problem === 'tooYoung' ? t('auth.tooYoung') : age.problem === 'invalid' ? t('auth.invalidYear') : age.minor ? t('auth.minorNote') : t('auth.birthYearHint')}
+                </Text>
+              </View>
+            )}
+
             <View style={styles.field}>
               <Text style={styles.label}>E-posta</Text>
               <TextInput
@@ -153,13 +182,23 @@ export function AuthScreen({ onAuthenticated }: Props) {
 
             {error && <Text style={styles.error}>{error}</Text>}
 
+            {mode === 'register' ? (
+              <Text style={styles.terms} testID="auth-terms">
+                {t('auth.termsBefore')}
+                <Text accessibilityRole="link" onPress={() => setLegal('terms')} style={styles.termsLink}>{t('auth.termsLink')}</Text>
+                {t('auth.termsMiddle')}
+                <Text accessibilityRole="link" onPress={() => setLegal('community')} style={styles.termsLink}>{t('auth.communityLink')}</Text>
+                {t('auth.termsAfter')}
+              </Text>
+            ) : null}
+
             <AnimatedPressable
-              disabled={isLoading || !email || !password || (mode === 'register' && !userName)}
+              disabled={isLoading || !email || !password || (mode === 'register' && (!userName || age.problem !== null))}
               onPress={submit}
               pressScale={0.95}
               style={[
                 styles.primaryButton,
-                (isLoading || !email || !password || (mode === 'register' && !userName)) && styles.buttonDisabled,
+                (isLoading || !email || !password || (mode === 'register' && (!userName || age.problem !== null))) && styles.buttonDisabled,
               ]}
             >
               {isLoading ? (
@@ -179,6 +218,18 @@ export function AuthScreen({ onAuthenticated }: Props) {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+      {legal ? (
+        <View style={styles.legalLayer} testID="auth-legal">
+          <View style={styles.legalBar}>
+            <AnimatedPressable accessibilityLabel={t('auth.closeLegal')} accessibilityRole="button" onPress={() => setLegal(null)} pressScale={0.9} style={styles.legalClose}>
+              <X color={colors.textPrimary} size={22} />
+            </AnimatedPressable>
+          </View>
+          <ScrollView contentContainerStyle={styles.legalContent}>
+            <LegalDocView id={legal} />
+          </ScrollView>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -208,6 +259,14 @@ const styles = StyleSheet.create({
   segmentTextActive: { color: colors.text },
   field: { marginTop: 18 },
   label: { color: colors.textPrimary, fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  hint: { color: colors.textSecondary, fontSize: 12, lineHeight: 16, marginTop: 6 },
+  hintError: { color: colors.danger },
+  terms: { color: colors.textSecondary, fontSize: 12, lineHeight: 17, marginTop: 14 },
+  termsLink: { color: colors.textPrimary, fontWeight: '700', textDecorationLine: 'underline' },
+  legalLayer: { ...StyleSheet.absoluteFill, backgroundColor: colors.background, zIndex: 10 },
+  legalBar: { alignItems: 'flex-end', paddingHorizontal: 12, paddingTop: 8 },
+  legalClose: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
+  legalContent: { paddingBottom: 40, paddingHorizontal: 20 },
   input: {
     backgroundColor: colors.surfaceSoft, borderColor: colors.line, borderRadius: radii.control, borderWidth: 1,
     color: colors.textPrimary, fontSize: 15, minHeight: 48, paddingHorizontal: 14,

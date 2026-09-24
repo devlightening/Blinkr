@@ -18,6 +18,13 @@
         public DateTime? RestrictedUntilUtc { get; set; }
         /// <summary>Moderation: until then the person cannot sign in or refresh a session; <see cref="Sanctions.Forever"/> = closed.</summary>
         public DateTime? SuspendedUntilUtc { get; set; }
+        /// <summary>Birth year given at sign-up (plan-devam F5). Null for accounts made before it was asked.</summary>
+        public int? BirthYear { get; set; }
+        /// <summary>Account deletion asked for (F3): erased at <see cref="DeletionScheduledForUtc"/> unless the person signs in and cancels.</summary>
+        public DateTime? DeletionRequestedAtUtc { get; set; }
+        public DateTime? DeletionScheduledForUtc { get; set; }
+        /// <summary>Erased: the row stays only so ids in moderation records still resolve; nothing personal is left.</summary>
+        public DateTime? DeletedAtUtc { get; set; }
         public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     }
 }

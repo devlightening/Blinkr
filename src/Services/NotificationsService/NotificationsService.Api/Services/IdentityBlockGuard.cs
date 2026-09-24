@@ -40,7 +40,10 @@ public sealed class IdentityBlockGuard : IBlockGuard
                 return BlockCheck.Unavailable;
             }
             using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-            return doc.RootElement.TryGetProperty("blocked", out var blocked) && blocked.GetBoolean() ? BlockCheck.Blocked : BlockCheck.Allowed;
+            if (doc.RootElement.TryGetProperty("blocked", out var blocked) && blocked.GetBoolean()) return BlockCheck.Blocked;
+            if (doc.RootElement.TryGetProperty("canMessage", out var canMessage) && canMessage.ValueKind == JsonValueKind.False)
+                return doc.RootElement.TryGetProperty("reason", out var reason) && reason.ValueKind == JsonValueKind.String && reason.GetString() == "gone" ? BlockCheck.Gone : BlockCheck.FriendsOnly;
+            return BlockCheck.Allowed;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or FormatException or InvalidOperationException)
         {

@@ -371,3 +371,14 @@ export const getSignalDetail = async (_auth: unknown, postId: string) => {
 export const recordedViews: string[] = [];
 export const recordPostViews = async (_auth: unknown, ids: string[]) => { recordedViews.push(...ids); (window as unknown as { __views?: string[] }).__views = recordedViews; };
 export const deleteSignal = async () => null;
+
+// plan-devam Faz F: account deletion, data request (?wrongpw = the server refuses the password).
+export const requestAccountDeletion = async (_auth: unknown, password: string) => {
+  if (flag('wrongpw') || password !== 'dogru-sifre') throw Object.assign(new Error('Şifre doğru değil.'), { status: 400 });
+  (window as unknown as { __deletion?: string }).__deletion = 'requested';
+  return { deletionScheduledForUtc: new Date(Date.now() + 30 * 86_400_000).toISOString() };
+};
+export const cancelAccountDeletion = async () => { (window as unknown as { __deletion?: string }).__deletion = 'cancelled'; return { deletionScheduledForUtc: null }; };
+let dataRequest: { id: string; createdAtUtc: string; status: string } | null = null;
+export const getLatestDataRequest = async () => ({ latest: dataRequest });
+export const requestDataCopy = async () => { dataRequest = dataRequest ?? { id: 'dr-1', createdAtUtc: new Date().toISOString(), status: 'received' }; return { ...dataRequest, repeated: false }; };

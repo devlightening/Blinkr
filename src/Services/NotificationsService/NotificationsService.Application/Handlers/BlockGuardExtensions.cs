@@ -12,6 +12,8 @@ public static class BlockGuardExtensions
         {
             case BlockCheck.Blocked: throw new ChatForbiddenException("Bu kişiye mesaj gönderemezsin.");
             case BlockCheck.Unavailable: throw new ChatUnavailableException();
+            case BlockCheck.FriendsOnly: throw new ChatForbiddenException("Bu kişiyle yalnızca arkadaş olunca mesajlaşabilirsin.");
+            case BlockCheck.Gone: throw new ChatForbiddenException("Bu hesap silindi.");
         }
     }
 

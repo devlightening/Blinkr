@@ -62,7 +62,15 @@ namespace IdentityService.Api.Controllers
         public async Task<IActionResult> Status(Guid userId)
         {
             if (!TryMe(out var me)) return Unauthorized(new { error = "Unauthorized" });
-            return Ok(new { blocked = await BlockQueries.BetweenAsync(_db, me, userId) });
+            var blocked = await BlockQueries.BetweenAsync(_db, me, userId);
+            // plan-devam F5: when either person is under 18 only friends can message each other. A deleted account
+            // cannot be messaged at all.
+            var people = await _db.Users.Where(u => u.Id == me || u.Id == userId).Select(u => new { u.Id, u.BirthYear, u.DeletedAtUtc }).ToListAsync();
+            var gone = people.Any(p => p.Id == userId && p.DeletedAtUtc != null);
+            var minor = people.Any(p => AgeRules.IsMinor(p.BirthYear));
+            var friends = !minor || await _db.Friendships.AnyAsync(f => f.Status == FriendshipStatus.Accepted && ((f.UserAId == me && f.UserBId == userId) || (f.UserAId == userId && f.UserBId == me)));
+            var reason = blocked ? "blocked" : gone ? "gone" : !friends ? "friends_only" : null;
+            return Ok(new { blocked, canMessage = reason is null, reason });
         }
 
         /// <summary>POST /api/blocks - block someone (idempotent). Ends any friendship or pending request between us.</summary>

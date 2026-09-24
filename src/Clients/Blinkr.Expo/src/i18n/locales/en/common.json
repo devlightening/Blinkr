@@ -64,5 +64,18 @@
   },
   "media": {
     "loadFailed": "Couldn't load the image"
+  },
+  "auth": {
+    "birthYear": "Birth year",
+    "birthYearHint": "Only to check your age; it is not shown on your profile.",
+    "tooYoung": "You must be at least 13 to use Blinkr.",
+    "invalidYear": "Enter a valid birth year (e.g. 2004).",
+    "minorNote": "If you are under 18 your account starts private and only friends can message you.",
+    "termsBefore": "By signing up you accept the ",
+    "termsLink": "Terms of use",
+    "termsMiddle": " and the ",
+    "communityLink": "Community guidelines",
+    "termsAfter": ". Objectionable content and abuse are not tolerated.",
+    "closeLegal": "Close the text"
   }
 }

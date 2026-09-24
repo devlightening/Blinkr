@@ -26,5 +26,6 @@ namespace IdentityService.Application.Interfaces
         /// <summary>People waiting for me to approve their follow (private account).</summary>
         public int FollowRequestCount { get; set; }
         public bool IsPrivate { get; set; }
+        public DateTime? DeletionScheduledForUtc { get; set; }
     }
 }

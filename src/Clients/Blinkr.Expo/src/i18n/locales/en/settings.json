@@ -20,5 +20,45 @@
     "light": "Light",
     "dark": "Dark",
     "hint": "Applies right away; the app reopens for a second."
+  },
+  "pages": {
+    "data": "Request my data",
+    "delete": "Delete account",
+    "community": "Community guidelines",
+    "terms": "Terms of use",
+    "privacy": "Privacy policy"
+  },
+  "legal": {
+    "updated": "Last updated: {{date}}"
+  },
+  "deletion": {
+    "title": "Your account will be deleted for good",
+    "points": {
+      "what": "Your account, signals, comments, likes, stories, snaps and uploaded media are deleted.",
+      "grace": "Deletion happens after 30 days. Sign in before then to cancel it.",
+      "chats": "Your chat messages are removed; the other person sees you as \"Deleted user\".",
+      "keep": "Deleted data cannot be restored. You can first get a copy with Request my data."
+    },
+    "continue": "Continue",
+    "passwordHint": "Enter your password to confirm.",
+    "password": "Password",
+    "confirm": "Delete my account",
+    "back": "Back",
+    "failed": "The account couldn't be deleted. Try again."
+  },
+  "data": {
+    "body": "You can ask for a copy of the data about your account. The request is recorded and the copy is sent to your email address. You can ask once every 30 days.",
+    "ask": "Request my data",
+    "received": "Request received ({{date}}).",
+    "next": "The copy will be sent to your email when it is ready. Questions:",
+    "failed": "The request couldn't be sent. Try again."
+  },
+  "pending": {
+    "title": "Your account is about to be deleted",
+    "body": "Your account and everything you shared will be deleted for good on {{date}}.",
+    "hint": "If you changed your mind you can cancel; your account stays as it is.",
+    "cancel": "Cancel deletion",
+    "logout": "Sign out",
+    "failed": "Couldn't cancel. Try again."
   }
 }

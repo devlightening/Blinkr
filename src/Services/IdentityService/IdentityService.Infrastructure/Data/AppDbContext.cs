@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<ModerationAction> ModerationActions => Set<ModerationAction>();
     public DbSet<Follow> Follows => Set<Follow>();
     public DbSet<SavedPlace> SavedPlaces => Set<SavedPlace>();
+    public DbSet<DataRequest> DataRequests => Set<DataRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

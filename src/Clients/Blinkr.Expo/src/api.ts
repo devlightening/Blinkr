@@ -214,7 +214,7 @@ const requestJson = async <T>(path: string, options: RequestOptions = {}) => {
 
 export const authenticate = async (
   mode: 'login' | 'register',
-  input: { userName: string; email: string; password: string },
+  input: { userName: string; email: string; password: string; birthYear?: number | null },
 ) => {
   const body = mode === 'register'
     ? input
@@ -227,6 +227,23 @@ export const authenticate = async (
   await saveAuth(auth);
   return auth;
 };
+
+type AccountRefresh = { onAuthRefresh?: (auth: AuthResponse) => void; onSessionExpired?: () => void };
+
+/** plan-devam F3: ask for deletion (erased in 30 days; signing in before then offers to cancel). Ends every session. */
+export const requestAccountDeletion = (auth: AuthResponse, password: string, refresh: AccountRefresh = {}) =>
+  requestJson<{ deletionScheduledForUtc: string }>('/api/users/me/deletion', { auth, method: 'POST', body: { password }, onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
+
+export const cancelAccountDeletion = (auth: AuthResponse, refresh: AccountRefresh = {}) =>
+  requestJson<{ deletionScheduledForUtc: null }>('/api/users/me/deletion', { auth, method: 'DELETE', onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
+
+export type DataRequestInfo = { id: string; createdAtUtc: string; status: string };
+/** plan-devam F4: ask for a copy of my data (one per 30 days; a repeat returns the open request). */
+export const requestDataCopy = (auth: AuthResponse, refresh: AccountRefresh = {}) =>
+  requestJson<DataRequestInfo & { repeated: boolean }>('/api/users/me/data-requests', { auth, method: 'POST', onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
+
+export const getLatestDataRequest = (auth: AuthResponse, refresh: AccountRefresh = {}) =>
+  requestJson<{ latest: DataRequestInfo | null }>('/api/users/me/data-requests', { auth, onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
 
 export const setMyAvatar = (
   auth: AuthResponse,

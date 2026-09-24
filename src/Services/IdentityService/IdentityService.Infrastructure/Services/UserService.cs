@@ -40,6 +40,16 @@ namespace IdentityService.Infrastructure.Services
             if (string.IsNullOrEmpty(request.Password))
                 return RegisterResult.Fail("INVALID_PASSWORD", "Bir şifre gir.");
 
+            // plan-devam F5: the birth year decides who may join (13+) and who starts protected (under 18). Only the
+            // development smoke-test accounts may leave it out; they count as adults.
+            var thisYear = DateTime.UtcNow.Year;
+            if (request.BirthYear is null && !(string.Equals(_config["Registration:AllowMissingBirthYearForTests"], "true", StringComparison.OrdinalIgnoreCase) && Shared.Moderation.TestAccounts.IsTestName(userName)))
+                return RegisterResult.Fail("BIRTH_YEAR_REQUIRED", "Doğum yılını gir.");
+            if (request.BirthYear is { } year && (year < 1900 || year > thisYear))
+                return RegisterResult.Fail("INVALID_BIRTH_YEAR", "Geçerli bir doğum yılı gir.");
+            if (request.BirthYear is { } born && AgeRules.YoungestAge(born, thisYear) < AgeRules.MinimumAge)
+                return RegisterResult.Fail("AGE_TOO_YOUNG", "Blinkr'ı kullanmak için en az 13 yaşında olmalısın.");
+
             // Uniqueness ignores case: "Ahmet" and "ahmet" are the same person to everyone who searches for them.
             var emailKey = email.ToLowerInvariant();
             var userNameKey = userName.ToLowerInvariant();
@@ -52,7 +62,10 @@ namespace IdentityService.Infrastructure.Services
             {
                 UserName = userName,
                 Email = email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password)
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                BirthYear = request.BirthYear,
+                // Under 18: a private account from the start (followers are approved one by one).
+                IsPrivate = request.BirthYear is { } by && AgeRules.IsMinor(by, thisYear),
             };
 
             _context.Users.Add(user);
@@ -73,7 +86,7 @@ namespace IdentityService.Infrastructure.Services
         {
             var emailKey = (request.UserName ?? string.Empty).Trim().ToLowerInvariant();
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == emailKey);
-            if (user == null) return null;
+            if (user == null || user.DeletedAtUtc != null) return null;
 
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
                 return null;
@@ -127,7 +140,7 @@ namespace IdentityService.Infrastructure.Services
                     return null;
 
                 var user = await _context.Users.FindAsync(userId);
-                if (user == null) return null;
+                if (user == null || user.DeletedAtUtc != null) return null;
                 if (user.SuspendedUntilUtc is { } suspendedUntil && suspendedUntil > DateTime.UtcNow) return null;
 
                 var incomingHash = HashToken(refreshToken);
@@ -160,7 +173,7 @@ namespace IdentityService.Infrastructure.Services
         public async Task<UserResponse?> GetUserByIdAsync(Guid userId)
         {
             var user = await _context.Users.FindAsync(userId);
-            if (user == null) return null;
+            if (user == null || user.DeletedAtUtc != null) return null;
 
             return new UserResponse
             {
@@ -168,7 +181,8 @@ namespace IdentityService.Infrastructure.Services
                 UserName = user.UserName,
                 Email = user.Email,
                 AvatarKey = user.AvatarKey,
-                Bio = user.Bio
+                Bio = user.Bio,
+                DeletionScheduledForUtc = user.DeletionScheduledForUtc,
             };
         }
 
@@ -261,7 +275,8 @@ namespace IdentityService.Infrastructure.Services
                 Token = tokenHandler.WriteToken(token),
                 RefreshToken = refreshTokenValue,
                 ExpiresIn = (int)jwt.AccessTokenLifetime.TotalSeconds,
-                AvatarKey = user.AvatarKey
+                AvatarKey = user.AvatarKey,
+                DeletionScheduledForUtc = user.DeletionScheduledForUtc,
             };
         }
 

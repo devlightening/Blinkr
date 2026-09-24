@@ -15,5 +15,7 @@ namespace IdentityService.Application.DTOs
         public string RefreshToken { get; set; } = string.Empty;
         public int ExpiresIn { get; set; } // seconds
         public string? AvatarKey { get; set; }
+        /// <summary>Set while the account waits to be deleted (F3): the app offers "Silmeyi geri al" instead of the map.</summary>
+        public DateTime? DeletionScheduledForUtc { get; set; }
     }
 }

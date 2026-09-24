@@ -42,6 +42,7 @@ import { UserSearchSheet } from '../src/components/chat/UserSearchSheet';
 import { BlinkrSheetPanel } from '../src/components/ui/BlinkrSheetPanel';
 import { conversations, nearby, area as composerArea } from './ui-fixtures';
 import { SignalComposer } from '../src/components/SignalComposer';
+import { PendingDeletionScreen } from '../src/components/account/PendingDeletionScreen';
 import { AuthScreen } from '../src/components/AuthScreen';
 import { ClusterVisual, MarkerVisual } from '../src/components/MapMarkerVisuals';
 import { MapTopChrome } from '../src/components/map/MapTopChrome';
@@ -404,6 +405,17 @@ function ComposerWithMedia() {
 
 function Auth() { return <AuthScreen onAuthenticated={() => {}} />; }
 
+// plan-devam F3: signing in while the account waits to be deleted.
+function PendingDeletion() {
+  const [chosen, setChosen] = useState('none');
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <PendingDeletionScreen auth={{ ...qaAuth, deletionScheduledForUtc: '2026-10-24T10:00:00Z' }} onCancelled={(next) => setChosen(`cancelled:${next.deletionScheduledForUtc ?? 'none'}`)} onLogout={() => setChosen('logout')} refresh={{}} />
+      <Text accessibilityLabel="chosen" style={{ height: 0, opacity: 0, position: 'absolute' }}>{chosen}</Text>
+    </View>
+  );
+}
+
 // --- Friends: the full screen, and one person's profile sheet ---
 function Friends() {
   const [chosen, setChosen] = useState('none');
@@ -470,7 +482,7 @@ function ReportableDetail() {
   );
 }
 
-const scenes: Record<string, () => React.JSX.Element> = { onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, card: CardScene, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, discover: Discover, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
+const scenes: Record<string, () => React.JSX.Element> = { pendingDeletion: PendingDeletion, onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, card: CardScene, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, discover: Discover, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
 
 export function SceneHost({ name }: { name: string }) {
   const Scene = scenes[name];

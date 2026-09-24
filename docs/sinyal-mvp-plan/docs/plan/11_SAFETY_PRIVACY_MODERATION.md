@@ -83,14 +83,14 @@
   engelleyen kullanıcının içeriğini görme → 403/404 döndüğü entegrasyon testleriyle kanıtlanır.
 
 ## 7. App Store / Google Play UGC gereksinimleri (kontrol listesi)
-- [ ] Kullanım şartları (EULA) kabulü ve istenmeyen içeriğe sıfır tolerans ifadesi
-- [ ] İçerik filtreleme mekanizması (§4)
-- [ ] Her içerik ve kullanıcı için "Bildir"
-- [ ] Kullanıcı engelleme (engelleyince içerik anında akıştan kalkar)
-- [ ] Raporlara 24 saat içinde müdahale taahhüdü (süreç dokümante)
-- [ ] Uygulama içinde iletişim/destek bilgisi
-- [ ] Uygulama içinden hesap silme
-- [ ] Sign in with Apple (başka sosyal giriş varsa)
-- [ ] Konum, kamera, fotoğraf, bildirim izin açıklama metinleri (`Info.plist` usage descriptions, tr + en)
-- [ ] Gizlilik "beslenme etiketi" (App Privacy) ve Play Data Safety formu doğru doldurulmuş
-- [ ] Arka plan konumu KULLANILMAZ (yalnızca "uygulama kullanılırken")
+- [x] Kullanım şartları (EULA) kabulü ve istenmeyen içeriğe sıfır tolerans ifadesi — kayıt ekranında kabul satırı + metinler (plan-devam F2/F7)
+- [x] İçerik filtreleme mekanizması (§4) — metin filtresi (P10.1); görsel moderasyon ertelendi (D-015)
+- [x] Her içerik ve kullanıcı için "Bildir" — sinyal, yorum, kişi, sohbet mesajı (plan-devam E7)
+- [x] Kullanıcı engelleme (engelleyince içerik anında akıştan kalkar)
+- [x] Raporlara 24 saat içinde müdahale taahhüdü (süreç dokümante) — `docs/operations/moderation-runbook.md`; sorumlu kişi yayından önce atanmalı
+- [ ] Uygulama içinde iletişim/destek bilgisi — yer tutucu `{{DESTEK_EPOSTA}}`; gerçek adres kullanıcıdan bekleniyor (D-021), yayını engeller
+- [x] Uygulama içinden hesap silme — 30 gün bekleme + tüm servislerde silme (BLK-ACCOUNT-01); EventStore kalıcı silme işletim görevi
+- [x] Sign in with Apple (başka sosyal giriş varsa) — gerekmiyor: yalnız e-posta ile giriş var
+- [x] Konum, kamera, fotoğraf, bildirim izin açıklama metinleri (`Info.plist` usage descriptions, tr + en) — bildirim izni henüz istenmiyor (push yok)
+- [~] Gizlilik "beslenme etiketi" (App Privacy) ve Play Data Safety formu — yanıtlar hazır (`docs/operations/store-privacy-answers.md`), konsolda doldurulacak
+- [x] Arka plan konumu KULLANILMAZ (yalnızca "uygulama kullanılırken") — Android `ACCESS_BACKGROUND_LOCATION` engelli

@@ -9,6 +9,8 @@ export type AuthResponse = {
   expiresIn?: number;
   /** Chosen avatar (see avatars.ts); null/absent = the default for this user id. */
   avatarKey?: string | null;
+  /** Set while the account waits to be deleted (plan-devam F3): the app shows "Silmeyi geri al" instead of the map. */
+  deletionScheduledForUtc?: string | null;
 };
 
 export type Bounds = {

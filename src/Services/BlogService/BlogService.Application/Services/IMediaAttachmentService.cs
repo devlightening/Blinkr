@@ -7,5 +7,7 @@ public interface IMediaAttachmentService
     Task<MediaUploadAuthorization?> GetUploadAsync(Guid ownerUserId, Guid mediaId, CancellationToken ct);
     Task<IReadOnlyList<AttachedMedia>> ClaimForPostAsync(Guid ownerUserId, Guid postId, IReadOnlyCollection<Guid> mediaIds, CancellationToken ct);
     Task<int> MarkExpiredOrphansAsync(TimeSpan olderThan, CancellationToken ct);
+    /// <summary>Deletes every upload of a deleted account, files included (plan-devam F3). Returns how many.</summary>
+    Task<int> DeleteAllForOwnerAsync(Guid ownerUserId, CancellationToken ct);
 }
 

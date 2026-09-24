@@ -64,5 +64,18 @@
   },
   "media": {
     "loadFailed": "Görsel yüklenemedi"
+  },
+  "auth": {
+    "birthYear": "Doğum yılı",
+    "birthYearHint": "Yalnızca yaşını doğrulamak için; profilinde görünmez.",
+    "tooYoung": "Blinkr'ı kullanmak için en az 13 yaşında olmalısın.",
+    "invalidYear": "Geçerli bir doğum yılı gir (ör. 2004).",
+    "minorNote": "18 yaşından küçüksen hesabın gizli başlar ve yalnızca arkadaşların sana mesaj atabilir.",
+    "termsBefore": "Kayıt olarak ",
+    "termsLink": "Kullanım şartları",
+    "termsMiddle": "nı ve ",
+    "communityLink": "Topluluk kuralları",
+    "termsAfter": "nı kabul edersin. İstenmeyen içeriğe ve kötüye kullanıma sıfır tolerans uygulanır.",
+    "closeLegal": "Metni kapat"
   }
 }

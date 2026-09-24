@@ -70,6 +70,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // DI: Application <-> Infrastructure
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IdentityService.Api.Moderation.ModerationService>();
+builder.Services.AddHostedService<IdentityService.Api.Account.AccountPurgeService>();
 
 // Authentication & Authorization: IdentityService is the sole JWT authority for the MVP.
 var jwtOptions = BlinkrJwtOptions.FromConfiguration(builder.Configuration, builder.Environment.EnvironmentName);

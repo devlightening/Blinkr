@@ -1,0 +1,10 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "Blinkr",
+    "NSLocationWhenInUseUsageDescription": "Blinkr uses your location to show nearby places and fresh signals, and to confirm you are at a place when you share a signal there. Your exact location is never shown to anyone.",
+    "NSCameraUsageDescription": "Blinkr uses the camera so you can take photos or videos for your signal, story or snap.",
+    "NSMicrophoneUsageDescription": "Blinkr uses the microphone to record sound when you film a video.",
+    "NSPhotoLibraryUsageDescription": "Blinkr opens your photo library so you can share photos and videos you pick. Location data in photos is removed."
+  },
+  "android": {}
+}

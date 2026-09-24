@@ -125,6 +125,14 @@ public sealed class MediaAttachmentService : IMediaAttachmentService
         return docs.Select(x => new AttachedMedia(x.Id, x.PublicUrl, x.MediaType, x.ContentType, x.SizeBytes, x.Width, x.Height, x.DurationSeconds, x.ThumbnailUrl)).ToList();
     }
 
+    public async Task<int> DeleteAllForOwnerAsync(Guid ownerUserId, CancellationToken ct)
+    {
+        var docs = await _uploads.Find(x => x.OwnerUserId == ownerUserId).ToListAsync(ct);
+        foreach (var doc in docs) DeleteStoredObject(doc.ObjectKey);
+        await _uploads.DeleteManyAsync(x => x.OwnerUserId == ownerUserId, ct);
+        return docs.Count;
+    }
+
     public async Task<int> MarkExpiredOrphansAsync(TimeSpan olderThan, CancellationToken ct)
     {
         var cutoff = DateTime.UtcNow.Subtract(olderThan);

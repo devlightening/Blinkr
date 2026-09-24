@@ -19,6 +19,7 @@ import { MapScreen } from './src/components/MapScreen';
 import { ChatListScreen } from './src/components/chat/ChatListScreen';
 import { DiscoverScreen } from './src/components/feed/DiscoverScreen';
 import { OnboardingScreen } from './src/components/OnboardingScreen';
+import { PendingDeletionScreen } from './src/components/account/PendingDeletionScreen';
 import { ProfileScreen } from './src/components/ProfileScreen';
 import { ThemeProvider } from './src/components/ThemeProvider';
 import { BlinkrBottomBar, type BlinkrTab } from './src/components/ui/BlinkrBottomBar';
@@ -210,6 +211,8 @@ export default function App() {
               <ActivityIndicator color={colors.lime} size="small" style={styles.spinner} />
             </View>
           )
+          : auth?.deletionScheduledForUtc
+            ? <PendingDeletionScreen auth={auth} onCancelled={(next) => { void acceptAuth(next); }} onLogout={() => { void logout(); }} refresh={{ onAuthRefresh: (next) => { void acceptAuth(next); }, onSessionExpired: () => { void logout(); } }} />
           : auth && onboardingSeen === false
             ? <OnboardingScreen onDone={finishOnboarding} />
           : auth

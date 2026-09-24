@@ -7,6 +7,10 @@ public enum BlockCheck
     Blocked,
     /// <summary>The identity service could not answer; the caller must not assume "allowed".</summary>
     Unavailable,
+    /// <summary>One of the two is under 18 and they are not friends (plan-devam F5).</summary>
+    FriendsOnly,
+    /// <summary>The other account was deleted.</summary>
+    Gone,
 }
 
 /// <summary>Asks the identity service (the owner of blocks) whether two people may exchange messages.</summary>

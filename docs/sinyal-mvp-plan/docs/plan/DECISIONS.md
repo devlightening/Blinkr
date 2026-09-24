@@ -15,6 +15,18 @@
 
 ## Kararlar
 
+### D-021 — plan-devam Faz F: destek adresi yer tutucusu, hesap silme kapsamı, yaş, veri talebi (2026-09-24)
+- Bağlam: F1–F7 (Faz 10 kalanları). Kullanıcı "bana bir şey sorma" dedi; plan F1'de destek adresini kullanıcıya sormayı istiyor ve adres uydurulmayacak.
+- Karar:
+  - F1: Destek/itiraz adresi `{{DESTEK_EPOSTA}}` yer tutucusu olarak kalıyor (`legalContent.ts` → `SUPPORT_EMAIL`, kurallar/şartlar/gizlilik metinleri, veri talebi ekranı, moderasyon rehberi). App Store UGC kuralı çalışan bir iletişim ister: **yayından önce doldurulmalı** (Faz G yayın kontrol listesi).
+  - F2: Üç yasal metin taslak olarak kodda (i18next `{{ }}` yer tutucusunu yorumlayacağı için JSON'da değil), her ekranda "taslak, hukuki inceleme gerekir" notu; kayıtta EULA kabul satırı ve metinlere bağlantı.
+  - F3 hesap silme: iki adım (açıklama → şifre), 30 gün bekleme (girişte "Silmeyi geri al"), sonra `AccountPurgeService` `UserDeleted` yayınlar ve Identity verisini siler (arkadaşlık, engel, takip, kayıtlı yer, açtığı raporlar, oturumlar); kullanıcı satırı moderasyon kayıtları çözülsün diye kişisel verisi boşaltılarak kalır. Blog: sinyaller olay kaynaklı `PostDeleted` ile (projeksiyon, harita, akış, yer durumu düşer), başkalarının sinyallerindeki yorum ve beğenileri kaldırılır, görüntülenme kayıtları ve yüklenen medya dosyaları silinir. Notifications: yazdığı mesajlar boşaltılır ("Silinmiş kullanıcı"), snap/hikaye dosyaları, tepkiler, bildirimler, cihaz jetonları, konum abonelikleri silinir.
+  - **Yapılamayan kısım:** EventStoreDB olay geçmişinde silinen sinyallerin eski olayları (içerik dahil) kalıyor; kalıcı silme için akış tombstone + scavenge operasyonu gerekiyor (yayın öncesi işletim görevi). Rapor kayıtlarında silinen kişinin kimliği (boşaltılmış hesap) denetim izi için kalıyor.
+  - F4: "Verilerimi iste" yalnız kayıt oluşturur (30 günde bir); otomatik ZIP ve e-posta yok, kopya destek adresinden elle gönderilir (işletim rehberi).
+  - F5 (a): kayıtta doğum yılı zorunlu; yalnız yıl bilindiği için en küçük olası yaş kullanılır (13'ten küçük olabilecek kayıt olamaz, 18'den küçük olabilecek korunur). 18 altı: hesap gizli başlar; o kişiyle yalnız arkadaşları mesajlaşabilir (her iki yönde). Planın diğer maddeleri (profil harita sekmesi, yakındaki soru bildirimleri, önerilen kişiler) uygulamada özellik olarak yok. Geliştirmede yalnız `e2e_` test hesapları doğum yılı vermeden kayıt olabilir (yetişkin sayılır) — mevcut kabul betikleri değişmeden çalışsın diye.
+  - F6: iOS izin metinleri tr (taban) + en (`locales/`), kamera/mikrofon/fotoğraf/konum; arka plan konumu Android'de engelli. `userInterfaceStyle` "automatic" (koyu tema "Sistem" modunda iOS/Android'de doğru çalışsın diye; `expo-system-ui` eklendi).
+- Etki: Kayıt API'si `birthYear` ister; oturum cevapları `deletionScheduledForUtc` taşır; `GET /api/blocks/status` `canMessage`/`reason` döner.
+
 ### D-020 — plan-devam Faz E: balon sohbet, "yazıyor" yoklamayla, yanıt alıntısı (2026-09-24)
 - Bağlam: E1–E9 balon görünümü, gruplama, gün ayırıcı, okundu/yazıyor, snap ve sinyal balonları, mesaj eylemleri istiyor; sohbet gerçek zamanlı değil (CLAUDE.md §6.5, D-005).
 - Karar:

@@ -20,5 +20,45 @@
     "light": "Açık",
     "dark": "Koyu",
     "hint": "Seçimin hemen uygulanır; uygulama bir saniyeliğine yeniden açılır."
+  },
+  "pages": {
+    "data": "Verilerimi iste",
+    "delete": "Hesabı sil",
+    "community": "Topluluk kuralları",
+    "terms": "Kullanım şartları",
+    "privacy": "Gizlilik politikası"
+  },
+  "legal": {
+    "updated": "Son güncelleme: {{date}}"
+  },
+  "deletion": {
+    "title": "Hesabın kalıcı olarak silinecek",
+    "points": {
+      "what": "Hesabın, sinyallerin, yorumların, beğenilerin, hikayelerin, snap'lerin ve yüklediğin medya silinir.",
+      "grace": "Silme 30 gün sonra yapılır. Bu sürede giriş yaparsan silmeyi geri alabilirsin.",
+      "chats": "Sohbetlerde mesajların silinir; karşı taraf seni \"Silinmiş kullanıcı\" olarak görür.",
+      "keep": "Silinen veriler geri getirilemez. İstersen önce Verilerimi iste ile bir kopyasını al."
+    },
+    "continue": "Devam et",
+    "passwordHint": "Onaylamak için şifreni gir.",
+    "password": "Şifre",
+    "confirm": "Hesabımı sil",
+    "back": "Geri",
+    "failed": "Hesap silinemedi. Tekrar dene."
+  },
+  "data": {
+    "body": "Hesabınla ilgili verilerinin bir kopyasını isteyebilirsin. Talebin kaydedilir ve kopya e-posta adresine gönderilir. 30 günde bir talep oluşturabilirsin.",
+    "ask": "Verilerimi iste",
+    "received": "Talebin alındı ({{date}}).",
+    "next": "Kopyan hazırlanınca e-posta adresine gönderilecek. Sorular için:",
+    "failed": "Talep gönderilemedi. Tekrar dene."
+  },
+  "pending": {
+    "title": "Hesabın silinmek üzere",
+    "body": "Hesabın ve paylaşımların {{date}} tarihinde kalıcı olarak silinecek.",
+    "hint": "Vazgeçtiysen silmeyi geri alabilirsin; hesabın olduğu gibi kalır.",
+    "cancel": "Silmeyi geri al",
+    "logout": "Çıkış yap",
+    "failed": "Geri alınamadı. Tekrar dene."
   }
 }

@@ -8,7 +8,7 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz F (A–E tamam; A2/A3 silme kullanıcı onayı bekliyor) |
+| Aktif faz | Faz G (A–F tamam; A2/A3 silme ve F1 destek adresi kullanıcıyı bekliyor) |
 | Önceki durum | Faz 0–9 işlevsel tamam · Faz 10 yarım (P10.1/3/4/8/9 bitti) |
 | Son güncelleme | 2026-09-24 |
 | Engelleyici | F1: gerçek destek/itiraz e-posta adresi kullanıcıdan alınacak |
@@ -84,13 +84,13 @@
 
 ## Faz F — Faz 10 kalanları
 
-- [ ] F1 Destek ve itiraz adresi (engelleyici)
-- [ ] F2 P10.10 Yasal metin ekranları
-- [ ] F3 P10.7 Hesap silme
-- [ ] F4 Veri indirme talebi
-- [ ] F5 P10.6 18 yaş altı varsayılanları
-- [ ] F6 İzin metinleri
-- [ ] F7 Faz 10 kapanışı
+- [~] F1 Destek ve itiraz adresi — `{{DESTEK_EPOSTA}}` yer tutucusu tek yerde (`legalContent.ts` SUPPORT_EMAIL) ve tüm metinlerde; yayından önce kullanıcı dolduracak (D-021)
+- [x] F2 P10.10 Yasal metin ekranları — Ayarlar > Hakkında: Topluluk kuralları, Kullanım şartları, Gizlilik politikası (tr + en, "taslak" notu); kayıtta EULA kabul satırı + bağlantılar
+- [x] F3 P10.7 Hesap silme — iki adım + şifre, 30 gün, girişte "Silmeyi geri al", purge tüm servislerde (BLK-ACCOUNT-01); EventStore olay geçmişi kalıcı silme işletim görevi (D-021)
+- [x] F4 Veri indirme talebi — Ayarlar > Hesap > Verilerimi iste; 30 günde bir kayıt, kopya elle (işletim rehberi)
+- [x] F5 P10.6 18 yaş altı varsayılanları — (a) kayıtta doğum yılı, 13 altı kayıt olamaz, 18 altı gizli hesap + yalnız arkadaşlarla mesaj; diğer maddeler için özellik yok (D-021)
+- [x] F6 İzin metinleri — konum/kamera/mikrofon/fotoğraf tr + en (`locales/`), arka plan konumu engelli
+- [x] F7 Faz 10 kapanışı — 11_SAFETY §7 listesi işaretlendi/gerekçelendi; `docs/operations/moderation-runbook.md` (24 saat süreci), `docs/operations/store-privacy-answers.md`
 
 ## Faz G — Kapanış: i18n, a11y, performans, analitik, QA, yayın
 
@@ -139,6 +139,11 @@
 - **Yapılanlar:** balon sohbet (`chat/ConversationScreen` yeniden yazıldı; saf düzen `chatThread.ts`), gruplama, gün ayırıcı, "Görüldü", "yazıyor…", snap ve sinyal balonları, uzun basma eylemleri (tepki/yanıtla/kopyala/geri al/bildir), yanıt çubuğu. Sunucu: `POST .../typing`, `otherTyping`, `seen`/`seenAtUtc`, `replyToId` + alıntı, geri alınınca alıntı temizliği.
 - **Doğrulama:** BLK-CHAT-03 (yeni), BLK-CHAT-01, BLK-CHAT-02 PASS; `chat-thread.test.ts`, test:ui (balon yönleri, gün ayırıcı, tek "Görüldü", alıntı, sinyal kartı, yazıyor, tepki/kopyala/yanıtla), typecheck, theme, product, i18n, iOS + Android export PASS.
 - **Cihazda bakılacak:** klavye açılınca giriş alanı ve liste; uzun basma hissi; "yazıyor"un gecikmesi (≤ ~4 sn).
+
+### Faz F — 2026-09-24 (Faz 10 kapanışı)
+- **Yapılanlar:** yasal metinler + EULA satırı; hesap silme (Identity istek/iptal/purge, Blog ve Notifications `UserDeleted` tüketicileri, 30 gün, girişte geri alma ekranı); veri talebi; doğum yılı ve 18 altı korumaları (gizli hesap, yalnız arkadaşlarla mesaj); izin metinleri tr/en; işletim rehberleri.
+- **Doğrulama:** BLK-ACCOUNT-01 (yeni: doğum yılı, 18 altı DM, veri talebi, silme/iptal/purge — profil, giriş, arama, sinyal, yorum, beğeni, sohbet) PASS; `age-gate.test.ts`, test:ui (yasal ekranlar, veri talebi, iki adımlı silme, bekleyen silme ekranı, doğum yılı, EULA) PASS.
+- **Faz 10 özeti:** P10.1 metin filtresi, P10.3/4 rapor/yaptırım, P10.6 yaş, P10.7 hesap silme, P10.8 log gizliliği, P10.9 yetki testleri, P10.10 yasal metinler tamam; P10.2 görsel moderasyon ücretli anahtar gerektirdiği için ertelendi (D-015). Açık: destek adresi (F1), EventStore kalıcı silme operasyonu.
 
 ## Performans ölçümleri (Faz G)
 
