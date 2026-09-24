@@ -90,6 +90,21 @@ $register = Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/auth/register" -H
 Assert-Truthy $register.body.token "Register did not return an access token."
 Assert-Truthy $register.body.refreshToken "Register did not return a refresh token."
 
+# Errors carry codes the app translates: a short password (8+ required) and a wrong password.
+function Get-ErrorBody([string]$Path, [hashtable]$Body) {
+    try { Invoke-WebRequest -UseBasicParsing -Method POST -Uri "$GatewayBaseUrl$Path" -ContentType "application/json" -Body ($Body | ConvertTo-Json) -TimeoutSec 20 | Out-Null; return $null }
+    catch {
+        $r = $_.Exception.Response; if ($null -eq $r) { throw }
+        $reader = New-Object System.IO.StreamReader($r.GetResponseStream()); $text = $reader.ReadToEnd(); $reader.Dispose()
+        return [pscustomobject]@{ Status = [int]$r.StatusCode; Json = ($text | ConvertFrom-Json) }
+    }
+}
+$short = Get-ErrorBody "/api/auth/register" @{ userName = "e2e_auth_short_$suffix"; email = "e2e_auth_short_$suffix@blinkr.local"; password = "1234567" }
+Assert-Truthy ($short -and $short.Status -eq 400 -and $short.Json.error -eq "PASSWORD_TOO_SHORT") "A 7-character password must be refused with PASSWORD_TOO_SHORT."
+$wrong = Get-ErrorBody "/api/auth/login" @{ userName = $email; password = "yanlis-sifre-123" }
+Assert-Truthy ($wrong -and $wrong.Status -eq 401 -and $wrong.Json.code -eq "INVALID_CREDENTIALS") "A wrong password must answer 401 INVALID_CREDENTIALS."
+Write-Host "PASS auth error codes (PASSWORD_TOO_SHORT, INVALID_CREDENTIALS)"
+
 $login = Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/auth/login" -Headers $headers -Body @{
     userName = $email
     password = $password

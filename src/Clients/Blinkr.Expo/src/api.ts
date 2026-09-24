@@ -7,6 +7,7 @@ import { COMMENT_PAGE_SIZE, type CommentPage, type CommentSort } from './engagem
 import { DISCOVER_PAGE_SIZE, DISCOVER_RADIUS_METERS, type DiscoverPage } from './discoverFeed';
 import type { Story, StoryTrayItem, StoryViewer } from './stories';
 import type { Mention } from './richText';
+import { authErrorKey } from './authErrors';
 import type { SignalShare } from './chatExtras';
 import type { AppNotification } from './notifications';
 import type { PostDetailDto } from './signalCard';
@@ -72,6 +73,9 @@ const readError = async (response: Response) => {
       // Moderation sanctions (Faz 10 P10.4).
       if (payload.code === 'POSTING_RESTRICTED') return i18n.t('errors:postingRestricted');
       if (payload.code === 'ACCOUNT_SUSPENDED') return i18n.t('errors:accountSuspended');
+      // Sign-in / sign-up: the app's own words in the app's language, by code.
+      const authKey = authErrorKey(payload.code ?? payload.error);
+      if (authKey) return i18n.t(authKey);
       const validationMessages = Object.values(payload.errors ?? {}).flat().filter(Boolean);
       const message = validationMessages[0]
         || payload.detail

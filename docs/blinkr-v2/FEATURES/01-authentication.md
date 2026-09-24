@@ -30,5 +30,5 @@ async function withAuth(req: () => Promise<Response>) {
 - Hata satır içinde, alanın altında; sunucu kodu → i18n metni.
 
 ## Kabul
-- [ ] Koyu/açık ekran görüntüsü; yanlış şifre, kısa şifre, yaş hatası metinleri tr/en.
-- [ ] `scripts/test-auth-gateway-smoke.ps1` PASS.
+- [x] Koyu/açık ekran görüntüsü; yanlış şifre, kısa şifre, yaş hatası metinleri tr/en — 2026-09-25: sunucu kod döner (`INVALID_CREDENTIALS`, `PASSWORD_TOO_SHORT` yeni, 8+ karakter), uygulama `authErrors.ts` ile tr/en gösterir; kayıtta "En az 8 karakter" ipucu
+- [x] `scripts/test-auth-gateway-smoke.ps1` PASS. — 2026-09-25 PASS

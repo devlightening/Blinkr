@@ -101,7 +101,8 @@
     "showPassword": "Şifreyi göster",
     "join": "Blinkr’a katıl",
     "openMap": "Haritayı aç",
-    "locationNote": "Konumun yalnızca sen paylaşmayı seçtiğinde kullanılır."
+    "locationNote": "Konumun yalnızca sen paylaşmayı seçtiğinde kullanılır.",
+    "passwordRule": "En az 8 karakter"
   },
   "actions": {
     "retry": "Tekrar dene",

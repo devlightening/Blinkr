@@ -28,5 +28,5 @@ Rozet: alt bar Keşfet'te nokta; sayı `notification.created` ile canlı güncel
 APNs/FCM anahtarları ücretli/secret → MVP sonrası. `POST /api/subscriptions` jeton kaydı zaten var.
 
 ## Kabul
-- [ ] Sahne `activity` (gruplu satırlar, boş durum).
-- [ ] `scripts/test-notifications.ps1` (varsa genişletilir): tepki → bildirim, gruplama, okundu.
+- [x] Sahne `activity` (gruplu satırlar, boş durum). — test:ui gruplu satır, koyu/açık ekran görüntüsü
+- [x] `scripts/test-notifications.ps1` (varsa genişletilir): tepki → bildirim, gruplama, okundu. — test-notifications + test-activity (BLK-ACTIVITY-01) PASS

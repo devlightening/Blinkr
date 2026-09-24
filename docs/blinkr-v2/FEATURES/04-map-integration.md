@@ -50,6 +50,6 @@ temada gradyan kenarlı disk.
 tam sayfa aç. `app.json` → `"scheme": "blinkr"`; `Linking.getInitialURL` + `addEventListener('url')`.
 
 ## Kabul
-- [ ] Sahneler: `signal-card` (kart), `signal-card-full` (tam sayfa, yorumlar), `signal-card-video`.
-- [ ] `scripts/test-signal-card.ps1`, `test-location-map-core.ps1` PASS.
+- [~] Sahneler: `signal-card` ve `signal-card-full` test:ui'da; `signal-card-video` tarayıcı önizlemesinde gerçek video dosyası olmadığı için cihazda
+- [x] `scripts/test-signal-card.ps1`, `test-location-map-core.ps1` PASS. — 2026-09-25 PASS
 - [~] Cihaz: sürükleme akıcılığı, geri tuşu.

@@ -79,7 +79,7 @@ export function on<T>(evt: string, handler: (p: T) => void) { connection?.on(evt
 - 401'de token yenilenir, bağlantı yeniden kurulur.
 
 ## Kabul
-- [ ] `scripts/test-realtime.ps1` (Node SignalR istemcisiyle): A mesaj atar → B < 1 sn alır; yorum → `post:{id}`
+- [x] `scripts/test-realtime.ps1` (Node SignalR istemcisiyle): A mesaj atar → B < 1 sn alır; yorum → `post:{id}` — BLK-REALTIME-01 PASS
       grubuna düşer; yetkisiz `JoinPost` sessizce reddedilir; token yoksa bağlantı 401.
-- [ ] Mevcut `test-chat-thread.ps1` PASS (REST yolu bozulmadı).
+- [x] Mevcut `test-chat-thread.ps1` PASS (REST yolu bozulmadı). — PASS
 - [~] Cihaz: uçak modu → geri gelince yeniden bağlanma.

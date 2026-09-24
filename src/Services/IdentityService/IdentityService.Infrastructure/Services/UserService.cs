@@ -28,6 +28,9 @@ namespace IdentityService.Infrastructure.Services
         private static readonly System.Text.RegularExpressions.Regex UserNamePattern =
             new(@"^[\p{L}\p{N}_.\-]{3,30}$", System.Text.RegularExpressions.RegexOptions.Compiled);
 
+        public const int MinPasswordLength = 8;
+        public const int MaxPasswordLength = 128;
+
         public async Task<RegisterResult> RegisterAsync(RegisterRequest request)
         {
             var userName = (request.UserName ?? string.Empty).Trim();
@@ -39,6 +42,11 @@ namespace IdentityService.Infrastructure.Services
                 return RegisterResult.Fail("INVALID_EMAIL", "Geçerli bir e-posta adresi gir.");
             if (string.IsNullOrEmpty(request.Password))
                 return RegisterResult.Fail("INVALID_PASSWORD", "Bir şifre gir.");
+            // A minimum length (there was none): 8 characters, and a sane maximum for the hash.
+            if (request.Password.Length < MinPasswordLength)
+                return RegisterResult.Fail("PASSWORD_TOO_SHORT", "Şifre en az 8 karakter olmalı.");
+            if (request.Password.Length > MaxPasswordLength)
+                return RegisterResult.Fail("PASSWORD_TOO_LONG", "Şifre en fazla 128 karakter olabilir.");
 
             // plan-devam F5: the birth year decides who may join (13+) and who starts protected (under 18). Only the
             // development smoke-test accounts may leave it out; they count as adults.

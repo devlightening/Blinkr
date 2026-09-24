@@ -42,7 +42,8 @@ namespace IdentityService.Api.Controllers
                     message = closed ? "Bu hesap topluluk kurallarını ihlal ettiği için kapatıldı." : "Bu hesap topluluk kuralları nedeniyle geçici olarak askıya alındı.",
                 });
             }
-            if (response == null) return Unauthorized("Invalid credentials.");
+            // A code the app translates (it used to be plain English text, shown as-is even in Turkish).
+            if (response == null) return Unauthorized(new { error = "INVALID_CREDENTIALS", code = "INVALID_CREDENTIALS", message = "Kullanıcı adı veya şifre hatalı." });
             return Ok(response);
         }
 

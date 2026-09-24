@@ -22,7 +22,8 @@ import type { LegalDocId } from '../legalContent';
 import { LegalDocView } from './LegalDocView';
 import { friendlyError } from '../productPresentation';
 import { AnimatedPressable } from './AnimatedPressable';
-import { colors, motion, radii } from '../theme';
+import { colors, motion, radii, typography } from '../theme';
+import { passwordLongEnough } from '../authErrors';
 import type { AuthResponse } from '../types';
 import { tx } from '../i18n/tx';
 
@@ -170,6 +171,7 @@ export function AuthScreen({ onAuthenticated }: Props) {
                   placeholderTextColor={colors.mutedSoft}
                   secureTextEntry={!showPassword}
                   style={styles.passwordInput}
+                  testID="password-input"
                   value={password}
                 />
                 <AnimatedPressable
@@ -184,6 +186,11 @@ export function AuthScreen({ onAuthenticated }: Props) {
                     : <Eye color={colors.muted} size={20} />}
                 </AnimatedPressable>
               </View>
+              {mode === 'register' ? (
+                <Text style={[styles.passwordHint, password.length > 0 && !passwordLongEnough(password) && styles.passwordHintShort]} testID="password-hint">
+                  {tx('common:auth.passwordRule', 'En az 8 karakter')}
+                </Text>
+              ) : null}
             </View>
 
             {error && <Text style={styles.error}>{error}</Text>}
@@ -201,13 +208,13 @@ export function AuthScreen({ onAuthenticated }: Props) {
             <AnimatedPressable
               accessibilityLabel={mode === 'register' ? tx('common:auth.join', 'Blinkr’a katıl') : tx('common:auth.openMap', 'Haritayı aç')}
               accessibilityRole="button"
-              aria-disabled={isLoading || !email || !password || (mode === 'register' && (!userName || age.problem !== null))}
-              disabled={isLoading || !email || !password || (mode === 'register' && (!userName || age.problem !== null))}
+              aria-disabled={isLoading || !email || !password || (mode === 'register' && (!userName || age.problem !== null || !passwordLongEnough(password)))}
+              disabled={isLoading || !email || !password || (mode === 'register' && (!userName || age.problem !== null || !passwordLongEnough(password)))}
               onPress={submit}
               pressScale={0.95}
               style={[
                 styles.primaryButton,
-                (isLoading || !email || !password || (mode === 'register' && (!userName || age.problem !== null))) && styles.buttonDisabled,
+                (isLoading || !email || !password || (mode === 'register' && (!userName || age.problem !== null || !passwordLongEnough(password)))) && styles.buttonDisabled,
               ]}
             >
               {isLoading ? (
@@ -244,6 +251,8 @@ export function AuthScreen({ onAuthenticated }: Props) {
 }
 
 const styles = StyleSheet.create({
+  passwordHint: { ...typography.caption, color: colors.muted, marginTop: 4 },
+  passwordHintShort: { color: colors.error },
   flex: { flex: 1 },
   safeArea: { backgroundColor: colors.background, flex: 1 },
   content: { flexGrow: 1 },

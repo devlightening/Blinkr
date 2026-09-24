@@ -64,6 +64,6 @@ Yorum, açıklama, hikaye yazısı `ContentTextFilter`'dan geçer (mevcut); ment
 Yorum ve kullanıcı bildirme mevcut `ReportPanel`.
 
 ## Kabul
-- [ ] `scripts/test-reactions.ps1`: tepki ekle/değiştir/kaldır, sayılar, kendine tepki 400, eski `/likes` uyumlu.
-- [ ] `scripts/test-mentions-hashtags.ps1`: mention bildirimi, engelli kişi mention edilemez, hashtag akışı.
-- [ ] Sahneler: yorum listesi + yanıtlar, mention önerisi, tepki balonu.
+- [x] `scripts/test-reactions.ps1`: tepki ekle/değiştir/kaldır, sayılar, kendine tepki 400, eski `/likes` uyumlu. — BLK-REACTIONS-01 PASS
+- [x] `scripts/test-mentions-hashtags.ps1`: mention bildirimi, engelli kişi mention edilemez, hashtag akışı. — BLK-MENTIONS-01 PASS
+- [x] Sahneler: yorum listesi + yanıtlar, mention önerisi, tepki balonu. — test:ui (mention-suggestions, reaction-picker, signal-thread)

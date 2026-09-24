@@ -613,10 +613,10 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 
 ### Identity
 
-- `POST /api/auth/register` (`birthYear` zorunlu, plan-devam F5: 13 alti 400 `AGE_TOO_YOUNG`, yoksa 400 `BIRTH_YEAR_REQUIRED`; 18 alti gizli hesapla baslar ve yalniz arkadaslariyla mesajlasir. Gelistirmede yalniz `e2e_` test hesaplari yilsiz kayit olabilir)
+- `POST /api/auth/register` (sifre 8-128 karakter: 400 `PASSWORD_TOO_SHORT`/`PASSWORD_TOO_LONG`; hata govdesi `{ error: CODE, message }`, uygulama kodu kendi dilinde gosterir `authErrors.ts`; `birthYear` zorunlu, plan-devam F5: 13 alti 400 `AGE_TOO_YOUNG`, yoksa 400 `BIRTH_YEAR_REQUIRED`; 18 alti gizli hesapla baslar ve yalniz arkadaslariyla mesajlasir. Gelistirmede yalniz `e2e_` test hesaplari yilsiz kayit olabilir)
 - `POST /api/users/me/deletion` (`{ password }`; 30 gun sonra silinir, tum oturumlar biter; 400 `WRONG_PASSWORD`), `DELETE /api/users/me/deletion` (vazgec). Giris/yenileme/`me` cevaplari `deletionScheduledForUtc` tasir.
 - `POST /api/users/me/data-requests` (30 gunde bir; tekrar ayni talebi doner), `GET /api/users/me/data-requests` (`{ latest }`)
-- `POST /api/auth/login`
+- `POST /api/auth/login` (yanlis bilgi 401 `{ code: "INVALID_CREDENTIALS" }`; eskiden duz Ingilizce metindi)
 - `POST /api/auth/refresh`
 - `GET /api/users/...`
 - `PUT /api/users/me/profile` (`{ bio }`; 160 karakter ustu 400 `BIO_TOO_LONG`; bos deger temizler)

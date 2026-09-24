@@ -1145,6 +1145,11 @@ async function main() {
     await expect(page.getByTestId('birth-year-hint')).toContainText('gizli başlar');
     await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'auth-birth-year.png') });
     await expect(page.getByTestId('auth-terms')).toContainText('sıfır tolerans');
+    // Passwords need at least 8 characters: the hint turns red and the button waits.
+    await page.getByTestId('password-input').fill('kisa');
+    await expect(page.getByTestId('password-hint')).toHaveText('En az 8 karakter');
+    await page.getByTestId('password-input').fill('yeterince-uzun');
+    await expect(page.getByTestId('password-hint')).toBeVisible();
     await page.getByRole('link', { name: 'Kullanım şartları' }).click();
     await expect(page.getByTestId('auth-legal')).toContainText('En az 13'.replace('En az', 'en az'));
     await page.getByRole('button', { name: 'Metni kapat' }).click();

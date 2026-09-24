@@ -101,7 +101,8 @@
     "showPassword": "Show password",
     "join": "Join Blinkr",
     "openMap": "Open the map",
-    "locationNote": "Your location is only used when you choose to share."
+    "locationNote": "Your location is only used when you choose to share.",
+    "passwordRule": "At least 8 characters"
   },
   "actions": {
     "retry": "Try again",

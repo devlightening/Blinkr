@@ -46,5 +46,5 @@ const RATES = [1, 1.25, 1.5, 2, 0.5];
 - Sonraki karttaki video için oynatıcı önceden oluşturulur (`preload`), yalnız bir sonraki.
 
 ## Kabul
-- [ ] Sahne `video-player` (minimal/full, duraklatılmış, hız 1.5x).
+- [~] Sahne `video-player`: kontrol kuralları `videoControls.ts` testlerinde; oynatma/hız/sürükleme cihazda doğrulanacak
 - [~] Cihaz: 60 fps kaydırma, sürükleme, hız değişimi, arka plana geçince duraklama.

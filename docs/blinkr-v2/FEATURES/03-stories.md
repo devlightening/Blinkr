@@ -63,6 +63,6 @@ public record StoryViewerDto(Guid UserId, string UserName, DateTime SeenAtUtc, b
 giden kutusu, mevcut `shareOutbox`). Günlük sınır mevcut (429 `TOO_MANY_STORIES`).
 
 ## Kabul
-- [ ] Sahneler: `story-tray` (3 halka durumu), `story-viewer` (segment, krom, yanıt alanı), `story-cube` (yarı geçiş).
-- [ ] `scripts/test-story-likes.ps1`: beğen/geri al idempotent, yabancı 403, görüntüleyenlerde `liked`, yanıt DM oluşturur.
+- [x] Sahneler: `story-tray` (3 halka durumu), `story-viewer` (segment, krom, yanıt alanı), `story-cube` (yarı geçiş). — test:ui story-viewer/story-viewer-liked, küp yarı geçiş ekran görüntüsüyle doğrulandı
+- [x] `scripts/test-story-likes.ps1`: beğen/geri al idempotent, yabancı 403, görüntüleyenlerde `liked`, yanıt DM oluşturur. — BLK-STORY-LIKES-01 PASS
 - [~] Cihaz: küp geçiş 60 fps, basılı tut, ses.

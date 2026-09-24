@@ -27,5 +27,18 @@
     "noRefresh": "Session refresh details are missing.",
     "timeout": "The connection timed out. Try again.",
     "mediaTimeout": "Couldn't read the media file (timed out). Try again."
+  },
+  "auth": {
+    "INVALID_CREDENTIALS": "Wrong user name, email or password.",
+    "INVALID_USERNAME": "User names are 3-30 characters: letters, digits, _ . and -.",
+    "USERNAME_TAKEN": "That user name is taken. Try another.",
+    "INVALID_EMAIL": "Enter a valid email address.",
+    "EMAIL_TAKEN": "There is already an account with this email.",
+    "INVALID_PASSWORD": "Enter a password.",
+    "PASSWORD_TOO_SHORT": "Passwords need at least 8 characters.",
+    "PASSWORD_TOO_LONG": "Passwords can be at most 128 characters.",
+    "AGE_TOO_YOUNG": "You need to be at least 13 to use Blinkr.",
+    "BIRTH_YEAR_REQUIRED": "Enter your birth year.",
+    "INVALID_BIRTH_YEAR": "Enter a valid birth year."
   }
 }

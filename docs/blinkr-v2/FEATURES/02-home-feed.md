@@ -41,5 +41,5 @@ FlatList: `windowSize 7`, `initialNumToRender 3`, `removeClippedSubviews`; video
 (`onViewableItemsChanged`, %60 eşik), diğerleri duraklar ve belleği serbest bırakır.
 
 ## Kabul
-- [ ] Sahne `discover-feed` koyu/açık; çift dokunma animasyonu; tepki balonu; boş/hata durumu.
-- [ ] `scripts/test-discover.ps1` (mevcut) PASS.
+- [x] Sahne `discover-feed` koyu/açık; çift dokunma animasyonu; tepki balonu; boş/hata durumu. — koyu/açık ekran görüntüleri, çift dokunma, tepki balonu, boş/hata test:ui ile (2026-09-25)
+- [x] `scripts/test-discover.ps1` (mevcut) PASS. — 2026-09-25 PASS
