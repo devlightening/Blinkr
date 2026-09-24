@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, Heart, MessageCircle, ShieldAlert, UserCheck, UserPlus, WifiOff } from 'lucide-react-native';
+import { AtSign, ArrowLeft, Bell, Heart, MessageCircle, ShieldAlert, UserCheck, UserPlus, WifiOff } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BackHandler, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -33,6 +33,7 @@ const iconFor = (type: string) => {
     case 'CommentCreated': return <MessageCircle color={colors.primary} size={14} />;
     case 'FollowAccepted': return <UserCheck color={colors.primary} size={14} />;
     case 'UserFollowed': case 'FollowRequested': return <UserPlus color={colors.primary} size={14} />;
+    case 'Mentioned': return <AtSign color={colors.primary} size={14} />;
     case 'ModerationNotice': return <ShieldAlert color={colors.warning} size={14} />;
     default: return <Bell color={colors.textSecondary} size={14} />;
   }

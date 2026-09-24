@@ -11,5 +11,7 @@ public enum NotificationType
     /// <summary>A moderation warning or sanction (Faz 10 P10.4).</summary>
     ModerationNotice = 7,
     /// <summary>Someone liked your story (V2-3).</summary>
-    StoryLiked = 8
+    StoryLiked = 8,
+    /// <summary>Someone @mentioned you in a signal or comment (V2-4).</summary>
+    Mentioned = 9
 }

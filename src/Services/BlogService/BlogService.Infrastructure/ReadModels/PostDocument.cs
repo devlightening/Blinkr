@@ -1,3 +1,4 @@
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace BlogService.Infrastructure.ReadModels;
@@ -65,6 +66,18 @@ public class PostDocument
     [BsonIgnoreIfDefault]
     public bool FromGallery { get; set; }
     public List<CommentEntity> Comments { get; set; } = new();
+    /// <summary>V2-4 (D-027): one reaction per person, with when it was set (a late message never overwrites a newer
+    /// one). Likes projected before reactions existed are in LikedByUserIds only and read as the heart. Must match the other
+    /// two PostDocument copies (their class maps reject unknown elements).</summary>
+    [BsonIgnoreIfNull]
+    public List<ReactionEntity>? Reactions { get; set; }
+    /// <summary>V2-4: folded #hashtags of the title and text (Shared.Events.Text.TextTags). Must match the other two copies.</summary>
+    [BsonIgnoreIfNull]
+    public List<string>? Hashtags { get; set; }
+    /// <summary>V2-4: people @mentioned in the signal, as resolved by BlogService. Must match the other two copies.</summary>
+    [BsonIgnoreIfNull]
+    public List<MentionEntity>? Mentions { get; set; }
+
     public List<MediaEntity> Media { get; set; } = new();
 
     /// <summary>
@@ -107,6 +120,13 @@ public class CommentEntity
     public Guid? ParentCommentId { get; set; }
     public string Text { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
+    /// <summary>V2-4 (D-027): who liked this comment. Must match the other two comment copies.</summary>
+    [BsonIgnoreIfNull]
+    [BsonRepresentation(BsonType.String)]
+    public List<Guid>? LikedBy { get; set; }
+    /// <summary>V2-4: people @mentioned in the comment. Must match the other two comment copies.</summary>
+    [BsonIgnoreIfNull]
+    public List<MentionEntity>? Mentions { get; set; }
 }
 
 public class MediaEntity
@@ -155,4 +175,21 @@ public class LocationEntity
     [MongoDB.Bson.Serialization.Attributes.BsonElement("createdAt")]
     [MongoDB.Bson.Serialization.Attributes.BsonIgnoreIfDefault]
     public DateTime CreatedAtUtc { get; set; }
+}
+
+/// <summary>V2-4: a person's reaction on a post.</summary>
+public class ReactionEntity
+{
+    [BsonRepresentation(BsonType.String)]
+    public Guid UserId { get; set; }
+    public string Reaction { get; set; } = string.Empty;
+    public DateTime AtUtc { get; set; }
+}
+
+/// <summary>V2-4: a person @mentioned, with their name at write time.</summary>
+public class MentionEntity
+{
+    [BsonRepresentation(BsonType.String)]
+    public Guid UserId { get; set; }
+    public string UserName { get; set; } = string.Empty;
 }

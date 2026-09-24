@@ -32,7 +32,11 @@
     "showOnMap": "Show on map",
     "comments": "Comments",
     "anonymous": "Community member",
-    "sensitive": "Sensitive content"
+    "sensitive": "Sensitive content",
+    "hashtagBack": "Back to Discover",
+    "hashtagSubtitle": "Signals shared with this tag in the last 7 days, newest first",
+    "emptyHashtagTitle": "Nothing tagged #{{tag}}",
+    "emptyHashtagBody": "No public signal used this tag in the last 7 days."
   },
   "stories": {
     "yours": "Your story",

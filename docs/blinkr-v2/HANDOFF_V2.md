@@ -13,10 +13,14 @@ Dal: `feat/blinkr-theme-redesign`.
 ## V2-3 hikayeler: bitti (2026-09-24)
 Hikaye beğenisi (sunucu + `StoryLiked` bildirimi), görüntüleyicide kalp, 6 hızlı emoji (DM), küp geçiş, aşağı kaydırıp kapatma, sonraki kişinin ön yüklenmesi, görüntüleyenlerde kalp. Karar: D-026. Kabul: `test-story-likes.ps1` ve `test-stories.ps1` PASS; tüm mobil testler ve iOS/Android export yeşil.
 
+## V2-4 tepkiler, mention, hashtag: bitti (2026-09-24)
+Emoji tepkileri (tek olay, zaman damgalı projeksiyon), yorum beğenisi, sunucu tarafı @mention + bildirim + öneri, #hashtag akışı ve arama, `RichText`. Karar: D-027. Kabul: `test-reactions.ps1`, `test-mentions-hashtags.ps1` PASS; regresyonlar ve tüm mobil testler yeşil. Worker Docker'da çalışır: kodu değişince `docker compose up -d --build projections-worker`.
+
 ## Sıradaki
-V2-4 (emoji tepkileri, yorum beğenisi, mention, hashtag), sonra V2-5 (SignalR), V2-6 (Keşfet/profil cilası), V2-7 (paylaşım menüsü + Etkinlik ekranı), V2-8 (kapanış + ZIP yeniden).
+V2-5 (SignalR), V2-6 (Keşfet/profil cilası), V2-7 (paylaşım menüsü + Etkinlik ekranı), V2-8 (kapanış + ZIP yeniden).
 
 ## Cihazda doğrulanacaklar
+- Tepki: beğeniye uzun basınca seçici (iOS/Android), metindeki @ad/#etiket dokunuşunun kartı açmaması
 - Hikaye: küp geçişin ve aşağı çekmenin akıcılığı, kaydırmanın dokunma bölgeleriyle çakışmaması
 - Video oynatma: sürükleme, hız, ses
 - Kartın tam sayfaya büyümesi (sürükleme akıcılığı, Android geri tuşu)

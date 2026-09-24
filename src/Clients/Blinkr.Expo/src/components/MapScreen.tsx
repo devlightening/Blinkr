@@ -85,6 +85,8 @@ type Props = {
   onOverlayOpenChange?: (open: boolean) => void;
   /** "Kişiler" search result → "Mesaj gönder" (P3.13): the app shell switches to the Sohbet tab. */
   onMessageUser?: (user: UserSummary) => void;
+  /** V2-4: a #tag tapped on a signal card: the app shell opens its feed in Keşfet. */
+  onOpenHashtag?: (tag: string) => void;
 };
 
 const getBounds = (region: Region): Bounds => ({
@@ -101,7 +103,7 @@ const MAX_NEARBY_LOCATION_AGE_MS = 30_000;
 const LOCATION_TIMEOUT_MS = 8_000;
 
 
-export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowList, shareRequested = null, onShareHandled, focusPlace = null, onFocusHandled, focusSignal = null, onFocusSignalHandled, onOverlayOpenChange, onMessageUser }: Props) {
+export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowList, shareRequested = null, onShareHandled, focusPlace = null, onFocusHandled, focusSignal = null, onFocusSignalHandled, onOverlayOpenChange, onMessageUser, onOpenHashtag }: Props) {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const activeRequest = useRef<AbortController | null>(null);
@@ -1033,6 +1035,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
           onCreateSignal={cardView.place ? () => { const target = cardView.place; setCardView(null); openComposer(target); } : undefined}
           onDeleted={() => { void loadPlaces(currentRegion.current, true, mapLayer === 'places'); }}
           onOpenAuthor={(user) => { setCardView(null); setSearchProfileUser({ id: user.id, userName: user.userName }); }}
+          onOpenHashtag={onOpenHashtag}
           onOpenPlace={cardView.place ? () => openPlacePage(cardView.place!) : undefined}
           place={cardView.place}
           refresh={{ onAuthRefresh: onAuthChange, onSessionExpired: onLogout }}
@@ -1041,6 +1044,8 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
       {!isComposerOpen && <PostDetailSheet
         isLoading={isDetailLoading}
         onClose={closeDetailSheet}
+        onOpenHashtag={onOpenHashtag}
+        onOpenPerson={(user) => setSearchProfileUser({ id: user.id, userName: user.userName })}
         onCreateSignal={() => openComposer(selectedDetail ?? selectedPlace)}
         // Confirming goes straight to the last step with the same value; "changed" asks for the new value.
         onRecheck={(mode, current) => openComposer(selectedDetail ?? selectedPlace, { type: current.type, value: mode === 'confirm' ? current.value : null })}

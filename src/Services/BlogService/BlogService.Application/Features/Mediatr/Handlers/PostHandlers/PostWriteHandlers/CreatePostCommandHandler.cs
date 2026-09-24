@@ -189,7 +189,8 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
             expiresAt,
             eventMedia,
             publicationTrust,
-            GalleryMediaPolicy.IsOldGalleryMedia(hasMedia, request.MediaCapturedAtUtc, DateTime.UtcNow));
+            GalleryMediaPolicy.IsOldGalleryMedia(hasMedia, request.MediaCapturedAtUtc, DateTime.UtcNow),
+            request.Mentions);
 
         try
         {

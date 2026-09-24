@@ -32,7 +32,11 @@
     "showOnMap": "Haritada göster",
     "comments": "Yorumlar",
     "anonymous": "Topluluk üyesi",
-    "sensitive": "Hassas içerik"
+    "sensitive": "Hassas içerik",
+    "hashtagBack": "Keşfet'e dön",
+    "hashtagSubtitle": "Bu etiketle son 7 günde paylaşılan sinyaller, en yenisi önce",
+    "emptyHashtagTitle": "#{{tag}} ile paylaşım yok",
+    "emptyHashtagBody": "Son 7 günde bu etiketle herkese açık bir sinyal paylaşılmadı."
   },
   "stories": {
     "yours": "Hikayen",

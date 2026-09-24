@@ -36,6 +36,10 @@ export type CardSignal = {
   liked: boolean;
   /** Only the author gets it. */
   viewCount: number | null;
+  /** V2-4 (D-027): reactions by emoji and mine (liked/likeCount stay their sum), and the people the text mentions. */
+  reactionCounts?: Record<string, number>;
+  myReaction?: string | null;
+  mentions?: Array<{ userId: string; userName: string }>;
   /** False until GET /api/posts/{id} answered (author, counts): the card shows what it has meanwhile. */
   complete: boolean;
 };
@@ -126,6 +130,7 @@ export type PostDetailDto = {
   identityDisclosure?: string | null; publicationTrust?: string | null; fromGallery?: boolean; isMine?: boolean; viewCount?: number | null;
   likeCount?: number; commentCount?: number; isLikedByCurrentUser?: boolean; placeId?: string | null; locationName?: string | null;
   latitude?: number | null; longitude?: number | null;
+  reactionCounts?: Record<string, number> | null; myReaction?: string | null; mentions?: Array<{ userId: string; userName: string }> | null;
   media?: Array<{ url?: string | null; thumbnailUrl?: string | null; type?: string | number | null; width?: number | null; height?: number | null }>;
 };
 
@@ -158,6 +163,9 @@ export const withDetail = (card: CardSignal, dto: PostDetailDto): CardSignal => 
     commentCount: dto.commentCount ?? card.commentCount,
     liked: dto.isLikedByCurrentUser ?? card.liked,
     viewCount: dto.viewCount ?? null,
+    reactionCounts: dto.reactionCounts ?? card.reactionCounts,
+    myReaction: dto.myReaction !== undefined ? dto.myReaction : card.myReaction,
+    mentions: dto.mentions ?? card.mentions,
     complete: true,
   };
 };

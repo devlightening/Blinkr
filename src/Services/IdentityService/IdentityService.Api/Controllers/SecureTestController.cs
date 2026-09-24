@@ -122,6 +122,28 @@ namespace IdentityService.Api.Controllers
             return Ok(new { avatarKey = string.IsNullOrEmpty(request.AvatarKey) ? null : request.AvatarKey });
         }
 
+        public record ResolveUsersRequest(List<string>? UserNames);
+        public record ResolvedUserDto(Guid Id, string UserName);
+
+        /// <summary>
+        /// POST /api/users/resolve { userNames } (V2-4, D-027) - BlogService asks, with the writer's own token, who the
+        /// @names in a text are. Case-insensitive exact names; deleted accounts and anyone blocked either way with the
+        /// writer are left out, so nobody can be mentioned by someone they blocked. At most 10 names.
+        /// </summary>
+        [HttpPost("resolve")]
+        public async Task<IActionResult> Resolve([FromBody] ResolveUsersRequest request)
+        {
+            var keys = (request?.UserNames ?? new List<string>())
+                .Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n.Trim().ToLowerInvariant()).Distinct().Take(10).ToList();
+            if (keys.Count == 0) return Ok(Array.Empty<ResolvedUserDto>());
+            var hidden = await BlockQueries.HiddenFromAsync(_db, ViewerId());
+            var found = await _db.Users
+                .Where(u => u.DeletedAtUtc == null && keys.Contains(u.UserName.ToLower()))
+                .Select(u => new { u.Id, u.UserName })
+                .ToListAsync();
+            return Ok(found.Where(u => !hidden.Contains(u.Id)).Select(u => new ResolvedUserDto(u.Id, u.UserName)));
+        }
+
         [HttpGet("search")]
         public async Task<IActionResult> Search([FromQuery] string q)
         {

@@ -15,6 +15,11 @@ public record PostCommentViewDto
     public Guid? ParentCommentId { get; init; }
     public string Text { get; init; } = string.Empty;
     public DateTime CreatedAtUtc { get; init; }
+    /// <summary>V2-4 (D-027): how many liked it and whether I did; the likers themselves are never listed.</summary>
+    public int LikeCount { get; init; }
+    public bool LikedByMe { get; init; }
+    /// <summary>V2-4: people @mentioned in the comment (the text's @name links to them).</summary>
+    public List<BlogService.Application.Services.MentionDto> Mentions { get; init; } = new();
     public List<PostCommentViewDto> Replies { get; init; } = new();
 }
 

@@ -36,7 +36,7 @@ public class PostsController : ControllerBase
 
     [HttpPost]
     [Authorize(Policy = "api.write")]
-    public async Task<IActionResult> Create([FromBody] CreatePostDto dto)
+    public async Task<IActionResult> Create([FromBody] CreatePostDto dto, [FromServices] BlogService.Api.Services.MentionResolver mentionResolver)
     {
         // Get authenticated user ID - will be used by handler via ICurrentUserService
         var authorId = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated");
@@ -56,6 +56,9 @@ public class PostsController : ControllerBase
         // Synchronous text filter (Faz 10 P10.1): threats/hate refused, TC numbers and plates masked.
         var (verdict, texts) = ContentTextFilter.ReviewAll(dto.Title, dto.Content);
         if (verdict == TextVerdict.Blocked) return UnprocessableEntity(new { error = ContentTextFilter.BlockedCode, code = ContentTextFilter.BlockedCode, message = "Bu içerik topluluk kurallarına uymuyor." });
+        // V2-4 (D-027): @mentions come from the text, resolved by the server.
+        var mentions = await mentionResolver.ResolveAsync(authorId, HttpContext.RequestAborted, texts[0] ?? dto.Title, texts[1] ?? dto.Content);
+        if (mentions.TooMany) return BadRequest(new { error = "TOO_MANY_MENTIONS", code = "TOO_MANY_MENTIONS", message = "Bir paylaşımda en fazla 10 kişiyi etiketleyebilirsin." });
 
         // Create command with location, author name, and gender
         var command = new CreatePostCommand(
@@ -78,7 +81,8 @@ public class PostsController : ControllerBase
             dto.ObservationLatitude,
             dto.ObservationLongitude,
             dto.ObservationAccuracyMeters,
-            dto.MediaCapturedAtUtc);
+            dto.MediaCapturedAtUtc,
+            mentions.Mentions);
         try
         {
             var postId = await _mediator.Send(command);
@@ -146,7 +150,7 @@ public class PostsController : ControllerBase
 
     [HttpPost("{postId:guid}/comments")]
     [Authorize(Policy = "api.write")]
-    public async Task<IActionResult> AddComment(Guid postId, [FromBody] AddCommentDto dto)
+    public async Task<IActionResult> AddComment(Guid postId, [FromBody] AddCommentDto dto, [FromServices] BlogService.Api.Services.MentionResolver mentionResolver)
     {
         var authorId = User.GetUserId() ?? throw new UnauthorizedAccessException();
         var authorName = User.FindFirst("preferred_username")?.Value
@@ -161,10 +165,12 @@ public class PostsController : ControllerBase
         var review = ContentTextFilter.Review(text);
         if (review.Verdict == TextVerdict.Blocked) return UnprocessableEntity(new { error = ContentTextFilter.BlockedCode, code = ContentTextFilter.BlockedCode, message = "Bu içerik topluluk kurallarına uymuyor." });
         text = review.Text;
+        var mentions = await mentionResolver.ResolveAsync(authorId, HttpContext.RequestAborted, text);
+        if (mentions.TooMany) return BadRequest(new { error = "TOO_MANY_MENTIONS", code = "TOO_MANY_MENTIONS", message = "Bir yorumda en fazla 10 kişiyi etiketleyebilirsin." });
 
         try
         {
-            var command = new CreatePostCommentCommand(postId, text, authorId, dto.ParentCommentId, authorName);
+            var command = new CreatePostCommentCommand(postId, text, authorId, dto.ParentCommentId, authorName, mentions.Mentions);
             var commentId = await _mediator.Send(command);
             return Ok(new { CommentId = commentId });
         }
@@ -223,6 +229,42 @@ public class PostsController : ControllerBase
         {
             return BadRequest(new { code = "CANNOT_LIKE_OWN" });
         }
+    }
+
+    /// <summary>
+    /// POST /api/posts/{postId}/reactions { reaction } (V2-4, D-027): one emoji per person from the fixed set; null or the
+    /// same emoji again takes it back. Answers { reaction, counts } from the aggregate. Not on your own signal.
+    /// </summary>
+    [HttpPost("{postId:guid}/reactions")]
+    [Authorize(Policy = "api.write")]
+    public async Task<IActionResult> SetReaction(Guid postId, [FromBody] SetReactionDto dto)
+    {
+        _ = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated");
+        if (dto.Reaction is not null && !Shared.Events.Text.ReactionCatalog.IsValid(dto.Reaction)) return BadRequest(new { code = "INVALID_REACTION" });
+        try
+        {
+            var likerName = User.FindFirst("preferred_username")?.Value ?? User.FindFirst("name")?.Value ?? User.Identity?.Name;
+            var result = await _mediator.Send(new SetPostReactionCommand(postId, dto.Reaction, likerName));
+            return Ok(new { reaction = result.Reaction, counts = result.Counts });
+        }
+        catch (KeyNotFoundException) { return NotFound(new { code = "NOT_FOUND" }); }
+        catch (InvalidOperationException) { return NotFound(new { code = "NOT_FOUND" }); }
+        catch (FluentValidation.ValidationException) { return BadRequest(new { code = "CANNOT_LIKE_OWN" }); }
+    }
+
+    /// <summary>POST /api/posts/{postId}/comments/{commentId}/like (V2-4, D-027): toggle; answers { liked, likeCount }.</summary>
+    [HttpPost("{postId:guid}/comments/{commentId:guid}/like")]
+    [Authorize(Policy = "api.write")]
+    public async Task<IActionResult> ToggleCommentLike(Guid postId, Guid commentId)
+    {
+        _ = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated");
+        try
+        {
+            var (liked, likeCount) = await _mediator.Send(new TogglePostCommentLikeCommand(postId, commentId));
+            return Ok(new { liked, likeCount });
+        }
+        catch (KeyNotFoundException) { return NotFound(new { code = "NOT_FOUND" }); }
+        catch (InvalidOperationException) { return NotFound(new { code = "NOT_FOUND" }); }
     }
 
     // --- READ ENDPOINTS ---
@@ -344,3 +386,6 @@ public class PostsController : ControllerBase
         return post.Longitude ?? 0;
     }
 }
+
+/// <summary>V2-4: the reaction to set; null takes mine back.</summary>
+public record SetReactionDto(string? Reaction);

@@ -82,6 +82,10 @@ public class GetPostByIdHandler : IRequestHandler<GetPostByIdQuery, PostResponse
             FromGallery = postDocument.FromGallery,
             IsMine = isMine,
             ViewCount = viewCount,
+            ReactionCounts = BlogService.Application.Services.PostEngagement.ReactionCounts(postDocument),
+            MyReaction = BlogService.Application.Services.PostEngagement.MyReaction(postDocument, request.RequestingUserId),
+            Hashtags = postDocument.Hashtags ?? new List<string>(),
+            Mentions = BlogService.Application.Services.PostEngagement.Mentions(postDocument.Mentions),
             Media = postDocument.Media?.Select(m => new PostMediaDto
             {
                 Id = m.Id,

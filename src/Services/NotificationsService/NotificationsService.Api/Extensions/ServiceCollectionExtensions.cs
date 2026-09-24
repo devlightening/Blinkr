@@ -90,6 +90,7 @@ public static class ServiceCollectionExtensions
             busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.UserFollowedNotificationConsumer>();
             busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.FollowAcceptedNotificationConsumer>();
             busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.ModerationNotificationConsumer>();
+            busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.PostMentionNotificationConsumer>();
             busCfg.AddConsumer<NotificationsService.Api.Consumers.UserDeletedConsumer>();
 
             busCfg.UsingRabbitMq((ctx, cfg) =>

@@ -66,6 +66,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<BlinkrTab>('map');
   const [shareRequested, setShareRequested] = useState<ShareMode | null>(null);
   const [focusPlace, setFocusPlace] = useState<BlinkrPlace | null>(null);
+  /** V2-4: a #tag from a map card, handed to Keşfet once. */
+  const [hashtagRequest, setHashtagRequest] = useState<string | null>(null);
   const [focusSignal, setFocusSignal] = useState<CoordinateSignal | null>(null);
   const [mapOverlayOpen, setMapOverlayOpen] = useState(false);
   const [chatUnread, setChatUnread] = useState(false);
@@ -261,6 +263,7 @@ export default function App() {
                     onMessageUser={openChatWith}
                     onOpenProfile={() => setActiveTab('profile')}
                     onShowList={() => setActiveTab('nearby')}
+                    onOpenHashtag={(tag) => { setHashtagRequest(tag); setActiveTab('nearby'); }}
                     onOverlayOpenChange={setMapOverlayOpen}
                   />
                 </View>
@@ -279,7 +282,7 @@ export default function App() {
                 )}
                 {activeTab === 'nearby' && (
                   <Animated.View entering={tabEnter} style={styles.tabLayer}>
-                    <DiscoverScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={() => openShare('camera')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOpenSignal={openNearbySignal} onOverlayOpenChange={setDiscoverOverlayOpen} />
+                    <DiscoverScreen auth={auth} hashtagRequest={hashtagRequest} onHashtagHandled={() => setHashtagRequest(null)} onAuthChange={acceptAuth} onCreateSignal={() => openShare('camera')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOpenSignal={openNearbySignal} onOverlayOpenChange={setDiscoverOverlayOpen} />
                   </Animated.View>
                 )}
                 {activeTab === 'profile' && (

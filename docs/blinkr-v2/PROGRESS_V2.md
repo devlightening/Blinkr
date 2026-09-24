@@ -3,7 +3,7 @@
 | Alan | Değer |
 |---|---|
 | Dal | `feat/blinkr-theme-redesign` |
-| Aktif faz | V2-4 |
+| Aktif faz | V2-5 |
 | Son güncelleme | 2026-09-24 |
 
 İşaretler: `[x]` bitti ve ekranda doğrulandı · `[~]` kısmen / cihaz bekliyor · `[ ]` yapılmadı · `[-]` bilinçli ertelendi
@@ -31,12 +31,12 @@
 - [x] 3.5 Kabul: `test-story-likes.ps1` (BLK-STORY-LIKES-01 PASS) + `test-stories.ps1` regresyon PASS
 
 ## V2-4 Tepkiler, mention, hashtag
-- [ ] 4.1 Emoji tepkileri (olay zinciri)
-- [ ] 4.2 Yorum beğenisi
-- [ ] 4.3 @mention otomatik tamamlama + bildirim
-- [ ] 4.4 #hashtag çıkarımı + `GET /api/discover/hashtag/{tag}`
-- [ ] 4.5 `RichText` bileşeni
-- [ ] 4.6 Kabul: `test-reactions.ps1`, `test-mentions-hashtags.ps1`
+- [x] 4.1 Emoji tepkileri (olay zinciri): `PostLikedEvent.Reaction/Replaces`, `POST /api/posts/{id}/reactions`, worker zaman damgalı projeksiyon, uzun bas = 6 emoji (D-027)
+- [x] 4.2 Yorum beğenisi: `PostCommentLiked/UnlikedEvent`, `POST .../comments/{cid}/like`, yorumda kalp + sayı (kendi yorumun da)
+- [x] 4.3 @mention: sunucu metinden çözer (Identity `POST /api/users/resolve`, engelli/silinmiş düşer, >10 = 400), `Mentioned` bildirimi (anonimde isimsiz), yorum ve composer'da "@" önerisi
+- [x] 4.4 #hashtag: worker `posts.Hashtags` (katlanmış), `GET /api/discover/hashtag/{tag}` (7 gün, anonim yok) + `hashtags/search`, Keşfet içinde etiket akışı
+- [x] 4.5 `ui/RichText` (+ `richText.ts`, sunucuyla aynı kural; yalnız çözülmüş @ad bağlantı)
+- [x] 4.6 Kabul: `test-reactions.ps1` (BLK-REACTIONS-01) ve `test-mentions-hashtags.ps1` (BLK-MENTIONS-01) PASS
 
 ## V2-5 Gerçek zamanlılık
 - [ ] 5.1 `/hubs/realtime` + Gateway WebSocket route
@@ -60,6 +60,11 @@
 
 ## Oturum günlüğü
 _(her fazın sonunda: yapılanlar, doğrulama, kalanlar)_
+
+### 2026-09-24 — V2-4 Tepkiler, mention, hashtag
+- Yapılan: emoji tepkileri, yorum beğenisi, @mention (sunucu çözümü + bildirim + öneri), #hashtag (çıkarım, akış, arama), `RichText`, `ReactionButton`, `MentionSuggestions`; hesap silme yorum beğenilerini de kaldırıyor (D-027).
+- Doğrulama: `test-reactions.ps1`, `test-mentions-hashtags.ps1` PASS; regresyon `test-post-engagement`, `test-safety`, `test-place-live-signal`, `test-stories`, `test-story-likes`, `test-auth-gateway-smoke`, `test-reliable-event-delivery`, `test-account-lifecycle`, `test-product-08` PASS; mobil `typecheck`, `test:nearby` (yeni `rich-text.test.ts`), `test:theme`, `test:product`, `test:i18n`, `test:ui` (tepki seçici, yorum beğenisi, @ önerisi, etiket akışı), iOS/Android export.
+- Cihazda: uzun basma ile seçici açılması (iOS/Android), iç içe `Text onPress` bağlantılarının dokunmayı kartın geri kalanına geçirmemesi.
 
 ### 2026-09-24 — V2-3 Hikayeler
 - Yapılan: hikaye beğenisi uçları + bildirim (D-026), görüntüleyicide kalp, 6 hızlı emoji, küp geçiş, aşağı kaydırıp kapatma, sonraki kişinin ön yüklenmesi; görüntüleyenlerde kalp; `StoryLiked` bildirimi kişiyi açar.

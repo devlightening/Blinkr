@@ -107,7 +107,10 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
                 FromGallery = message.FromGallery,
                 SourceType = message.SourceType ?? "Community",
                 ExpiresAt = message.ExpiresAt,
-                Media = mediaList
+                Media = mediaList,
+                // V2-4 (D-027): hashtags are read from the text here; mentions arrive resolved from BlogService.
+                Hashtags = Shared.Events.Text.TextTags.Hashtags(message.Title, message.Content) is { Count: > 0 } tags ? tags.ToList() : null,
+                Mentions = message.Mentions is { Count: > 0 } mentions ? mentions.Select(m => new MentionEntry { UserId = m.UserId, UserName = m.UserName }).ToList() : null
             };
 
             _logger.LogInformation("📝 Post data: PostId={PostId}, AuthorId={AuthorId}, HasLocation={HasLocation}",

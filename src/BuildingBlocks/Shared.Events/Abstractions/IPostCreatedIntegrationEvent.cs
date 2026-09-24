@@ -38,6 +38,9 @@ namespace Shared.Events.Abstractions
         
         // Media
         ICollection<PostMediaInfo>? Media { get; }
+
+        /// <summary>V2-4: people @mentioned in the signal, resolved by BlogService; null on older messages.</summary>
+        List<Shared.Events.Events.Blog.MentionedUser>? Mentions { get; }
     }
 
     public class PostMediaInfo

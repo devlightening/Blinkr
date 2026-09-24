@@ -52,6 +52,8 @@ import { capturedAtOf, isStaleCapture, oldestCapture } from '../galleryCapture';
 import { shareToFriendsAvailability, toggleSnapFriend } from '../snapPresentation';
 import { BlinkrChip } from './ui/BlinkrChip';
 import { PersonalDataNotice } from './ui/PersonalDataNotice';
+import { MentionSuggestions } from './ui/MentionSuggestions';
+import { insertMention } from '../richText';
 import type {
   AuthResponse,
   BlinkrPlace,
@@ -142,6 +144,8 @@ export function SignalComposer({
   const [signalType, setSignalType] = useState<SignalType>(initialSignal?.type ?? 'GeneralObservation');
   const [signalValue, setSignalValue] = useState<string | null>(initialSignal?.value ?? null);
   const [content, setContent] = useState('');
+  /** V2-4: where the cursor is in the description, for the @ suggestions. */
+  const [contentCursor, setContentCursor] = useState(0);
   const [identityDisclosure, setIdentityDisclosure] = useState<IdentityDisclosure>('LimitedProfile');
   const [isSelectingArea, setIsSelectingArea] = useState(false);
   const [showExtendedPlaces, setShowExtendedPlaces] = useState(false);
@@ -481,12 +485,19 @@ export function SignalComposer({
         accessibilityLabel={t('text.label')}
         maxLength={MAX_TEXT}
         multiline
-        onChangeText={setContent}
+        onChangeText={(value) => { setContent(value); setContentCursor(value.length); }}
+        onSelectionChange={(e) => setContentCursor(e.nativeEvent.selection.end)}
         placeholder={t('text.placeholder')}
         placeholderTextColor={colors.textSecondary}
         style={styles.textArea}
         textAlignVertical="top"
         value={content}
+      />
+      <MentionSuggestions
+        auth={auth}
+        cursor={contentCursor}
+        onPick={(user) => { const next = insertMention(content, contentCursor, user.userName); setContent(next.text.slice(0, MAX_TEXT)); setContentCursor(next.cursor); }}
+        text={content}
       />
       <View style={styles.counterRow}>
         {text.length > 0 && text.length < 5 ? <Text style={styles.errorText}>{t('text.tooShort')}</Text> : <View style={styles.flex} />}

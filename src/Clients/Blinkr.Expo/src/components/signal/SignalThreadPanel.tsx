@@ -3,7 +3,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { ApiCodeError, addPostComment, deletePostComment, getPostComments, getPostEngagement, togglePostLike } from '../../api';
+import { ApiCodeError, addPostComment, deletePostComment, getPostComments, getPostEngagement, setPostReaction, togglePostCommentLike } from '../../api';
+import { chooseReaction, reactionStateOf, tapHeart, toggleCommentLike, totalReactions, type ReactionState } from '../../reactions';
+import { insertMention, MENTION_LIMIT, mentionCount, type Mention } from '../../richText';
+import { MentionSuggestions } from '../ui/MentionSuggestions';
+import { ReactionButton } from '../ui/ReactionButton';
+import { RichText } from '../ui/RichText';
 import {
   COMMENT_MAX,
   COMMENT_POLL_MS,
@@ -17,8 +22,8 @@ import {
   insertComment,
   mergeCommentPages,
   optimisticComment,
+  patchComment,
   removeComment,
-  toggleLike,
   visibleReplies,
 } from '../../engagement';
 import * as haptics from '../../haptics';
@@ -51,7 +56,13 @@ type Props = {
   title?: string;
   /** The header already shows like/comment actions (the full-page signal card). */
   hideActions?: boolean;
+  /** V2-4: a resolved @name or a #tag in a comment was tapped. */
+  onMention?: (mention: Mention) => void;
+  onHashtag?: (tag: string) => void;
 };
+
+/** How long an optimistic comment like wins over a poll that may not have it yet. */
+const LIKE_OVERRIDE_MS = 15_000;
 
 const errorMessage = (t: (key: string) => string, err: unknown, fallbackKey: string) =>
   err instanceof ApiCodeError && err.code !== 'UNKNOWN' ? t(engagementErrorKey(err.code)) : t(fallbackKey);
@@ -61,10 +72,10 @@ const errorMessage = (t: (key: string) => string, err: unknown, fallbackKey: str
  * sheet (swaps content like the report panel - no second sheet). Likes and comments are optimistic and roll
  * back on failure; while open, page 1 is refreshed every few seconds (REST polling, DECISIONS D-005).
  */
-export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refresh = {}, onReport, onOpenLikers, fill = false, title, hideActions = false }: Props) {
+export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refresh = {}, onReport, onOpenLikers, fill = false, title, hideActions = false, onMention, onHashtag }: Props) {
   const { t, i18n } = useTranslation(['signal', 'errors', 'common']);
   const lang = i18n.language === 'en' ? 'en' : 'tr';
-  const [like, setLike] = useState({ liked: false, count: 0 });
+  const [like, setLike] = useState<ReactionState>({ mine: null, counts: {} });
   const [postAuthorId, setPostAuthorId] = useState<string | null>(null);
   const [comments, setComments] = useState<CommentView[]>([]);
   const [total, setTotal] = useState(0);
@@ -80,6 +91,10 @@ export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refre
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [cursor, setCursor] = useState(0);
+  /** V2-4: comment likes I just changed, kept over polls until the projection has them (or 15 s pass). */
+  const likeOverrides = useRef(new Map<string, { likedByMe: boolean; likeCount: number; at: number }>());
+  const [, setOverrideTick] = useState(0);
   const likeBusy = useRef(false);
   const inputRef = useRef<TextInput>(null);
   const refreshRef = useRef(refresh);
@@ -92,7 +107,7 @@ export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refre
         getPostComments(auth, postId, 1, sort, signal, refreshRef.current),
       ]);
       if (signal?.aborted) return;
-      if (!likeBusy.current) setLike({ liked: engagement.isLikedByCurrentUser, count: engagement.likeCount });
+      if (!likeBusy.current) setLike(reactionStateOf(engagement));
       setPostAuthorId(engagement.authorId ?? null);
       setComments((current) => mergeCommentPages(current, first));
       setTotal(first.commentCount);
@@ -141,16 +156,17 @@ export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refre
 
   const isOwnPost = Boolean(auth && postAuthorId && postAuthorId === auth.userId);
 
-  const pressLike = async () => {
+  /** V2-4 (D-027): a tap is the heart (or takes my reaction back), a picked emoji sets or replaces it. */
+  const pressLike = async (pick?: string) => {
     if (!auth || likeBusy.current || isOwnPost) return;
     likeBusy.current = true;
     const before = like;
-    const after = toggleLike(before);
+    const after = pick === undefined ? tapHeart(before) : chooseReaction(before, pick);
     setLike(after);
     haptics.tap();
     try {
-      const liked = await togglePostLike(auth, postId, refreshRef.current);
-      if (liked !== after.liked) setLike(before); // the server disagrees: trust it
+      const answer = await setPostReaction(auth, postId, after.mine, refreshRef.current);
+      setLike({ mine: answer.reaction, counts: answer.counts }); // the server has the last word
     } catch (err) {
       setLike(before);
       setNotice(errorMessage(t, err, 'errors:engagement.likeFailed'));
@@ -159,10 +175,38 @@ export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refre
     }
   };
 
+  const likeView = (comment: CommentView) => {
+    const override = likeOverrides.current.get(comment.commentId);
+    const server = { likedByMe: Boolean(comment.likedByMe), likeCount: comment.likeCount ?? 0 };
+    if (override && Date.now() - override.at < LIKE_OVERRIDE_MS) return { likedByMe: override.likedByMe, likeCount: override.likeCount };
+    return server;
+  };
+
+  const pressCommentLike = async (comment: CommentView) => {
+    if (!auth || comment.pending) return;
+    const before = likeView(comment);
+    const after = toggleCommentLike(before);
+    likeOverrides.current.set(comment.commentId, { ...after, at: Date.now() });
+    setComments((current) => patchComment(current, comment.commentId, after));
+    setOverrideTick((n) => n + 1);
+    haptics.tap();
+    try {
+      const answer = await togglePostCommentLike(auth, postId, comment.commentId, refreshRef.current);
+      const server = { likedByMe: answer.liked, likeCount: answer.likeCount };
+      likeOverrides.current.set(comment.commentId, { ...server, at: Date.now() });
+      setComments((current) => patchComment(current, comment.commentId, server));
+    } catch (err) {
+      likeOverrides.current.delete(comment.commentId);
+      setComments((current) => patchComment(current, comment.commentId, before));
+      setNotice(errorMessage(t, err, 'errors:engagement.likeFailed'));
+    }
+  };
+
   const send = async () => {
     if (!auth) return;
     const { trimmed, empty, tooLong } = commentState(draft);
     if (empty || tooLong) return;
+    if (mentionCount(trimmed) > MENTION_LIMIT) { setNotice(t('signal:mentions.tooMany', { count: MENTION_LIMIT })); return; }
     const localId = `local-${Date.now()}`;
     const parent = replyTo ? (replyTo.parentCommentId ?? replyTo.commentId) : null;
     const local = optimisticComment({
@@ -230,9 +274,23 @@ export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refre
             {comment.isPostAuthor && comment.authorId ? <Text style={styles.authorBadge}>{t('signal:comments.author')}</Text> : null}
             <Text style={styles.commentAge}>{comment.pending ? t('signal:comments.sending') : formatAge(comment.createdAtUtc)}</Text>
           </View>
-          <Text style={styles.commentText}>{comment.text}</Text>
+          <RichText mentions={comment.mentions} onHashtag={onHashtag} onMention={onMention} style={styles.commentText} text={comment.text} />
           {!comment.pending ? (
             <View style={styles.commentActions}>
+              <AnimatedPressable
+                accessibilityLabel={likeView(comment).likedByMe ? t('signal:comments.unlike') : t('signal:comments.like')}
+                accessibilityRole="button"
+                aria-selected={likeView(comment).likedByMe}
+                disabled={!auth}
+                hitSlop={8}
+                onPress={() => { void pressCommentLike(comment); }}
+                pressScale={0.85}
+                style={styles.commentLike}
+                testID={`comment-like-${comment.commentId}`}
+              >
+                <Heart color={likeView(comment).likedByMe ? colors.danger : colors.textSecondary} fill={likeView(comment).likedByMe ? colors.danger : 'none'} size={14} />
+                {likeView(comment).likeCount > 0 ? <Text style={styles.linkText}>{formatCount(likeView(comment).likeCount, lang)}</Text> : null}
+              </AnimatedPressable>
               {auth ? (
                 <AnimatedPressable accessibilityLabel={t('signal:comments.reply')} accessibilityRole="button" hitSlop={8} onPress={() => startReply(comment)} pressScale={0.95}>
                   <Text style={styles.linkText}>{t('signal:comments.reply')}</Text>
@@ -303,26 +361,20 @@ export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refre
         {header}
 
         {hideActions ? null : <View style={styles.actionRow}>
-          <AnimatedPressable
-            accessibilityLabel={like.liked ? t('signal:engagement.unlike') : t('signal:engagement.like')}
-            accessibilityRole="button"
-            aria-selected={like.liked}
+          <ReactionButton
             disabled={!auth || isOwnPost}
-            onPress={() => { void pressLike(); }}
-            pressScale={0.9}
-            style={[styles.actionButton, (!auth || isOwnPost) && styles.actionDisabled]}
+            onPick={(reaction) => { void pressLike(reaction); }}
+            onTap={() => { void pressLike(); }}
+            state={like}
             testID="like-button"
-          >
-            <Heart color={like.liked ? colors.danger : colors.text} fill={like.liked ? colors.danger : 'none'} size={22} />
-            <Text style={styles.actionCount}>{formatCount(like.count, lang)}</Text>
-          </AnimatedPressable>
+          />
           <View style={styles.actionButton}>
             <MessageCircle color={colors.text} size={22} />
             <Text style={styles.actionCount}>{formatCount(total, lang)}</Text>
           </View>
-          {onOpenLikers && like.count > 0 ? (
+          {onOpenLikers && totalReactions(like.counts) > 0 ? (
             <AnimatedPressable accessibilityRole="button" onPress={onOpenLikers} pressScale={0.95} style={styles.likersLink}>
-              <Text style={styles.linkText}>{t('signal:engagement.likes', { count: like.count })}</Text>
+              <Text style={styles.linkText}>{t('signal:engagement.likes', { count: totalReactions(like.counts) })}</Text>
             </AnimatedPressable>
           ) : null}
         </View>}
@@ -386,12 +438,19 @@ export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refre
               </AnimatedPressable>
             </View>
           ) : null}
+          <MentionSuggestions
+            auth={auth}
+            cursor={cursor}
+            onPick={(user) => { const next = insertMention(draft, cursor, user.userName); setDraft(next.text); setCursor(next.cursor); inputRef.current?.focus(); }}
+            text={draft}
+          />
           <View style={styles.inputRow}>
             <TextInput
               accessibilityLabel={t('signal:comments.placeholder')}
               maxLength={COMMENT_MAX + 50}
               multiline
-              onChangeText={setDraft}
+              onChangeText={(value) => { setDraft(value); setCursor(value.length); }}
+              onSelectionChange={(e) => setCursor(e.nativeEvent.selection.end)}
               placeholder={replyTo ? t('signal:comments.replyPlaceholder', { name: authorLabel(replyTo) }) : t('signal:comments.placeholder')}
               placeholderTextColor={colors.textSecondary}
               ref={inputRef}
@@ -450,6 +509,7 @@ const styles = StyleSheet.create({
   commentText: { ...typography.body, color: colors.text },
   commentActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.lg, marginTop: 2 },
   linkText: { ...typography.label, color: colors.textSecondary },
+  commentLike: { alignItems: 'center', flexDirection: 'row', gap: 4, minHeight: 28 },
   dangerText: { ...typography.label, color: colors.danger },
   menu: { backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, marginTop: spacing.xs, paddingHorizontal: spacing.sm },
   menuItem: { justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.xs },

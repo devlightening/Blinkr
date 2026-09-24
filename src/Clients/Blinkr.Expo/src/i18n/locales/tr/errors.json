@@ -10,7 +10,9 @@
     "likeFailed": "Beğeni kaydedilemedi. Tekrar dene.",
     "commentFailed": "Yorum gönderilemedi. Tekrar dene.",
     "deleteFailed": "Yorum silinemedi. Tekrar dene.",
-    "loadFailed": "Yorumlar yüklenemedi."
+    "loadFailed": "Yorumlar yüklenemedi.",
+    "tooManyMentions": "Bir paylaşımda en fazla 10 kişiden bahsedebilirsin.",
+    "invalidReaction": "Bu tepki kullanılamıyor."
   },
   "contentBlocked": "Bu içerik topluluk kurallarına uymuyor: tehdit, nefret söylemi ya da hedefli hakaret paylaşılamaz.",
   "postingRestricted": "Topluluk kuralları nedeniyle şu an paylaşım yapamazsın. Kısıtlama bitince yeniden paylaşabilirsin.",

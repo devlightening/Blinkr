@@ -1,11 +1,12 @@
 import * as Location from 'expo-location';
-import { Bell, Compass, MapPin, Users, WifiOff } from 'lucide-react-native';
+import { Bell, ChevronLeft, Compass, Hash, MapPin, Users, WifiOff } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Linking, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ApiCodeError, getDiscoverFollowing, getDiscoverNearby, getPlace, getUnreadNotificationCount, postStory, togglePostLike } from '../../api';
+import { ApiCodeError, getDiscoverFollowing, getDiscoverNearby, getHashtagFeed, getPlace, getUnreadNotificationCount, postStory, setPostReaction } from '../../api';
+import { chooseReaction, reactionFields, reactionStateOf, tapHeart } from '../../reactions';
 import { NotificationsScreen } from '../notifications/NotificationsScreen';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { DEFAULT_STORY_SECONDS, type StoryTrayItem } from '../../stories';
@@ -13,7 +14,7 @@ import { SignalCamera } from '../camera/SignalCamera';
 import { StoryTray } from '../stories/StoryTray';
 import { StoryViewer } from '../stories/StoryViewer';
 import { LOCATION_TIMEOUT, resolveDeviceOrigin, type Origin } from '../../deviceOrigin';
-import { canLoadMore, mergeDiscoverPage, toggleFeedLike, type DiscoverItem, type DiscoverPage, type DiscoverTab } from '../../discoverFeed';
+import { canLoadMore, mergeDiscoverPage, type DiscoverItem, type DiscoverPage, type DiscoverTab } from '../../discoverFeed';
 import { engagementErrorKey } from '../../engagement';
 import * as haptics from '../../haptics';
 import { colors, spacing, typography } from '../../theme';
@@ -41,7 +42,12 @@ type Props = {
   onMessageUser?: (user: UserSummary) => void;
   /** Tells the app shell a sheet is open (the bottom bar hides). */
   onOverlayOpenChange?: (open: boolean) => void;
+  /** V2-4: a #tag tapped elsewhere (the signal card on the map) opens its feed here once. */
+  hashtagRequest?: string | null;
+  onHashtagHandled?: () => void;
 };
+
+type Which = 'nearby' | 'following' | 'hashtag';
 
 type LocationPhase = 'checking' | 'needsPermission' | 'blocked' | 'locating' | 'ready';
 type FeedState = { items: DiscoverItem[]; page: DiscoverPage | null; loading: boolean; error: string | null; notice: string | null };
@@ -53,13 +59,16 @@ const emptyFeed: FeedState = { items: [], page: null, loading: false, error: nul
  * refresh, paged scrolling with an end, a failed refresh keeps the last list (kök CLAUDE.md §16). Location is asked
  * only when the person chooses to use it here.
  */
-export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOpenSignal, onCreateSignal, onMessageUser, onOverlayOpenChange }: Props) {
+export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOpenSignal, onCreateSignal, onMessageUser, onOverlayOpenChange, hashtagRequest, onHashtagHandled }: Props) {
   const { t } = useTranslation(['feed', 'errors', 'common']);
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<DiscoverTab>('nearby');
   const [phase, setPhase] = useState<LocationPhase>('checking');
   const [origin, setOrigin] = useState<Origin | null>(null);
-  const [feeds, setFeeds] = useState<Record<'nearby' | 'following', FeedState>>({ nearby: emptyFeed, following: emptyFeed });
+  const [feeds, setFeeds] = useState<Record<Which, FeedState>>({ nearby: emptyFeed, following: emptyFeed, hashtag: emptyFeed });
+  /** V2-4: the tag whose feed is shown instead of the tabs (null = the tabs). */
+  const [hashtag, setHashtag] = useState<string | null>(null);
+  const hashtagRef = useRef<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [thread, setThread] = useState<DiscoverItem | null>(null);
   const [person, setPerson] = useState<UserSummary | null>(null);
@@ -90,10 +99,10 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
   }, [auth, notificationsOpen]);
   useEffect(() => () => { Object.values(requests.current).forEach((c) => c?.abort()); onOverlayOpenChange?.(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const patch = (which: 'nearby' | 'following', next: Partial<FeedState>) =>
+  const patch = (which: Which, next: Partial<FeedState>) =>
     setFeeds((current) => ({ ...current, [which]: { ...current[which], ...next } }));
 
-  const load = useCallback(async (which: 'nearby' | 'following', page: number, at: Origin | null) => {
+  const load = useCallback(async (which: Which, page: number, at: Origin | null) => {
     if (which === 'nearby' && !at) return;
     requests.current[which]?.abort();
     const controller = new AbortController();
@@ -102,7 +111,9 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
     try {
       const result = which === 'nearby'
         ? await getDiscoverNearby(auth, at!.latitude, at!.longitude, page, controller.signal, refresh.current)
-        : await getDiscoverFollowing(auth, page, controller.signal, refresh.current);
+        : which === 'hashtag'
+          ? await getHashtagFeed(auth, hashtagRef.current ?? '', page, controller.signal, refresh.current)
+          : await getDiscoverFollowing(auth, page, controller.signal, refresh.current);
       if (controller.signal.aborted) return;
       setFeeds((current) => ({ ...current, [which]: { ...current[which], items: mergeDiscoverPage(current[which].items, result), page: result, loading: false, error: null, notice: null } }));
     } catch {
@@ -135,18 +146,38 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
   useEffect(() => { void locate(false); }, [locate]);
   useEffect(() => { if (tab === 'following' && !feeds.following.page && !feeds.following.loading) void load('following', 1, null); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const like = async (item: DiscoverItem) => {
+  const openHashtag = useCallback((tag: string) => {
+    hashtagRef.current = tag;
+    setHashtag(tag);
+    setThread(null);
+    setFeeds((current) => ({ ...current, hashtag: emptyFeed }));
+    void load('hashtag', 1, null);
+  }, [load]);
+  const closeHashtag = () => { requests.current.hashtag?.abort(); hashtagRef.current = null; setHashtag(null); };
+
+  useEffect(() => {
+    if (!hashtagRequest) return;
+    openHashtag(hashtagRequest);
+    onHashtagHandled?.();
+  }, [hashtagRequest]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const current: Which = hashtag ? 'hashtag' : tab === 'following' ? 'following' : 'nearby';
+
+  /** V2-4 (D-027): a tap is the heart (or takes my reaction back); a picked emoji sets or replaces it. Optimistic. */
+  const react = async (item: DiscoverItem, pick: string | null | undefined) => {
     if (likeBusy.current.has(item.id)) return;
     likeBusy.current.add(item.id);
-    const which = tab === 'following' ? 'following' : 'nearby';
-    const flip = () => setFeeds((current) => ({ ...current, [which]: { ...current[which], items: toggleFeedLike(current[which].items, item.id) } }));
-    flip();
+    const which = current;
+    const before = reactionStateOf(item);
+    const after = pick === undefined ? tapHeart(before) : chooseReaction(before, pick);
+    const put = (fields: ReturnType<typeof reactionFields>) => setFeeds((all) => ({ ...all, [which]: { ...all[which], items: all[which].items.map((x) => (x.id === item.id ? { ...x, ...fields } : x)) } }));
+    put(reactionFields(after));
     haptics.tap();
     try {
-      const liked = await togglePostLike(auth, item.id, refresh.current);
-      if (liked === item.isLikedByCurrentUser) flip(); // the server disagrees: trust it
+      const answer = await setPostReaction(auth, item.id, after.mine, refresh.current);
+      put(reactionFields({ mine: answer.reaction, counts: answer.counts }));
     } catch (err) {
-      flip();
+      put(reactionFields(before));
       patch(which, { notice: err instanceof ApiCodeError && err.code !== 'UNKNOWN' ? t(engagementErrorKey(err.code)) : t('errors:engagement.likeFailed') });
     } finally {
       likeBusy.current.delete(item.id);
@@ -155,10 +186,21 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
 
   const showOnMap = async (item: DiscoverItem) => {
     if (!item.placeId) return;
-    try { onOpenPlace(await getPlace(item.placeId)); } catch { patch(tab === 'following' ? 'following' : 'nearby', { notice: t('discover.loadFailed') }); }
+    try { onOpenPlace(await getPlace(item.placeId)); } catch { patch(current, { notice: t('discover.loadFailed') }); }
   };
 
-  const header = (
+  const header = hashtag ? (
+    <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
+      <View style={styles.tagRow}>
+        <AnimatedPressable accessibilityLabel={t('discover.hashtagBack')} accessibilityRole="button" hitSlop={8} onPress={closeHashtag} pressScale={0.9} style={styles.bell} testID="hashtag-back">
+          <ChevronLeft color={colors.text} size={24} />
+        </AnimatedPressable>
+        <Hash color={colors.primary} size={22} />
+        <Text accessibilityRole="header" numberOfLines={1} style={styles.tagTitle}>{hashtag}</Text>
+      </View>
+      <Text style={styles.subtitle}>{t('discover.hashtagSubtitle')}</Text>
+    </View>
+  ) : (
     <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
       <View style={styles.titleRow}>
         <Text accessibilityRole="header" style={styles.title}>{t('discover.title')}</Text>
@@ -186,7 +228,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
     </View>
   );
 
-  const renderFeed = (which: 'nearby' | 'following') => {
+  const renderFeed = (which: Which) => {
     const feed = feeds[which];
     if (which === 'nearby' && (phase === 'needsPermission' || phase === 'blocked')) {
       return (
@@ -225,10 +267,10 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
         ListEmptyComponent={
           <BlinkrEmptyState
             action={which === 'nearby' && onCreateSignal ? { label: t('discover.share'), onPress: onCreateSignal } : undefined}
-            description={which === 'nearby' ? t('discover.emptyNearbyBody') : t('discover.emptyFollowingBody')}
-            icon={which === 'nearby' ? <Compass color={colors.textSecondary} size={34} /> : <Users color={colors.textSecondary} size={34} />}
+            description={which === 'nearby' ? t('discover.emptyNearbyBody') : which === 'hashtag' ? t('discover.emptyHashtagBody') : t('discover.emptyFollowingBody')}
+            icon={which === 'nearby' ? <Compass color={colors.textSecondary} size={34} /> : which === 'hashtag' ? <Hash color={colors.textSecondary} size={34} /> : <Users color={colors.textSecondary} size={34} />}
             style={styles.empty}
-            title={which === 'nearby' ? t('discover.emptyNearbyTitle') : t('discover.emptyFollowingTitle')}
+            title={which === 'nearby' ? t('discover.emptyNearbyTitle') : which === 'hashtag' ? t('discover.emptyHashtagTitle', { tag: hashtag ?? '' }) : t('discover.emptyFollowingTitle')}
           />
         }
         ListFooterComponent={
@@ -241,13 +283,16 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
         keyExtractor={(item) => item.id}
         onEndReached={() => { if (!feed.loading && canLoadMore(feed.page)) void load(which, (feed.page?.page ?? 1) + 1, origin); }}
         onEndReachedThreshold={0.5}
-        refreshControl={<RefreshControl onRefresh={() => { setRefreshing(true); if (which === 'nearby') void locate(false); else void load('following', 1, null); }} refreshing={refreshing} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl onRefresh={() => { setRefreshing(true); if (which === 'nearby') void locate(false); else void load(which, 1, null); }} refreshing={refreshing} tintColor={colors.primary} />}
         renderItem={({ item }) => (
           <FeedCard
             item={item}
             myUserId={auth.userId}
-            onLike={(target) => { void like(target); }}
+            onHashtag={openHashtag}
+            onLike={(target) => { void react(target, undefined); }}
+            onMention={(m) => setPerson({ id: m.userId, userName: m.userName })}
             onOpenAuthor={(target) => { if (target.authorId) setPerson({ id: target.authorId, userName: target.authorName }); }}
+            onReact={(target, reaction) => { void react(target, reaction); }}
             onOpenThread={setThread}
             onShare={(target) => setSharing(signalShareOf(target))}
             onShowOnMap={(target) => { void showOnMap(target); }}
@@ -260,17 +305,19 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
   return (
     <View style={styles.screen}>
       {header}
-      {tab === 'places'
+      {tab === 'places' && !hashtag
         ? <NearbyScreen embedded onCreateSignal={onCreateSignal} onOpenPlace={onOpenPlace} onOpenSignal={onOpenSignal} />
-        : renderFeed(tab)}
+        : renderFeed(current)}
 
       {thread ? (
         <Sheet onClose={() => setThread(null)}>
           <BlinkrSheetPanel maxHeightRatio={0.92}>
             <SignalThreadPanel
               auth={auth}
-              header={<FeedCard hideActions item={thread} myUserId={auth.userId} onLike={() => {}} onOpenThread={() => {}} />}
+              header={<FeedCard hideActions item={thread} myUserId={auth.userId} onHashtag={openHashtag} onLike={() => {}} onMention={(m) => { setThread(null); setPerson({ id: m.userId, userName: m.userName }); }} onOpenThread={() => {}} />}
               onClose={() => setThread(null)}
+              onHashtag={openHashtag}
+              onMention={(m) => { setThread(null); setPerson({ id: m.userId, userName: m.userName }); }}
               postId={thread.id}
               refresh={refresh.current}
             />
@@ -316,6 +363,8 @@ const styles = StyleSheet.create({
   cameraLayer: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 60 },
   header: { gap: spacing.sm, paddingBottom: spacing.md, paddingHorizontal: spacing.lg },
   title: { ...typography.headline, color: colors.text },
+  tagRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginLeft: -spacing.sm },
+  tagTitle: { ...typography.headline, color: colors.text, flexShrink: 1 },
   titleRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   bell: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
   bellDot: { backgroundColor: colors.danger, borderColor: colors.background, borderRadius: 999, borderWidth: 2, height: 12, position: 'absolute', right: 9, top: 9, width: 12 },

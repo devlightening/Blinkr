@@ -60,7 +60,8 @@ public sealed class UserDeletedConsumer : IConsumer<UserDeletedIntegrationEvent>
         // 2. Their comments and likes on other people's signals, removed on the aggregate (the source of truth).
         var touched = await posts.Find(Builders<PostDocument>.Filter.Or(
                 Builders<PostDocument>.Filter.ElemMatch(p => p.Comments, c => c.AuthorId == userId),
-                Builders<PostDocument>.Filter.AnyEq(p => p.LikedByUserIds, userId)))
+                Builders<PostDocument>.Filter.AnyEq(p => p.LikedByUserIds, userId),
+                new BsonDocument("Comments.LikedBy", userId.ToString())))
             .Project(p => p.Id).ToListAsync(ct);
         var comments = 0;
         var likes = 0;
@@ -78,6 +79,9 @@ public sealed class UserDeletedConsumer : IConsumer<UserDeletedIntegrationEvent>
                 post.UnlikePost(userId);
                 likes++;
             }
+            // V2-4: their likes on other people's comments.
+            foreach (var liked in post.Comments.Where(c => c.LikerIds.Contains(userId)).Select(c => c.Id).ToList())
+                post.ToggleCommentLike(liked, userId);
             await _events.SaveAsync(post, ct);
         }
 

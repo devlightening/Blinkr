@@ -476,6 +476,8 @@ function ReportableDetail() {
         auth={qaAuth}
         onReportSignal={async (postId, reason, note) => { await sendReport(qaAuth, { targetType: 'signal', targetId: postId, reason, note }); }}
         onReportUser={async (userId, reason, note) => { await sendReport(qaAuth, { targetType: 'user', targetId: userId, reason, note }); }}
+        onOpenHashtag={(tag) => { (window as unknown as { __openedTag?: string }).__openedTag = tag; }}
+        onOpenPerson={(user) => { (window as unknown as { __openedPerson?: string }).__openedPerson = user.id; }}
         place={place}
         userId="qa"
       />

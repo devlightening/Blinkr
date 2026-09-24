@@ -7,10 +7,9 @@ using Shared.Events.Events.Blog;
 namespace Blinkr.Projections.Worker.Consumers;
 
 /// <summary>
-/// Consumes PostUnlikedIntegrationEvent, published by EventStoreToRabbitMqPublisher whenever a like is
-/// toggled off (BlogService.Api's single POST /api/posts/{id}/likes endpoint toggles both ways). Before
-/// this consumer existed, that event was published but nothing ever picked it up - LikeCount only ever
-/// went up, never back down, and IsLikedByCurrentUser had no way to tell the like had been undone.
+/// A like or reaction taken back (V2-4, D-027). Removes my entry only if it is not newer than this message (a quick
+/// unlike + like that arrive out of order keep the like), and counts down only when something was really removed, so
+/// LikeCount can never drift below the number of likers. A like from before reactions (no entry) is removed by id.
 /// </summary>
 public class PostUnlikedConsumer : IConsumer<PostUnlikedIntegrationEvent>
 {
@@ -28,38 +27,13 @@ public class PostUnlikedConsumer : IConsumer<PostUnlikedIntegrationEvent>
     public async Task Consume(ConsumeContext<PostUnlikedIntegrationEvent> context)
     {
         const string consumerName = nameof(PostUnlikedConsumer);
-        if (!await _inbox.TryBeginAsync(context, consumerName))
-        {
-            return;
-        }
+        if (!await _inbox.TryBeginAsync(context, consumerName)) return;
 
         var message = context.Message;
-        _logger.LogInformation(
-            "Received PostUnlikedIntegrationEvent for PostId: {PostId}, LikerId: {LikerId}",
-            message.PostId, message.LikerUserId);
-
         try
         {
-            // Always remove the liker id, even if the count is already at its floor - membership must
-            // stay correct regardless of how the count got there.
-            var pullFilter = Builders<PostDocument>.Filter.Eq(p => p.Id, message.PostId);
-            var pullUpdate = Builders<PostDocument>.Update.Pull(p => p.LikedByUserIds, message.LikerUserId);
-            var pullResult = await _postsCollection.UpdateOneAsync(pullFilter, pullUpdate);
-
-            if (pullResult.MatchedCount == 0)
-            {
-                _logger.LogWarning("Post not found for PostId: {PostId}", message.PostId);
-            }
-
-            // Only decrement while there is something to decrement - a duplicate or out-of-order
-            // unlike must never push the count below zero.
-            var decrementFilter = Builders<PostDocument>.Filter.And(
-                Builders<PostDocument>.Filter.Eq(p => p.Id, message.PostId),
-                Builders<PostDocument>.Filter.Gt(p => p.LikeCount, 0));
-            var decrementUpdate = Builders<PostDocument>.Update.Inc(p => p.LikeCount, -1);
-            await _postsCollection.UpdateOneAsync(decrementFilter, decrementUpdate);
-
-            _logger.LogInformation("Applied unlike for PostId: {PostId}", message.PostId);
+            var outcome = await ApplyAsync(_postsCollection, message.PostId, message.LikerUserId, message.OccurredAtUtc == default ? message.OccurredOn : message.OccurredAtUtc);
+            _logger.LogInformation("Unlike projected | PostId={PostId} | Outcome={Outcome}", message.PostId, outcome);
             await _inbox.MarkProcessedAsync(context, consumerName);
         }
         catch (Exception ex)
@@ -68,5 +42,24 @@ public class PostUnlikedConsumer : IConsumer<PostUnlikedIntegrationEvent>
             await _inbox.ReleaseAsync(context, consumerName);
             throw;
         }
+    }
+
+    public static async Task<string> ApplyAsync(IMongoCollection<PostDocument> posts, Guid postId, Guid userId, DateTime at)
+    {
+        var f = Builders<PostDocument>.Filter;
+        var u = Builders<PostDocument>.Update;
+        var byPost = f.Eq(p => p.Id, postId);
+
+        var removed = await posts.UpdateOneAsync(
+            f.And(byPost, f.ElemMatch(p => p.Reactions, r => r.UserId == userId && r.AtUtc <= at), f.Gt(p => p.LikeCount, 0)),
+            u.PullFilter(p => p.Reactions, r => r.UserId == userId).Pull(p => p.LikedByUserIds, userId).Inc(p => p.LikeCount, -1));
+        if (removed.ModifiedCount > 0) return "removed";
+
+        if (await posts.CountDocumentsAsync(f.And(byPost, f.ElemMatch(p => p.Reactions, r => r.UserId == userId))) > 0) return "stale";
+
+        var legacy = await posts.UpdateOneAsync(
+            f.And(byPost, f.AnyEq(p => p.LikedByUserIds, userId), f.Gt(p => p.LikeCount, 0)),
+            u.Pull(p => p.LikedByUserIds, userId).Inc(p => p.LikeCount, -1));
+        return legacy.ModifiedCount > 0 ? "legacy" : "nothing";
     }
 }

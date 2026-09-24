@@ -1,4 +1,4 @@
-import { EyeOff, Heart, MapPin, MessageCircle, Radio, Send, ShieldAlert } from 'lucide-react-native';
+import { EyeOff, MapPin, MessageCircle, Radio, Send, ShieldAlert } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -14,12 +14,20 @@ import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
 import { SignalSymbol } from '../SignalSymbol';
 import { MediaImage } from '../ui/BlinkrMediaImage';
+import { ReactionButton } from '../ui/ReactionButton';
+import { RichText } from '../ui/RichText';
+import { reactionStateOf } from '../../reactions';
+import type { Mention } from '../../richText';
 import { tx } from '../../i18n/tx';
 
 type Props = {
   item: DiscoverItem;
   myUserId: string;
   onLike: (item: DiscoverItem) => void;
+  /** V2-4: a long press on the heart picks an emoji. */
+  onReact?: (item: DiscoverItem, reaction: string) => void;
+  onMention?: (mention: Mention) => void;
+  onHashtag?: (tag: string) => void;
   onOpenThread: (item: DiscoverItem) => void;
   onOpenAuthor?: (item: DiscoverItem) => void;
   onShowOnMap?: (item: DiscoverItem) => void;
@@ -33,7 +41,7 @@ type Props = {
  * One signal in the Keşfet feed (sinyal-mvp-plan P7.3): who (or "Topluluk üyesi" for anonymous), what type and value,
  * how fresh, how far (coarse), the photo if any, and likes/comments. Still a place signal, not a free-form post.
  */
-export function FeedCard({ item, myUserId, onLike, onOpenThread, onOpenAuthor, onShowOnMap, onShare, hideActions = false }: Props) {
+export function FeedCard({ item, myUserId, onLike, onReact, onMention, onHashtag, onOpenThread, onOpenAuthor, onShowOnMap, onShare, hideActions = false }: Props) {
   const { t, i18n } = useTranslation('feed');
   const lang = i18n.language === 'en' ? 'en' : 'tr';
   const tone = signalColors[item.signalType] ?? colors.mint;
@@ -86,24 +94,19 @@ export function FeedCard({ item, myUserId, onLike, onOpenThread, onOpenAuthor, o
             </View>
           ) : null}
         </View>
-        {text ? <Text numberOfLines={4} style={styles.content}>{text}</Text> : null}
+        {text ? <RichText mentions={item.mentions} numberOfLines={4} onHashtag={onHashtag} onMention={onMention} style={styles.content} text={text} /> : null}
         {photo ? <MediaImage style={styles.photo} uri={photoUrl} video={photoIsVideo} /> : null}
       </AnimatedPressable>
 
       {hideActions ? null : <View style={styles.actions}>
-        <AnimatedPressable
-          accessibilityLabel={item.isLikedByCurrentUser ? tx('signal:engagement.unlike', 'Beğeniyi geri al') : tx('signal:engagement.like', 'Beğen')}
-          accessibilityRole="button"
-          aria-selected={item.isLikedByCurrentUser}
+        <ReactionButton
           disabled={!likeable}
-          onPress={() => onLike(item)}
-          pressScale={0.9}
-          style={[styles.action, !likeable && styles.dim]}
+          onPick={(reaction) => (onReact ? onReact(item, reaction) : onLike(item))}
+          onTap={() => onLike(item)}
+          size={20}
+          state={reactionStateOf(item)}
           testID={`feed-like-${item.id}`}
-        >
-          <Heart color={item.isLikedByCurrentUser ? colors.danger : colors.text} fill={item.isLikedByCurrentUser ? colors.danger : 'none'} size={20} />
-          <Text style={styles.actionCount}>{formatCount(item.likeCount, lang)}</Text>
-        </AnimatedPressable>
+        />
         <AnimatedPressable accessibilityLabel={t('discover.comments')} accessibilityRole="button" onPress={() => onOpenThread(item)} pressScale={0.9} style={styles.action}>
           <MessageCircle color={colors.text} size={20} />
           <Text style={styles.actionCount}>{formatCount(item.commentCount, lang)}</Text>

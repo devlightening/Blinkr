@@ -51,6 +51,9 @@ public class GetPostCommentsQueryHandler : IRequestHandler<GetPostCommentsQuery,
                 ParentCommentId = c.ParentCommentId,
                 Text = c.Text,
                 CreatedAtUtc = c.CreatedAtUtc,
+                LikeCount = c.LikedBy?.Count ?? 0,
+                LikedByMe = viewerId.HasValue && (c.LikedBy?.Contains(viewerId.Value) ?? false),
+                Mentions = BlogService.Application.Services.PostEngagement.Mentions(c.Mentions),
             };
         }
 

@@ -27,6 +27,8 @@ run('taps go to the signal or the person', () => {
   check(user?.kind === 'user' && user.userId === 'u1', 'user');
   const storyLike = notificationTarget(n('s', '2026-09-23T10:00:00Z', { type: 'StoryLiked', actorUserId: 'u2', actorUserName: 'ece' }));
   check(storyLike?.kind === 'user' && storyLike.userId === 'u2', 'story like opens the person');
+  const mention = notificationTarget(n('m', '2026-09-23T10:00:00Z', { type: 'Mentioned', postId: 'p9' }));
+  check(mention?.kind === 'post' && mention.postId === 'p9', 'a mention opens the signal');
   check(notificationTarget(n('c', '2026-09-23T10:00:00Z', { type: 'Other' })) === null, 'none');
 });
 run('deep links: only blinkr posts/users with a real id', () => {

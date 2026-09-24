@@ -24,7 +24,8 @@ namespace BlogService.Application.Features.Mediatr.Comamnds.PostCommands
       double? ObservationLatitude = null,
       double? ObservationLongitude = null,
       double? ObservationAccuracyMeters = null,
-      DateTime? MediaCapturedAtUtc = null
+      DateTime? MediaCapturedAtUtc = null,
+      IReadOnlyList<BlogService.Domain.Events.MentionRef>? Mentions = null
   ) : IRequest<Guid>;
 
 }

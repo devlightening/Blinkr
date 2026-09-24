@@ -7,7 +7,10 @@
         public string CommentText { get; set; } = string.Empty;
         public Guid AuthorId { get; set; }
         public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
-        public Guid? ParentCommentId { get; set; }  
+        public Guid? ParentCommentId { get; set; }
+        /// <summary>V2-4: who liked this comment. Event-sourced only, not an EF column.</summary>
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public HashSet<Guid> LikerIds { get; set; } = new();
 
         // İlişki
         public Post Post { get; set; } = null!;

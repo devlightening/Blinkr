@@ -16,7 +16,8 @@ public record DiscoverItemDto(
     Guid? AuthorId, string AuthorName, bool Anonymous,
     DateTime CreatedAtUtc, DateTime? ExpiresAtUtc, bool Expired,
     int LikeCount, int CommentCount, bool IsLikedByCurrentUser,
-    Guid? PlaceId, string? LocationName, int? DistanceMeters, IReadOnlyList<DiscoverMediaDto> Media, bool Sensitive, bool Verified);
+    Guid? PlaceId, string? LocationName, int? DistanceMeters, IReadOnlyList<DiscoverMediaDto> Media, bool Sensitive, bool Verified,
+    IReadOnlyDictionary<string, int>? ReactionCounts = null, string? MyReaction = null, IReadOnlyList<MentionDto>? Mentions = null);
 public record DiscoverPageDto(IReadOnlyList<DiscoverItemDto> Items, int Page, int PageSize, bool HasMore);
 
 /// <summary>
@@ -104,6 +105,60 @@ public class DiscoverController : ControllerBase
         return Ok(new DiscoverPageDto(items, page, pageSize, docs.Count > pageSize));
     }
 
+    private static readonly TimeSpan HashtagWindow = TimeSpan.FromDays(7);
+    private static readonly TimeSpan HashtagSearchWindow = TimeSpan.FromDays(30);
+
+    /// <summary>
+    /// GET /api/discover/hashtag/{tag}?page&amp;pageSize (V2-4, D-027): public signals with the tag from the last 7 days,
+    /// newest first; never anonymous ones (a tag must not become a way to find who posted), blocked people left out.
+    /// The tag is folded like the stored ones, so #AkşamKahvesi and #aksamkahvesi are the same feed.
+    /// </summary>
+    [HttpGet("hashtag/{tag}")]
+    public async Task<IActionResult> Hashtag(string tag, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+    {
+        var folded = Shared.Events.Text.TextTags.Fold(tag);
+        if (folded.Length is < 2 or > 40) return BadRequest(new { code = "INVALID_HASHTAG" });
+        page = Math.Clamp(page, 1, 20);
+        pageSize = Math.Clamp(pageSize, 1, 30);
+        var now = DateTime.UtcNow;
+        var filter = Builders<PostDocument>.Filter.And(
+            Builders<PostDocument>.Filter.AnyEq(p => p.Hashtags, folded),
+            Builders<PostDocument>.Filter.Eq(p => p.AudienceType, "Public"),
+            Builders<PostDocument>.Filter.Ne(p => p.IdentityDisclosure, "AnonymousMap"),
+            Builders<PostDocument>.Filter.Gt(p => p.CreatedAtUtc, now - HashtagWindow));
+        var docs = await _posts.Find(filter).SortByDescending(p => p.CreatedAtUtc).Skip((page - 1) * pageSize).Limit(pageSize + 1).ToListAsync(ct);
+        var hidden = (await _graph.GetAsync(ct))?.Hidden ?? new HashSet<Guid>();
+        var me = User.GetUserId();
+        var items = docs.Take(pageSize).Where(d => !hidden.Contains(d.AuthorId) && !IsHiddenTestPost(d)).Select(d => ToItem(d, me, now, null)).ToList();
+        Response.Headers.CacheControl = "private, no-store";
+        return Ok(new DiscoverPageDto(items, page, pageSize, docs.Count > pageSize));
+    }
+
+    public record HashtagSuggestionDto(string Tag, int PostCount);
+
+    /// <summary>GET /api/discover/hashtags/search?q= (V2-4): tags starting with q used in the last 30 days, most used first.</summary>
+    [HttpGet("hashtags/search")]
+    public async Task<IActionResult> SearchHashtags([FromQuery] string? q, CancellationToken ct = default)
+    {
+        var folded = Shared.Events.Text.TextTags.Fold(q);
+        if (folded.Length == 0) return Ok(Array.Empty<HashtagSuggestionDto>());
+        var prefix = new MongoDB.Bson.BsonRegularExpression("^" + System.Text.RegularExpressions.Regex.Escape(folded));
+        var since = DateTime.UtcNow - HashtagSearchWindow;
+        var rows = await _posts.Aggregate()
+            .Match(Builders<PostDocument>.Filter.And(
+                Builders<PostDocument>.Filter.Regex("Hashtags", prefix),
+                Builders<PostDocument>.Filter.Eq(p => p.AudienceType, "Public"),
+                Builders<PostDocument>.Filter.Ne(p => p.IdentityDisclosure, "AnonymousMap"),
+                Builders<PostDocument>.Filter.Gt(p => p.CreatedAtUtc, since)))
+            .Unwind<PostDocument, MongoDB.Bson.BsonDocument>(p => p.Hashtags)
+            .Match(new MongoDB.Bson.BsonDocument("Hashtags", prefix))
+            .Group(new MongoDB.Bson.BsonDocument { { "_id", "$Hashtags" }, { "count", new MongoDB.Bson.BsonDocument("$sum", 1) } })
+            .Sort(new MongoDB.Bson.BsonDocument { { "count", -1 }, { "_id", 1 } })
+            .Limit(10)
+            .ToListAsync(ct);
+        return Ok(rows.Select(r => new HashtagSuggestionDto(r["_id"].AsString, r["count"].ToInt32())).ToList());
+    }
+
     private static double DistanceOf(PostDocument d, double lat, double lon)
     {
         if (d.Location?.Coordinates is null) return double.MaxValue;
@@ -126,6 +181,7 @@ public class DiscoverController : ControllerBase
             d.PlaceId, d.LocationName, distance,
             (d.Media ?? new()).Select(m => new DiscoverMediaDto(m.Url, m.ThumbnailUrl, m.Type)).ToList(),
             ContentTextFilter.IsSensitive(d.Title, d.Content),
-            d.PublicationTrust == "VERIFIED_LIVE");
+            d.PublicationTrust == "VERIFIED_LIVE",
+            PostEngagement.ReactionCounts(d), PostEngagement.MyReaction(d, me), PostEngagement.Mentions(d.Mentions));
     }
 }

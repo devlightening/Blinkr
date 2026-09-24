@@ -694,6 +694,17 @@ async function main() {
     await page.getByTestId('feed-like-n-1').click();
     await expect(page.getByTestId('feed-like-n-1')).toContainText('5');
     await expect(page.getByTestId('feed-like-n-3')).toBeDisabled();
+    // V2-4: the reaction summary, a long press picks an emoji (replacing the heart), mentions and tags are links.
+    await expect(page.getByTestId('feed-like-n-1')).toContainText('🔥');
+    await page.getByTestId('feed-like-n-1').hover(); await page.mouse.down(); await page.waitForTimeout(700); await page.mouse.up();
+    await expect(page.getByTestId('feed-like-n-1-picker')).toBeVisible();
+    await page.waitForTimeout(200); await page.screenshot({ path: path.join(out, 'reaction-picker.png') });
+    await page.getByTestId('feed-like-n-1-picker').getByRole('button', { name: '😂 ile tepki ver' }).click();
+    await expect(page.getByRole('button', { name: '😂 tepkini geri al' })).toBeVisible();
+    await expect(page.getByTestId('feed-like-n-1')).toContainText('5');
+    const lastReaction = await page.evaluate(() => window.__lastReaction);
+    if (!lastReaction || lastReaction.reaction !== '😂' || lastReaction.postId !== 'n-1') throw new Error('reaction payload wrong: ' + JSON.stringify(lastReaction));
+    await expect(page.getByTestId('feed-card-n-1').getByRole('link', { name: '@zeynep' })).toBeVisible();
     await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'discover.png') });
     await page.getByTestId('feed-card-n-1').getByRole('button', { name: 'Yorumlar', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Yorumlar' })).toBeVisible();
@@ -704,6 +715,18 @@ async function main() {
     await page.getByRole('button', { name: 'Kapat' }).last().click();
     await page.getByTestId('feed-card-n-1').getByRole('button', { name: 'Haritada göster' }).click();
     await expect(page.getByLabel('opened')).toHaveText('place:kent');
+    // V2-4: a #tag opens its feed inside Keşfet; back returns to the tabs.
+    await page.goto(url + '?scene=discover');
+    await page.getByTestId('feed-card-n-1').getByRole('link', { name: '#eczane' }).click();
+    await expect(page.getByRole('heading', { name: 'eczane' })).toBeVisible();
+    await expect(page.getByTestId('feed-card-h-1')).toContainText('Nöbetçi açık');
+    await expect(page.getByRole('heading', { name: 'Yorumlar' })).toHaveCount(0); // the tag did not also open the thread
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'hashtag-feed.png') });
+    await page.getByTestId('hashtag-back').click();
+    await expect(page.getByTestId('feed-card-n-1')).toBeVisible();
+    await page.goto(url + '?scene=discover&nohashtag');
+    await page.getByTestId('feed-card-n-1').getByRole('link', { name: '#eczane' }).click();
+    await expect(page.getByText('#eczane ile paylaşım yok')).toBeVisible();
     await page.goto(url + '?scene=discover');
     await page.getByRole('tab', { name: 'Takip' }).click();
     await expect(page.getByTestId('feed-card-f-1')).toBeVisible();
@@ -812,6 +835,27 @@ async function main() {
     await page.getByTestId('like-button').click();
     await expect(page.getByTestId('like-button')).toContainText('4');
     await expect(page.getByRole('button', { name: 'Beğeniyi geri al' })).toBeVisible();
+    // V2-4: a long press on the heart picks an emoji; comment likes; resolved mentions are links; "@" suggests people.
+    await page.getByTestId('like-button').hover(); await page.mouse.down(); await page.waitForTimeout(700); await page.mouse.up();
+    await page.getByTestId('like-button-picker').getByRole('button', { name: '🔥 ile tepki ver' }).click();
+    await expect(page.getByRole('button', { name: '🔥 tepkini geri al' })).toBeVisible();
+    await expect(page.getByTestId('like-button')).toContainText('4');
+    await expect(page.getByTestId('comment-like-c2')).toContainText('2');
+    await page.getByTestId('comment-like-c2').click();
+    await expect(page.getByTestId('comment-like-c2')).toContainText('3');
+    await expect(page.getByRole('button', { name: 'Yorum beğenisini geri al' })).toBeVisible();
+    await expect(page.getByTestId('comment-c2').getByRole('link', { name: '@zeynep' })).toBeVisible();
+    await expect(page.getByTestId('comment-c2').getByRole('link', { name: '#eczane' })).toBeVisible();
+    await page.getByTestId('comment-c2').getByRole('link', { name: '@zeynep' }).click();
+    if ((await page.evaluate(() => window.__openedPerson)) !== 'u-zeynep') throw new Error('mention did not open the person');
+    await page.goto(url + '?scene=reportableDetail');
+    await page.getByTestId('open-thread-post-a').click();
+    await page.getByTestId('comment-input').fill('Selam @ze');
+    await expect(page.getByTestId('mention-suggestions')).toBeVisible();
+    await page.waitForTimeout(200); await page.screenshot({ path: path.join(out, 'mention-suggestions.png') });
+    await page.getByRole('button', { name: 'zeynep kişisini an' }).click();
+    await expect(page.getByTestId('comment-input')).toHaveValue('Selam @zeynep ');
+    await expect(page.getByTestId('mention-suggestions')).toHaveCount(0);
     // Faz 10: a plate in a comment warns (and says the server hides it); clearing it removes the warning.
     await page.getByTestId('comment-input').fill('34 ABC 123 kapıyı kapattı');
     await expect(page.getByTestId('personal-data-notice')).toContainText('otomatik gizlenir');

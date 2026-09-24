@@ -43,6 +43,9 @@ type Props = {
   onRecheck?: (mode: 'confirm' | 'changed', signal: { type: SignalType; value: string }) => void;
   /** Files a report about one signal (wrong or inappropriate content). Rejects with the failure to show. */
   onReportSignal?: (postId: string, reason: ReportReasonId, note: string) => Promise<void>;
+  /** V2-4: a resolved @name in a comment opens that person; a #tag opens its feed. */
+  onOpenPerson?: (user: { id: string; userName: string }) => void;
+  onOpenHashtag?: (tag: string) => void;
   place: BlinkrPlace | null;
   signal?: CoordinateSignal | null;
   /** Saved places are stored per user on this device. */
@@ -155,7 +158,7 @@ const SignalItem = ({ signal, index, onReport, onOpenThread }: { signal: RecentS
   );
 };
 
-export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading, onClose, onCreateSignal, onRecheck, onReportSignal, place, signal, userId }: Props) {
+export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading, onClose, onCreateSignal, onRecheck, onReportSignal, place, signal, userId, onOpenPerson, onOpenHashtag }: Props) {
   const { t } = useTranslation('common');
   const state = place?.currentState;
   const recheck = onRecheck ? recheckSignal(state) : null;
@@ -215,6 +218,8 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
             header={<SignalItem index={0} signal={thread} />}
             onBack={place ? () => setThread(null) : undefined}
             onClose={onClose}
+            onHashtag={onOpenHashtag ? (tag) => { onClose(); onOpenHashtag(tag); } : undefined}
+            onMention={onOpenPerson ? (m) => { onClose(); onOpenPerson({ id: m.userId, userName: m.userName }); } : undefined}
             onReport={(target) => setReportTarget(target.kind === 'user' ? { userId: target.userId, label: target.label } : { postId: thread.postId, label: thread.title || target.label })}
             postId={thread.postId}
             refresh={refresh}

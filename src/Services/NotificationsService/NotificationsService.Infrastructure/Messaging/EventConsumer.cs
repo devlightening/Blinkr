@@ -64,6 +64,9 @@ public class PostLikedNotificationConsumer : IConsumer<PostLikedIntegrationEvent
             _log.LogInformation("WS-07A: Self-like detected - skipping notification | UserId={UserId} | PostId={PostId}", m.LikerUserId, m.PostId);
             return;
         }
+        // V2-4: changing the emoji of an existing reaction tells nobody again.
+        if (m.Replaces) return;
+        var reacted = !string.IsNullOrEmpty(m.Reaction) && m.Reaction != Shared.Events.Text.ReactionCatalog.Heart;
 
         var notification = new Notification
         {
@@ -75,7 +78,9 @@ public class PostLikedNotificationConsumer : IConsumer<PostLikedIntegrationEvent
             Content = new()
             {
                 Title = "Yeni beğeni",
-                Body = string.IsNullOrWhiteSpace(m.LikerUserName) ? "Gönderin beğenildi" : $"{m.LikerUserName} gönderini beğendi.",
+                Body = reacted
+                    ? (string.IsNullOrWhiteSpace(m.LikerUserName) ? $"Gönderine {m.Reaction} bırakıldı" : $"{m.LikerUserName} gönderine {m.Reaction} bıraktı.")
+                    : (string.IsNullOrWhiteSpace(m.LikerUserName) ? "Gönderin beğenildi" : $"{m.LikerUserName} gönderini beğendi."),
                 DeepLink = $"blinkr://posts/{m.PostId}"
             },
             CreatedAtUtc = m.OccurredAtUtc == default ? DateTime.UtcNow : m.OccurredAtUtc
@@ -104,6 +109,11 @@ public class PostCommentAddedNotificationConsumer : IConsumer<PostCommentAddedIn
     {
         var m = context.Message;
         _log.LogInformation("WS-07A: CommentAdded event received | PostId={PostId} | PostOwnerId={PostOwnerId} | CommentAuthorId={CommentAuthorId}", m.PostId, m.PostOwnerId, m.CommentAuthorId);
+
+        // V2-4: people mentioned in the comment (the post owner already gets the comment notification below).
+        await MentionNotifications.NotifyAsync(_notifRepo, _tokenRepo, _push, m.Mentions, m.CommentAuthorId, m.CommentAuthorName, m.AuthorHidden,
+            m.PostId, inComment: true, m.PostOwnerId == Guid.Empty || m.PostOwnerId == m.CommentAuthorId ? Array.Empty<Guid>() : new[] { m.PostOwnerId },
+            m.OccurredAtUtc, context.CancellationToken);
 
         if (m.PostOwnerId == Guid.Empty)
         {

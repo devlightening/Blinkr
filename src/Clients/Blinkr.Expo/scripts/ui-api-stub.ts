@@ -261,12 +261,19 @@ const feedItem = (id: string, extra: Record<string, unknown> = {}) => ({
 export const getDiscoverNearby = async (_auth: unknown, _lat: number, _lon: number, page = 1) => {
   if (flag('feedfail')) throw new Error('Network request failed');
   const items = page > 1 ? [feedItem('n-4', { title: 'Dördüncü', authorName: 'ece', authorId: 'u-ece' })] : [
-    feedItem('n-1'),
+    feedItem('n-1', { content: 'Kuyruk kapıya kadar. @zeynep sen de gel #eczane', mentions: [{ userId: 'u-zeynep', userName: 'zeynep' }], reactionCounts: { '❤️': 3, '🔥': 1 } }),
     feedItem('n-2', { signalType: 'Crowd', signalValue: 'Calm', content: 'Park sakin.', authorId: null, authorName: 'Topluluk üyesi', anonymous: true, placeId: null, locationName: 'Masal Parkı', distanceMeters: 1200 }),
     feedItem('n-3', { signalType: 'Offer', signalValue: 'Available', content: 'Simit iki al bir öde.', authorId: 'qa', authorName: 'alper', distanceMeters: 50, sensitive: true }),
   ];
   return { items, page, pageSize: 20, hasMore: page === 1 };
 };
+// V2-4: the #eczane feed (?nohashtag = nothing tagged) and tag suggestions.
+export const getHashtagFeed = async (_auth: unknown, tag: string, page = 1) => {
+  if (flag('nohashtag')) return { items: [], page, pageSize: 20, hasMore: false };
+  const items = [feedItem('h-1', { content: `Nöbetçi açık #${tag}`, locationName: 'Şifa Eczanesi' }), feedItem('h-2', { content: `Sıra yok #${tag}`, authorId: 'u-ece', authorName: 'ece' })];
+  return { items, page, pageSize: 20, hasMore: false };
+};
+export const searchHashtags = async () => [{ tag: 'eczane', postCount: 3 }];
 export const getDiscoverFollowing = async (_auth: unknown, page = 1) => {
   if (flag('feedfail')) throw new Error('Network request failed');
   const items = flag('nofollowing') ? [] : [feedItem('f-1', { content: 'Takip ettiğimden.', distanceMeters: null })];
@@ -326,7 +333,7 @@ export const importSavedPlaces = async () => [];
 export class ApiCodeError extends Error {
   constructor(public code: string, public status: number) { super(code); this.name = 'ApiCodeError'; }
 }
-type StubComment = { commentId: string; authorId: string | null; authorName: string; isPostAuthor: boolean; isMine: boolean; canDelete: boolean; parentCommentId: string | null; text: string; createdAtUtc: string; replies: StubComment[] };
+type StubComment = { commentId: string; authorId: string | null; authorName: string; isPostAuthor: boolean; isMine: boolean; canDelete: boolean; parentCommentId: string | null; text: string; createdAtUtc: string; replies: StubComment[]; likeCount?: number; likedByMe?: boolean; mentions?: Array<{ userId: string; userName: string }> };
 const stubNow = new Date().toISOString();
 let stubLiked = false;
 let stubLikes = 3;
@@ -335,7 +342,31 @@ let stubComments: StubComment[] = [
     { commentId: 'c1r1', authorId: null, authorName: 'Paylaşan', isPostAuthor: true, isMine: false, canDelete: false, parentCommentId: 'c1', text: '5 dakika kadar', createdAtUtc: stubNow, replies: [] },
     { commentId: 'c1r2', authorId: 'u-ece', authorName: 'ece', isPostAuthor: false, isMine: false, canDelete: false, parentCommentId: 'c1', text: 'Teşekkürler', createdAtUtc: stubNow, replies: [] },
   ] },
+  { commentId: 'c2', authorId: 'u-ece', authorName: 'ece', isPostAuthor: false, isMine: false, canDelete: false, parentCommentId: null, text: '@zeynep bakar mısın? #eczane', createdAtUtc: stubNow, replies: [], likeCount: 2, likedByMe: false, mentions: [{ userId: 'u-zeynep', userName: 'zeynep' }] },
 ];
+// V2-4 (D-027): reactions and comment likes, per post, as the server answers them (?likefail = refused).
+const reactionBase: Record<string, number> = { 'post-a': 3, 'card-1': 12, 'card-2': 2, 'card-3': 0 };
+const myReactions: Record<string, string | null> = {};
+export const setPostReaction = async (_auth: unknown, postId: string, reaction: string | null) => {
+  if (flag('likefail')) throw new ApiCodeError('UNKNOWN', 500);
+  myReactions[postId] = reaction;
+  const counts: Record<string, number> = postId === 'n-1' ? { '❤️': 3, '🔥': 1 } : { '❤️': reactionBase[postId] ?? 4 };
+  if (reaction) counts[reaction] = (counts[reaction] ?? 0) + 1;
+  (window as unknown as { __lastReaction?: unknown }).__lastReaction = { postId, reaction };
+  return { reaction, counts };
+};
+export const togglePostCommentLike = async (_auth: unknown, _postId: string, commentId: string) => {
+  if (flag('likefail')) throw new ApiCodeError('UNKNOWN', 500);
+  let answer = { liked: false, likeCount: 0 };
+  const flip = (c: StubComment): StubComment => {
+    if (c.commentId !== commentId) return { ...c, replies: c.replies.map(flip) };
+    const liked = !c.likedByMe;
+    answer = { liked, likeCount: Math.max(0, (c.likeCount ?? 0) + (liked ? 1 : -1)) };
+    return { ...c, likedByMe: liked, likeCount: answer.likeCount };
+  };
+  stubComments = stubComments.map(flip);
+  return answer;
+};
 const stubCount = () => stubComments.reduce((n, c) => n + 1 + c.replies.length, 0);
 export const getPostEngagement = async () => ({ likeCount: stubLikes, commentCount: stubCount(), isLikedByCurrentUser: stubLiked, authorId: 'u-author' });
 export const togglePostLike = async () => {

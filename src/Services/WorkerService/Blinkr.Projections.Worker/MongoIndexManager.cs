@@ -66,6 +66,10 @@ public class MongoIndexManager
 
         // Each index is ensured on its own so one conflicting index cannot stop the rest.
         await EnsureIndexAsync(postsCollection, feedIndexModel);
+        // V2-4: the hashtag feed (newest first within a tag).
+        await EnsureIndexAsync(postsCollection, new CreateIndexModel<PostDocument>(
+            Builders<PostDocument>.IndexKeys.Ascending(p => p.Hashtags).Descending(p => p.CreatedAtUtc),
+            new CreateIndexOptions { Name = "ix_posts_hashtags_time" }));
         await EnsureIndexAsync(postsCollection, userPostsIndexModel);
         await EnsureIndexAsync(postsCollection, visibilityIndexModel);
         foreach (var model in processedMessageIndexes)

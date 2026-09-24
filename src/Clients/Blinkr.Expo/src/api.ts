@@ -6,6 +6,7 @@ import { resolveUploadContentType, safeUploadFileName } from './mediaContentType
 import { COMMENT_PAGE_SIZE, type CommentPage, type CommentSort } from './engagement';
 import { DISCOVER_PAGE_SIZE, DISCOVER_RADIUS_METERS, type DiscoverPage } from './discoverFeed';
 import type { Story, StoryTrayItem, StoryViewer } from './stories';
+import type { Mention } from './richText';
 import type { SignalShare } from './chatExtras';
 import type { AppNotification } from './notifications';
 import type { PostDetailDto } from './signalCard';
@@ -539,7 +540,7 @@ export const deleteSignal = (auth: AuthResponse, postId: string, refresh: Refres
 
 /** Likes and comments (engagement.ts has the contract). */
 export const getPostEngagement = (auth: AuthResponse | null, postId: string, signal?: AbortSignal, refresh: Refresh = {}) =>
-  requestJson<{ likeCount: number; commentCount: number; isLikedByCurrentUser: boolean; authorId: string }>(`/api/posts/${postId}`, { auth, signal, ...refresh });
+  requestJson<{ likeCount: number; commentCount: number; isLikedByCurrentUser: boolean; authorId: string; reactionCounts?: Record<string, number>; myReaction?: string | null; mentions?: Mention[] }>(`/api/posts/${postId}`, { auth, signal, ...refresh });
 
 export const togglePostLike = async (auth: AuthResponse, postId: string, refresh: Refresh = {}) =>
   (await requestCoded<{ liked: boolean }>(`/api/posts/${postId}/likes`, { auth, method: "POST", ...refresh }))?.liked ?? false;
@@ -552,6 +553,22 @@ export const addPostComment = async (auth: AuthResponse, postId: string, comment
 
 export const deletePostComment = (auth: AuthResponse, postId: string, commentId: string, refresh: Refresh = {}) =>
   requestCoded<null>(`/api/posts/${postId}/comments/${commentId}`, { auth, method: "DELETE", ...refresh });
+
+/** V2-4 (D-027): my reaction (null or the same emoji again takes it back); the counts come from the server at once. */
+export const setPostReaction = async (auth: AuthResponse, postId: string, reaction: string | null, refresh: Refresh = {}) =>
+  (await requestCoded<{ reaction: string | null; counts: Record<string, number> }>(`/api/posts/${postId}/reactions`, { auth, body: { reaction }, method: "POST", ...refresh }))!;
+
+/** V2-4: toggle a comment like; answers the state afterwards. */
+export const togglePostCommentLike = async (auth: AuthResponse, postId: string, commentId: string, refresh: Refresh = {}) =>
+  (await requestCoded<{ liked: boolean; likeCount: number }>(`/api/posts/${postId}/comments/${commentId}/like`, { auth, method: "POST", ...refresh }))!;
+
+/** V2-4: public signals with a hashtag (last 7 days, newest first, never anonymous). */
+export const getHashtagFeed = (auth: AuthResponse, tag: string, page = 1, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<DiscoverPage>(`/api/discover/hashtag/${encodeURIComponent(tag)}?page=${page}&pageSize=${DISCOVER_PAGE_SIZE}`, { auth, signal, ...refresh });
+
+/** V2-4: hashtags starting with q, most used first. */
+export const searchHashtags = (auth: AuthResponse, q: string, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<Array<{ tag: string; postCount: number }>>(`/api/discover/hashtags/search?${new URLSearchParams({ q })}`, { auth, signal, ...refresh });
 
 /** Up to 20 places by id with their current state: how the places a person saved are doing right now. */
 export const getPlacesByIds = (ids: string[], signal?: AbortSignal) =>

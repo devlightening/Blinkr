@@ -13,6 +13,10 @@ public sealed class PostCommentAddedIntegrationEvent : IntegrationEvent
     /// <summary>Top-level comment this one replies to; null for a top-level comment.</summary>
     public Guid? ParentCommentId { get; init; }
     public DateTime OccurredAtUtc { get; init; }
+    /// <summary>V2-4: people @mentioned in the comment, resolved by BlogService (blocked people never appear).</summary>
+    public List<MentionedUser>? Mentions { get; init; }
+    /// <summary>V2-4: the anonymous post's own author commenting; nobody may be told who wrote it.</summary>
+    public bool AuthorHidden { get; init; }
     
     // Keep backward compatibility
     public Guid AuthorId => CommentAuthorId;

@@ -26,6 +26,11 @@ export type CommentView = {
   text: string;
   createdAtUtc: string;
   replies?: CommentView[];
+  /** V2-4: likes on the comment and whether I liked it; the likers are never listed. */
+  likeCount?: number;
+  likedByMe?: boolean;
+  /** V2-4: people the server resolved as @mentioned in the text. */
+  mentions?: Array<{ userId: string; userName: string }>;
   /** Local only: sent, waiting for the server to confirm. */
   pending?: boolean;
 };
@@ -146,6 +151,16 @@ export const engagementErrorKey = (code: string | null | undefined) => {
     case 'NOT_FOUND': return 'errors:engagement.notFound';
     case 'CONTENT_BLOCKED': return 'errors:contentBlocked';
     case 'POSTING_RESTRICTED': return 'errors:postingRestricted';
+    case 'TOO_MANY_MENTIONS': return 'errors:engagement.tooManyMentions';
+    case 'INVALID_REACTION': return 'errors:engagement.invalidReaction';
     default: return 'errors:generic';
   }
 };
+
+/** V2-4: changes one comment (top-level or reply) in the tree. */
+export const patchComment = (items: CommentView[], commentId: string, change: Partial<CommentView>): CommentView[] =>
+  items.map((c) => {
+    if (c.commentId === commentId) return { ...c, ...change };
+    const replies = c.replies?.map((r) => (r.commentId === commentId ? { ...r, ...change } : r));
+    return replies ? { ...c, replies } : c;
+  });

@@ -1,4 +1,8 @@
-import { Bookmark, Check, ChevronRight, Eye, EyeOff, Heart, MapPin, MessageCircle, MoreHorizontal, RefreshCw, Send, ShieldCheck } from 'lucide-react-native';
+import { Bookmark, Check, ChevronRight, Eye, EyeOff, MapPin, MessageCircle, MoreHorizontal, RefreshCw, Send, ShieldCheck } from 'lucide-react-native';
+import { reactionStateOf } from '../../reactions';
+import type { Mention } from '../../richText';
+import { ReactionButton } from '../ui/ReactionButton';
+import { RichText } from '../ui/RichText';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
@@ -34,6 +38,10 @@ type Props = {
   saved: boolean;
   onLike: () => void;
   onDoubleTapLike: () => void;
+  /** V2-4: a long press on the heart picks an emoji. */
+  onReact?: (reaction: string) => void;
+  onMention?: (mention: Mention) => void;
+  onHashtag?: (tag: string) => void;
   onOpenMedia: (index: number) => void;
   onOpenThread: (focusInput: boolean) => void;
   onShare: () => void;
@@ -55,7 +63,7 @@ type Props = {
  */
 export function SignalCard({
   card, width, distanceMeters, verify, showVerify, confirmed, verifyBusy, topComment, saved,
-  onLike, onDoubleTapLike, onOpenMedia, onOpenThread, onShare, onSave, onMenu, onOpenAuthor, onOpenPlace, onVerify, hidePlace = false, inThread = false,
+  onLike, onDoubleTapLike, onReact, onMention, onHashtag, onOpenMedia, onOpenThread, onShare, onSave, onMenu, onOpenAuthor, onOpenPlace, onVerify, hidePlace = false, inThread = false,
 }: Props) {
   const { t, i18n } = useTranslation(['signal', 'common']);
   const lang = i18n.language === 'en' ? 'en' : 'tr';
@@ -123,7 +131,7 @@ export function SignalCard({
           </View>
           <Text style={[styles.textType, { color: tone }]}>{typeLabel}</Text>
           {valueLabel ? <Text style={styles.textValue}>{valueLabel}</Text> : null}
-          {card.text ? <Text style={styles.textBody}>{card.text}</Text> : null}
+          {card.text ? <RichText mentions={card.mentions} onHashtag={onHashtag} onMention={onMention} style={styles.textBody} text={card.text} /> : null}
         </View>
       )}
 
@@ -138,7 +146,7 @@ export function SignalCard({
 
       {hasMedia && card.text ? (
         <AnimatedPressable accessibilityRole="button" onPress={() => setExpanded((v) => !v)} pressScale={1}>
-          <Text numberOfLines={expanded ? undefined : 3} style={styles.description}>{card.text}</Text>
+          <RichText mentions={card.mentions} numberOfLines={expanded ? undefined : 3} onHashtag={onHashtag} onMention={onMention} style={styles.description} text={card.text} />
           {card.text.length > 120 ? <Text style={styles.more}>{expanded ? t('signal:card.less') : t('signal:card.more')}</Text> : null}
         </AnimatedPressable>
       ) : null}
@@ -170,18 +178,13 @@ export function SignalCard({
       ) : null}
 
       <View style={styles.actions}>
-        <AnimatedPressable
-          accessibilityLabel={card.liked ? t('signal:engagement.unlike') : t('signal:engagement.like')}
-          accessibilityRole="button"
-          aria-selected={card.liked}
+        <ReactionButton
           disabled={card.isMine}
-          onPress={onLike}
-          style={[styles.action, card.isMine && styles.disabled]}
+          onPick={(reaction) => (onReact ? onReact(reaction) : onLike())}
+          onTap={onLike}
+          state={reactionStateOf({ reactionCounts: card.reactionCounts, myReaction: card.myReaction, likeCount: card.likeCount, isLikedByCurrentUser: card.liked })}
           testID="card-like"
-        >
-          <Heart color={card.liked ? colors.danger : colors.text} fill={card.liked ? colors.danger : 'none'} size={22} />
-          <Text style={styles.count}>{formatCount(card.likeCount, lang)}</Text>
-        </AnimatedPressable>
+        />
         <AnimatedPressable accessibilityLabel={t('signal:comments.title')} accessibilityRole="button" onPress={() => onOpenThread(false)} style={styles.action} testID="card-comments">
           <MessageCircle color={colors.text} size={22} />
           <Text style={styles.count}>{formatCount(card.commentCount, lang)}</Text>

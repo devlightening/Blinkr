@@ -24,7 +24,8 @@ namespace BlogService.Domain.Events
         DateTime? ExpiresAt = null,
         ICollection<PostMediaInfo>? Media = null,
         string? PublicationTrust = null,
-        bool FromGallery = false) : IDomainEvent;
+        bool FromGallery = false,
+        IReadOnlyList<MentionRef>? Mentions = null) : IDomainEvent;
 
     public record PostMediaInfo(
         string Url,

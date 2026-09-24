@@ -7,7 +7,8 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, FadeIn, FadeOut, interpolate, ReduceMotion, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { blockUser, deleteSignal, getPostComments, getSignalDetail, recordPostViews, sendReport, togglePostLike } from '../../api';
+import { blockUser, deleteSignal, getPostComments, getSignalDetail, recordPostViews, sendReport, setPostReaction } from '../../api';
+import { chooseReaction, HEART, reactionStateOf, tapHeart, totalReactions, type ReactionState } from '../../reactions';
 import type { SignalShare } from '../../chatExtras';
 import type { ReportReasonId } from '../../friends';
 import { distanceMeters } from '../../nearbyRequestOwnership';
@@ -52,6 +53,8 @@ type Props = {
   loading?: boolean;
   /** Open straight on the full page (a shared link, "all comments"). */
   startExpanded?: boolean;
+  /** V2-4: a #tag was tapped - the card closes and the tag's feed opens (Keşfet). */
+  onOpenHashtag?: (tag: string) => void;
 };
 
 const VIEW_AFTER_MS = 1000;
@@ -67,7 +70,7 @@ const VIEW_FLUSH_MS = 10_000;
  * by side (swipe, or ‹ ›). The card fills itself from GET /api/posts/{id}; a card seen for a second is counted as a
  * view (sent every 10 s, never for your own).
  */
-export function SignalCardModal({ auth, refresh, cards: initialCards, initialIndex = 0, place, deviceOrigin, onClose, onOpenPlace, onOpenAuthor, onConfirm, onChanged, onDeleted, onCreateSignal, loading = false, startExpanded = false }: Props) {
+export function SignalCardModal({ auth, refresh, cards: initialCards, initialIndex = 0, place, deviceOrigin, onClose, onOpenPlace, onOpenAuthor, onConfirm, onChanged, onDeleted, onCreateSignal, loading = false, startExpanded = false, onOpenHashtag }: Props) {
   const { t } = useTranslation(['signal', 'common']);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -219,16 +222,25 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
 
   const update = (postId: string, change: (card: CardSignal) => CardSignal) => setCards((list) => list.map((c) => (c.postId === postId ? change(c) : c)));
 
-  const like = async (card: CardSignal, onlyOn = false) => {
-    if (card.isMine || (onlyOn && card.liked)) return;
-    const next = !card.liked;
-    update(card.postId, (c) => ({ ...c, liked: next, likeCount: Math.max(0, c.likeCount + (next ? 1 : -1)) }));
+  const stateOf = (c: CardSignal) => reactionStateOf({ reactionCounts: c.reactionCounts, myReaction: c.myReaction, likeCount: c.likeCount, isLikedByCurrentUser: c.liked });
+  const withReaction = (c: CardSignal, s: ReactionState): CardSignal => ({ ...c, reactionCounts: s.counts, myReaction: s.mine, liked: s.mine !== null, likeCount: totalReactions(s.counts) });
+
+  /**
+   * V2-4 (D-027): a tap is the heart (or takes my reaction back), a double tap only ever adds the heart, a picked
+   * emoji sets or replaces mine. Optimistic; the server's counts replace the guess.
+   */
+  const like = async (card: CardSignal, mode: 'tap' | 'double' | { pick: string } = 'tap') => {
+    if (card.isMine) return;
+    const before = stateOf(card);
+    if (mode === 'double' && before.mine) return;
+    const after = mode === 'tap' ? tapHeart(before) : mode === 'double' ? chooseReaction(before, HEART) : chooseReaction(before, mode.pick);
+    update(card.postId, (c) => withReaction(c, after));
     void Haptics.selectionAsync().catch(() => {});
     try {
-      const liked = await togglePostLike(auth, card.postId, refresh);
-      if (liked !== next) update(card.postId, (c) => ({ ...c, liked, likeCount: Math.max(0, c.likeCount + (liked ? 1 : -1) - (next ? 1 : -1)) }));
+      const answer = await setPostReaction(auth, card.postId, after.mine, refresh);
+      update(card.postId, (c) => withReaction(c, { mine: answer.reaction, counts: answer.counts }));
     } catch {
-      update(card.postId, (c) => ({ ...c, liked: !next, likeCount: Math.max(0, c.likeCount + (next ? -1 : 1)) }));
+      update(card.postId, (c) => withReaction(c, before));
     }
   };
 
@@ -287,8 +299,11 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
                 card={item}
                 confirmed={confirmed.has(item.postId)}
                 distanceMeters={distanceTo(item)}
-                onDoubleTapLike={() => { void like(item, true); }}
+                onDoubleTapLike={() => { void like(item, 'double'); }}
+                onHashtag={onOpenHashtag ? (tag) => { close(); onOpenHashtag(tag); } : undefined}
                 onLike={() => { void like(item); }}
+                onMention={(m) => onOpenAuthor({ id: m.userId, userName: m.userName })}
+                onReact={(reaction) => { void like(item, { pick: reaction }); }}
                 onMenu={() => setMenuOpen(true)}
                 onOpenAuthor={() => { if (item.authorId) onOpenAuthor({ id: item.authorId, userName: item.authorName ?? '' }); }}
                 onOpenMedia={(start) => setViewer({ items: item.media, start })}
@@ -322,6 +337,8 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
         hideActions
         onBack={collapse}
         onClose={close}
+        onHashtag={onOpenHashtag ? (tag) => { close(); onOpenHashtag(tag); } : undefined}
+        onMention={(m) => onOpenAuthor({ id: m.userId, userName: m.userName })}
         postId={card.postId}
         refresh={refresh}
         title={card.placeName ?? t('signal:card.signal')}

@@ -41,7 +41,8 @@ public class PostCommentAddedConsumer : IConsumer<PostCommentAddedIntegrationEve
                 AuthorName = string.IsNullOrWhiteSpace(message.CommentAuthorName) ? null : message.CommentAuthorName,
                 ParentCommentId = message.ParentCommentId,
                 Text = message.CommentText,
-                CreatedAtUtc = message.OccurredOn
+                CreatedAtUtc = message.OccurredOn,
+                Mentions = message.Mentions is { Count: > 0 } mentions ? mentions.Select(m => new MentionEntry { UserId = m.UserId, UserName = m.UserName }).ToList() : null
             };
 
             // Never push the same comment twice, even if the inbox is bypassed by a replay.

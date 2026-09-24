@@ -50,7 +50,7 @@ public class CreatePostCommentCommandHandler : IRequestHandler<CreatePostComment
             throw new KeyNotFoundException($"Post with ID '{request.PostId}' not found.");
         }
 
-        postAggregate.AddComment(authorId, commentText, request.ParentCommentId, request.AuthorName);
+        postAggregate.AddComment(authorId, commentText, request.ParentCommentId, request.AuthorName, request.Mentions);
 
         // Get the event BEFORE saving (SaveAsync clears uncommitted events)
         var commentAddedEvent = postAggregate.GetUncommittedEvents().OfType<PostCommentAddedEvent>().LastOrDefault();

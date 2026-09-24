@@ -50,7 +50,9 @@
     "send": "Send",
     "options": "Comment options",
     "remaining": "{{count}} characters left",
-    "readOnly": "Sign in to comment."
+    "readOnly": "Sign in to comment.",
+    "like": "Like comment",
+    "unlike": "Unlike comment"
   },
   "likers": {
     "title": "Likes",
@@ -174,5 +176,16 @@
     "error": "Couldn't play the video",
     "retry": "Try again",
     "replay": "Replay"
+  },
+  "reactions": {
+    "pick": "React with {{emoji}}",
+    "hint": "Press and hold for another reaction",
+    "remove": "Remove your {{emoji}} reaction"
+  },
+  "mentions": {
+    "suggestions": "People suggestions",
+    "pick": "Mention {{name}}",
+    "friend": "Friend",
+    "tooMany": "You can mention at most {{count}} people."
   }
 }

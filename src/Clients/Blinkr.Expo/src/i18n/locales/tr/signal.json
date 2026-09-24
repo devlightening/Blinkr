@@ -50,7 +50,9 @@
     "send": "Gönder",
     "options": "Yorum seçenekleri",
     "remaining": "{{count}} karakter kaldı",
-    "readOnly": "Yorum yapmak için giriş yap."
+    "readOnly": "Yorum yapmak için giriş yap.",
+    "like": "Yorumu beğen",
+    "unlike": "Yorum beğenisini geri al"
   },
   "likers": {
     "title": "Beğenenler",
@@ -174,5 +176,16 @@
     "error": "Video oynatılamadı",
     "retry": "Tekrar dene",
     "replay": "Tekrar oynat"
+  },
+  "reactions": {
+    "pick": "{{emoji}} ile tepki ver",
+    "hint": "Başka bir tepki için basılı tut",
+    "remove": "{{emoji}} tepkini geri al"
+  },
+  "mentions": {
+    "suggestions": "Kişi önerileri",
+    "pick": "{{name}} kişisini an",
+    "friend": "Arkadaş",
+    "tooMany": "En fazla {{count}} kişiden bahsedebilirsin."
   }
 }

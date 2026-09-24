@@ -10,7 +10,9 @@
     "likeFailed": "Couldn't save your like. Try again.",
     "commentFailed": "Couldn't send your comment. Try again.",
     "deleteFailed": "Couldn't delete the comment. Try again.",
-    "loadFailed": "Couldn't load comments."
+    "loadFailed": "Couldn't load comments.",
+    "tooManyMentions": "You can mention at most 10 people in one post.",
+    "invalidReaction": "That reaction is not available."
   },
   "contentBlocked": "This doesn't follow the community rules: threats, hate speech and targeted insults can't be posted.",
   "postingRestricted": "You can't post right now because of the community rules. You can post again when the limit ends.",

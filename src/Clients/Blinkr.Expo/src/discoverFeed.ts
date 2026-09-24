@@ -29,6 +29,10 @@ export type DiscoverItem = {
   sensitive?: boolean;
   /** The server verified the author was at the place (VERIFIED_LIVE): only then may the card say "Canlı". */
   verified?: boolean;
+  /** V2-4 (D-027): reactions by emoji, mine, and the people the text mentions. */
+  reactionCounts?: Record<string, number>;
+  myReaction?: string | null;
+  mentions?: Array<{ userId: string; userName: string }>;
 };
 export type DiscoverPage = { items: DiscoverItem[]; page: number; pageSize: number; hasMore: boolean };
 export type DiscoverTab = 'nearby' | 'following' | 'places';
