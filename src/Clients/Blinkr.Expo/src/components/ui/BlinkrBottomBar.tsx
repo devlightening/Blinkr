@@ -1,9 +1,12 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { Compass, Map as MapIcon, MessageCircle, Plus, UserRound } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, radii, shadow, shadowFloat, shadowSoft, sizes, spacing, typography } from '../../theme';
+import { colors, gradientDirection, gradients, radii, shadowFloat, sizes, spacing } from '../../theme';
+import { Avatar } from '../Avatar';
+import { GradientRing } from './GradientRing';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { useKeyboardVisible } from './useKeyboardVisible';
 import { tx } from '../../i18n/tx';
@@ -22,6 +25,8 @@ type Props = {
   shareDisabled?: boolean;
   /** A sheet or the composer owns the screen; two stacked bars are never shown. */
   hidden?: boolean;
+  /** The signed-in person: Profil shows their avatar (Instagram), with a gradient ring while selected. */
+  me?: { userId: string; avatarKey?: string | null } | null;
 };
 
 const tabIcons = { chat: MessageCircle, map: MapIcon, nearby: Compass, profile: UserRound } as const;
@@ -30,25 +35,34 @@ const tabIcons = { chat: MessageCircle, map: MapIcon, nearby: Compass, profile: 
 // Maps to common.json's tab.* keys (P1.4): the first real, end-to-end i18n usage in the app.
 const tabLabelKeys: Record<BlinkrTab, string> = { chat: 'tab.chat', map: 'tab.map', nearby: 'tab.explore', profile: 'tab.profile' };
 
-function TabItem({ tab, active, unread, onPress }: { tab: BlinkrTab; active: boolean; unread?: boolean; onPress: () => void }) {
+function TabItem({ tab, active, unread, me, onPress }: { tab: BlinkrTab; active: boolean; unread?: boolean; me?: Props['me']; onPress: () => void }) {
   const { t } = useTranslation('common');
   const label = t(tabLabelKeys[tab]);
   const Icon = tabIcons[tab];
-  const color = active ? colors.primary : colors.textSecondary;
+  const color = active ? colors.text : colors.textSecondary;
   return (
     <AnimatedPressable
       accessibilityLabel={unread ? (tab === 'profile' ? tx('common:tabs.profileDot', '{{label}}, bekleyen arkadaş isteği var', { label }) : tx('common:tabs.chatDot', '{{label}}, okunmamış mesaj var', { label })) : label}
       accessibilityRole="tab"
       aria-selected={active}
       onPress={onPress}
-      pressScale={0.96}
+      pressScale={0.9}
       style={styles.item}
+      testID={`tab-${tab}`}
     >
-      <View style={[styles.iconTile, active && styles.iconTileActive]}>
-        <Icon color={color} size={22} strokeWidth={active ? 2.3 : 2} />
+      <View style={styles.iconTile}>
+        {tab === 'profile' && me ? (
+          // Instagram: the profile tab is your own face; selected = the brand ring around it.
+          <GradientRing gapColor={colors.surface} hidden={!active} size={30} thickness={2}>
+            <Avatar avatarKey={me.avatarKey} seed={me.userId} size={active ? 22 : 26} />
+          </GradientRing>
+        ) : (
+          <Icon color={color} size={25} strokeWidth={active ? 2.5 : 1.9} />
+        )}
         {unread ? <View style={styles.unreadDot} /> : null}
       </View>
-      <Text style={[styles.label, { color }]}>{label}</Text>
+      {/* Selected: a small gradient dot under the icon instead of a label (labels stay for screen readers). */}
+      {active ? <LinearGradient colors={gradients.brand} end={gradientDirection.end} start={gradientDirection.start} style={styles.activeDot} /> : <View style={styles.activeDotSpace} />}
     </AnimatedPressable>
   );
 }
@@ -57,7 +71,7 @@ function TabItem({ tab, active, unread, onPress }: { tab: BlinkrTab; active: boo
  * The one bottom navigation for the whole app: Harita | Keşfet | Paylaş | Sohbet | Profil.
  * Paylaş is an action, not a tab - it never shows as "selected".
  */
-export function BlinkrBottomBar({ active, onTab, onShare, chatUnread = false, profileDot = false, shareDisabled = false, hidden = false }: Props) {
+export function BlinkrBottomBar({ active, onTab, onShare, chatUnread = false, profileDot = false, shareDisabled = false, hidden = false, me = null }: Props) {
   const insets = useSafeAreaInsets();
   const keyboardVisible = useKeyboardVisible();
   if (keyboardVisible || hidden) return null;
@@ -79,13 +93,14 @@ export function BlinkrBottomBar({ active, onTab, onShare, chatUnread = false, pr
             onPress={() => onShare('camera')}
             pressScale={0.95}
             style={[styles.camera, shareDisabled && styles.cameraDisabled]}
+            testID="tab-create"
           >
-            <View style={styles.cameraRing} />
-            <Plus color={colors.onCreate} size={24} strokeWidth={2.6} />
+            <LinearGradient colors={gradients.brand} end={gradientDirection.end} pointerEvents="none" start={gradientDirection.start} style={styles.cameraFill} />
+            <View style={styles.cameraIcon}><Plus color={colors.white} size={26} strokeWidth={2.6} /></View>
           </AnimatedPressable>
         </View>
         <TabItem active={active === 'chat'} onPress={() => onTab('chat')} tab="chat" unread={chatUnread} />
-        <TabItem active={active === 'profile'} onPress={() => onTab('profile')} tab="profile" unread={profileDot} />
+        <TabItem active={active === 'profile'} me={me} onPress={() => onTab('profile')} tab="profile" unread={profileDot} />
       </View>
     </View>
   );
@@ -96,15 +111,16 @@ export const bottomBarClearance = (bottomInset: number) => sizes.bottomBar + Mat
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', left: spacing.md, position: 'absolute', right: spacing.md, zIndex: 20 },
-  bar: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.pill, flexDirection: 'row', height: sizes.bottomBar + 4, maxWidth: 460, paddingHorizontal: spacing.sm, width: '100%', ...shadowFloat },
-  item: { alignItems: 'center', flex: 1, justifyContent: 'center', minHeight: sizes.touch },
-  iconTile: { alignItems: 'center', borderRadius: radii.pill, height: 30, justifyContent: 'center', width: 52 },
-  iconTileActive: { backgroundColor: colors.primaryTint },
-  label: { ...typography.micro, marginTop: 1 },
-  unreadDot: { backgroundColor: colors.danger, borderColor: colors.surface, borderRadius: 5, borderWidth: 2, height: 10, position: 'absolute', right: 12, top: 2, width: 10 },
+  bar: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', height: sizes.bottomBar + 8, maxWidth: 460, paddingHorizontal: spacing.xs, width: '100%', ...shadowFloat },
+  item: { alignItems: 'center', flex: 1, justifyContent: 'center', minHeight: sizes.touch, paddingTop: 4 },
+  iconTile: { alignItems: 'center', height: 32, justifyContent: 'center', width: 44 },
+  activeDot: { borderRadius: 2, height: 4, marginTop: 4, width: 4 },
+  activeDotSpace: { height: 4, marginTop: 4 },
+  unreadDot: { backgroundColor: colors.danger, borderColor: colors.surface, borderRadius: 5, borderWidth: 2, height: 10, position: 'absolute', right: 6, top: 1, width: 10 },
   cameraSlot: { alignItems: 'center', flex: 1, justifyContent: 'center' },
-  // The one bright thing on screen, like Snapchat's capture button: solid sun, a warm glow instead of a ring.
-  camera: { alignItems: 'center', backgroundColor: colors.flare, borderRadius: radii.pill, elevation: 8, height: sizes.camera + 8, justifyContent: 'center', shadowColor: colors.flare, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 14, width: sizes.camera + 8 },
-  cameraRing: { display: 'none' },
+  // The one bright thing on the bar: the brand gradient disc with a warm glow (V2 D-024).
+  camera: { alignItems: 'center', borderRadius: radii.pill, elevation: 8, height: 52, justifyContent: 'center', overflow: 'hidden', shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 14, width: 52 },
+  cameraFill: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, borderRadius: radii.pill },
+  cameraIcon: { zIndex: 1 },
   cameraDisabled: { opacity: 0.5 },
 });

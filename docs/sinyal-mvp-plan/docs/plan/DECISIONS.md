@@ -15,6 +15,16 @@
 
 ## Kararlar
 
+### D-024 — Blinkr V2: koyu varsayılan tema, marka gradyanı, Instagram tarzı alt çubuk (2026-09-24)
+- Bağlam: Kullanıcı "Snapchat + Instagram = Blinkr" hedefiyle V2 planını onayladı (`docs/blinkr-v2/`); varsayılan tema olarak "Koyu tema + gradyan vurgular"ı, alt çubuk olarak Harita · Keşfet · (+) · Mesaj · Profil'i seçti.
+- Karar:
+  - Kayıtlı tercih yoksa tema **koyu** (`themeBoot.ts`); Ayarlar > Görünüm'de Sistem/Açık/Koyu seçimi kalır. Koyu yüzeyler: zemin #0E0F12, kart #17191D, yükseltilmiş #20232A.
+  - Marka gradyanı `gradients.brand` = #FFC83D → #FF6B6B → #B06BFF (sol-alttan sağ-üste). Yalnız (+) oluştur, görülmemiş hikaye halkası, oluştur/gönder düğmeleri (`BlinkrButton variant="create"`) ve seçili sekme noktası; üstündeki metin koyu (`onCreate`), üç durakta da AA (`test:theme`).
+  - Tek renkli vurgu (`primary`) adaçayından gülkurusu-mercana geçti: koyuda #FF6B6B, açıkta #D43A48 (beyaz yazıyla AA). "Canlı/doğrulandı" anlamı için yeşil token'lar (`mint`, `green`) yerinde kaldı.
+  - Alt çubuk Instagram gibi etiketsiz (etiket ekran okuyucuda), seçili sekme ikon + altında 4 pt gradyan nokta; Profil sekmesi kişinin avatarı, seçiliyken gradyan halka; (+) gradyan disk.
+  - Hikaye tepsisi: görülmemiş gradyan halka, görülmüş düz gri, "Hikayen" gradyan "+" rozeti (`ui/GradientRing`).
+- Etki: D-017'nin "açık tema varsayılan, adaçayı tek marka rengi" kısmı bu kararla değişti.
+
 ### D-023 — Sinyal Kartı sunumu ve "yumuşak premium" görünüm (Snap Map örneği) (2026-09-24)
 - Bağlam: Kullanıcı cihazda kartın açılış animasyonunu kötü, genel görünümü "MVP/basic" buldu; Snapchat mantığında yumuşak ve küresel bir arayüz istedi.
 - Karar:

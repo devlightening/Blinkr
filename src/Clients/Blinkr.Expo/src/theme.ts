@@ -23,6 +23,10 @@ export const palette = {
   // Sage (brand accent)
   sage200: '#D6F0E4', sage300: '#A8DCC6', sage400: '#7FCAA9', sage500: '#5DB693',
   sage600: '#3E9A7A', sage700: '#2E7A60', sage800: '#256650', sage900: '#16352B',
+  // Night (V2 dark surfaces: deeper, bluish, never pure black)
+  night900: '#0E0F12', night800: '#17191D', night700: '#20232A', night600: '#2A2E36',
+  // V2 brand gradient: sun -> rose -> violet (the create button, story rings, primary actions)
+  rose400: '#FF6B6B', rose500: '#F25461', rose700: '#D43A48', rose800: '#B82F3C', violet400: '#B06BFF',
   // Sun (create/send only)
   sun400: '#FFD86E', sun500: '#FFC83D', sun600: '#D99F1F',
   // Signal types: tint (fill) + ink (text/icon on light)
@@ -75,7 +79,7 @@ export type ColorTokens = {
 
 const light: ColorTokens = {
   background: p.paper50, surface: p.white, surfaceElevated: p.paper100, glass: 'rgba(252, 251, 248, 0.92)',
-  primary: p.sage700, primaryPressed: p.sage800, mint: p.sage700, darkGreen: p.sage700,
+  primary: p.rose700, primaryPressed: p.rose800, mint: p.sage700, darkGreen: p.sage700,
   text: p.ink900, textSecondary: p.ink500, textMuted: p.ink400, border: 'rgba(21, 24, 27, 0.07)',
   orange: p.apricotInk, purple: p.grapeInk, pink: p.bubblegumInk, danger: p.coralInk,
   flare: p.sun500, flarePressed: p.sun600, onCreate: p.ink900,
@@ -89,26 +93,26 @@ const light: ColorTokens = {
   white: p.white, scrim: 'rgba(21, 24, 27, 0.32)', shadow: p.ink900, scrimSoft: 'rgba(21, 24, 27, 0.2)',
   mutedOnDark: p.chalk300, surfaceOnDark: p.coal700, lineOnDark: 'rgba(255, 255, 255, 0.14)',
   pinBorder: p.ink900,
-  primaryTint: 'rgba(46, 122, 96, 0.12)', createRing: 'rgba(255, 200, 61, 0.45)', meterEmpty: 'rgba(21, 24, 27, 0.10)',
+  primaryTint: 'rgba(212, 58, 72, 0.10)', createRing: 'rgba(255, 200, 61, 0.45)', meterEmpty: 'rgba(21, 24, 27, 0.10)',
 };
 
 const dark: ColorTokens = {
-  background: p.coal900, surface: p.coal800, surfaceElevated: p.coal700, glass: 'rgba(30, 34, 39, 0.92)',
-  primary: p.sage400, primaryPressed: p.sage300, mint: p.sage400, darkGreen: p.sage600,
-  text: p.chalk50, textSecondary: p.chalk300, textMuted: '#7C858D', border: 'rgba(255, 255, 255, 0.08)',
+  background: p.night900, surface: p.night800, surfaceElevated: p.night700, glass: 'rgba(23, 25, 29, 0.92)',
+  primary: p.rose400, primaryPressed: p.rose500, mint: p.sage400, darkGreen: p.sage600,
+  text: '#F5F6F8', textSecondary: '#A3A9B4', textMuted: '#7A818D', border: 'rgba(255, 255, 255, 0.06)',
   orange: p.apricot, purple: p.grape, pink: p.bubblegum, danger: p.coral,
   flare: p.sun500, flarePressed: p.sun600, onCreate: p.ink900,
   ink: p.ink900,
-  inkSoft: '#C6CFD3', textPrimary: p.chalk50, muted: p.chalk300, mutedSoft: '#7C858D', line: p.coal600, lineStrong: 'rgba(255, 255, 255, 0.14)',
-  surfaceSoft: '#1A1E22', surfaceTint: '#1B2A24', mapCanvas: p.coal900,
+  inkSoft: '#C6CFD3', textPrimary: p.chalk50, muted: p.chalk300, mutedSoft: '#7C858D', line: p.night600, lineStrong: 'rgba(255, 255, 255, 0.14)',
+  surfaceSoft: '#131519', surfaceTint: '#1B2A24', mapCanvas: p.night900,
   green: p.sage600, greenDark: p.sage400, greenSoft: p.sage900, greenLine: '#1E3A30', lime: p.sage400,
   coral: p.coral, coralSoft: '#2A1816', coralLine: '#4A2B26',
   blue: p.sky, blueSoft: '#16293A', teal: '#5CCBC0', amber: p.butter, warning: p.apricot,
   error: p.coral, errorSoft: '#2B1714', errorLine: '#4A2622',
   white: p.white, scrim: 'rgba(10, 12, 14, 0.56)', shadow: p.black, scrimSoft: 'rgba(0, 0, 0, 0.4)',
-  mutedOnDark: p.chalk300, surfaceOnDark: p.coal700, lineOnDark: 'rgba(255, 255, 255, 0.14)',
+  mutedOnDark: p.chalk300, surfaceOnDark: p.night700, lineOnDark: 'rgba(255, 255, 255, 0.14)',
   pinBorder: p.chalk50,
-  primaryTint: 'rgba(127, 202, 169, 0.16)', createRing: 'rgba(255, 200, 61, 0.35)', meterEmpty: 'rgba(255, 255, 255, 0.12)',
+  primaryTint: 'rgba(255, 107, 107, 0.16)', createRing: 'rgba(255, 200, 61, 0.35)', meterEmpty: 'rgba(255, 255, 255, 0.12)',
 };
 
 /**
@@ -123,6 +127,20 @@ export const media = {
   line: 'rgba(255, 255, 255, 0.35)', lineSoft: 'rgba(255, 255, 255, 0.16)', track: 'rgba(255, 255, 255, 0.28)',
   sunSoft: 'rgba(255, 200, 61, 0.22)', textShadow: 'rgba(0, 0, 0, 0.6)',
 } as const;
+
+/**
+ * V2 brand gradient (D-024): sun -> rose -> violet, bottom-left to top-right like Instagram. Only for the create (+)
+ * button, unseen story rings, the primary call to action and the like burst - at most one large gradient per screen.
+ * Text on it is dark (`onCreate`): the sun end needs it.
+ */
+export const gradients = {
+  brand: [p.sun500, p.rose400, p.violet400] as const,
+  story: [p.sun500, p.rose400, p.violet400] as const,
+  storySeen: ['#3A3F48', '#3A3F48'] as const,
+  scrimTop: ['rgba(0, 0, 0, 0.55)', 'rgba(0, 0, 0, 0)'] as const,
+  scrimBottom: ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.7)'] as const,
+};
+export const gradientDirection = { start: { x: 0, y: 1 }, end: { x: 1, y: 0 } } as const;
 
 export type ThemeMode = 'dark' | 'light';
 export type ThemePreference = ThemeMode | 'system';
@@ -220,11 +238,11 @@ export type SemanticPalette = {
   stateDanger: string; stateSuccess: string; stateInfo: string;
 };
 const semantic = (c: ColorTokens, mode: ThemeMode): SemanticPalette => ({
-  bgCanvas: c.background, bgSurface: c.surface, bgSurfaceRaised: mode === 'dark' ? p.coal700 : p.white, bgSurfaceSunken: c.surfaceElevated,
+  bgCanvas: c.background, bgSurface: c.surface, bgSurfaceRaised: mode === 'dark' ? p.night700 : p.white, bgSurfaceSunken: c.surfaceElevated,
   bgOverlay: c.scrim, bgGlass: c.glass,
   borderSubtle: mode === 'dark' ? 'rgba(255, 255, 255, 0.07)' : 'rgba(21, 24, 27, 0.06)', borderDefault: c.border, borderStrong: c.pinBorder,
   textPrimary: c.text, textSecondary: c.textSecondary, textTertiary: c.textMuted, textOnAccent: c.ink, textOnCreate: c.onCreate,
-  accentPrimary: c.primary, accentPrimaryBold: mode === 'dark' ? p.sage300 : p.sage800, accentPrimarySoft: c.greenSoft, accentCreate: c.flare,
+  accentPrimary: c.primary, accentPrimaryBold: mode === 'dark' ? p.rose500 : p.rose800, accentPrimarySoft: c.greenSoft, accentCreate: c.flare,
   stateDanger: c.danger, stateSuccess: c.primary, stateInfo: c.blue,
 });
 export const semanticColors: { dark: SemanticPalette; light: SemanticPalette } = { dark: semantic(dark, 'dark'), light: semantic(light, 'light') };

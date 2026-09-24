@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, AppState, BackHandler, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, Easing } from 'react-native-reanimated';
+import Animated, { FadeIn, ReduceMotion, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, Easing } from 'react-native-reanimated';
 
 import { clearAuth, getMyProfile, listConversations, loadAuth, saveAuth } from './src/api';
 import { AuthScreen } from './src/components/AuthScreen';
@@ -30,6 +30,8 @@ import { setSavedPlacesSession } from './src/savedPlaces';
 
 // While Sohbet is not on screen the tab-bar dot is refreshed at this gentle interval, foreground only.
 const UNREAD_POLL_MS = 30_000;
+// V2-1: a tab layer arrives with a short fade (Instagram), no motion when the device asks for less.
+const tabEnter = FadeIn.duration(180).reduceMotion(ReduceMotion.System);
 // Friend requests are slower news than messages.
 const REQUESTS_POLL_MS = 60_000;
 
@@ -241,7 +243,7 @@ export default function App() {
                   />
                 </View>
                 {activeTab === 'chat' && (
-                  <View style={styles.tabLayer}>
+                  <Animated.View entering={tabEnter} style={styles.tabLayer}>
                     <ChatListScreen
                       auth={auth}
                       onAuthChange={acceptAuth}
@@ -251,23 +253,24 @@ export default function App() {
                       onOpenWithHandled={clearChatTarget}
                       openWith={chatTarget}
                     />
-                  </View>
+                  </Animated.View>
                 )}
                 {activeTab === 'nearby' && (
-                  <View style={styles.tabLayer}>
+                  <Animated.View entering={tabEnter} style={styles.tabLayer}>
                     <DiscoverScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={() => openShare('camera')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOpenSignal={openNearbySignal} onOverlayOpenChange={setDiscoverOverlayOpen} />
-                  </View>
+                  </Animated.View>
                 )}
                 {activeTab === 'profile' && (
-                  <View style={styles.tabLayer}>
+                  <Animated.View entering={tabEnter} style={styles.tabLayer}>
                     <ProfileScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={() => openShare('camera')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOverlayOpenChange={setProfileOverlayOpen} onRequestsChange={onRequestsChange} />
-                  </View>
+                  </Animated.View>
                 )}
                 <BlinkrBottomBar
                   active={activeTab}
                   chatUnread={chatUnread}
                   profileDot={requestsWaiting}
                   hidden={(activeTab === 'map' && mapOverlayOpen) || (activeTab === 'chat' && chatConversationOpen) || (activeTab === 'profile' && profileOverlayOpen) || (activeTab === 'nearby' && discoverOverlayOpen)}
+                  me={auth ? { userId: auth.userId, avatarKey: auth.avatarKey } : null}
                   onShare={openShare}
                   onTab={setActiveTab}
                 />

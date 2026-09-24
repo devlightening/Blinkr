@@ -132,7 +132,7 @@ function Kit() {
         <BlinkrErrorState description="Sinyaller yüklenemedi. Bağlantını kontrol edip tekrar dene." onRetry={() => {}} />
       </ScrollView>
       <Toast message={toast} onHide={() => setToast(null)} tone="success" />
-      <BlinkrBottomBar active={tab} chatUnread onShare={(mode) => setTaps(taps + (mode === 'text' ? 100 : 10))} onTab={setTab} />
+      <BlinkrBottomBar active={tab} chatUnread me={{ userId: 'u-me', avatarKey: '253' }} onShare={(mode) => setTaps(taps + (mode === 'text' ? 100 : 10))} onTab={setTab} />
     </View>
   );
 }
@@ -263,7 +263,7 @@ function MapChrome() {
         userId="scene"
         userName="alper"
       />
-      <BlinkrBottomBar active={tab} chatUnread onShare={() => {}} onTab={setTab} />
+      <BlinkrBottomBar active={tab} chatUnread me={{ userId: 'u-me', avatarKey: '253' }} onShare={() => {}} onTab={setTab} />
     </View>
   );
 }

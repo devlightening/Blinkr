@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ActivityIndicator, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { colors, radii, sizes, typography } from '../../theme';
+import { colors, gradientDirection, gradients, radii, sizes, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 
 export type BlinkrButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'create';
@@ -26,7 +27,7 @@ const palette = (variant: BlinkrButtonVariant, pressed: boolean) => {
     case 'primary': return { bg: pressed ? colors.primaryPressed : colors.primary, fg: colors.ink, border: 'transparent' };
     case 'secondary': return { bg: colors.surfaceElevated, fg: colors.text, border: colors.border };
     case 'danger': return { bg: 'transparent', fg: colors.danger, border: colors.coralLine };
-    // The sun fill: only the create/send action (plan-devam D8).
+    // The brand gradient (V2 D-024): only the create/send action; drawn by the LinearGradient below.
     case 'create': return { bg: pressed ? colors.flarePressed : colors.flare, fg: colors.onCreate, border: 'transparent' };
     default: return { bg: 'transparent', fg: colors.mint, border: 'transparent' };
   }
@@ -51,6 +52,9 @@ export function BlinkrButton({
       pressScale={0.97}
       style={[styles.base, size === 'lg' && styles.large, { backgroundColor: bg, borderColor: border }, disabled && styles.inactive, style]}
     >
+      {variant === 'create' ? (
+        <LinearGradient colors={gradients.brand} end={gradientDirection.end} pointerEvents="none" start={gradientDirection.start} style={[StyleSheet.absoluteFill, pressed && styles.gradientPressed]} />
+      ) : null}
       {loading ? <ActivityIndicator color={fg} /> : icon ? <View style={styles.iconSlot}>{icon}</View> : null}
       <View style={[styles.text, subtitle ? styles.copy : undefined]}>
         <Text numberOfLines={1} style={[size === 'lg' ? styles.labelLarge : styles.label, { color: fg }]}>{label}</Text>
@@ -61,9 +65,10 @@ export function BlinkrButton({
 }
 
 const styles = StyleSheet.create({
-  base: { alignItems: 'center', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: 8, justifyContent: 'center', minHeight: sizes.touch, paddingHorizontal: 16 },
+  base: { alignItems: 'center', borderRadius: radii.md, borderWidth: 1, overflow: 'hidden', flexDirection: 'row', gap: 8, justifyContent: 'center', minHeight: sizes.touch, paddingHorizontal: 16 },
   large: { borderRadius: radii.md, gap: 8, minHeight: 50, paddingHorizontal: 16 },
   inactive: { opacity: 0.48 },
+  gradientPressed: { opacity: 0.86 },
   iconSlot: { flexShrink: 0 },
   text: { flexShrink: 1 },
   copy: { alignItems: 'flex-start' },

@@ -3,18 +3,18 @@
 | Alan | Değer |
 |---|---|
 | Dal | `feat/blinkr-theme-redesign` |
-| Aktif faz | V2-1 |
+| Aktif faz | V2-2 |
 | Son güncelleme | 2026-09-24 |
 
 İşaretler: `[x]` bitti ve ekranda doğrulandı · `[~]` kısmen / cihaz bekliyor · `[ ]` yapılmadı · `[-]` bilinçli ertelendi
 
 ## V2-1 Koyu tema + gradyan + alt bar
-- [ ] 1.1 Koyu varsayılan (kullanıcı seçimi > koyu), zemin #0E0F12, kart #17191D
-- [ ] 1.2 `gradients.brand` / `gradients.story` token'ları + `expo-linear-gradient`
-- [ ] 1.3 `ui/GradientRing`, `ui/GradientButton`
-- [ ] 1.4 Alt bar: Harita · Keşfet · (+) · Mesaj · Profil (avatar), gradyan (+)
-- [ ] 1.5 Sekme geçiş animasyonu (fade + 8pt kayma, Hareketi Azalt'a uyar)
-- [ ] 1.6 `test:theme` gradyan kontrastı
+- [x] 1.1 Koyu varsayılan (kullanıcı seçimi > koyu), zemin #0E0F12, kart #17191D
+- [x] 1.2 `gradients.brand` / `gradients.story` token'ları + `expo-linear-gradient`
+- [x] 1.3 `ui/GradientRing`; gradyan düğme = `BlinkrButton variant="create"` (ayrı bileşen gereksizdi)
+- [x] 1.4 Alt bar: Harita · Keşfet · (+) · Mesaj · Profil (avatar), gradyan (+)
+- [x] 1.5 Sekme geçiş animasyonu (180 ms solma, Hareketi Azalt'a uyar)
+- [x] 1.6 `test:theme` gradyan kontrastı
 
 ## V2-2 Post görüntüleyici
 - [ ] 2.1 Kart → tam sayfa (yukarı sürükle / Genişlet), iki durak
@@ -24,7 +24,7 @@
 - [ ] 2.5 Derin bağlantı `blinkr://post/{id}`
 
 ## V2-3 Hikayeler
-- [ ] 3.1 Tepsi: gradyan halka (görülmemiş), gri (görülmüş), "Hikayen +"
+- [x] 3.1 Tepsi: gradyan halka (görülmemiş), gri (görülmüş), "Hikayen +"
 - [ ] 3.2 Görüntüleyici: küp geçiş, aşağı kaydır-kapat, ön yükleme
 - [ ] 3.3 Beğeni (♥) + emoji hızlı yanıt (DM olarak)
 - [ ] 3.4 Sunucu: `POST/DELETE /api/stories/{id}/like`, görüntüleyenlerde kalp

@@ -1,4 +1,4 @@
-import { applyThemeMode, colors, darkColors, lightColors, mediaColors, motion, radii, resolveThemeMode, semanticColors, signalInks, signalTints, sizes, springs, typography, type ThemeMode } from '../src/theme';
+import { applyThemeMode, colors, darkColors, gradients, lightColors, mediaColors, motion, radii, resolveThemeMode, semanticColors, signalInks, signalTints, sizes, springs, typography, type ThemeMode } from '../src/theme';
 
 const channel = (value: number) => {
   const c = value / 255;
@@ -73,7 +73,11 @@ guard('serious spring does not overshoot (>= 0.7) and presses stay tight (>= 0.5
 guard('an explicit preference always wins over the system scheme', resolveThemeMode('dark', 'light') === 'dark' && resolveThemeMode('light', 'dark') === 'light');
 guard('"system" follows a known device scheme', resolveThemeMode('system', 'light') === 'light' && resolveThemeMode('system', 'dark') === 'dark');
 guard('"system" with no reported scheme falls back to light', resolveThemeMode('system', null) === 'light' && resolveThemeMode('system', undefined) === 'light');
-guard('light is the default before boot', lightColors.background === '#FCFBF8' && darkColors.background === '#16191D');
+guard('palettes: paper light, night dark (V2 D-024)', lightColors.background === '#FCFBF8' && darkColors.background === '#0E0F12' && darkColors.surface === '#17191D');
+guard('brand gradient is sun -> rose -> violet', gradients.brand.join() === '#FFC83D,#FF6B6B,#B06BFF' && gradients.story.join() === gradients.brand.join());
+// Text on the gradient is dark (onCreate): it must read on every stop.
+for (const stop of gradients.brand) check('gradient', `onCreate on ${stop}`, lightColors.onCreate, stop);
+if (failed > 0) throw new Error('text on the brand gradient is below 4.5:1');
 guard('dark canvas is not pure black', darkColors.background.toLowerCase() !== '#000000');
 guard('both semantic palettes have the same shape', JSON.stringify(Object.keys(semanticColors.dark).sort()) === JSON.stringify(Object.keys(semanticColors.light).sort()));
 guard('every semantic colour is a real colour string', [...Object.values(semanticColors.dark), ...Object.values(semanticColors.light)].every((value) => typeof value === 'string' && value.length > 0));
