@@ -80,6 +80,15 @@ $unhealthy = @($rows | Where-Object { $_.Status -ne "HEALTHY" })
 $badRoutes = @($routeRows | Where-Object { $_.Status -eq "DOWN" -or $_.Status -eq "HTTP 502" })
 $missingCatalog = @($catalogRows | Where-Object { $_.Status -eq "MISSING" })
 
+# Dead letters (CLAUDE.md §16): failed messages must stay visible. Details and replay: scripts/error-queues.ps1.
+Write-Host "`nError queues" -ForegroundColor Cyan
+try {
+    $errorSummary = & (Join-Path $PSScriptRoot "error-queues.ps1") 2>$null | Select-Object -Last 1
+    if ($errorSummary -match "messages waiting: ([1-9][0-9]*)") { Write-Host "$errorSummary  -> scripts/error-queues.ps1 -Peek <queue>" -ForegroundColor Yellow } else { Write-Host $errorSummary }
+} catch {
+    Write-Host "Error queues: RabbitMQ management API not reachable" -ForegroundColor Yellow
+}
+
 if (Test-Path $stateFile) {
     Write-Host "Runtime state: $stateFile"
 } else {

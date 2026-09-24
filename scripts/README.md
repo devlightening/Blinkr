@@ -14,6 +14,18 @@ Check status:
 powershell -ExecutionPolicy Bypass -File .\scripts\status-blinkr-dev.ps1
 ```
 
+Failed messages (RabbitMQ `*_error` queues; the status check shows how many are waiting):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .scriptserror-queues.ps1                        # list
+powershell -ExecutionPolicy Bypass -File .scriptserror-queues.ps1 -Peek post-liked        # why (nothing removed)
+powershell -ExecutionPolicy Bypass -File .scriptserror-queues.ps1 -Replay post-liked      # after the fix: back to the queue
+powershell -ExecutionPolicy Bypass -File .scriptserror-queues.ps1 -Purge post-liked -Confirm
+```
+
+Replay related queues in event order (e.g. liked before unliked). Consumers are idempotent, so a message that already
+went through is skipped. `read-error-queue.ps1` is the old helper and removes the message it reads; prefer `-Peek`.
+
 Stop application processes started by the dev script:
 
 ```powershell
