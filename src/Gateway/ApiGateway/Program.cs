@@ -25,6 +25,7 @@ app.UseCors("AllowMobile");
 
 // Health check endpoint
 app.MapHealthChecks("/health");
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions { Predicate = _ => false });
 
 // YARP reverse proxy
 app.MapReverseProxy();

@@ -985,7 +985,7 @@ sinyal-mvp-plan'in fazlarindan bagimsiz olarak korunmalidir (bir sosyal ozellik 
 - Event publisher checkpoint ve consumer inbox semantigini failure injection ile test et.
 - Reconciliation araci/isi ile EventStore ve Mongo projection farklarini bul ve onar.
 - DLQ/error queue gorunurlugu, alarm ve tekrar oynatma proseduru ekle.
-- Health/readiness/liveness ayrimini gercek bagimliliklara gore netlestir.
+- Health/readiness/liveness ayrimini gercek bagimliliklara gore netlestir. (2026-09-25: her servis `/health/live` (bagimliliksiz) ve Identity/Blog/Place/Notifications `/health/ready` (yalniz kullandigi bagimliliklar) verir; Identity'nin kullanmadigi Redis kontrolu kaldirildi; hata kuyruklari `scripts/error-queues.ps1` ve status ciktisinda.)
 - Timeout, retry ve circuit breaker'lari katman bazinda olcerek ayarla.
 
 ### P1 Guvenlik ve auth

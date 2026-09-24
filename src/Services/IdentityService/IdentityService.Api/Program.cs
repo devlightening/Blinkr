@@ -121,8 +121,8 @@ builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>(
         "IdentityService-Postgres",
         failureStatus: HealthStatus.Unhealthy,
-        tags: new[] { "db", "postgres" })
-    .AddRedis("localhost:6379", name: "Redis", tags: new[] { "cache" });
+        tags: new[] { "db", "postgres", "ready" });
+// (No Redis check: Identity does not use Redis; a Redis outage must not mark sign-in unhealthy.)
 
 // ---------- Logging ----------
 builder.Host.UseSerilog((ctx, lc) => lc
@@ -157,5 +157,8 @@ app.UseHealthChecks("/health", new HealthCheckOptions
 {
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 });
+// CLAUDE.md §21 P1: live = the process answers (no dependencies); ready = the dependencies it really uses.
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = r => r.Tags.Contains("ready"), ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse }).AllowAnonymous();
 
 app.Run();

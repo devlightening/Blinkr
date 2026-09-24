@@ -131,6 +131,9 @@ app.MapHealthChecks("/health/readiness", new HealthCheckOptions
     Predicate = r => r.Tags.Contains("ready"),
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 }).AllowAnonymous();
+// The same names every service answers (CLAUDE.md §21 P1).
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = r => r.Tags.Contains("ready"), ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse }).AllowAnonymous();
 
 // Prometheus metrics
 app.MapPrometheusScrapingEndpoint("/metrics");
