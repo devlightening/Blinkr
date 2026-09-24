@@ -3,7 +3,7 @@
 | Alan | Değer |
 |---|---|
 | Dal | `feat/blinkr-theme-redesign` |
-| Aktif faz | V2-8 |
+| Aktif faz | V2 tamam (cihaz doğrulamaları bekliyor) |
 | Son güncelleme | 2026-09-24 |
 
 İşaretler: `[x]` bitti ve ekranda doğrulandı · `[~]` kısmen / cihaz bekliyor · `[ ]` yapılmadı · `[-]` bilinçli ertelendi
@@ -55,11 +55,15 @@
 - [x] 7.2 Etkinlik: aynı gönderiye/hikayeye 1 saat içindeki tepkiler tek satır ("a, b ve N kişi daha ..."), satırda iki yüz, büyüyen satır yeniden okunmamış olur, "Yeni" bölümü; `test-activity.ps1` (BLK-ACTIVITY-01) PASS
 
 ## V2-8 Kapanış
-- [ ] 8.1 CLAUDE.md / API-SPEC güncel
-- [ ] 8.2 ZIP yeniden üretildi
+- [x] 8.1 CLAUDE.md (§6.5, §12.1, §13) ve API-SPEC uygulanan hâle göre güncel; sapmalar D-026..D-029
+- [x] 8.2 ZIP yeniden üretildi: `artifacts/blinkr-v2-plan.zip` (gitignore'da, yerelde)
 
 ## Oturum günlüğü
 _(her fazın sonunda: yapılanlar, doğrulama, kalanlar)_
+
+### 2026-09-25 — V2-8 Kapanış
+- API-SPEC uygulanan hâle çekildi (mention sunucuda çözülür, bildirim tip adları, hikaye yanıtı = DM, gerçek zaman yükleri yalnız kimlik); PROGRESS/HANDOFF güncel; plan ZIP'i yeniden üretildi.
+- V2 bitti. Açık kalanlar yalnız cihazda doğrulanacaklar (`[~]` satırları: 2.4 video, 3.2 hikaye jestleri, 5.4 gerçek zaman yeniden bağlanma) ve HANDOFF'taki cihaz listesi.
 
 ### 2026-09-25 — V2-7 Paylaşım ve Etkinlik
 - Yapılan: `ShareToChatSheet` tam paylaşım menüsü (`shareMessage` testli), gruplu bildirimler (D-029: `GroupKey`, `ActorIds`, `ActorNames`, `ActorCount`, `UpsertGroupedAsync`, `GroupedText`), `NotificationsScreen` "Yeni" bölümü ve iki yüz.

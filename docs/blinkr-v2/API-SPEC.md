@@ -2,7 +2,7 @@
 
 Taban: `http://<gateway>:5080`. Tüm istekler `Authorization: Bearer <access>` (aksi belirtilmedikçe).
 Hata gövdesi: `{ "code": "UPPER_SNAKE", "message": "..." }`. Tarihler ISO-8601 UTC. Sayfalama `page` (1'den) + `pageSize`.
-**V2** etiketli uçlar yeni; diğerleri çalışıyor.
+**V2** etiketli uçlar V2 ile geldi; hepsi uygulandı (2026-09-25). Plandan sapmalar `docs/sinyal-mvp-plan/docs/plan/DECISIONS.md` D-026..D-029'da; aşağıdaki satırlar uygulanan hâli yazar.
 
 ## 1. Kimlik (IdentityService)
 | Yöntem | Yol | Gövde / sorgu | Yanıt | Hatalar |
@@ -13,6 +13,7 @@ Hata gövdesi: `{ "code": "UPPER_SNAKE", "message": "..." }`. Tarihler ISO-8601 
 | GET | `/api/users/me` | — | profil + sayaçlar | |
 | GET | `/api/users/{id}` | — | `{ userId, userName, avatarKey, bio, joinedAtUtc, followerCount, followingCount, follow, isPrivate, canSeeContent }` | 404 |
 | GET | `/api/users/search?q=` | — | `[{ userId, userName, avatarKey, relation }]` | |
+| POST | `/api/users/resolve` **V2** | `{ userNames: [] }` (≤ 10, BlogService kullanır) | `[{ id, userName }]` (silinmiş ve iki yönlü engelliler yok) | |
 | PUT | `/api/users/me/profile` | `{ bio }` | profil | 400 `BIO_TOO_LONG` |
 | PUT | `/api/users/me/avatar` | `{ avatarKey }` | profil | 400 `INVALID_AVATAR` |
 | PUT | `/api/users/me/privacy` | `{ isPrivate }` | | |
@@ -34,7 +35,7 @@ Hata gövdesi: `{ "code": "UPPER_SNAKE", "message": "..." }`. Tarihler ISO-8601 
 | POST | `/api/posts/{id}/likes` | ❤️ aç/kapa (geriye uyum) → `{ liked }` |
 | POST | `/api/posts/{id}/reactions` **V2** | `{ reaction: "🔥" \| null }` → `{ reaction, counts }`; 400 `INVALID_REACTION`, `CANNOT_LIKE_OWN` |
 | GET | `/api/posts/{id}/comments?page&pageSize&sort=newest\|oldest` | yorum + yanıtlar; **V2** her yorumda `likeCount`, `likedByMe`, `mentions` |
-| POST | `/api/posts/{id}/comments` | `{ commentText, parentCommentId?, mentionedUserIds? (V2, ≤10) }`; 400 `COMMENT_EMPTY`/`COMMENT_TOO_LONG` |
+| POST | `/api/posts/{id}/comments` | `{ commentText, parentCommentId? }`; **V2** @adlar metinden sunucuda çözülür (istemci id göndermez), 10'dan fazla 400 `TOO_MANY_MENTIONS`; 400 `COMMENT_EMPTY`/`COMMENT_TOO_LONG` |
 | DELETE | `/api/posts/{id}/comments/{commentId}` | 403 `COMMENT_FORBIDDEN` |
 | POST | `/api/posts/{id}/comments/{commentId}/like` **V2** | aç/kapa → `{ liked, likeCount }` |
 | POST | `/api/posts/views` | `{ postIds: [] }` görülme |
@@ -54,7 +55,7 @@ POST /api/posts
   "observationLatitude": 37.0746, "observationLongitude": 36.2464, "observationAccuracyMeters": 12,
   "placeId": "p_123", "locationName": "Soulmate Kafe", "signalType": "Crowd", "signalValue": "Calm",
   "audienceType": "Public", "identityDisclosure": "LimitedProfile", "locationPrecision": "PlaceCenter",
-  "mediaIds": ["m_1"], "mentionedUserIds": ["6f1c…"] }
+  "mediaIds": ["m_1"] }                       // @mert metinden çözülür (D-027)
 → 201 { "postId": "…", "publicationTrust": "VERIFIED_LIVE" }
 ```
 Örnek — tepki:
@@ -69,7 +70,7 @@ POST /api/posts/9b1…/reactions   { "reaction": "🔥" }
 ## 4. Bildirim, sohbet, snap, hikaye (NotificationsService)
 | Yöntem | Yol | Not |
 |---|---|---|
-| GET | `/api/notifications?page` | **V2** `type`: `like\|reaction\|comment\|reply\|mention\|follow\|follow_request\|story_like\|story_reply`, `actor`, `postId?`, `thumbnailUrl?` |
+| GET | `/api/notifications?limit&cursor` | `{ items, nextCursor }`; `type` enum adı: `PostLiked` (tepkiler dahil), `CommentCreated`, `Mentioned`, `UserFollowed`, `FollowRequested`, `FollowAccepted`, `StoryLiked`, `ModerationNotice`; **V2** gruplu satırda `actorCount`, `actorIds` (en yeni iki), `actorUserId/actorUserName` (en yeni) |
 | GET | `/api/notifications/unread-count` | |
 | POST | `/api/notifications/read` | `{ ids? }` (boş = hepsi) |
 | POST | `/api/subscriptions`, `/api/subscriptions/location` | cihaz/konum aboneliği |
@@ -80,10 +81,10 @@ POST /api/posts/9b1…/reactions   { "reaction": "🔥" }
 | POST | `/api/chat/conversations/{id}/messages/{mid}/open` | snap aç; 410 `SNAP_OPENED`/`SNAP_EXPIRED` |
 | PUT/DELETE | `.../messages/{mid}/reaction`, `.../messages/{mid}` | tepki, geri al |
 | POST | `/api/stories?durationSeconds&caption` | ham medya, 24 sa |
-| GET | `/api/stories/tray`, `/api/stories/users/{id}`, `/{id}/content`, `/{id}/viewers` | **V2** viewers: `likedByViewer` |
+| GET | `/api/stories/tray`, `/api/stories/users/{id}`, `/{id}/content`, `/{id}/viewers` | **V2** hikayede `likedByMe`, `likeCount` (yalnız yazara); viewers'ta `liked`, beğenenler üstte |
 | POST | `/api/stories/{id}/seen` | |
 | POST/DELETE | `/api/stories/{id}/like` **V2** | `{ liked }`; yazara bildirim |
-| POST | `/api/stories/{id}/reply` **V2** | `{ text?, emoji? }` → DM (`kind: "story_reply"`, hikaye önizlemesi) |
+| — | hikaye yanıtı | Ayrı uç yok (D-026): yanıt ve 6 hızlı emoji normal DM olarak `POST /api/chat/conversations/{id}/messages` ile "↩ Hikayene yanıt: …" metniyle gider |
 | DELETE | `/api/stories/{id}` | |
 
 ## 5. Gerçek zaman hub'ı **V2**
@@ -91,14 +92,14 @@ POST /api/posts/9b1…/reactions   { "reaction": "🔥" }
 
 | Sunucu → istemci | Yük |
 |---|---|
-| `message.created` | `{ conversationId, message }` |
-| `message.read` | `{ conversationId, readerId, readAtUtc }` |
+| `message.created` / `message.updated` | `{ conversationId, userId }` |
+| `message.read` | `{ conversationId, userId }` (okuyan) |
 | `typing` | `{ conversationId, userId }` (6 sn geçerli) |
-| `comment.added` | `{ postId, comment }` (yalnız `JoinPost` yapanlara) |
+| `comment.added` / `comment.changed` | `{ postId, commentId }` (yalnız `JoinPost` yapanlara) |
 | `comment.deleted` | `{ postId, commentId }` |
-| `reaction.changed` | `{ postId, counts }` |
-| `notification.created` | `{ notification, unreadCount }` |
-| `story.liked` | `{ storyId, userId }` (yazara) |
+| `reaction.changed` | `{ postId }` (sayılar REST'ten) |
+| `notification.created` | `{ id, type }` |
+| `story.liked` | uygulanmadı: yazar `notification.created` alır |
 
 | İstemci → sunucu | Not |
 |---|---|

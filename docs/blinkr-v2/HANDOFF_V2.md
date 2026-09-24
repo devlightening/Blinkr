@@ -19,8 +19,20 @@ Emoji tepkileri (tek olay, zaman damgalı projeksiyon), yorum beğenisi, sunucu 
 ## V2-5 gerçek zamanlılık: bitti (2026-09-25)
 SignalR hub (`/hubs/realtime`), olaylar yalnız "değişti" der, uygulama REST'ten yeniler (D-028). Sohbet, yazıyor, okundu, yorum, tepki, bildirim canlı; hub yokken eski yoklama. Kabul: `test-realtime.ps1` PASS, regresyonlar yeşil.
 
+## V2-6, V2-7, V2-8: bitti (2026-09-25)
+| Commit | İçerik |
+|---|---|
+| c599502 | V2-6: Instagram düzeninde Keşfet kartı, yalnız görünen kartın videosu oynar, görülme sayımı, "#" etiket araması, profil ızgarasında video işareti |
+| 6e05de2 | V2-7: paylaşım menüsü (bağlantı kopyala, diğer uygulamalar, sohbet), gruplu bildirimler (D-029), Etkinlik "Yeni" bölümü |
+| (bu commit) | V2-8: API-SPEC/PROGRESS/HANDOFF kapanış, ZIP yeniden |
+
 ## Sıradaki
-V2-6, V2-6 (Keşfet/profil cilası), V2-7 (paylaşım menüsü + Etkinlik ekranı), V2-8 (kapanış + ZIP yeniden).
+V2 planı tamam. Kalanlar yalnız cihaz doğrulamaları (aşağıda). Sonra: iki fiziksel cihazla çekirdek döngü kabulü (kök CLAUDE.md §19.3), Push bildirimi (APNs/FCM anahtarı gerekir: kullanıcı kararı), çok örnekli SignalR için Redis backplane.
+
+## Backend notları
+- Backend `start-blinkr-dev.ps1` ile; worker Docker'da (kodu değişince script imajı yeniden kurar).
+- Kabul betiklerini arka arkaya çok kez koşmak kayıt/paylaşım hız sınırına (429) takılır; tek koşu PASS.
+- Yerel LAN IP şu an `192.168.1.37` (`npm run start:lan` kendisi bulur).
 
 ## Cihazda doğrulanacaklar
 - Gerçek zaman: cihazda WebSocket bağlantısı, uçak modu → geri gelince yeniden bağlanma, arka plandan dönüş
