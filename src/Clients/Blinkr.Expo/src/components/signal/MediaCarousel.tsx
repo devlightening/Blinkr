@@ -18,6 +18,10 @@ type Props = {
   /** Drawn over the bottom-left corner (the TypeBadge). */
   overlayStart?: React.ReactNode;
   accessibilityLabel?: string;
+  /** V2-6: false pauses its video (a feed plays only the most visible card). */
+  playing?: boolean;
+  /** Frame corners; the feed draws media edge to edge. */
+  rounded?: boolean;
 };
 
 const DOUBLE_TAP_MS = 260;
@@ -32,7 +36,7 @@ function CardVideo({ uri, fit, active }: { uri: string; fit: 'cover' | 'contain'
  * item is drawn whole - a wider or taller picture sits "contain" on a blurred copy of itself, never cropped. Swipe
  * between items (the carousel wins over the card pager), tap to open full screen, double-tap to like with a heart.
  */
-export function MediaCarousel({ items, width, onOpen, onDoubleTap, overlayStart, accessibilityLabel }: Props) {
+export function MediaCarousel({ items, width, onOpen, onDoubleTap, overlayStart, accessibilityLabel, playing = true, rounded = true }: Props) {
   const [index, setIndex] = useState(0);
   const lastTap = useRef(0);
   const singleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -60,7 +64,7 @@ export function MediaCarousel({ items, width, onOpen, onDoubleTap, overlayStart,
   const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => setIndex(Math.round(e.nativeEvent.contentOffset.x / Math.max(1, width)));
 
   return (
-    <View accessibilityLabel={accessibilityLabel} style={[styles.frame, { height, width }]} testID="card-media">
+    <View accessibilityLabel={accessibilityLabel} style={[styles.frame, !rounded && styles.square, { height, width }]} testID="card-media">
       <FlatList
         data={items}
         getItemLayout={(_, i) => ({ index: i, length: width, offset: width * i })}
@@ -78,7 +82,7 @@ export function MediaCarousel({ items, width, onOpen, onDoubleTap, overlayStart,
           return (
             <Pressable accessibilityRole="imagebutton" onPress={() => onTap(i)} style={{ height, width }}>
               {still ? <Image blurRadius={24} resizeMode="cover" source={{ uri: still }} style={StyleSheet.absoluteFill} /> : <View style={[StyleSheet.absoluteFill, styles.empty]} />}
-              {video ? <CardVideo active={i === index} fit={fit} uri={video} /> : still ? <Image accessibilityIgnoresInvertColors resizeMode={fit} source={{ uri: still }} style={StyleSheet.absoluteFill} /> : null}
+              {video ? <CardVideo active={playing && i === index} fit={fit} uri={video} /> : still ? <Image accessibilityIgnoresInvertColors resizeMode={fit} source={{ uri: still }} style={StyleSheet.absoluteFill} /> : null}
               {video && !still ? <View style={styles.play}><Play color={overlay.textSoft} fill={overlay.textSoft} size={32} /></View> : null}
             </Pressable>
           );
@@ -101,6 +105,7 @@ export function MediaCarousel({ items, width, onOpen, onDoubleTap, overlayStart,
 
 const styles = StyleSheet.create({
   frame: { backgroundColor: overlay.black, borderRadius: radii.lg, overflow: 'hidden' },
+  square: { borderRadius: 0 },
   empty: { backgroundColor: colors.surfaceElevated },
   play: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   heart: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },

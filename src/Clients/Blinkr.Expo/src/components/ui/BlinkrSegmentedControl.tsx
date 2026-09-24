@@ -5,7 +5,8 @@ import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
 import { colors, motion, radii, shadowSoft, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 
-type Option<T extends string> = { value: T; label: string };
+/** `accessibilityLabel` names a short label (such as "#") for screen readers. */
+type Option<T extends string> = { value: T; label: string; accessibilityLabel?: string };
 
 type Props<T extends string> = {
   options: Option<T>[];
@@ -32,7 +33,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange, a
         const selected = option.value === value;
         return (
           <AnimatedPressable
-            accessibilityLabel={option.label}
+            accessibilityLabel={option.accessibilityLabel ?? option.label}
             accessibilityRole="tab"
             aria-selected={selected}
             key={option.value}

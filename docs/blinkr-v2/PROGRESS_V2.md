@@ -3,7 +3,7 @@
 | Alan | Değer |
 |---|---|
 | Dal | `feat/blinkr-theme-redesign` |
-| Aktif faz | V2-6 |
+| Aktif faz | V2-7 |
 | Son güncelleme | 2026-09-24 |
 
 İşaretler: `[x]` bitti ve ekranda doğrulandı · `[~]` kısmen / cihaz bekliyor · `[ ]` yapılmadı · `[-]` bilinçli ertelendi
@@ -46,9 +46,9 @@
 - [x] 5.5 Kabul: `test-realtime.ps1` (BLK-REALTIME-01) PASS; `test-chat-thread/plus/smoke`, `test-log-privacy` regresyon PASS
 
 ## V2-6 Keşfet ve profil
-- [ ] 6.1 IG kart düzeni, çoklu medya karuseli, çift dokunma kalp
-- [ ] 6.2 Profil 3 sütun ızgara, video işareti
-- [ ] 6.3 Hashtag araması
+- [x] 6.1 IG kart düzeni (medya kenardan kenara, karusel + nokta, çift dokunma = ❤️ ve asla geri almaz, ad önde başlık + "devamı", "N yorumun tümünü gör"), yalnız en görünür kartın videosu oynar, ≥ 1 sn görülen kart görülme sayılır
+- [x] 6.2 Profil ızgarası: video küçük resmiyle ve ▶ işaretiyle (video dosyası asla resim olarak çizilmez); sunucu yazar listesine türlü `media` ekledi
+- [x] 6.3 Etiket araması: Keşfet'te "#" sekmesi, yazdıkça öneri (son 30 gün, en çok kullanılan önce), yazılanı doğrudan açma
 
 ## V2-7 Paylaşım ve Etkinlik
 - [ ] 7.1 Paylaşım menüsü (sohbet, sistem, bağlantı kopyala)
@@ -60,6 +60,11 @@
 
 ## Oturum günlüğü
 _(her fazın sonunda: yapılanlar, doğrulama, kalanlar)_
+
+### 2026-09-25 — V2-6 Keşfet ve profil
+- Yapılan: Instagram düzeninde `FeedCard` (MediaCarousel `playing`/`rounded`), Keşfet'te görünürlük (video + görülme), `HashtagSearch` ("#" sekmesi), profil ızgarasında video işareti; sunucu: yazar listesinde `media[{ url, thumbnailUrl, type }]`, Keşfet medyasında `width/height`.
+- Doğrulama: `test-content-media-smoke` (yeni: yazar listesi video/görsel türü), `test-discover`, `test-author-posts-privacy`, `test-mentions-hashtags` PASS; mobil `typecheck`, testler, `test:ui` (çift dokunma, "devamı"/yorumlar, "#" araması, ızgara video işareti), iOS/Android export. Not: betikleri arka arkaya çok çalıştırmak kayıt/paylaşım hız sınırına (429) takılır; tek koşu PASS.
+- Cihazda: kaydırırken yalnız görünen videonun oynaması, çift dokunma animasyonu.
 
 ### 2026-09-25 — V2-5 Gerçek zamanlılık
 - Yapılan: SignalR hub (NotificationsService `/hubs/realtime`, Gateway üzerinden), olaylar yalnız kimlik taşır ve uygulama REST'ten yeniler (D-028); sohbet, yazıyor, okundu, yorum, tepki, bildirim canlı; istemci `realtime.ts`/`useRealtime.ts`/`realtimePolicy.ts`, bağlıyken yoklama 30 sn'ye iner, kopunca eski hıza döner; arka planda 30 sn sonra kapanır.

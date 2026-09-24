@@ -152,7 +152,7 @@ $detail = $null
 $placeDetail = $null
 for ($i = 0; $i -lt 30; $i++) {
     Start-Sleep -Seconds 2
-    $detail = Invoke-Json -Method GET -Url "$GatewayBaseUrl/api/posts/$comboPostId"
+    $detail = Invoke-Json -Method GET -Url "$GatewayBaseUrl/api/posts/$comboPostId" -ExpectedStatus @(200, 404)
     $placeDetail = Invoke-Json -Method GET -Url "$GatewayBaseUrl/api/places/$placeId"
     if (($detail.body.media | Where-Object { $_.url -match $comboImageId }) -and ($placeDetail.body.recentSignals | Where-Object { $_.postId -eq $comboPostId -and $_.media.Count -gt 0 })) {
         break
@@ -161,6 +161,19 @@ for ($i = 0; $i -lt 30; $i++) {
 
 Assert-Truthy ($detail.body.media | Where-Object { $_.url -match $comboImageId }) "Post detail did not include attached media."
 Assert-Truthy ($placeDetail.body.recentSignals | Where-Object { $_.postId -eq $comboPostId -and $_.media.Count -gt 0 }) "Place read path did not include media activity."
+
+# V2-6: the author list carries typed media, so a profile grid never draws a video file as a picture.
+$meA = Invoke-Json -Method GET -Url "$GatewayBaseUrl/api/users/me" -Headers $headersA
+$authorVideo = $null; $authorImage = $null
+for ($i = 0; $i -lt 20; $i++) {
+    $mine = Invoke-Json -Method GET -Url "$GatewayBaseUrl/api/posts-read/author/$($meA.body.userId)?page=1&pageSize=20" -Headers $headersA -ExpectedStatus @(200, 404, 503)
+    $authorVideo = @($mine.body | Where-Object { $_.media -and $_.media[0].type -eq "Video" }) | Select-Object -First 1
+    $authorImage = @($mine.body | Where-Object { $_.media -and $_.media[0].type -eq "Image" }) | Select-Object -First 1
+    if ($authorVideo -and $authorImage) { break }
+    Start-Sleep -Milliseconds 500
+}
+Assert-Truthy $authorVideo "Author posts did not mark the video as Video."
+Assert-Truthy $authorImage "Author posts did not mark the image as Image."
 
 Write-Host "PASS BLK-CORE-03 content/media smoke" -ForegroundColor Green
 Write-Host "PlaceId: $placeId"

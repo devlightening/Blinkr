@@ -36,7 +36,10 @@
     "hashtagBack": "Keşfet'e dön",
     "hashtagSubtitle": "Bu etiketle son 7 günde paylaşılan sinyaller, en yenisi önce",
     "emptyHashtagTitle": "#{{tag}} ile paylaşım yok",
-    "emptyHashtagBody": "Son 7 günde bu etiketle herkese açık bir sinyal paylaşılmadı."
+    "emptyHashtagBody": "Son 7 günde bu etiketle herkese açık bir sinyal paylaşılmadı.",
+    "more": "devamı",
+    "allComments_one": "{{count}} yorumu gör",
+    "allComments_other": "{{count}} yorumun tümünü gör"
   },
   "stories": {
     "yours": "Hikayen",
@@ -73,5 +76,16 @@
     "likedIt": "Beğendi",
     "likes_one": "{{count}} beğeni",
     "likes_other": "{{count}} beğeni"
+  },
+  "hashtags": {
+    "tab": "Etiketler",
+    "search": "Etiket ara",
+    "subtitle": "Son 30 günde kullanılan etiketler",
+    "failed": "Etiketler şu an getirilemedi.",
+    "hintTitle": "Bir etiket ara",
+    "hintBody": "Örneğin kahve, eczane ya da konser yaz.",
+    "openTyped": "Bu etiketi aç",
+    "count_one": "{{count}} sinyal",
+    "count_other": "{{count}} sinyal"
   }
 }

@@ -119,6 +119,9 @@ async function main() {
     await expect(page.getByLabel('20.030 sinyal')).toBeVisible();
     // P6.3: the grid is the default view (square tiles, dimmed when expired); the list view keeps the details.
     await expect(page.getByTestId(/^grid-tile-/).first()).toBeVisible();
+    // V2-6: a video tile shows its thumbnail and a play marker; photos do not.
+    await expect(page.getByTestId('grid-video-post-20028')).toBeVisible();
+    await expect(page.getByTestId('grid-video-post-20030')).toHaveCount(0);
     await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'profile-grid.png') });
     await page.getByRole('tab', { name: 'Liste' }).click();
     await expect(page.getByText('Sinyal başlığı 20030')).toBeVisible();
@@ -715,6 +718,31 @@ async function main() {
     await page.getByRole('button', { name: 'Kapat' }).last().click();
     await page.getByTestId('feed-card-n-1').getByRole('button', { name: 'Haritada göster' }).click();
     await expect(page.getByLabel('opened')).toHaveText('place:kent');
+    // V2-6 Instagram card: media edge to edge, a double tap adds the heart, the caption starts with the name,
+    // "N yorumun tümünü gör" opens the comments.
+    await page.goto(url + '?scene=discover');
+    await expect(page.getByTestId('feed-card-n-1').getByTestId('card-media')).toBeVisible();
+    await expect(page.getByTestId('feed-caption-n-1')).toContainText('zeynep Kuyruk kapıya kadar.');
+    await page.getByTestId('feed-card-n-1').getByTestId('card-media').dblclick();
+    await expect(page.getByTestId('feed-card-n-1').getByRole('button', { name: 'Beğeniyi geri al' })).toBeVisible();
+    await expect(page.getByTestId('feed-like-n-1')).toContainText('5');
+    await page.getByTestId('feed-card-n-1').getByTestId('card-media').dblclick();
+    await expect(page.getByTestId('feed-card-n-1').getByRole('button', { name: 'Beğeniyi geri al' })).toBeVisible(); // a second double tap never unlikes
+    await page.waitForTimeout(400); await page.screenshot({ path: path.join(out, 'discover-ig-card.png') });
+    await page.getByTestId('feed-all-comments-n-1').click();
+    await expect(page.getByRole('heading', { name: 'Yorumlar' })).toBeVisible();
+    // V2-6 hashtag search: the # tab suggests tags as you type and opens a tag's feed.
+    await page.goto(url + '?scene=discover');
+    await page.getByRole('tab', { name: 'Etiketler' }).click();
+    await expect(page.getByText('Bir etiket ara')).toBeVisible();
+    await page.getByTestId('hashtag-search-input').fill('Ecz');
+    await expect(page.getByTestId('hashtag-row-eczane')).toContainText('3 sinyal');
+    await expect(page.getByTestId('hashtag-row-ecz')).toContainText('Bu etiketi aç');
+    await page.waitForTimeout(200); await page.screenshot({ path: path.join(out, 'hashtag-search.png') });
+    await page.getByTestId('hashtag-row-eczane').click();
+    await expect(page.getByRole('heading', { name: 'eczane' })).toBeVisible();
+    await page.getByTestId('hashtag-back').click();
+    await expect(page.getByTestId('hashtag-search-input')).toBeVisible();
     // V2-4: a #tag opens its feed inside Keşfet; back returns to the tabs.
     await page.goto(url + '?scene=discover');
     await page.getByTestId('feed-card-n-1').getByRole('link', { name: '#eczane' }).click();

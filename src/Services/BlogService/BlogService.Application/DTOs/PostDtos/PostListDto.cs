@@ -17,6 +17,8 @@ public record PostListDto
     public int LikeCount { get; init; }
     public int CommentCount { get; init; }
     public List<string> MediaUrls { get; init; } = new();
+    /// <summary>V2-6: each media item with its type and thumbnail, so a grid never draws a video file as a picture.</summary>
+    public List<PostListMediaDto> Media { get; init; } = new();
     public string? LocationName { get; init; }
     public object? Location { get; init; }
     public Guid? PlaceId { get; init; }
@@ -65,3 +67,6 @@ public record PostListDto
         ? Content[..200] + "..." 
         : Content;
 }
+
+/// <summary>V2-6: one media item of a list post (type: Image or Video).</summary>
+public record PostListMediaDto(string Url, string? ThumbnailUrl, string Type);

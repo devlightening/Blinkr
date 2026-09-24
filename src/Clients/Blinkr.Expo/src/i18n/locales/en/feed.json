@@ -36,7 +36,10 @@
     "hashtagBack": "Back to Discover",
     "hashtagSubtitle": "Signals shared with this tag in the last 7 days, newest first",
     "emptyHashtagTitle": "Nothing tagged #{{tag}}",
-    "emptyHashtagBody": "No public signal used this tag in the last 7 days."
+    "emptyHashtagBody": "No public signal used this tag in the last 7 days.",
+    "more": "more",
+    "allComments_one": "View {{count}} comment",
+    "allComments_other": "View all {{count}} comments"
   },
   "stories": {
     "yours": "Your story",
@@ -73,5 +76,16 @@
     "likedIt": "Liked",
     "likes_one": "{{count}} like",
     "likes_other": "{{count}} likes"
+  },
+  "hashtags": {
+    "tab": "Hashtags",
+    "search": "Search hashtags",
+    "subtitle": "Hashtags used in the last 30 days",
+    "failed": "Couldn't load hashtags right now.",
+    "hintTitle": "Search for a hashtag",
+    "hintBody": "Try coffee, pharmacy or concert.",
+    "openTyped": "Open this hashtag",
+    "count_one": "{{count}} signal",
+    "count_other": "{{count}} signals"
   }
 }

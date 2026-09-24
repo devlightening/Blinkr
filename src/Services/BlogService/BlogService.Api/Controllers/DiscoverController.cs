@@ -10,7 +10,7 @@ using Shared.Moderation;
 
 namespace BlogService.Api.Controllers;
 
-public record DiscoverMediaDto(string Url, string? ThumbnailUrl, string Type);
+public record DiscoverMediaDto(string Url, string? ThumbnailUrl, string Type, int? Width = null, int? Height = null);
 public record DiscoverItemDto(
     Guid Id, string Title, string Content, string SignalType, string? SignalValue,
     Guid? AuthorId, string AuthorName, bool Anonymous,
@@ -179,7 +179,7 @@ public class DiscoverController : ControllerBase
             d.CreatedAtUtc, d.ExpiresAt, d.ExpiresAt.HasValue && d.ExpiresAt <= now,
             d.LikeCount, d.CommentCount, me.HasValue && (d.LikedByUserIds?.Contains(me.Value) ?? false),
             d.PlaceId, d.LocationName, distance,
-            (d.Media ?? new()).Select(m => new DiscoverMediaDto(m.Url, m.ThumbnailUrl, m.Type)).ToList(),
+            (d.Media ?? new()).Select(m => new DiscoverMediaDto(m.Url, m.ThumbnailUrl, m.Type, m.Width, m.Height)).ToList(),
             ContentTextFilter.IsSensitive(d.Title, d.Content),
             d.PublicationTrust == "VERIFIED_LIVE",
             PostEngagement.ReactionCounts(d), PostEngagement.MyReaction(d, me), PostEngagement.Mentions(d.Mentions));

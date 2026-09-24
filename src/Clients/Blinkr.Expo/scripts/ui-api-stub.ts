@@ -198,7 +198,9 @@ export const getMyPosts = async (_auth: unknown, page: number, pageSize: number)
     return {
       id: `post-${n}`, title: `Sinyal başlığı ${n}`, content: `Osmaniye Merkez: sıradan bir gözlem. (#${String(n).padStart(5, '0')})`,
       createdAtUtc: new Date(Date.now() - n * 60_000).toISOString(), expiresAt: new Date(Date.now() + (n % 7 === 0 ? 30 : -30) * 60_000).toISOString(),
-      signalType: kinds[n % kinds.length], signalValue: null, locationName: 'Osmaniye Merkez', identityDisclosure: n % 10 === 0 ? 'AnonymousMap' : 'LimitedProfile', mediaUrls: n % 5 === 0 ? ['/m.png'] : [],
+      signalType: kinds[n % kinds.length], signalValue: null, locationName: 'Osmaniye Merkez', identityDisclosure: n % 10 === 0 ? 'AnonymousMap' : 'LimitedProfile', mediaUrls: n % 3 === 0 ? ['/v.mp4'] : n % 5 === 0 ? ['/m.png'] : [],
+      // V2-6: typed media - every third post is a video with a thumbnail (the grid shows the play marker).
+      media: n % 3 === 0 ? [{ url: '/v.mp4', thumbnailUrl: '/m.png', type: 'Video' }] : n % 5 === 0 ? [{ url: '/m.png', type: 'Image' }] : [],
     };
   });
   return { items, total };
@@ -263,7 +265,7 @@ const feedItem = (id: string, extra: Record<string, unknown> = {}) => ({
 export const getDiscoverNearby = async (_auth: unknown, _lat: number, _lon: number, page = 1) => {
   if (flag('feedfail')) throw new Error('Network request failed');
   const items = page > 1 ? [feedItem('n-4', { title: 'Dördüncü', authorName: 'ece', authorId: 'u-ece' })] : [
-    feedItem('n-1', { content: 'Kuyruk kapıya kadar. @zeynep sen de gel #eczane', mentions: [{ userId: 'u-zeynep', userName: 'zeynep' }], reactionCounts: { '❤️': 3, '🔥': 1 } }),
+    feedItem('n-1', { content: 'Kuyruk kapıya kadar. @zeynep sen de gel #eczane', mentions: [{ userId: 'u-zeynep', userName: 'zeynep' }], reactionCounts: { '❤️': 3, '🔥': 1 }, commentCount: 12, media: [{ url: CARD_PORTRAIT, type: 'Image', width: 1080, height: 1350 }] }),
     feedItem('n-2', { signalType: 'Crowd', signalValue: 'Calm', content: 'Park sakin.', authorId: null, authorName: 'Topluluk üyesi', anonymous: true, placeId: null, locationName: 'Masal Parkı', distanceMeters: 1200 }),
     feedItem('n-3', { signalType: 'Offer', signalValue: 'Available', content: 'Simit iki al bir öde.', authorId: 'qa', authorName: 'alper', distanceMeters: 50, sensitive: true }),
   ];

@@ -5,8 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Linking, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ApiCodeError, getDiscoverFollowing, getDiscoverNearby, getHashtagFeed, getPlace, getUnreadNotificationCount, postStory, setPostReaction } from '../../api';
-import { chooseReaction, reactionFields, reactionStateOf, tapHeart } from '../../reactions';
+import { ApiCodeError, getDiscoverFollowing, getDiscoverNearby, getHashtagFeed, getPlace, getUnreadNotificationCount, postStory, recordPostViews, setPostReaction } from '../../api';
+import { chooseReaction, HEART, reactionFields, reactionStateOf, tapHeart } from '../../reactions';
 import { useRealtimeEvent } from '../../useRealtime';
 import { NotificationsScreen } from '../notifications/NotificationsScreen';
 import { AnimatedPressable } from '../AnimatedPressable';
@@ -30,6 +30,7 @@ import { SegmentedControl } from '../ui/BlinkrSegmentedControl';
 import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
 import { SkeletonList } from '../ui/BlinkrSkeleton';
 import { FeedCard } from './FeedCard';
+import { HashtagSearch } from './HashtagSearch';
 import { ShareToChatSheet } from '../chat/ShareToChatSheet';
 import { signalShareOf, type SignalShare } from '../../chatExtras';
 
@@ -49,6 +50,11 @@ type Props = {
 };
 
 type Which = 'nearby' | 'following' | 'hashtag';
+
+/** V2-6: a card seen this long counts as a view (sent in batches every 10 s, never for my own). */
+const VIEW_AFTER_MS = 1000;
+const VIEW_FLUSH_MS = 10_000;
+const VISIBLE = { itemVisiblePercentThreshold: 60, minimumViewTime: 150 };
 
 type LocationPhase = 'checking' | 'needsPermission' | 'blocked' | 'locating' | 'ready';
 type FeedState = { items: DiscoverItem[]; page: DiscoverPage | null; loading: boolean; error: string | null; notice: string | null };
@@ -169,6 +175,38 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
 
   const current: Which = hashtag ? 'hashtag' : tab === 'following' ? 'following' : 'nearby';
 
+  // V2-6: only the most visible card plays its video; a card on screen for a second counts as a view.
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const visibleSince = useRef(new Map<string, number>());
+  const pendingViews = useRef(new Set<string>());
+  const countedViews = useRef(new Set<string>());
+  const authRef = useRef(auth);
+  authRef.current = auth;
+  const onViewable = useRef(({ viewableItems }: { viewableItems: Array<{ item: DiscoverItem; isViewable: boolean }> }) => {
+    const now = Date.now();
+    const shown = viewableItems.filter((v) => v.isViewable).map((v) => v.item);
+    setPlayingId(shown.find((item) => item.media.some((m) => m.type === 'Video'))?.id ?? null);
+    const ids = new Set(shown.map((item) => item.id));
+    for (const [id, since] of visibleSince.current) {
+      if (!ids.has(id)) {
+        if (now - since >= VIEW_AFTER_MS && !countedViews.current.has(id)) { countedViews.current.add(id); pendingViews.current.add(id); }
+        visibleSince.current.delete(id);
+      }
+    }
+    for (const item of shown) if (!visibleSince.current.has(item.id) && item.authorId !== authRef.current.userId) visibleSince.current.set(item.id, now);
+  }).current;
+  useEffect(() => {
+    const flush = () => {
+      const now = Date.now();
+      for (const [id, since] of visibleSince.current) if (now - since >= VIEW_AFTER_MS && !countedViews.current.has(id)) { countedViews.current.add(id); pendingViews.current.add(id); }
+      const ids = [...pendingViews.current];
+      pendingViews.current.clear();
+      if (ids.length) void recordPostViews(authRef.current, ids, refresh.current).catch(() => {});
+    };
+    const timer = setInterval(flush, VIEW_FLUSH_MS);
+    return () => { clearInterval(timer); flush(); };
+  }, []);
+
   /** V2-4 (D-027): a tap is the heart (or takes my reaction back); a picked emoji sets or replaces it. Optimistic. */
   const react = async (item: DiscoverItem, pick: string | null | undefined) => {
     if (likeBusy.current.has(item.id)) return;
@@ -225,12 +263,12 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
       <SegmentedControl
         accessibilityLabel={t('discover.title')}
         onChange={setTab}
-        options={[{ value: 'nearby', label: t('discover.tabNearby') }, { value: 'following', label: t('discover.tabFollowing') }, { value: 'places', label: t('discover.tabPlaces') }]}
+        options={[{ value: 'nearby', label: t('discover.tabNearby') }, { value: 'following', label: t('discover.tabFollowing') }, { value: 'places', label: t('discover.tabPlaces') }, { value: 'tags', label: '#', accessibilityLabel: t('hashtags.tab') }]}
         value={tab}
       />
-      {tab !== 'places' ? <StoryTray auth={auth} onAdd={() => setStoryCamera(true)} onOpen={(item, all) => setStoryView({ authors: all, start: item.authorId })} refresh={refresh.current} reloadKey={trayKey} /> : null}
+      {tab !== 'places' && tab !== 'tags' ? <StoryTray auth={auth} onAdd={() => setStoryCamera(true)} onOpen={(item, all) => setStoryView({ authors: all, start: item.authorId })} refresh={refresh.current} reloadKey={trayKey} /> : null}
       {storyNotice ? <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{storyNotice}</Text> : null}
-      <Text style={styles.subtitle}>{tab === 'nearby' ? t('discover.subtitleNearby') : tab === 'following' ? t('discover.subtitleFollowing') : t('discover.subtitlePlaces')}</Text>
+      <Text style={styles.subtitle}>{tab === 'nearby' ? t('discover.subtitleNearby') : tab === 'following' ? t('discover.subtitleFollowing') : tab === 'tags' ? t('hashtags.subtitle') : t('discover.subtitlePlaces')}</Text>
     </View>
   );
 
@@ -289,13 +327,20 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
         keyExtractor={(item) => item.id}
         onEndReached={() => { if (!feed.loading && canLoadMore(feed.page)) void load(which, (feed.page?.page ?? 1) + 1, origin); }}
         onEndReachedThreshold={0.5}
+        onViewableItemsChanged={onViewable}
+        viewabilityConfig={VISIBLE}
+        initialNumToRender={3}
+        windowSize={7}
+        removeClippedSubviews
         refreshControl={<RefreshControl onRefresh={() => { setRefreshing(true); if (which === 'nearby') void locate(false); else void load(which, 1, null); }} refreshing={refreshing} tintColor={colors.primary} />}
         renderItem={({ item }) => (
           <FeedCard
             item={item}
             myUserId={auth.userId}
+            onDoubleTap={(target) => { if (!reactionStateOf(target).mine) void react(target, HEART); }}
             onHashtag={openHashtag}
             onLike={(target) => { void react(target, undefined); }}
+            playing={playingId === item.id}
             onMention={(m) => setPerson({ id: m.userId, userName: m.userName })}
             onOpenAuthor={(target) => { if (target.authorId) setPerson({ id: target.authorId, userName: target.authorName }); }}
             onReact={(target, reaction) => { void react(target, reaction); }}
@@ -313,7 +358,9 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
       {header}
       {tab === 'places' && !hashtag
         ? <NearbyScreen embedded onCreateSignal={onCreateSignal} onOpenPlace={onOpenPlace} onOpenSignal={onOpenSignal} />
-        : renderFeed(current)}
+        : tab === 'tags' && !hashtag
+          ? <HashtagSearch auth={auth} bottomPadding={bottomBarClearance(insets.bottom) + spacing.lg} onOpen={openHashtag} refresh={refresh.current} />
+          : renderFeed(current)}
 
       {thread ? (
         <Sheet onClose={() => setThread(null)}>

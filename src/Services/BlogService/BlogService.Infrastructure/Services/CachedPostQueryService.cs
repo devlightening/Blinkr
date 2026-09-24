@@ -743,6 +743,7 @@ public class CachedPostQueryService : IPostQueryService
             LikeCount = doc.LikeCount,
             CommentCount = doc.CommentCount,
             MediaUrls = doc.Media?.Select(m => m.Url).ToList() ?? new(),
+            Media = doc.Media?.Select(m => new PostListMediaDto(m.Url, m.ThumbnailUrl, m.Type)).ToList() ?? new(),
             Location = null,
             FreshnessSec = freshnessSec,
             IsLive = expiresAt > DateTime.UtcNow

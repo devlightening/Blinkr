@@ -56,7 +56,9 @@
     "label": "{{type}}{{value}}{{anon}}{{expired}}",
     "signal": "Signal",
     "anon": ", anonymous",
-    "expired": ", expired"
+    "expired": ", expired",
+    "video": "video",
+    "videoSuffix": ", video"
   },
   "friends": {
     "loadFailed": "Couldn't load your friends. Try again.",

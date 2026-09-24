@@ -15,4 +15,10 @@ run('tile state: photo, expired, anonymous', () => {
   const plain = gridTile({ mediaUrls: [], expiresAt: '2026-09-23T13:00:00Z', identityDisclosure: 'LimitedProfile' }, now);
   check(plain.photoUrl === null && !plain.expired && !plain.anonymous && plain.extraPhotos === 0, 'text tile');
   check(!gridTile({ mediaUrls: [], expiresAt: null, identityDisclosure: 'LimitedProfile' }, now).expired, 'no expiry');
+  const video = gridTile({ mediaUrls: ['v.mp4'], media: [{ url: 'v.mp4', thumbnailUrl: 't.jpg', type: 'Video' }], expiresAt: null, identityDisclosure: 'LimitedProfile' }, now);
+  check(video.video && video.photoUrl === 't.jpg', 'video shows its thumbnail');
+  const bare = gridTile({ mediaUrls: ['v.mp4'], media: [{ url: 'v.mp4', thumbnailUrl: null, type: 'Video' }], expiresAt: null, identityDisclosure: 'LimitedProfile' }, now);
+  check(bare.video && bare.photoUrl === null, 'a video without a thumbnail is never drawn as a picture');
+  const photos = gridTile({ mediaUrls: ['a', 'b'], media: [{ url: 'a', type: 'Image' }, { url: 'b', type: 'Video', thumbnailUrl: 'bt' }], expiresAt: null, identityDisclosure: 'LimitedProfile' }, now);
+  check(!photos.video && photos.photoUrl === 'a' && photos.extraPhotos === 1, 'photo first');
 });

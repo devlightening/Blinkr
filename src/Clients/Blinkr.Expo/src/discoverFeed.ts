@@ -5,7 +5,7 @@
  */
 import type { SignalType } from './types';
 
-export type DiscoverMedia = { url: string; thumbnailUrl?: string | null; type: string };
+export type DiscoverMedia = { url: string; thumbnailUrl?: string | null; type: string; width?: number | null; height?: number | null };
 export type DiscoverItem = {
   id: string;
   title: string;
@@ -35,7 +35,7 @@ export type DiscoverItem = {
   mentions?: Array<{ userId: string; userName: string }>;
 };
 export type DiscoverPage = { items: DiscoverItem[]; page: number; pageSize: number; hasMore: boolean };
-export type DiscoverTab = 'nearby' | 'following' | 'places';
+export type DiscoverTab = 'nearby' | 'following' | 'places' | 'tags';
 
 export const DISCOVER_PAGE_SIZE = 20;
 export const DISCOVER_RADIUS_METERS = 3000;

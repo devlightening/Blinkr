@@ -11,15 +11,24 @@ export const GRID_GAP = 2;
 export const gridTileSize = (screenWidth: number, horizontalPadding: number) =>
   Math.max(1, Math.floor((screenWidth - horizontalPadding * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS));
 
-export type GridTile = { photoUrl: string | null; expired: boolean; anonymous: boolean; extraPhotos: number };
+export type GridTile = { photoUrl: string | null; expired: boolean; anonymous: boolean; extraPhotos: number; video: boolean };
 
-export const gridTile = (post: Pick<AuthoredPost, 'mediaUrls' | 'expiresAt' | 'identityDisclosure'>, now = Date.now()): GridTile => {
-  const photos = (post.mediaUrls ?? []).filter(Boolean);
+/**
+ * V2-6: with typed media a video shows its thumbnail and a play marker (never the video file drawn as a picture); a
+ * video without a thumbnail becomes a text tile. Older servers only send urls: those are taken as photos.
+ */
+export const gridTile = (post: Pick<AuthoredPost, 'mediaUrls' | 'expiresAt' | 'identityDisclosure' | 'media'>, now = Date.now()): GridTile => {
+  const typed = (post.media ?? []).filter((m) => m && m.url);
+  const first = typed[0];
+  const count = typed.length > 0 ? typed.length : (post.mediaUrls ?? []).filter(Boolean).length;
+  const video = first ? first.type === 'Video' : false;
+  const photoUrl = first ? (video ? first.thumbnailUrl ?? null : first.thumbnailUrl ?? first.url) : (post.mediaUrls ?? []).filter(Boolean)[0] ?? null;
   return {
-    photoUrl: photos[0] ?? null,
+    photoUrl,
     expired: post.expiresAt ? Date.parse(post.expiresAt) < now : false,
     anonymous: post.identityDisclosure === 'AnonymousMap',
-    extraPhotos: Math.max(0, photos.length - 1),
+    extraPhotos: Math.max(0, count - 1),
+    video,
   };
 };
 

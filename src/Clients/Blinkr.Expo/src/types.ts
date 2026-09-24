@@ -105,6 +105,8 @@ export type AuthoredPost = {
   /** Only the author ever receives their own AnonymousMap posts. */
   identityDisclosure: 'LimitedProfile' | 'AnonymousMap' | string;
   mediaUrls: string[];
+  /** V2-6: the same media with type and thumbnail (older servers: missing). */
+  media?: Array<{ url: string; thumbnailUrl?: string | null; type: string }>;
   placeId?: string | null;
 };
 

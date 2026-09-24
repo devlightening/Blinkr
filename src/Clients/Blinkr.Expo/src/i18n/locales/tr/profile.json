@@ -56,7 +56,9 @@
     "label": "{{type}}{{value}}{{anon}}{{expired}}",
     "signal": "Sinyal",
     "anon": ", anonim",
-    "expired": ", sona erdi"
+    "expired": ", sona erdi",
+    "video": "video",
+    "videoSuffix": ", video"
   },
   "friends": {
     "loadFailed": "Arkadaş listesi yüklenemedi. Tekrar dene.",
