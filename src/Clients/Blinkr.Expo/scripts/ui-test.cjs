@@ -819,6 +819,12 @@ async function main() {
     await page.goto(url + '?scene=discover');
     await page.getByTestId('feed-share-n-1').click();
     await expect(page.getByRole('heading', { name: 'Sohbette paylaş' })).toBeVisible();
+    // V2-7 share menu: copy the link (the app's own link, no author), other apps, then friends.
+    await expect(page.getByRole('heading', { name: 'Paylaş', exact: true })).toBeVisible();
+    await page.getByTestId('share-copy-link').click();
+    await expect(page.getByText('Bağlantı kopyalandı.')).toBeVisible();
+    await expect(page.getByTestId('share-elsewhere')).toBeVisible();
+    await page.waitForTimeout(200); await page.screenshot({ path: path.join(out, 'share-menu.png') });
     await page.getByRole('button', { name: 'zeynep: Paylaş' }).click();
     await expect(page.getByText('zeynep kişisine gönderildi.')).toBeVisible();
     const lastShare = await page.evaluate(() => window.__lastShare);
@@ -828,8 +834,12 @@ async function main() {
     await expect(page.getByRole('button', { name: 'Bildirimler, 2 okunmamış' })).toBeVisible();
     await page.getByTestId('notifications-bell').click();
     await expect(page.getByRole('heading', { name: 'Bildirimler' })).toBeVisible();
+    // V2-7: what was unread comes first as Yeni; a grouped row (reactions on one signal) shows two faces.
+    await expect(page.getByRole('heading', { name: 'Yeni' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Bugün' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Daha önce' })).toBeVisible();
+    await expect(page.getByTestId('notification-faces-n4')).toBeVisible();
+    await expect(page.getByText('ece, can ve 3 kişi daha gönderine tepki verdi.')).toBeVisible();
     await page.waitForTimeout(250); await page.screenshot({ path: path.join(out, 'notifications.png') });
     await page.getByRole('button', { name: 'Onayla' }).click();
     await expect(page.getByText('Yanıtlandı')).toBeVisible();

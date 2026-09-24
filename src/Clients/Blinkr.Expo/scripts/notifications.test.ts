@@ -1,4 +1,4 @@
-import { groupNotifications, isAnswerable, notificationTarget, parseDeepLink, unreadIn, type AppNotification } from '../src/notifications';
+import { groupNotifications, rowAvatars, isAnswerable, notificationTarget, parseDeepLink, unreadIn, type AppNotification } from '../src/notifications';
 
 function check(value: unknown, message: string) { if (!value) throw new Error(message); }
 const run = (name: string, fn: () => void) => { fn(); console.log('PASS', name); };
@@ -39,4 +39,19 @@ run('deep links: only blinkr posts/users with a real id', () => {
 run('follow requests can be answered inline; unread count', () => {
   check(isAnswerable(n('r', 'x', { type: 'FollowRequested', actorUserId: 'u' })) && !isAnswerable(n('f', 'x', { type: 'UserFollowed', actorUserId: 'u' })), 'answerable');
   check(unreadIn([n('a', 'x'), n('b', 'x', { isRead: true })]) === 1, 'unread');
+});
+
+run('"Yeni" first when asked: what was unread when the screen opened', () => {
+  const now = new Date(2026, 8, 23, 15, 0, 0);
+  const groups = groupNotifications([
+    n('seen', new Date(2026, 8, 23, 14, 0).toISOString(), { isRead: true }),
+    n('fresh', new Date(2026, 8, 23, 10, 0).toISOString(), { isRead: false }),
+  ], now, { newFirst: true });
+  check(groups.map((g) => g.key).join() === 'new,today', groups.map((g) => g.key).join());
+  check(groups[0].items[0].id === 'fresh' && groups[1].items[0].id === 'seen', 'split');
+});
+run('a grouped row shows two faces, a single one shows its actor', () => {
+  check(rowAvatars({ id: 'x', actorCount: 5, actorIds: ['a', 'b', 'c'], actorUserId: 'a' }).join() === 'a,b', 'two');
+  check(rowAvatars({ id: 'x', actorCount: 1, actorIds: ['a'], actorUserId: 'a' }).join() === 'a', 'one');
+  check(rowAvatars({ id: 'x' }).join() === 'x', 'fallback');
 });

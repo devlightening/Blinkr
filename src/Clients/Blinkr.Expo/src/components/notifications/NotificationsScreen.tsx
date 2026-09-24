@@ -5,7 +5,7 @@ import { BackHandler, RefreshControl, ScrollView, StyleSheet, Text, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { acceptFollowRequest, declineFollowRequest, listNotifications, markAllNotificationsRead } from '../../api';
-import { groupNotifications, isAnswerable, notificationTarget, type AppNotification } from '../../notifications';
+import { groupNotifications, isAnswerable, notificationTarget, rowAvatars, type AppNotification } from '../../notifications';
 import { formatAge } from '../../presentation';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { AuthResponse, UserSummary } from '../../types';
@@ -98,7 +98,7 @@ export function NotificationsScreen({ auth, onAuthChange, onLogout, onBack, onMe
     else if (target?.kind === 'user') setPerson({ id: target.userId, userName: target.userName || n.actorUserName || '' });
   };
 
-  const groups = items ? groupNotifications(items) : [];
+  const groups = items ? groupNotifications(items, new Date(), { newFirst: true }) : [];
 
   return (
     <View style={styles.screen}>
@@ -132,8 +132,13 @@ export function NotificationsScreen({ auth, onAuthChange, onLogout, onBack, onMe
               {group.items.map((n) => (
                 <View key={n.id} style={styles.rowWrap}>
                   <AnimatedPressable accessibilityRole="button" onPress={() => open(n)} pressScale={0.99} style={styles.row} testID={`notification-${n.id}`}>
-                    <View>
-                      <Avatar seed={n.actorUserId ?? n.id} size={40} />
+                    <View style={styles.faces}>
+                      {rowAvatars(n).length > 1 ? (
+                        <View style={styles.stack} testID={`notification-faces-${n.id}`}>
+                          <Avatar seed={rowAvatars(n)[1]} size={30} style={styles.faceBack} />
+                          <Avatar seed={rowAvatars(n)[0]} size={30} style={styles.faceFront} />
+                        </View>
+                      ) : <Avatar seed={rowAvatars(n)[0]} size={40} />}
                       <View style={styles.badge}>{iconFor(n.type)}</View>
                     </View>
                     <View style={styles.copy}>
@@ -178,6 +183,10 @@ export function NotificationsScreen({ auth, onAuthChange, onLogout, onBack, onMe
 }
 
 const styles = StyleSheet.create({
+  faces: { height: 40, width: 40 },
+  stack: { height: 40, width: 40 },
+  faceBack: { left: 0, position: 'absolute', top: 0 },
+  faceFront: { borderColor: colors.background, borderWidth: 2, bottom: 0, position: 'absolute', right: 0 },
   screen: { backgroundColor: colors.background, bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 40 },
   bar: { alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.sm, paddingHorizontal: spacing.sm },
   back: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },

@@ -15,6 +15,12 @@
 
 ## Kararlar
 
+### D-029 — V2-7: gruplu bildirimler ve paylaşım menüsü (2026-09-25)
+- Karar:
+  - Aynı gönderiye tepkiler (`reaction:{postId}`) ve aynı hikayeye beğeniler (`story_like:{storyId}`) 1 saat içinde tek bildirim satırında toplanır: `ActorIds` (herkes, aynı kişi iki kez sayılmaz), `ActorNames` (son 3, en yeni önce), `ActorCount`; metin sunucuda `GroupedText` ile ("a ve b ...", "a, b ve N kişi daha ..."). Büyüyen satır en üste çıkar ve yeniden okunmamış olur; aynı kişinin tekrar tepkisi yeni bir şey söylemez (push da gitmez). Yorumlar, takip, mention gruplanmaz (her birinin kendi metni/eylemi var). Planın ayrı `UpdatedAtUtc` alanı yerine `CreatedAtUtc` güncellenir (liste zaten ona göre sıralı).
+  - Paylaşım menüsü mevcut `ShareToChatSheet`'in üstüne kuruldu (yeni sheet yok): bağlantıyı kopyala, diğer uygulamalar (RN `Share`; metin: sinyalin özeti + yer + `blinkr://posts/{id}`, paylaşanın adı asla), sohbette arkadaşa gönder. Web alan adı gelince bağlantı https olacak.
+- Etki: CLAUDE.md §6.5, §12.1; PROGRESS_V2 7.1-7.2.
+
 ### D-028 — V2-5: SignalR ile gerçek zamanlılık, olaylar yalnız "değişti" der (2026-09-25)
 - Karar:
   - Hub NotificationsService'te: `/hubs/realtime`, Gateway `/hubs/{**catch-all}` rotası (YARP WebSocket). Kimlik: JWT, WebSocket başlık taşıyamadığı için yalnız `/hubs` yolunda `?access_token=`; token hiçbir logda yok (`test-log-privacy`). Her bağlantı `user:{id}` grubuna girer.

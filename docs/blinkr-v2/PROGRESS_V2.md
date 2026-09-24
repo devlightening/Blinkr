@@ -3,7 +3,7 @@
 | Alan | Değer |
 |---|---|
 | Dal | `feat/blinkr-theme-redesign` |
-| Aktif faz | V2-7 |
+| Aktif faz | V2-8 |
 | Son güncelleme | 2026-09-24 |
 
 İşaretler: `[x]` bitti ve ekranda doğrulandı · `[~]` kısmen / cihaz bekliyor · `[ ]` yapılmadı · `[-]` bilinçli ertelendi
@@ -51,8 +51,8 @@
 - [x] 6.3 Etiket araması: Keşfet'te "#" sekmesi, yazdıkça öneri (son 30 gün, en çok kullanılan önce), yazılanı doğrudan açma
 
 ## V2-7 Paylaşım ve Etkinlik
-- [ ] 7.1 Paylaşım menüsü (sohbet, sistem, bağlantı kopyala)
-- [ ] 7.2 Etkinlik ekranı (gruplu bildirimler)
+- [x] 7.1 Paylaşım menüsü: bağlantıyı kopyala (`blinkr://posts/{id}`), diğer uygulamalar (sistem paylaşımı, metin: ne + nerede + bağlantı, yazar yok), sohbette arkadaşa gönder
+- [x] 7.2 Etkinlik: aynı gönderiye/hikayeye 1 saat içindeki tepkiler tek satır ("a, b ve N kişi daha ..."), satırda iki yüz, büyüyen satır yeniden okunmamış olur, "Yeni" bölümü; `test-activity.ps1` (BLK-ACTIVITY-01) PASS
 
 ## V2-8 Kapanış
 - [ ] 8.1 CLAUDE.md / API-SPEC güncel
@@ -60,6 +60,11 @@
 
 ## Oturum günlüğü
 _(her fazın sonunda: yapılanlar, doğrulama, kalanlar)_
+
+### 2026-09-25 — V2-7 Paylaşım ve Etkinlik
+- Yapılan: `ShareToChatSheet` tam paylaşım menüsü (`shareMessage` testli), gruplu bildirimler (D-029: `GroupKey`, `ActorIds`, `ActorNames`, `ActorCount`, `UpsertGroupedAsync`, `GroupedText`), `NotificationsScreen` "Yeni" bölümü ve iki yüz.
+- Doğrulama: `test-activity.ps1` PASS; `test-reactions` (gruplamaya göre güncellendi), `test-story-likes`, `test-realtime`, `test-mentions-hashtags`, `test-stories`, `test-post-engagement` PASS; mobil testler + `test:ui` (paylaşım menüsü, gruplu satır) + iOS/Android export.
+- Cihazda: sistem paylaşım sayfası, panoya kopyalama.
 
 ### 2026-09-25 — V2-6 Keşfet ve profil
 - Yapılan: Instagram düzeninde `FeedCard` (MediaCarousel `playing`/`rounded`), Keşfet'te görünürlük (video + görülme), `HashtagSearch` ("#" sekmesi), profil ızgarasında video işareti; sunucu: yazar listesinde `media[{ url, thumbnailUrl, type }]`, Keşfet medyasında `width/height`.

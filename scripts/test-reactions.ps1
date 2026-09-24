@@ -111,8 +111,9 @@ Check "a reaction replaces the heart without a second like" ($swap.Status -eq 20
 # Notifications: the fan's first reaction told the author once; changing the emoji told nothing more.
 Start-Sleep -Seconds 2
 $notes = Invoke-Api -Method GET -Path "/api/notifications?limit=50" -Token $author.Token
-$fromFan = @($notes.Json.items | Where-Object { $_.actorUserId -eq $fan.Id -and $_.type -eq "PostLiked" })
-Check "the author is told about the reaction once, with the emoji" ($fromFan.Count -eq 1 -and $fromFan[0].body -like "*$FIRE*") "count=$($fromFan.Count) $($notes.Raw)"
+# V2-7 (D-029): the fan's reaction and the other person's like on the same signal share one grouped row.
+$likeRows = @($notes.Json.items | Where-Object { $_.type -eq "PostLiked" -and $_.postId -eq $postId })
+Check "the author gets one grouped row for both people (the emoji change told nothing more)" ($likeRows.Count -eq 1 -and $likeRows[0].actorCount -eq 2) "count=$($likeRows.Count) $($notes.Raw)"
 
 # Comment likes.
 $c = Invoke-Api -Method POST -Path "/api/posts/$postId/comments" -Token $other.Token -Body @{ commentText = "Guzel yer" }

@@ -67,6 +67,14 @@ public sealed class RealtimeNotificationRepository : INotificationRepository
         await _realtime.ToUserAsync(n.UserId, RealtimeEvents.NotificationCreated, new { id = n.Id, type = n.Type.ToString() }, CancellationToken.None);
     }
 
+    public async Task<Notification?> UpsertGroupedAsync(Notification n, TimeSpan window, Func<IReadOnlyList<string>, int, string> bodyOf, CancellationToken ct)
+    {
+        var stored = await _inner.UpsertGroupedAsync(n, window, bodyOf, ct);
+        if (stored is not null)
+            await _realtime.ToUserAsync(stored.UserId, RealtimeEvents.NotificationCreated, new { id = stored.Id, type = stored.Type.ToString() }, CancellationToken.None);
+        return stored;
+    }
+
     public Task MarkReadAsync(IEnumerable<string> ids, Guid userId, CancellationToken ct) => _inner.MarkReadAsync(ids, userId, ct);
     public Task<(IReadOnlyList<Notification> Items, string? NextCursor)> ListAsync(Guid userId, int limit, string? cursor, CancellationToken ct) => _inner.ListAsync(userId, limit, cursor, ct);
     public Task<long> UnreadCountAsync(Guid userId, CancellationToken ct) => _inner.UnreadCountAsync(userId, ct);

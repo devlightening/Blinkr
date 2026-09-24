@@ -1,10 +1,12 @@
-import { Send } from 'lucide-react-native';
+import * as Clipboard from 'expo-clipboard';
+import { Link2, Send, Share2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
 import { listFriends, sendMessage, startConversation } from '../../api';
 import { newClientId, type SignalShare } from '../../chatExtras';
+import { postLink, shareMessage } from '../../deepLinks';
 import { success } from '../../haptics';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { AuthResponse, Friend } from '../../types';
@@ -21,8 +23,9 @@ type Props = {
 };
 
 /**
- * Send a signal to a friend as a chat message (sinyal-mvp-plan P8.7): a link and a summary, never the poster's name.
- * Each send carries its own client id, so a double tap never sends twice.
+ * The share menu (V2-7; sinyal-mvp-plan P8.7): copy the signal's link, hand it to another app (the system share sheet),
+ * or send it to a friend as a chat message (a link and a summary, never the poster's name; each send carries its own
+ * client id, so a double tap never sends twice).
  */
 export function ShareToChatSheet({ auth, share, onClose, refresh = {} }: Props) {
   const { t } = useTranslation('chat');
@@ -38,6 +41,24 @@ export function ShareToChatSheet({ auth, share, onClose, refresh = {} }: Props) 
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.userId]);
+
+  const copyLink = async () => {
+    try {
+      await Clipboard.setStringAsync(postLink(share.postId));
+      setNotice(t('extras.linkCopied'));
+      success();
+    } catch {
+      setNotice(t('extras.linkCopyFailed'));
+    }
+  };
+
+  const shareElsewhere = async () => {
+    try {
+      await Share.share({ message: shareMessage(share) });
+    } catch {
+      setNotice(t('extras.shareElsewhereFailed'));
+    }
+  };
 
   const sendTo = async (friend: Friend) => {
     if (sent[friend.id] === 'sending' || sent[friend.id] === 'sent') return;
@@ -57,9 +78,20 @@ export function ShareToChatSheet({ auth, share, onClose, refresh = {} }: Props) 
   return (
     <Sheet onClose={onClose}>
       <BlinkrSheetPanel maxHeightRatio={0.75}>
-        <Text accessibilityRole="header" style={styles.title}>{t('extras.shareTitle')}</Text>
-        <Text style={styles.hint}>{t('extras.shareHint')}</Text>
+        <Text accessibilityRole="header" style={styles.title}>{t('extras.shareMenuTitle')}</Text>
+        <View style={styles.actions}>
+          <AnimatedPressable accessibilityRole="button" onPress={() => { void copyLink(); }} pressScale={0.95} style={styles.action} testID="share-copy-link">
+            <View style={styles.actionIcon}><Link2 color={colors.text} size={20} /></View>
+            <Text style={styles.actionText}>{t('extras.copyLink')}</Text>
+          </AnimatedPressable>
+          <AnimatedPressable accessibilityRole="button" onPress={() => { void shareElsewhere(); }} pressScale={0.95} style={styles.action} testID="share-elsewhere">
+            <View style={styles.actionIcon}><Share2 color={colors.text} size={20} /></View>
+            <Text style={styles.actionText}>{t('extras.shareElsewhere')}</Text>
+          </AnimatedPressable>
+        </View>
         {notice ? <Text accessibilityLiveRegion="polite" style={styles.notice}>{notice}</Text> : null}
+        <Text accessibilityRole="header" style={styles.subtitle}>{t('extras.shareTitle')}</Text>
+        <Text style={styles.hint}>{t('extras.shareHint')}</Text>
         {friends === null ? <ActivityIndicator color={colors.primary} style={styles.loading} /> : null}
         {friends && friends.length === 0 ? <Text style={styles.hint}>{t('extras.noFriends')}</Text> : null}
         <ScrollView style={styles.list}>
@@ -91,6 +123,11 @@ export function ShareToChatSheet({ auth, share, onClose, refresh = {} }: Props) 
 const styles = StyleSheet.create({
   title: { ...typography.title, color: colors.text },
   hint: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
+  subtitle: { ...typography.heading, color: colors.text, marginTop: spacing.lg },
+  actions: { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.md },
+  action: { alignItems: 'center', gap: spacing.xs, minWidth: 72 },
+  actionIcon: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 52, justifyContent: 'center', width: 52 },
+  actionText: { ...typography.caption, color: colors.text, textAlign: 'center' },
   notice: { ...typography.caption, color: colors.primary, marginTop: spacing.sm },
   loading: { marginVertical: spacing.lg },
   list: { flexShrink: 1, marginTop: spacing.md },

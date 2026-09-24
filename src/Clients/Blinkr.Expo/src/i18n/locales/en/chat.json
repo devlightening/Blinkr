@@ -19,7 +19,13 @@
     "shareSent": "Sent to {{name}}.",
     "shareFailed": "Couldn't send. Try again.",
     "noFriends": "Add a friend first to share in chat.",
-    "share": "Share"
+    "share": "Share",
+    "shareMenuTitle": "Share",
+    "copyLink": "Copy link",
+    "shareElsewhere": "Other apps",
+    "linkCopied": "Link copied.",
+    "linkCopyFailed": "Couldn't copy the link.",
+    "shareElsewhereFailed": "Couldn't open sharing."
   },
   "thread": {
     "loadFailed": "Messages couldn't be loaded.",

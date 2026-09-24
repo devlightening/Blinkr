@@ -187,15 +187,17 @@ public class StoriesController : ControllerBase
         {
             await Seen(id, ct);
             var name = MyName();
-            await _notifications.InsertAsync(new Notification
+            // V2-7 (D-029): likes on the same story within an hour share one row ("ayse, mert ve 3 kişi daha ...").
+            await _notifications.UpsertGroupedAsync(new Notification
             {
                 UserId = story.AuthorId,
                 Type = NotificationType.StoryLiked,
                 ActorUserId = me,
                 ActorUserName = name,
+                GroupKey = $"story_like:{id}",
                 Content = new() { Title = "Hikaye beğenisi", Body = $"{name} hikayeni beğendi.", DeepLink = $"blinkr://users/{me}" },
                 CreatedAtUtc = DateTime.UtcNow,
-            }, ct);
+            }, TimeSpan.FromHours(1), (names, count) => NotificationsService.Domain.ValueObjects.GroupedText.Of(names, count, "hikayeni beğendi."), ct);
             _logger.LogInformation("Story liked | StoryId={StoryId}", id);
         }
         return Ok(new { liked = true });

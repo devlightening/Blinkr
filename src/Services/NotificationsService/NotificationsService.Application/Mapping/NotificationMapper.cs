@@ -17,6 +17,8 @@ public static class NotificationMapper
             n.ReadAtUtc.HasValue,
             n.PostId,
             n.ActorUserId,
-            n.ActorUserName
+            n.ActorUserName,
+            Math.Max(1, n.ActorCount),
+            (n.ActorIds ?? new List<Guid>()).AsEnumerable().Reverse().Take(2).ToList()
         );
 }

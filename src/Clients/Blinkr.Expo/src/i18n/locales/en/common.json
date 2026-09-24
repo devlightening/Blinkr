@@ -31,7 +31,8 @@
     "accept": "Confirm",
     "decline": "Delete",
     "answered": "Answered",
-    "close": "Close"
+    "close": "Close",
+    "new": "New"
   },
   "personalData": {
     "title": "You're about to share personal details",

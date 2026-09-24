@@ -19,7 +19,13 @@
     "shareSent": "{{name}} kişisine gönderildi.",
     "shareFailed": "Gönderilemedi. Tekrar dene.",
     "noFriends": "Sohbette paylaşmak için önce arkadaş ekle.",
-    "share": "Paylaş"
+    "share": "Paylaş",
+    "shareMenuTitle": "Paylaş",
+    "copyLink": "Bağlantıyı kopyala",
+    "shareElsewhere": "Diğer uygulamalar",
+    "linkCopied": "Bağlantı kopyalandı.",
+    "linkCopyFailed": "Bağlantı kopyalanamadı.",
+    "shareElsewhereFailed": "Paylaşım açılamadı."
   },
   "thread": {
     "loadFailed": "Mesajlar yüklenemedi.",

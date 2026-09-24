@@ -86,7 +86,12 @@ public class PostLikedNotificationConsumer : IConsumer<PostLikedIntegrationEvent
             CreatedAtUtc = m.OccurredAtUtc == default ? DateTime.UtcNow : m.OccurredAtUtc
         };
 
-        await _notifRepo.InsertAsync(notification, context.CancellationToken);
+        // V2-7 (D-029): reactions on the same signal within an hour are one row ("ayse, mert ve 3 kişi daha ...").
+        notification.GroupKey = $"reaction:{m.PostId}";
+        var single = notification.Content.Body;
+        var stored = await _notifRepo.UpsertGroupedAsync(notification, TimeSpan.FromHours(1),
+            (names, count) => count <= 1 ? single : NotificationsService.Domain.ValueObjects.GroupedText.Of(names, count, "gönderine tepki verdi."), context.CancellationToken);
+        if (stored is null) return; // this person is already in the group
         var tokens = await _tokenRepo.GetByUserIdsAsync(new[] { m.PostOwnerId }, context.CancellationToken);
         await _push.SendAsync(tokens, notification.Content.Title, notification.Content.Body, notification.Content.DeepLink, context.CancellationToken);
         _log.LogInformation("WS-07A: Created notification | Type={Type} | UserId={UserId} | PostId={PostId} | ActorUserId={ActorUserId}", notification.Type, notification.UserId, m.PostId, m.LikerUserId);

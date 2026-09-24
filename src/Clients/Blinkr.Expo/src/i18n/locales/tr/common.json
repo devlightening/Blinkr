@@ -31,7 +31,8 @@
     "accept": "Onayla",
     "decline": "Sil",
     "answered": "Yanıtlandı",
-    "close": "Kapat"
+    "close": "Kapat",
+    "new": "Yeni"
   },
   "personalData": {
     "title": "Kişisel bilgi paylaşmak üzeresin",

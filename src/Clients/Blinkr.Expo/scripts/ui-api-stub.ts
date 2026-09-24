@@ -318,6 +318,7 @@ let notificationsRead = false;
 const notificationList = () => flag('nonotifications') ? [] : [
   { id: 'n1', title: 'Yeni beğeni', body: 'zeynep gönderini beğendi.', type: 'PostLiked', createdAtUtc: new Date(Date.now() - 10 * 60_000).toISOString(), isRead: notificationsRead, postId: 'post-a', actorUserId: 'u-zeynep', actorUserName: 'zeynep' },
   { id: 'n2', title: 'Takip isteği', body: 'arda seni takip etmek istiyor.', type: 'FollowRequested', createdAtUtc: new Date(Date.now() - 50 * 60_000).toISOString(), isRead: notificationsRead, actorUserId: 'u-arda', actorUserName: 'arda' },
+  { id: 'n4', title: 'Yeni beğeni', body: 'ece, can ve 3 kişi daha gönderine tepki verdi.', type: 'PostLiked', createdAtUtc: new Date(Date.now() - 60_000).toISOString(), isRead: true, postId: 'post-a', actorUserId: 'u-ece', actorUserName: 'ece', actorCount: 5, actorIds: ['u-can', 'u-ece'] },
   { id: 'n3', title: 'Yeni takipçi', body: 'ece seni takip etmeye başladı.', type: 'UserFollowed', createdAtUtc: new Date(Date.now() - 9 * 24 * 3_600_000).toISOString(), isRead: true, actorUserId: 'u-ece', actorUserName: 'ece' },
 ];
 export const listNotifications = async () => {
