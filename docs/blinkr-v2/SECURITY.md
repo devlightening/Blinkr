@@ -23,7 +23,7 @@
 | S4 | Secret store (JWT anahtarı, DB parolaları) — geliştirme anahtarı fallback'i prod'da zaten kapalı (`BlinkrJwtOptions` Development dışında anahtarsız ya da dev anahtarıyla açılmaz); kalan: gerçek secret store | Key Vault / Doppler |
 | S5 | Kökteki `.env` git izlemesinden çıkarılsın, parolalar değişsin | Geçmiş temizliği kullanıcı kararı |
 | S6 | Refresh token rotasyonu + cihaz oturum listesi | |
-| S7 | NuGet/npm güvenlik uyarıları | |
+| S7 | NuGet/npm güvenlik uyarıları — **2026-09-25:** NuGet 0 (MonitoringService'teki geçişli KubernetesClient 15.0.1, GHSA-w7r3-mgwf-4mqq, 17.0.14'e sabitlendi). npm: 10 orta seviye, hepsi Expo derleme araçlarında (`uuid` ← `xcode`, @expo/cli/config); uygulama çalışma zamanına girmez, npm'in önerdiği "düzeltme" Expo 46'ya inmek: Expo güncellemesine kadar kabul | |
 | S8 | Medya: S3 + imzalı URL, kötü amaçlı yazılım/NSFW taraması | Ücretli sağlayıcı |
 | S9 | EventStore tombstone + scavenge (hesap silmede eski olaylar) | Operasyon |
 | S10 | Push (APNs/FCM) anahtarları | Secret |

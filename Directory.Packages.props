@@ -56,6 +56,8 @@
 		<PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
 		<PackageVersion Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
 		<PackageVersion Include="AspNetCore.HealthChecks.UI" Version="9.0.0" />
+		<!-- SECURITY S7: HealthChecks.UI brings KubernetesClient 15.0.1 (GHSA-w7r3-mgwf-4mqq); MonitoringService pins a fixed one. -->
+		<PackageVersion Include="KubernetesClient" Version="17.0.14" />
 		<PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
 		<PackageVersion Include="AspNetCore.HealthChecks.UI.SqlServer.Storage" Version="9.0.0" />
 		<PackageVersion Include="AspNetCore.HealthChecks.RabbitMQ" Version="9.0.0" />
