@@ -1,0 +1,61 @@
+# Quality gate (CLAUDE.md §21 P1): what can be checked without the Docker stack.
+# The acceptance scripts (scripts/test-*.ps1) need the running backend and stay a local/staging step.
+name: CI
+
+on:
+  push:
+    branches: [master, "feat/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: .NET build and package audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Build
+        run: dotnet build Blinkr.sln -c Release
+      - name: Vulnerable packages
+        run: |
+          dotnet list Blinkr.sln package --vulnerable --include-transitive 2>&1 | tee vulnerable.txt
+          if grep -qE "GHSA|CVE" vulnerable.txt; then echo "::error::Vulnerable NuGet packages (SECURITY.md S7)"; exit 1; fi
+
+  mobile:
+    name: Expo typecheck and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: src/Clients/Blinkr.Expo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: src/Clients/Blinkr.Expo/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test:theme
+      - run: npm run test:nearby
+      - run: npm run test:product
+      - run: npm run test:i18n
+      - name: Browser UI tests
+        run: |
+          npx playwright install chrome || true
+          npm run test:ui
+      - name: iOS and Android bundles
+        run: |
+          npx expo export --platform ios --output-dir .tmp/export-ios
+          npx expo export --platform android --output-dir .tmp/export-android
