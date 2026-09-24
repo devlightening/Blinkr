@@ -109,7 +109,8 @@
     "noSignalsHint": "If you're there, be the first to share what's going on.",
     "firstSignal": "Leave the first signal",
     "fromGallery": "From gallery",
-    "fromGalleryHint": "An older gallery photo; it does not show the live state."
+    "fromGalleryHint": "An older gallery photo; it does not show the live state.",
+    "expand": "Open full page"
   },
   "place": {
     "directionsFailed": "Couldn't open directions",
@@ -161,5 +162,17 @@
     "nearby": "Shared from nearby",
     "unverified": "Location not verified"
   },
-  "generic": "Signal"
+  "generic": "Signal",
+  "video": {
+    "play": "Play",
+    "pause": "Pause",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "speed": "Playback speed {{rate}}",
+    "seek": "Video position",
+    "fullscreen": "Full screen",
+    "error": "Couldn't play the video",
+    "retry": "Try again",
+    "replay": "Replay"
+  }
 }

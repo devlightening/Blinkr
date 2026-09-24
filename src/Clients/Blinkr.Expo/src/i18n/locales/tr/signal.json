@@ -109,7 +109,8 @@
     "noSignalsHint": "Oradaysan neler olduğunu ilk sen paylaş.",
     "firstSignal": "İlk sinyali bırak",
     "fromGallery": "Galeriden",
-    "fromGalleryHint": "Galeriden, iki saatten eski bir fotoğraf; canlı durumu göstermez."
+    "fromGalleryHint": "Galeriden, iki saatten eski bir fotoğraf; canlı durumu göstermez.",
+    "expand": "Tam sayfa aç"
   },
   "place": {
     "directionsFailed": "Yol tarifi açılamadı",
@@ -161,5 +162,17 @@
     "nearby": "Yakındaki yer paylaşımı",
     "unverified": "Konum doğrulanamadı"
   },
-  "generic": "Sinyal"
+  "generic": "Sinyal",
+  "video": {
+    "play": "Oynat",
+    "pause": "Duraklat",
+    "mute": "Sesi kapat",
+    "unmute": "Sesi aç",
+    "speed": "Oynatma hızı {{rate}}",
+    "seek": "Video konumu",
+    "fullscreen": "Tam ekran",
+    "error": "Video oynatılamadı",
+    "retry": "Tekrar dene",
+    "replay": "Tekrar oynat"
+  }
 }

@@ -15,6 +15,13 @@
 
 ## Kararlar
 
+### D-025 — V2-2: Sinyal Kartı tam sayfaya büyür, tek video oynatıcı, paylaşılan bağlantı (2026-09-24)
+- Karar:
+  - Kart iki durakta: yüzen kart ve tam sayfa. Başlıktan yukarı çekmek, yorum düğmesi ya da (tek sinyalde) "Tam sayfa aç" kartı tüm ekrana büyütür; başlıktan aşağı çekmek ya da Geri kartı geri küçültür, karttan aşağı çekmek kapatır; Android geri tuşu da aynı sırayı izler. Tek `expand` değeri UI thread'de kenar boşluğunu, köşeyi ve yüksekliği (ölçülen kart yüksekliğinden ekran yüksekliğine) birlikte taşır.
+  - Tam sayfa, mevcut `SignalThreadPanel`'i (`fill`, `hideActions`, `title`) yeniden kullanır: kart üstte, açıklamanın tamamı, tüm yorumlar ve altta sabit yorum kutusu. Planın "`useComments` hook'una çıkar" adımı yapılmadı: aynı bileşeni kullanmak aynı sonucu kod çoğaltmadan verdi. Eski ayrı yorum sayfası (ikinci sheet) kaldırıldı.
+  - `signal/VideoPlayer` tüm videolar için tek bileşen: kartta sessiz döngü + ses düğmesi + ince ilerleme; tam ekran görüntüleyicide oynat/duraklat, sürüklenebilir ilerleme (sürüklerken durur, bırakınca kaldığı yerden), hız 1 → 1,25 → 1,5 → 2 → 0,5, ses; krom oynarken 3 sn sonra solar. Kurallar `videoControls.ts` (test). Kaydırmalı medyada yalnız görünen video oynar.
+  - Paylaşılan bağlantı biçimi, bildirimlerin zaten kullandığı `blinkr://posts/{id}` (planda yazılan `/post/` değil); `app.json` `scheme: "blinkr"`. Bağlantı sinyali haritada açar; silinmiş/gizli sinyalde uygulama olduğu yerde kalır.
+
 ### D-024 — Blinkr V2: koyu varsayılan tema, marka gradyanı, Instagram tarzı alt çubuk (2026-09-24)
 - Bağlam: Kullanıcı "Snapchat + Instagram = Blinkr" hedefiyle V2 planını onayladı (`docs/blinkr-v2/`); varsayılan tema olarak "Koyu tema + gradyan vurgular"ı, alt çubuk olarak Harita · Keşfet · (+) · Mesaj · Profil'i seçti.
 - Karar:

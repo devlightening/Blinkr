@@ -1,8 +1,8 @@
 import * as Haptics from 'expo-haptics';
-import { ChevronLeft, ChevronRight, Flag, Trash2, UserX, X } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Flag, Maximize2, Trash2, UserX, X } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, BackHandler, FlatList, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { ActivityIndicator, BackHandler, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, FadeIn, FadeOut, interpolate, ReduceMotion, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -50,6 +50,8 @@ type Props = {
   onCreateSignal?: () => void;
   /** The place's signals are still on their way: a spinner rather than "no signals". */
   loading?: boolean;
+  /** Open straight on the full page (a shared link, "all comments"). */
+  startExpanded?: boolean;
 };
 
 const VIEW_AFTER_MS = 1000;
@@ -65,7 +67,7 @@ const VIEW_FLUSH_MS = 10_000;
  * by side (swipe, or ‹ ›). The card fills itself from GET /api/posts/{id}; a card seen for a second is counted as a
  * view (sent every 10 s, never for your own).
  */
-export function SignalCardModal({ auth, refresh, cards: initialCards, initialIndex = 0, place, deviceOrigin, onClose, onOpenPlace, onOpenAuthor, onConfirm, onChanged, onDeleted, onCreateSignal, loading = false }: Props) {
+export function SignalCardModal({ auth, refresh, cards: initialCards, initialIndex = 0, place, deviceOrigin, onClose, onOpenPlace, onOpenAuthor, onConfirm, onChanged, onDeleted, onCreateSignal, loading = false, startExpanded = false }: Props) {
   const { t } = useTranslation(['signal', 'common']);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -79,7 +81,7 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
   const [notice, setNotice] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [thread, setThread] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(startExpanded);
   const [viewer, setViewer] = useState<{ items: CardSignal['media']; start: number } | null>(null);
   const [report, setReport] = useState<{ kind: 'signal' | 'user'; card: CardSignal } | null>(null);
   const [share, setShare] = useState<SignalShare | null>(null);
@@ -143,6 +145,9 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
   const reduceMotion = useReducedMotion();
   const progress = useSharedValue(0);
   const drag = useSharedValue(0);
+  // V2-2: 0 = floating card, 1 = full page. The card's natural height is measured so the growth starts from it.
+  const expand = useSharedValue(startExpanded ? 1 : 0);
+  const contentH = useSharedValue(0);
   const closing = useRef(false);
   useEffect(() => {
     progress.value = reduceMotion ? withTiming(1, { duration: 160 }) : withSpring(1, springs.sheet);
@@ -154,31 +159,62 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
     closing.current = true;
     progress.value = withTiming(0, { duration: reduceMotion ? 120 : 220, easing: Easing.bezier(0.4, 0, 1, 1) }, (done) => { if (done) runOnJS(finishClose)(); });
   }, [finishClose, progress, reduceMotion]);
+  const expandFull = useCallback(() => {
+    setExpanded(true);
+    drag.value = withSpring(0, springs.sheet);
+    expand.value = reduceMotion ? withTiming(1, { duration: 160 }) : withSpring(1, springs.sheet);
+  }, [drag, expand, reduceMotion]);
+  const collapse = useCallback(() => {
+    setExpanded(false);
+    drag.value = withSpring(0, springs.sheet);
+    expand.value = reduceMotion ? withTiming(0, { duration: 160 }) : withSpring(0, springs.sheet);
+  }, [drag, expand, reduceMotion]);
   useEffect(() => {
     const back = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (viewer) setViewer(null); else close();
+      if (viewer) setViewer(null); else if (expanded) collapse(); else close();
       return true;
     });
     return () => back.remove();
-  }, [close, viewer]);
+  }, [close, collapse, expanded, viewer]);
 
-  // Drag the card by its header: it follows the finger (with resistance upwards), a firm pull or flick closes it.
+  // Drag by the header: the card follows the finger. Up (a pull or flick) opens the full page; down closes the card,
+  // or from the full page returns to the card.
   const pan = useMemo(() => Gesture.Pan()
     .activeOffsetY([-8, 8])
     .failOffsetX([-16, 16])
-    .onUpdate((e) => { drag.value = e.translationY > 0 ? e.translationY : e.translationY / 6; })
+    .onUpdate((e) => {
+      const full = expand.value > 0.5;
+      drag.value = e.translationY > 0 ? e.translationY : full ? 0 : e.translationY / 3;
+    })
     .onEnd((e) => {
-      if (e.translationY > 120 || e.velocityY > 900) runOnJS(close)();
+      if (expand.value > 0.5) {
+        if (e.translationY > 120 || e.velocityY > 900) runOnJS(collapse)();
+        else drag.value = withSpring(0, springs.sheet);
+        return;
+      }
+      if (e.translationY < -60 || e.velocityY < -700) runOnJS(expandFull)();
+      else if (e.translationY > 120 || e.velocityY > 900) runOnJS(close)();
       else drag.value = withSpring(0, springs.sheet);
-    }), [close, drag]);
+    }), [close, collapse, drag, expand, expandFull]);
 
-  const cardStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 0.25, 1], [0, 1, 1]),
-    transform: [
-      { translateY: (1 - progress.value) * (maxHeight * 0.6 + 80) + drag.value },
-      { scale: interpolate(progress.value, [0, 1], [0.97, 1]) },
-    ],
-  }), [maxHeight, progress, drag]);
+  const bottomGap = insets.bottom + CARD_MARGIN;
+  const cardStyle = useAnimatedStyle(() => {
+    const e = expand.value;
+    const inset = 1 - e;
+    const cardH = Math.min(contentH.value, maxHeight);
+    return {
+      left: CARD_MARGIN * inset,
+      right: CARD_MARGIN * inset,
+      bottom: bottomGap * inset,
+      height: cardH + (screenHeight - cardH) * e,
+      borderRadius: radii.xl * inset,
+      opacity: interpolate(progress.value, [0, 0.25, 1], [0, 1, 1]),
+      transform: [
+        { translateY: (1 - progress.value) * (maxHeight * 0.6 + 80) + drag.value },
+        { scale: interpolate(progress.value, [0, 1], [0.97, 1]) },
+      ],
+    };
+  }, [bottomGap, maxHeight, screenHeight, progress, drag, expand, contentH]);
   const backdropStyle = useAnimatedStyle(() => ({ opacity: progress.value * interpolate(drag.value, [0, 400], [1, 0.3], 'clamp') }), [progress, drag]);
 
   const update = (postId: string, change: (card: CardSignal) => CardSignal) => setCards((list) => list.map((c) => (c.postId === postId ? change(c) : c)));
@@ -244,6 +280,55 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
     return distanceMeters(deviceOrigin, { latitude: lat, longitude: lon });
   };
 
+  const renderCard = (item: CardSignal, width: number, full: boolean) => {
+          const recheck = recheckSignal({ signalType: item.signalType, signalValue: item.signalValue, freshness: 'FRESH', expiresAtUtc: item.expiresAtUtc });
+          return (
+              <SignalCard
+                card={item}
+                confirmed={confirmed.has(item.postId)}
+                distanceMeters={distanceTo(item)}
+                onDoubleTapLike={() => { void like(item, true); }}
+                onLike={() => { void like(item); }}
+                onMenu={() => setMenuOpen(true)}
+                onOpenAuthor={() => { if (item.authorId) onOpenAuthor({ id: item.authorId, userName: item.authorName ?? '' }); }}
+                onOpenMedia={(start) => setViewer({ items: item.media, start })}
+                onOpenPlace={item.placeId && onOpenPlace ? onOpenPlace : undefined}
+                onOpenThread={full ? () => {} : expandFull}
+                onSave={place ? () => { void toggleSave(); } : undefined}
+                onShare={() => setShare({ postId: item.postId, signalType: item.signalType, signalValue: item.signalValue, title: item.text.slice(0, 80), locationName: item.placeName })}
+                onVerify={(mode) => { void verify(item, mode); }}
+                saved={saved}
+                showVerify={Boolean(item.placeId && recheck)}
+                topComment={full ? null : topComments[item.postId] ?? null}
+                verify={verifyState(item, distanceTo(item))}
+                verifyBusy={verifyBusy}
+                hidePlace={Boolean(place)}
+          inThread={full}
+                width={width}
+              />
+          );
+  };
+
+  // The full page (V2-2): the same card on top, the whole description, and every comment with the box at the bottom.
+  const renderFull = (card: CardSignal) => (
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.full, { paddingBottom: Math.max(insets.bottom, spacing.sm), paddingTop: insets.top }]} testID="card-full">
+      <GestureDetector gesture={pan}>
+        <View collapsable={false} style={styles.fullGrab}><View style={styles.handle} /></View>
+      </GestureDetector>
+      <SignalThreadPanel
+        auth={auth}
+        fill
+        header={renderCard(card, screenWidth - spacing.md * 2, true)}
+        hideActions
+        onBack={collapse}
+        onClose={close}
+        postId={card.postId}
+        refresh={refresh}
+        title={card.placeName ?? t('signal:card.signal')}
+      />
+    </KeyboardAvoidingView>
+  );
+
   return (
     <View style={styles.host} testID="signal-card-modal">
       <Animated.View pointerEvents="box-none" style={[StyleSheet.absoluteFill, backdropStyle]}>
@@ -258,7 +343,9 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
         </Animated.View>
       ) : null}
 
-      <Animated.View style={[styles.card, { bottom: insets.bottom + CARD_MARGIN, left: CARD_MARGIN, maxHeight, right: CARD_MARGIN }, cardStyle]}>
+      <Animated.View style={[styles.card, cardStyle]} testID="card-container">
+        {expanded && current ? renderFull(current) : (
+        <View collapsable={false} onLayout={(e) => { contentH.value = e.nativeEvent.layout.height; }}>
         <GestureDetector gesture={pan}>
           <View collapsable={false} style={styles.header}>
             <View style={styles.handle} />
@@ -283,6 +370,11 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
                     <ChevronRight color={colors.text} size={18} />
                   </AnimatedPressable>
                 </View>
+              ) : null}
+              {current && cards.length < 2 ? (
+                <AnimatedPressable accessibilityLabel={t('signal:card.expand')} accessibilityRole="button" hitSlop={8} onPress={expandFull} pressScale={0.9} style={styles.close} testID="card-expand">
+                  <Maximize2 color={colors.text} size={16} strokeWidth={2.4} />
+                </AnimatedPressable>
               ) : null}
               <AnimatedPressable accessibilityLabel={t('signal:card.close')} accessibilityRole="button" hitSlop={8} onPress={close} pressScale={0.9} style={styles.close} testID="card-close">
                 <X color={colors.text} size={18} strokeWidth={2.4} />
@@ -309,38 +401,16 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
             onMomentumScrollEnd={onPageEnd}
             pagingEnabled
             ref={listRef}
-            renderItem={({ item }) => {
-              const recheck = recheckSignal({ signalType: item.signalType, signalValue: item.signalValue, freshness: 'FRESH', expiresAtUtc: item.expiresAtUtc });
-              return (
-                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: maxHeight - HEADER_HEIGHT, width: cardWidth }}>
-                  <SignalCard
-                    card={item}
-                    confirmed={confirmed.has(item.postId)}
-                    distanceMeters={distanceTo(item)}
-                    onDoubleTapLike={() => { void like(item, true); }}
-                    onLike={() => { void like(item); }}
-                    onMenu={() => setMenuOpen(true)}
-                    onOpenAuthor={() => { if (item.authorId) onOpenAuthor({ id: item.authorId, userName: item.authorName ?? '' }); }}
-                    onOpenMedia={(start) => setViewer({ items: item.media, start })}
-                    onOpenPlace={item.placeId && onOpenPlace ? onOpenPlace : undefined}
-                    onOpenThread={() => setThread(item.postId)}
-                    onSave={place ? () => { void toggleSave(); } : undefined}
-                    onShare={() => setShare({ postId: item.postId, signalType: item.signalType, signalValue: item.signalValue, title: item.text.slice(0, 80), locationName: item.placeName })}
-                    onVerify={(mode) => { void verify(item, mode); }}
-                    saved={saved}
-                    showVerify={Boolean(item.placeId && recheck)}
-                    topComment={topComments[item.postId] ?? null}
-                    verify={verifyState(item, distanceTo(item))}
-                    verifyBusy={verifyBusy}
-                    hidePlace={Boolean(place)}
-                    width={cardWidth}
-                  />
-                </ScrollView>
-              );
-            }}
+            renderItem={({ item }) => (
+              <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: maxHeight - HEADER_HEIGHT, width: cardWidth }}>
+                {renderCard(item, cardWidth, false)}
+              </ScrollView>
+            )}
             scrollEnabled={cards.length > 1}
             showsHorizontalScrollIndicator={false}
           />
+        )}
+        </View>
         )}
       </Animated.View>
 
@@ -381,14 +451,6 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
         </Sheet>
       ) : null}
 
-      {thread ? (
-        <Sheet onClose={() => setThread(null)}>
-          <BlinkrSheetPanel maxHeightRatio={0.92}>
-            <SignalThreadPanel auth={auth} header={null} onClose={() => setThread(null)} postId={thread} refresh={refresh} />
-          </BlinkrSheetPanel>
-        </Sheet>
-      ) : null}
-
       {share ? <ShareToChatSheet auth={auth} onClose={() => setShare(null)} refresh={refresh} share={share} /> : null}
       {viewer ? <MediaViewer items={viewer.items} onClose={() => setViewer(null)} startIndex={viewer.start} /> : null}
     </View>
@@ -409,6 +471,8 @@ const styles = StyleSheet.create({
   scrim: { backgroundColor: colors.scrimSoft },
   flex: { flex: 1 },
   card: { backgroundColor: colors.surface, borderRadius: radii.xl, overflow: 'hidden', position: 'absolute', ...shadowFloat },
+  full: { flex: 1, paddingHorizontal: spacing.md },
+  fullGrab: { alignItems: 'center', paddingVertical: spacing.sm },
   header: { minHeight: HEADER_HEIGHT, paddingBottom: spacing.xs, paddingHorizontal: spacing.md, paddingTop: spacing.xs },
   handle: { alignSelf: 'center', backgroundColor: colors.lineStrong, borderRadius: radii.pill, height: 5, marginBottom: spacing.sm, width: 36 },
   headerRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },

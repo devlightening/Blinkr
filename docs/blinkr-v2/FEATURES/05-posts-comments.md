@@ -54,7 +54,7 @@ hashtag:  (?<![\w#])#([\p{L}\p{N}_]{2,40})    → Türkçe harfler dahil; saklan
 | Seçenek | Davranış |
 |---|---|
 | Sohbette gönder | mevcut `kind: "signal"` mesajı, kişi seçici |
-| Bağlantıyı kopyala | `blinkr://post/{id}` (web alan adı gelince https) |
+| Bağlantıyı kopyala | `blinkr://posts/{id}` (web alan adı gelince https) |
 | Diğer uygulamalar | RN `Share.share({ message, url })` |
 | Hikayene ekle (sonra) | gönderi kartı çıkartmasıyla hikaye |
 Anonim gönderinin paylaşımı yazar bilgisi taşımaz.

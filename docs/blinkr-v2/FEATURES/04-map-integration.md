@@ -46,7 +46,7 @@ Mevcut supercluster; zoom < 16 dokununca yakınlaş, ≥ 16 kümedeki sinyaller 
 temada gradyan kenarlı disk.
 
 ## Derin bağlantı
-`blinkr://post/{id}` ve `https://blinkr.app/p/{id}` (sonra) → `GET /api/posts/{id}` → haritayı konuma getir,
+`blinkr://posts/{id}` (bildirimlerle aynı biçim, D-025) ve `https://blinkr.app/p/{id}` (sonra) → `GET /api/posts/{id}` → haritayı konuma getir,
 tam sayfa aç. `app.json` → `"scheme": "blinkr"`; `Linking.getInitialURL` + `addEventListener('url')`.
 
 ## Kabul

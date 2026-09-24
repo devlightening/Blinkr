@@ -3,7 +3,7 @@
 | Alan | Değer |
 |---|---|
 | Dal | `feat/blinkr-theme-redesign` |
-| Aktif faz | V2-2 |
+| Aktif faz | V2-3 |
 | Son güncelleme | 2026-09-24 |
 
 İşaretler: `[x]` bitti ve ekranda doğrulandı · `[~]` kısmen / cihaz bekliyor · `[ ]` yapılmadı · `[-]` bilinçli ertelendi
@@ -17,11 +17,11 @@
 - [x] 1.6 `test:theme` gradyan kontrastı
 
 ## V2-2 Post görüntüleyici
-- [ ] 2.1 Kart → tam sayfa (yukarı sürükle / Genişlet), iki durak
-- [ ] 2.2 `PostFullView`: medya, açıklama, satır içi yorumlar, sabit giriş
-- [ ] 2.3 `useComments` hook'u (SignalThreadPanel ile ortak)
-- [ ] 2.4 `VideoPlayer`: oynat/duraklat, ilerleme sürükleme, hız 0.5–2x, sessiz, tam ekran
-- [ ] 2.5 Derin bağlantı `blinkr://post/{id}`
+- [x] 2.1 Kart → tam sayfa (yukarı sürükle / Genişlet), iki durak
+- [x] 2.2 Tam sayfa: kart + açıklama + tüm yorumlar + sabit giriş (`SignalThreadPanel fill`, ayrı `PostFullView` gerekmedi, D-025)
+- [-] 2.3 `useComments` hook'u — gerek kalmadı, aynı panel yeniden kullanıldı (D-025)
+- [~] 2.4 `VideoPlayer` (kod + saf testler; video oynatma/sürükleme cihazda doğrulanacak): oynat/duraklat, ilerleme sürükleme, hız 0.5–2x, sessiz, tam ekran
+- [x] 2.5 Derin bağlantı `blinkr://posts/{id}` (bildirimlerle aynı biçim)
 
 ## V2-3 Hikayeler
 - [x] 3.1 Tepsi: gradyan halka (görülmemiş), gri (görülmüş), "Hikayen +"

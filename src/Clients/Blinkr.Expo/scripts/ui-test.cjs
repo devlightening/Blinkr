@@ -1114,9 +1114,17 @@ async function main() {
     await expect(page.getByTestId('card-menu-sheet')).toContainText('Sinyali bildir');
     await expect(page.getByTestId('card-menu-sheet')).not.toContainText('Bu kişiyi engelle'); // anonymous: no author to block
     await page.getByLabel('Kapat', { exact: true }).last().click({ position: { x: 20, y: 20 } });
+    // V2-2: comments open the full page (card grows to the whole screen); back returns to the card.
     await page.getByTestId('signal-card-card-3').getByTestId('card-comments').click();
-    await expect(page.getByRole('heading', { name: 'Yorumlar' })).toBeVisible();
-    await page.getByLabel('Kapat', { exact: true }).last().click({ position: { x: 20, y: 20 } });
+    await expect(page.getByTestId('card-full')).toBeVisible();
+    await expect(page.getByTestId('comment-input')).toBeVisible();
+    await page.waitForTimeout(500);
+    const full = await page.getByTestId('card-container').boundingBox();
+    if (full.height < 800 || full.x > 1) throw new Error('full page should cover the screen, got ' + JSON.stringify(full));
+    await page.screenshot({ path: path.join(out, 'signal-card-full.png') });
+    await page.getByRole('button', { name: 'Geri' }).click();
+    await expect(page.getByTestId('card-full')).toHaveCount(0);
+    await expect(page.getByTestId('card-pager')).toContainText('3 / 3');
     await page.getByTestId('card-close').click();
     await expect(page.getByText('kapandı')).toBeVisible();
     // Far away: the verify buttons stay visible but disabled, with the reason.
@@ -1130,6 +1138,11 @@ async function main() {
     await page.getByTestId('signal-card-card-1').getByTestId('card-menu').click();
     await expect(page.getByTestId('card-menu-sheet')).toContainText('Sinyali sil');
     await page.getByLabel('Kapat', { exact: true }).last().click({ position: { x: 20, y: 20 } });
+    // A single signal has the expand button next to close.
+    await page.goto(url + '?scene=card&one');
+    await page.getByTestId('card-expand').click();
+    await expect(page.getByTestId('card-full')).toBeVisible();
+    await expect(page.getByTestId('card-full')).toContainText('BİM Merkez');
     await page.goto(url + '?scene=card&theme=dark');
     await page.waitForTimeout(500); await page.screenshot({ path: path.join(out, 'signal-card-dark.png') });
 

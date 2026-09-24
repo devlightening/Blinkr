@@ -159,7 +159,8 @@ function CardScene() {
     { postId: 'card-2', signalType: 'Crowd' as const, signalValue: 'Busy', authorName: 'ece', createdAtUtc: new Date(Date.now() - 20 * 60_000).toISOString(), expiresAtUtc: new Date(Date.now() + 40 * 60_000).toISOString(), media: [{ url: CARD_PORTRAIT, mediaType: 'Image', width: 1080, height: 1350 }] },
     { postId: 'card-3', signalType: 'TemporaryStatus' as const, signalValue: 'Closed', authorName: null, text: 'Bugün erken kapattılar.', createdAtUtc: new Date(Date.now() - 30 * 60_000).toISOString(), expiresAtUtc: new Date(Date.now() + 30 * 60_000).toISOString(), media: [] },
   ];
-  const cards = recent.map((signal) => fromRecentSignal(signal, cardPlace));
+  const one = typeof location !== 'undefined' && location.search.includes('one');
+  const cards = recent.slice(0, one ? 1 : recent.length).map((signal) => fromRecentSignal(signal, cardPlace));
   return (
     <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
       {closed ? <Text>kapandı</Text> : (

@@ -1,4 +1,3 @@
-import { useVideoPlayer, VideoView } from 'expo-video';
 import { X } from 'lucide-react-native';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -10,10 +9,10 @@ import type { CardMedia } from '../../signalCard';
 // Drawn over photos and video: always the dark media palette (plan-devam B3).
 import { media, mediaColors as colors, radii } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
+import { VideoPlayer } from './VideoPlayer';
 
 function ViewerVideo({ uri }: { uri: string }) {
-  const player = useVideoPlayer(uri, (p) => { p.loop = true; p.play(); });
-  return <VideoView contentFit="contain" nativeControls player={player} style={StyleSheet.absoluteFill} />;
+  return <VideoPlayer controls="full" fit="contain" startMuted={false} testID="viewer-video" uri={uri} />;
 }
 
 /**

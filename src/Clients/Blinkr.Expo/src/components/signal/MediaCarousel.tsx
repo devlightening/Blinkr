@@ -1,4 +1,3 @@
-import { useVideoPlayer, VideoView } from 'expo-video';
 import { Heart, Play } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
@@ -6,6 +5,7 @@ import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withSequence,
 
 import { toAbsoluteUrl } from '../../api';
 import { mediaFrame, type CardMedia } from '../../signalCard';
+import { VideoPlayer } from './VideoPlayer';
 import { colors, media as overlay, radii, spacing, springs } from '../../theme';
 
 type Props = {
@@ -22,10 +22,9 @@ type Props = {
 
 const DOUBLE_TAP_MS = 260;
 
-/** Muted, looping video in the card (plan 04 §2.1); the viewer has sound and controls. */
-function CardVideo({ uri, fit }: { uri: string; fit: 'cover' | 'contain' }) {
-  const player = useVideoPlayer(uri, (p) => { p.muted = true; p.loop = true; p.play(); });
-  return <VideoView contentFit={fit} nativeControls={false} player={player} style={StyleSheet.absoluteFill} />;
+/** Muted, looping video in the card with a sound toggle (V2-2); the full page and viewer have full controls. */
+function CardVideo({ uri, fit, active }: { uri: string; fit: 'cover' | 'contain'; active: boolean }) {
+  return <VideoPlayer active={active} controls="minimal" fit={fit} testID="card-video" uri={uri} />;
 }
 
 /**
@@ -79,7 +78,7 @@ export function MediaCarousel({ items, width, onOpen, onDoubleTap, overlayStart,
           return (
             <Pressable accessibilityRole="imagebutton" onPress={() => onTap(i)} style={{ height, width }}>
               {still ? <Image blurRadius={24} resizeMode="cover" source={{ uri: still }} style={StyleSheet.absoluteFill} /> : <View style={[StyleSheet.absoluteFill, styles.empty]} />}
-              {video ? <CardVideo fit={fit} uri={video} /> : still ? <Image accessibilityIgnoresInvertColors resizeMode={fit} source={{ uri: still }} style={StyleSheet.absoluteFill} /> : null}
+              {video ? <CardVideo active={i === index} fit={fit} uri={video} /> : still ? <Image accessibilityIgnoresInvertColors resizeMode={fit} source={{ uri: still }} style={StyleSheet.absoluteFill} /> : null}
               {video && !still ? <View style={styles.play}><Play color={overlay.textSoft} fill={overlay.textSoft} size={32} /></View> : null}
             </Pressable>
           );

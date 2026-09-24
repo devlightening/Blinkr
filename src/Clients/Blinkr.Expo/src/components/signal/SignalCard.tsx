@@ -44,6 +44,8 @@ type Props = {
   onVerify: (mode: 'confirm' | 'changed') => void;
   /** The host already shows the place in its header: no second place row inside the card. */
   hidePlace?: boolean;
+  /** Full page (V2-2): the comments and their input follow below, so the card shows no comment preview or prompt. */
+  inThread?: boolean;
 };
 
 /**
@@ -53,7 +55,7 @@ type Props = {
  */
 export function SignalCard({
   card, width, distanceMeters, verify, showVerify, confirmed, verifyBusy, topComment, saved,
-  onLike, onDoubleTapLike, onOpenMedia, onOpenThread, onShare, onSave, onMenu, onOpenAuthor, onOpenPlace, onVerify, hidePlace = false,
+  onLike, onDoubleTapLike, onOpenMedia, onOpenThread, onShare, onSave, onMenu, onOpenAuthor, onOpenPlace, onVerify, hidePlace = false, inThread = false,
 }: Props) {
   const { t, i18n } = useTranslation(['signal', 'common']);
   const lang = i18n.language === 'en' ? 'en' : 'tr';
@@ -201,15 +203,17 @@ export function SignalCard({
         ) : null}
       </View>
 
-      {topComment ? (
+      {topComment && !inThread ? (
         <AnimatedPressable accessibilityRole="button" onPress={() => onOpenThread(false)} style={styles.comment}>
           <Text numberOfLines={2} style={styles.commentText}><Text style={styles.commentAuthor}>{topComment.authorName} </Text>{topComment.text}</Text>
           {card.commentCount > 1 ? <Text style={styles.meta}>{t('signal:card.allComments', { count: card.commentCount })}</Text> : null}
         </AnimatedPressable>
       ) : null}
-      <AnimatedPressable accessibilityRole="button" onPress={() => onOpenThread(true)} style={styles.addComment} testID="card-add-comment">
-        <Text style={styles.addCommentText}>{t('signal:card.addComment')}</Text>
-      </AnimatedPressable>
+      {inThread ? null : (
+        <AnimatedPressable accessibilityRole="button" onPress={() => onOpenThread(true)} style={styles.addComment} testID="card-add-comment">
+          <Text style={styles.addCommentText}>{t('signal:card.addComment')}</Text>
+        </AnimatedPressable>
+      )}
     </View>
   );
 }

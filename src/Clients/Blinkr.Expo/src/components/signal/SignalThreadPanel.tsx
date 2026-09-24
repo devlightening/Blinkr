@@ -45,6 +45,12 @@ type Props = {
   onReport?: (target: { kind: 'user'; userId: string; label: string } | { kind: 'signal'; label: string }) => void;
   /** Opens the likers list. */
   onOpenLikers?: () => void;
+  /** Full page (V2-2): the list takes the free height and the comment box sits at the bottom. */
+  fill?: boolean;
+  /** Top bar title; "Yorumlar" by default. */
+  title?: string;
+  /** The header already shows like/comment actions (the full-page signal card). */
+  hideActions?: boolean;
 };
 
 const errorMessage = (t: (key: string) => string, err: unknown, fallbackKey: string) =>
@@ -55,7 +61,7 @@ const errorMessage = (t: (key: string) => string, err: unknown, fallbackKey: str
  * sheet (swaps content like the report panel - no second sheet). Likes and comments are optimistic and roll
  * back on failure; while open, page 1 is refreshed every few seconds (REST polling, DECISIONS D-005).
  */
-export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refresh = {}, onReport, onOpenLikers }: Props) {
+export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refresh = {}, onReport, onOpenLikers, fill = false, title, hideActions = false }: Props) {
   const { t, i18n } = useTranslation(['signal', 'errors', 'common']);
   const lang = i18n.language === 'en' ? 'en' : 'tr';
   const [like, setLike] = useState({ liked: false, count: 0 });
@@ -280,23 +286,23 @@ export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refre
   const { empty, tooLong, remaining } = commentState(draft);
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, fill && styles.fill]}>
       <View style={styles.topBar}>
         {onBack ? (
           <AnimatedPressable accessibilityLabel={t('signal:back')} accessibilityRole="button" hitSlop={10} onPress={onBack} pressScale={0.88} style={styles.iconButton}>
             <ChevronLeft color={colors.text} size={22} />
           </AnimatedPressable>
         ) : <View style={styles.iconSpacer} />}
-        <Text accessibilityRole="header" style={styles.topTitle}>{t('signal:comments.title')}</Text>
+        <Text accessibilityRole="header" numberOfLines={1} style={styles.topTitle}>{title ?? t('signal:comments.title')}</Text>
         <AnimatedPressable accessibilityLabel={t('common:action.close')} accessibilityRole="button" hitSlop={10} onPress={onClose} pressScale={0.88} style={styles.iconButton}>
           <X color={colors.text} size={22} />
         </AnimatedPressable>
       </View>
 
-      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={styles.scroll}>
+      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={[styles.scroll, fill && styles.fill]} testID="thread-scroll">
         {header}
 
-        <View style={styles.actionRow}>
+        {hideActions ? null : <View style={styles.actionRow}>
           <AnimatedPressable
             accessibilityLabel={like.liked ? t('signal:engagement.unlike') : t('signal:engagement.like')}
             accessibilityRole="button"
@@ -319,7 +325,7 @@ export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refre
               <Text style={styles.linkText}>{t('signal:engagement.likes', { count: like.count })}</Text>
             </AnimatedPressable>
           ) : null}
-        </View>
+        </View>}
 
         {notice ? (
           <AnimatedPressable accessibilityRole="alert" onPress={() => setNotice(null)} pressScale={0.98} style={styles.notice}>
@@ -417,6 +423,7 @@ export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refre
 
 const styles = StyleSheet.create({
   root: { flexShrink: 1 },
+  fill: { flex: 1 },
   topBar: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
   topTitle: { ...typography.heading, color: colors.text, flex: 1, textAlign: 'center' },
   iconButton: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 36, justifyContent: 'center', width: 36 },

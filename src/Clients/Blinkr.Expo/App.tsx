@@ -3,12 +3,13 @@ import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { BlinkrMark } from './src/components/BlinkrMark';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, AppState, BackHandler, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, BackHandler, Linking, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Animated, { FadeIn, ReduceMotion, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, Easing } from 'react-native-reanimated';
 
-import { clearAuth, getMyProfile, listConversations, loadAuth, saveAuth } from './src/api';
+import { clearAuth, getMyProfile, getSignalDetail, listConversations, loadAuth, saveAuth } from './src/api';
+import { parsePostLink } from './src/deepLinks';
 import { AuthScreen } from './src/components/AuthScreen';
 import { initI18n } from './src/i18n';
 
@@ -150,6 +151,27 @@ export default function App() {
     setFocusSignal(signal);
     setActiveTab('map');
   }, []);
+  // V2-2: blinkr://post/{id} (a shared signal) opens it on the map, the same way a Keşfet row does.
+  const [pendingLink, setPendingLink] = useState<string | null>(null);
+  useEffect(() => {
+    void Linking.getInitialURL().then((url) => { const id = parsePostLink(url); if (id) setPendingLink(id); }).catch(() => {});
+    const sub = Linking.addEventListener('url', ({ url }) => { const id = parsePostLink(url); if (id) setPendingLink(id); });
+    return () => sub.remove();
+  }, []);
+  useEffect(() => {
+    if (!pendingLink || !auth) return undefined;
+    const controller = new AbortController();
+    const postId = pendingLink;
+    getSignalDetail(auth, postId, controller.signal, { onAuthRefresh: (next) => { void acceptAuth(next); }, onSessionExpired: () => { void logout(); } })
+      .then((dto) => {
+        if (dto.latitude === null || dto.latitude === undefined || dto.longitude === null || dto.longitude === undefined) return;
+        openNearbySignal({ postId, title: dto.title ?? '', textPreview: dto.content ?? '', latitude: dto.latitude, longitude: dto.longitude, signalType: (dto.signalType ?? 'GeneralObservation') as CoordinateSignal['signalType'], signalValue: dto.signalValue ?? null });
+      })
+      .catch(() => { /* a removed or hidden signal: the app simply stays where it is */ })
+      // Cleared only when done: clearing first would re-run this effect and abort the request.
+      .finally(() => { if (!controller.signal.aborted) setPendingLink(null); });
+    return () => controller.abort();
+  }, [pendingLink, auth, acceptAuth, logout, openNearbySignal]);
   const openSavedPlace = useCallback((place: BlinkrPlace) => {
     setFocusPlace(place);
     setActiveTab('map');
