@@ -1,4 +1,4 @@
-import { Navigation2, RefreshCw, Search } from 'lucide-react-native';
+import { List, Navigation2, RefreshCw, Search } from 'lucide-react-native';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
@@ -33,6 +33,8 @@ type Props = {
   isLoading: boolean;
   onScan: () => void;
   onLocate: () => void;
+  /** plan-devam G6: the same places and signals as a list (Keşfet > Yakınımda), for people who don't use the map. */
+  onShowList?: () => void;
   /** Status bar / notch height (`useSafeAreaInsets().top`). Without it the search bar sits under the
    * status bar on a real device - invisible in the browser harness, which has no notch to reproduce it
    * (sinyal-mvp-plan AUDIT #11). */
@@ -40,7 +42,7 @@ type Props = {
 };
 
 /** Header, layer filter and the scan / locate row that float over the map. */
-export function MapTopChrome({ userId, userName, avatarKey, layer, onLayerChange, activeTypeFilter, onToggleTypeFilter, onOpenProfile, onOpenSearch, scanAvailable, isLoading, onScan, onLocate, topInset }: Props) {
+export function MapTopChrome({ userId, userName, avatarKey, layer, onLayerChange, activeTypeFilter, onToggleTypeFilter, onOpenProfile, onOpenSearch, scanAvailable, isLoading, onScan, onLocate, onShowList, topInset }: Props) {
   return (
     <View pointerEvents="box-none" style={[styles.overlay, { paddingTop: Math.max(topInset, spacing.sm) }]}>
       <View style={styles.searchBar}>
@@ -66,6 +68,11 @@ export function MapTopChrome({ userId, userName, avatarKey, layer, onLayerChange
             <ActivityIndicator color={colors.primary} size="small" />
             <Text style={styles.loadingText}>{tx('map:top.updating', 'Çevre güncelleniyor')}</Text>
           </View>
+        ) : null}
+        {onShowList ? (
+          <AnimatedPressable accessibilityLabel={tx('map:a11y.showList', 'Liste olarak göster')} accessibilityRole="button" onPress={onShowList} pressScale={0.95} style={styles.locateButton} testID="map-show-list">
+            <List color={colors.text} size={19} />
+          </AnimatedPressable>
         ) : null}
         <AnimatedPressable accessibilityLabel={tx('map:top.locate', 'Konumuma git')} accessibilityRole="button" onPress={onLocate} pressScale={0.95} style={styles.locateButton}>
           <Navigation2 color={colors.text} fill={colors.text} size={19} strokeWidth={2} />

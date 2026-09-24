@@ -15,6 +15,17 @@
 
 ## Kararlar
 
+### D-022 — plan-devam Faz G: i18n yöntemi, dil ayarı, analitik, ölçüm ve E2E kapsamı (2026-09-24)
+- Karar:
+  - i18n: tüm kullanıcı metni `tx('ns:anahtar', 'Türkçe kaynak')` ile (`src/i18n/tx.ts`); Türkçe kaynak kodda kalır ki saf mantık testleri i18next olmadan çalışsın ve eksik anahtar asla ham anahtar göstermesin. i18n, tema gibi açılışta ekranlar yüklenmeden başlatılır (`initAsync: false`); modül yüklenirken kurulan etiketler (sinyal türleri, kategoriler) doğru dilde olur. Dil değiştirmek (Ayarlar > Dil) uygulamayı yeniden yükler — tema ile aynı yol. `scripts/i18n-scan.cjs` kodda kalan kullanıcı metnini bulur; `test:i18n` tek bulguda başarısız olur. Sunucunun Türkçe hata mesajları İngilizcede çevrilmiş genel metne düşer (sunucu mesajları çevrilmedi).
+  - Tarih/saat/sayı uygulama diline göre (`i18n/locale.ts`); mesafe birimi metrik kaldı (mil/12 saat yalnız ABD/İngiltere için gerekir, MVP dilleri tr/en-GB).
+  - G4 RTL ertelendi: MVP'de RTL dil yok.
+  - Analitik: `analytics.track` soyutlaması, şema dışı alan ve uzun metin atılır; rıza varsayılan **herkes için kapalı** (plan yalnız AB için kapalı diyordu; daha güvenli olanı seçildi). Sağlayıcı bağlanmadı (PostHog anahtarı secret/ücretli) — olaylar yalnız bellekte tutulur.
+  - G9: API p95 yerelde ölçüldü (`scripts/measure-api-latency.ps1`); açılış, kamera, kart ve fps ölçümleri cihaz ister.
+  - G10 (görsel varyantları, blurhash) ertelendi: sunucu tek boyut üretiyor; listeler zaten FlatList ile sanallaştırılmış.
+  - G13: Maestro akışları yazıldı (`e2e/maestro`) ama simülatör olmadığı için koşulmadı; her senaryonun otomatik karşılığı README'de. "Yer takibi" (senaryo 11) özelliği MVP'de yok.
+  - G14: `docs/operations/release-checklist.md`. Kökteki `.env` (yerel kimlik bilgileri) git'te izleniyor — yayından önce izlemeden çıkarılıp parolalar değiştirilmeli; geçmişi silmek kullanıcı kararı.
+
 ### D-021 — plan-devam Faz F: destek adresi yer tutucusu, hesap silme kapsamı, yaş, veri talebi (2026-09-24)
 - Bağlam: F1–F7 (Faz 10 kalanları). Kullanıcı "bana bir şey sorma" dedi; plan F1'de destek adresini kullanıcıya sormayı istiyor ve adres uydurulmayacak.
 - Karar:

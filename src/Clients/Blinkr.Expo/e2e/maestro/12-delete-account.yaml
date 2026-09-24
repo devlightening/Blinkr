@@ -1,0 +1,19 @@
+# Scenario 12: Ayarlar -> Hesabı sil -> sign out -> sign in again -> "Silmeyi geri al". Use a throwaway account.
+appId: ${APP_ID}
+---
+- launchApp
+- tapOn: "Profil"
+- tapOn: "Ayarlar"
+- tapOn: "Hesabı sil"
+- tapOn: "Devam et"
+- tapOn: "Şifre"
+- inputText: ${PASSWORD}
+- tapOn: "Hesabımı sil"
+- tapOn: "Giriş yap"
+- tapOn: "sen@ornek.com"
+- inputText: ${EMAIL}
+- tapOn: "Şifren"
+- inputText: ${PASSWORD}
+- tapOn: "Haritayı aç"
+- assertVisible: "Silmeyi geri al"
+- tapOn: "Silmeyi geri al"

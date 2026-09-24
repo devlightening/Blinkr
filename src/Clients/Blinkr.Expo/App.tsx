@@ -236,6 +236,7 @@ export default function App() {
                     onLogout={logout}
                     onMessageUser={openChatWith}
                     onOpenProfile={() => setActiveTab('profile')}
+                    onShowList={() => setActiveTab('nearby')}
                     onOverlayOpenChange={setMapOverlayOpen}
                   />
                 </View>

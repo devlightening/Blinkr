@@ -101,5 +101,9 @@
     "mosque": "Cami",
     "school": "Okul",
     "bakery": "Fırın"
+  },
+  "a11y": {
+    "cluster": "{{count}} sinyal ve yer, yakınlaştır",
+    "showList": "Liste olarak göster"
   }
 }

@@ -1,0 +1,12 @@
+# Scenario 8: block a person from their profile -> they disappear from search.
+appId: ${APP_ID}
+---
+- launchApp
+- tapOn: "Yer ara: nereye gidiyorsun?"
+- tapOn: "Kişiler"
+- inputText: "demo_mert"
+- tapOn: "demo_mert profilini aç"
+- tapOn: "Engelle"
+- tapOn: "Evet, engelle"
+- back
+- assertNotVisible: "demo_mert profilini aç"

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
 import { colors, radii, spacing } from '../../theme';
 import { tx } from '../../i18n/tx';
@@ -20,9 +20,12 @@ type Props = {
  */
 export function SkeletonList({ variant = 'person', rows = 5, accessibilityLabel = tx('common:loading', 'Yükleniyor'), style }: Props) {
   const pulse = useSharedValue(1);
+  const reduced = useReducedMotion();
   useEffect(() => {
+    // plan-devam G8: with Reduce Motion the placeholder stays still.
+    if (reduced) return;
     pulse.value = withRepeat(withSequence(withTiming(0.5, { duration: 800, easing: Easing.inOut(Easing.quad) }), withTiming(1, { duration: 800, easing: Easing.inOut(Easing.quad) })), -1);
-  }, [pulse]);
+  }, [pulse, reduced]);
   const animated = useAnimatedStyle(() => ({ opacity: pulse.value }), []);
 
   return (

@@ -19,6 +19,8 @@ import { BlinkrButton } from './ui/BlinkrButton';
 import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
 import { SegmentedControl } from './ui/BlinkrSegmentedControl';
 import { reloadApp, useTheme } from './ThemeProvider';
+import { analyticsConsent } from '../analytics';
+import { saveAnalyticsConsent } from '../analyticsBoot';
 import * as SecureStore from 'expo-secure-store';
 import { LANGUAGE_PREFERENCE_KEY, readLanguagePreference, type LanguagePreference } from '../i18n';
 import type { ThemePreference } from '../theme';
@@ -60,6 +62,7 @@ function Row({ icon, title, value, onPress, danger = false }: { icon: React.Reac
 export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, onLogout, isPrivate = false, onPrivacyChange }: Props) {
   const { t } = useTranslation('settings');
   const theme = useTheme();
+  const [shareUsage, setShareUsage] = useState(analyticsConsent);
   const [language, setLanguage] = useState<LanguagePreference>(readLanguagePreference);
   const [privateOn, setPrivateOn] = useState(isPrivate);
   const [privacyError, setPrivacyError] = useState<string | null>(null);
@@ -157,6 +160,15 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
             </View>
           </View>
           {privacyError ? <Text accessibilityRole="alert" style={styles.noteText}>{privacyError}</Text> : null}
+          <View style={styles.group}>
+            <View style={styles.row}>
+              <View style={styles.noteCopy}>
+                <Text style={styles.rowTitle}>{t('privacy.analyticsTitle')}</Text>
+                <Text style={styles.noteText}>{t('privacy.analyticsHint')}</Text>
+              </View>
+              <Switch accessibilityLabel={t('privacy.analyticsTitle')} onValueChange={(value) => { setShareUsage(value); saveAnalyticsConsent(value); }} testID="analytics-switch" trackColor={{ false: colors.border, true: colors.primary }} value={shareUsage} />
+            </View>
+          </View>
           <View style={styles.note}>
             <ShieldCheck color={colors.primary} size={18} />
             <View style={styles.noteCopy}>

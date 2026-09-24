@@ -4,6 +4,7 @@ import { registerRootComponent } from 'expo';
 import './src/themeBoot';
 // Then the language, so every label is built in it (plan-devam G1).
 import './src/i18n/boot';
+import './src/analyticsBoot';
 
 import App from './App';
 

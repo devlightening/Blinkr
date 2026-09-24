@@ -89,6 +89,8 @@ export function AuthScreen({ onAuthenticated }: Props) {
           <Animated.View entering={FadeIn.duration(motion.sheet).delay(60)} style={styles.formPanel}>
             <View style={styles.segment}>
               <AnimatedPressable
+                accessibilityRole="tab"
+                aria-selected={mode === 'register'}
                 onPress={() => setMode('register')}
                 pressScale={0.98}
                 style={[styles.segmentItem, mode === 'register' && styles.segmentItemActive]}
@@ -98,6 +100,8 @@ export function AuthScreen({ onAuthenticated }: Props) {
                 </Text>
               </AnimatedPressable>
               <AnimatedPressable
+                accessibilityRole="tab"
+                aria-selected={mode === 'login'}
                 onPress={() => setMode('login')}
                 pressScale={0.98}
                 style={[styles.segmentItem, mode === 'login' && styles.segmentItemActive]}
@@ -170,6 +174,7 @@ export function AuthScreen({ onAuthenticated }: Props) {
                 />
                 <AnimatedPressable
                   accessibilityLabel={showPassword ? tx('common:auth.hidePassword', 'Şifreyi gizle') : tx('common:auth.showPassword', 'Şifreyi göster')}
+                  accessibilityRole="button"
                   hitSlop={10}
                   onPress={() => setShowPassword((value) => !value)}
                   pressScale={0.85}
@@ -194,6 +199,9 @@ export function AuthScreen({ onAuthenticated }: Props) {
             ) : null}
 
             <AnimatedPressable
+              accessibilityLabel={mode === 'register' ? tx('common:auth.join', 'Blinkr’a katıl') : tx('common:auth.openMap', 'Haritayı aç')}
+              accessibilityRole="button"
+              aria-disabled={isLoading || !email || !password || (mode === 'register' && (!userName || age.problem !== null))}
               disabled={isLoading || !email || !password || (mode === 'register' && (!userName || age.problem !== null))}
               onPress={submit}
               pressScale={0.95}

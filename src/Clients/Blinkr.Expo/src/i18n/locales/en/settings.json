@@ -16,7 +16,9 @@
     "exact": "Your exact device location is never shown to others; the map shows the place centre or an approximate area.",
     "anon": "Only you see the signals you share anonymously.",
     "snaps": "Snaps disappear after one view; location data in photos is removed.",
-    "friends": "Friendship is only for finding each other and messaging; it never shares location."
+    "friends": "Friendship is only for finding each other and messaging; it never shares location.",
+    "analyticsTitle": "Share usage data",
+    "analyticsHint": "Shares which screens are used, anonymously; location, email and what you write are never sent. Off by default."
   },
   "appearance": {
     "title": "Appearance",

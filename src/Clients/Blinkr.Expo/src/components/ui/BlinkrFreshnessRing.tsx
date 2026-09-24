@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
 const STROKE_WIDTH = 2.5;
@@ -32,11 +32,13 @@ export function FreshnessRing({ size, progress, color, live = false, reduceMotio
   const radius = size / 2 - STROKE_WIDTH;
   const circumference = 2 * Math.PI * radius;
   const pulse = useSharedValue(1);
+  // plan-devam G8: the system "Reduce Motion" setting stops the live pulse too.
+  const systemReduced = useReducedMotion();
 
   useEffect(() => {
-    if (!live || reduceMotion) { pulse.value = withTiming(1, { duration: 200 }); return; }
+    if (!live || reduceMotion || systemReduced) { pulse.value = withTiming(1, { duration: 200 }); return; }
     pulse.value = withRepeat(withSequence(withTiming(1, { duration: 1000 }), withTiming(0.55, { duration: 1000 })), -1, true);
-  }, [live, reduceMotion, pulse]);
+  }, [live, reduceMotion, systemReduced, pulse]);
 
   const animatedRingStyle = useAnimatedStyle(() => ({ opacity: pulse.value }), []);
 

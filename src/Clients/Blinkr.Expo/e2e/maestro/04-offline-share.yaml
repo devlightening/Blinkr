@@ -1,0 +1,15 @@
+# Scenario 4: share with the network off -> the chip waits -> network on -> shared.
+appId: ${APP_ID}
+---
+- launchApp
+- setAirplaneMode: enabled
+- longPressOn: "Yeni sinyal paylaş"      # text-only signal
+- tapOn: "Doluluk"
+- tapOn: "Sakin"
+- tapOn: "Gönder"
+- assertVisible:
+    id: "share-progress"
+- setAirplaneMode: disabled
+- extendedWaitUntil:
+    visible: "Paylaşıldı.*"
+    timeout: 60000

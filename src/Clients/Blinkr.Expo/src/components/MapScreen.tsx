@@ -22,6 +22,7 @@ import { useShareOutbox, type SharedResult } from '../shareOutbox';
 import { newOutboxId, type OutboxItem } from '../shareQueue';
 import { ShareProgressChip } from './map/ShareProgressChip';
 import { suggestCameraPlace } from '../cameraPlace';
+import { track } from '../analytics';
 import { friendlyError } from '../productPresentation';
 import { BlinkrMapMarker, BlinkrClusterMarker } from './BlinkrMapMarker';
 import { bottomBarClearance } from './ui/BlinkrBottomBar';
@@ -70,6 +71,8 @@ type Props = {
   onAuthChange: (auth: AuthResponse) => void;
   onLogout: () => void;
   onOpenProfile: () => void;
+  /** Opens Keşfet > Yakınımda: the map's content as a list (plan-devam G6). */
+  onShowList?: () => void;
   /** Set when (+) was pressed on any tab: `camera` (tap) or `text` (long press); cleared through `onShareHandled`. */
   shareRequested?: ShareMode | null;
   onShareHandled?: () => void;
@@ -99,7 +102,7 @@ const MAX_NEARBY_LOCATION_AGE_MS = 30_000;
 const LOCATION_TIMEOUT_MS = 8_000;
 
 
-export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRequested = null, onShareHandled, focusPlace = null, onFocusHandled, focusSignal = null, onFocusSignalHandled, onOverlayOpenChange, onMessageUser }: Props) {
+export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowList, shareRequested = null, onShareHandled, focusPlace = null, onFocusHandled, focusSignal = null, onFocusSignalHandled, onOverlayOpenChange, onMessageUser }: Props) {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const activeRequest = useRef<AbortController | null>(null);
@@ -419,6 +422,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
   }, []);
 
   const openPlaceDetailAfterTouch = useCallback((place: BlinkrPlace) => {
+    track('pin_tapped', { is_place: true, is_cluster: false, signal_type: place.currentState?.signalType ?? undefined });
     const generation = ++overlayGeneration.current;
     InteractionManager.runAfterInteractions(() => {
       if (overlayGeneration.current !== generation) return;
@@ -436,6 +440,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
   }, [loadPlaceDetail]);
 
   const openSignalDetailAfterTouch = useCallback((signal: CoordinateSignal) => {
+    track('pin_tapped', { is_place: false, is_cluster: false, signal_type: signal.signalType });
     const generation = ++overlayGeneration.current;
     detailRequest.current?.abort();
     detailRequestSeq.current += 1;
@@ -448,6 +453,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
 
   const confirmFromCard = useCallback(async (card: CardSignal) => {
     if (!card.placeId || card.latitude === null || card.longitude === null) throw new Error(i18n.t('signal:card.confirmFailed'));
+    track('signal_verified', { verdict: 'same' });
     const position = await getFreshDeviceLocation();
     await createSignal(auth, {
       title: '',
@@ -608,7 +614,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
       let effectiveDistance = place.distanceMeters ?? null;
 
       if (permission.status === 'granted') {
-        const position = await getFreshDeviceLocation();
+    const position = await getFreshDeviceLocation();
         observationLatitude = position.coords.latitude;
         observationLongitude = position.coords.longitude;
         observationAccuracyMeters = Math.max(1, position.coords.accuracy ?? 25);
@@ -764,6 +770,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
 
   // plan-devam D9: once a share is out, show it - fly there and reload until the new pin is in the answer.
   const revealShared = useCallback(async ({ postId, item }: SharedResult) => {
+    track('signal_created', { signal_type: item.input.signalType, has_media: item.media.length > 0, source: item.input.placeId ? 'place' : 'coordinate', is_anonymous: item.input.identityDisclosure === 'AnonymousMap', to_story: item.story, snap_recipients: item.snapFriendIds.length });
     setSuccess(i18n.t(item.story ? 'create:outbox.doneStory' : 'create:outbox.done'));
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -945,6 +952,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
         onLayerChange={(layer) => { setMapLayer(layer); Haptics.selectionAsync(); }}
         onLocate={() => moveToDeviceLocation(true).catch((err) => setError(friendlyError(err)))}
         onOpenProfile={onOpenProfile}
+        onShowList={onShowList}
         onScan={scanVisibleArea}
         scanAvailable={Boolean(error) && mapDirty}
         avatarKey={auth.avatarKey}
@@ -961,7 +969,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
           <Text style={[styles.toastText, error && styles.errorToastText]} numberOfLines={3}>
             {error || success}
           </Text>
-          <AnimatedPressable accessibilityLabel={tx('map:closeNotice', 'Bildirimi kapat')} hitSlop={10} onPress={() => { setError(null); setSuccess(null); }} pressScale={0.85}>
+          <AnimatedPressable accessibilityLabel={tx('map:closeNotice', 'Bildirimi kapat')} accessibilityRole="button" hitSlop={10} onPress={() => { setError(null); setSuccess(null); }} pressScale={0.85}>
             <X color={error ? colors.danger : colors.mint} size={18} />
           </AnimatedPressable>
         </Animated.View>

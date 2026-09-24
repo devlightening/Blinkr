@@ -1,0 +1,10 @@
+# Scenario 13: Ayarlar -> English -> the app reloads in English.
+appId: ${APP_ID}
+---
+- launchApp
+- tapOn: "Profil"
+- tapOn: "Ayarlar"
+- tapOn: "English"
+- extendedWaitUntil:
+    visible: "Where are you going?|Profile"
+    timeout: 15000

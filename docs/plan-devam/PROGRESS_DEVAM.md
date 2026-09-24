@@ -8,7 +8,7 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz G (A–F tamam; A2/A3 silme ve F1 destek adresi kullanıcıyı bekliyor) |
+| Aktif faz | Tüm fazlar kodda tamam; kalanlar cihaz testi ve kullanıcı kararı (A2/A3 silme, F1 destek adresi, secret'lar) |
 | Önceki durum | Faz 0–9 işlevsel tamam · Faz 10 yarım (P10.1/3/4/8/9 bitti) |
 | Son güncelleme | 2026-09-24 |
 | Engelleyici | F1: gerçek destek/itiraz e-posta adresi kullanıcıdan alınacak |
@@ -94,20 +94,20 @@
 
 ## Faz G — Kapanış: i18n, a11y, performans, analitik, QA, yayın
 
-- [ ] G1 Ekran taraması
-- [ ] G2 Anahtar eşitliği
-- [ ] G3 Yerelleştirme
-- [ ] G4 RTL hazırlık
-- [ ] G5 Etiketler ve dokunma alanı
-- [ ] G6 Harita erişilebilirliği
-- [ ] G7 Renk tek başına anlam taşımaz
-- [ ] G8 Hareketi Azalt
-- [ ] G9 Bütçe ölçümü
-- [ ] G10 Liste ve görsel
-- [ ] G11 Soyutlama + olay şeması
-- [ ] G12 Seed ve demo modu
-- [ ] G13 E2E senaryoları
-- [ ] G14 Yayın kontrol listesi
+- [x] G1 Ekran taraması — ~500 metin 50 dosyada `tx()` ile anahtara taşındı, en eklendi; İngilizce ekran görüntüleriyle doğrulandı
+- [x] G2 Anahtar eşitliği — `test:i18n`: anahtar eşitliği + `i18n-scan.cjs --max 0` (kodda metin kalırsa başarısız)
+- [~] G3 Yerelleştirme — Ayarlar > Dil (Sistem/Türkçe/English), tarih/saat/sayı dile göre, göreli zaman ve gün ayırıcı çevrildi; mesafe metrik (D-022)
+- [-] G4 RTL hazırlık — MVP'de RTL dil yok (D-022)
+- [x] G5 Etiketler ve dokunma alanı — rol/etiket eksik dokunulabilirler tarandı ve düzeltildi (giriş sekmeleri, şifre, gönder, bildirim kapatma)
+- [x] G6 Harita erişilebilirliği — pin etiketi "Bekleme, 5–15 dk, BİM, 2 dk önce, canlı" (`markerA11y.ts`, test), küme etiketi, haritada "Liste olarak göster" → Keşfet
+- [x] G7 Renk tek başına anlam taşımaz — tür hem renk hem ikon, seviye metinle; kontrast iki temada `test:theme`
+- [x] G8 Hareketi Azalt — basma/sheet/kart zaten `ReduceMotion.System`; canlı nabız ve iskelet ışığı sistem ayarında duruyor
+- [~] G9 Bütçe ölçümü — API p95 ölçüldü (aşağıda), cihaz ölçümleri bekliyor
+- [-] G10 Liste ve görsel — listeler sanallaştırılmış; görsel varyantları/blurhash ertelendi (D-022)
+- [x] G11 Soyutlama + olay şeması — `analytics.ts` (şema, kişisel veri atılır, test), Ayarlar > Gizlilik "Kullanım verilerini paylaş" (varsayılan kapalı), sağlayıcı yok (no-op)
+- [x] G12 Seed ve demo modu — `scripts/seed-demo.cjs` (deterministik, yüz yok, `--reset` yalnız kendi sinyallerini siler)
+- [~] G13 E2E senaryoları — Maestro akışları `e2e/maestro` (koşulmadı, simülatör yok); senaryo başına otomatik karşılıklar README'de
+- [~] G14 Yayın kontrol listesi — `docs/operations/release-checklist.md`, `.env.example`; hesap/secret isteyen maddeler kullanıcıda
 
 ## Faz özetleri
 
@@ -145,6 +145,11 @@
 - **Doğrulama:** BLK-ACCOUNT-01 (yeni: doğum yılı, 18 altı DM, veri talebi, silme/iptal/purge — profil, giriş, arama, sinyal, yorum, beğeni, sohbet) PASS; `age-gate.test.ts`, test:ui (yasal ekranlar, veri talebi, iki adımlı silme, bekleyen silme ekranı, doğum yılı, EULA) PASS.
 - **Faz 10 özeti:** P10.1 metin filtresi, P10.3/4 rapor/yaptırım, P10.6 yaş, P10.7 hesap silme, P10.8 log gizliliği, P10.9 yetki testleri, P10.10 yasal metinler tamam; P10.2 görsel moderasyon ücretli anahtar gerektirdiği için ertelendi (D-015). Açık: destek adresi (F1), EventStore kalıcı silme operasyonu.
 
+### Faz G — 2026-09-24
+- **Yapılanlar:** tam tr/en kapsama + dil ayarı + i18n bekçisi; erişilebilirlik (roller, pin etiketleri, liste düğmesi, Hareketi Azalt); analitik soyutlaması ve rıza anahtarı; API gecikme ölçümü; demo seed; Maestro akışları; yayın kontrol listesi.
+- **Doğrulama:** typecheck, test:theme, test:nearby (marker-a11y, analytics dahil), test:product, test:i18n (0 bulgu), test:ui, iOS + Android export PASS; `measure-api-latency.ps1` bütçe içinde.
+- **Kalan (cihaz/kullanıcı):** açılış/kamera/kart/fps ölçümü, Maestro koşusu, fiziksel iki cihaz testi, destek adresi, Sentry/PostHog anahtarları, .env'in izlemeden çıkarılması, test verisi silme onayı.
+
 ## Performans ölçümleri (Faz G)
 
 | Metrik | Hedef | Ölçülen | Cihaz |
@@ -153,4 +158,4 @@
 | (+) → kamera | < 500 ms | | |
 | Pin → Sinyal Kartı | < 150 ms | | |
 | Harita 300 pin | 55+ fps | | |
-| API p95 harita/akış | < 300 ms | | |
+| API p95 harita/akış | < 300 ms | harita 31 · yakın yerler 55 · keşfet 51 · sohbet 110 ms | yerel (tek makine, Docker) |

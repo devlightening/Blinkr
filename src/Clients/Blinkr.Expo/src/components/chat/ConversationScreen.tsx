@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getMessages, markConversationRead, reactToMessage, sendMessage, sendReport, sendTyping, unsendMessage } from '../../api';
 import { CHAT_REACTIONS, applyReaction, canReact, canUnsend, newClientId, nextReaction, reactionSummary } from '../../chatExtras';
+import { track } from '../../analytics';
 import { buildThread, lastOwnMessageId, receiptLabel, shouldPingTyping } from '../../chatThread';
 import { signalLabels } from '../../presentation';
 import { friendlyError, signalValueLabel } from '../../productPresentation';
@@ -145,6 +146,7 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
       const sent = await sendMessage(auth, conversation.id, text, onAuthChange, onSessionExpired, { clientId, replyToId: quoting?.id ?? null });
       pendingClientId.current = null;
       lastTypingPing.current = 0;
+      track('message_sent', { type: quoting ? 'reply' : 'text' });
       // A poll may already have returned the message; never show it twice.
       setMessages((prev) => (prev.some((message) => message.id === sent.id) ? prev : [sent, ...prev]));
       setError(null);

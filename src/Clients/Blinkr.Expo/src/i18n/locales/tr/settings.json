@@ -16,7 +16,9 @@
     "exact": "Kesin cihaz konumun diğer kullanıcılara gösterilmez; haritada yer merkezi ya da yaklaşık alan görünür.",
     "anon": "Anonim paylaştığın sinyalleri yalnızca sen görürsün.",
     "snaps": "Snap’ler bir kez izlenip kaybolur; fotoğraflardaki konum bilgisi silinir.",
-    "friends": "Arkadaşlık yalnızca birbirini bulmak ve mesajlaşmak içindir; konum paylaşmaz."
+    "friends": "Arkadaşlık yalnızca birbirini bulmak ve mesajlaşmak içindir; konum paylaşmaz.",
+    "analyticsTitle": "Kullanım verilerini paylaş",
+    "analyticsHint": "Hangi ekranların kullanıldığını adsız olarak paylaşır; konum, e-posta ve yazdıkların asla gönderilmez. Varsayılan kapalı."
   },
   "appearance": {
     "title": "Görünüm",

@@ -1,0 +1,14 @@
+# Scenario 2: map -> pin -> Sinyal Kartı -> "Evet, hâlâ böyle". Run on a device signed in near seeded data
+# (node scripts/seed-demo.cjs). APP_ID = the dev build's bundle id (or host.exp.exponent for Expo Go).
+appId: ${APP_ID}
+---
+- launchApp
+- tapOn:
+    id: "map-show-list"
+    optional: true
+- back
+- tapOn: "Bekleme.*"          # a pin's spoken label starts with its type (plan-devam G6)
+- assertVisible:
+    id: "signal-card-modal"
+- tapOn: "Evet, hâlâ böyle"
+- assertVisible: "Doğrulandı.*|Teşekkürler.*"

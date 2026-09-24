@@ -101,5 +101,9 @@
     "mosque": "Mosque",
     "school": "School",
     "bakery": "Bakery"
+  },
+  "a11y": {
+    "cluster": "{{count}} signals and places, zoom in",
+    "showList": "Show as list"
   }
 }

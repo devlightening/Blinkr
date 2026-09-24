@@ -3,6 +3,7 @@ import { Marker } from 'react-native-maps';
 import { PLACE_PIN, SIGNAL_BUBBLE, anchorOf } from '../markerGeometry';
 import { ClusterVisual, MarkerVisual } from './MapMarkerVisuals';
 import type { BlinkrPlace, CoordinateSignal } from '../types';
+import { clusterLabel, placePinLabel, signalPinLabel } from '../markerA11y';
 
 const PLACE_ANCHOR = anchorOf(PLACE_PIN);
 const SIGNAL_ANCHOR = anchorOf(SIGNAL_BUBBLE);
@@ -18,14 +19,14 @@ export const BlinkrMapMarker = memo(function BlinkrMapMarker({ place, signal, se
 }) {
   const anchor = place ?? signal;
   if (!anchor) return null;
-  return <Marker anchor={place ? PLACE_ANCHOR : SIGNAL_ANCHOR} coordinate={{ latitude: anchor.latitude, longitude: anchor.longitude }}
+  return <Marker accessibilityLabel={place ? placePinLabel(place, now) : signal ? signalPinLabel(signal) : undefined} accessibilityRole="button" anchor={place ? PLACE_ANCHOR : SIGNAL_ANCHOR} coordinate={{ latitude: anchor.latitude, longitude: anchor.longitude }}
     onPress={() => place ? onPlace(place) : signal && onSignal(signal)} zIndex={selected ? 45 : place ? 20 : 30}>
     <MarkerVisual now={now} place={place} selected={selected} signal={signal} />
   </Marker>;
 });
 
 export const BlinkrClusterMarker = memo(function BlinkrClusterMarker({ latitude, longitude, count, onPress }: { latitude: number; longitude: number; count: number; onPress: () => void }) {
-  return <Marker anchor={{ x: 0.5, y: 0.5 }} coordinate={{ latitude, longitude }} onPress={onPress} zIndex={50}>
+  return <Marker accessibilityLabel={clusterLabel(count)} accessibilityRole="button" anchor={{ x: 0.5, y: 0.5 }} coordinate={{ latitude, longitude }} onPress={onPress} zIndex={50}>
     <ClusterVisual count={count} />
   </Marker>;
 });
