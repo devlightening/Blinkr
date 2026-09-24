@@ -719,6 +719,14 @@ async function main() {
     await page.getByLabel('zeynep kişisine yanıt ver…').fill('Teşekkürler!');
     await page.getByRole('button', { name: 'Gönder' }).click();
     await expect(page.getByText('Yanıtın mesaj olarak gönderildi.')).toBeVisible();
+    // V2-3: the heart (optimistic, pressed state), six quick emoji replies that go as a story reply DM.
+    await page.getByRole('button', { name: 'Hikayeyi beğen' }).click();
+    await expect(page.getByRole('button', { name: 'Beğeniyi geri al' })).toBeVisible();
+    await expect(page.getByTestId('story-reactions').getByRole('button')).toHaveCount(6);
+    await page.getByRole('button', { name: '🔥 ile yanıtla' }).click();
+    await expect(page.getByText('🔥 mesaj olarak gönderildi.')).toBeVisible();
+    if ((await page.evaluate(() => window.__lastText)) !== '↩ Hikayene yanıt: 🔥') throw new Error('emoji reply wrong');
+    await page.waitForTimeout(250); await page.screenshot({ path: path.join(out, 'story-viewer-liked.png') });
     await page.getByTestId('story-next').click();
     await page.getByTestId('story-next').click();
     await page.getByTestId('story-next').click();
@@ -730,14 +738,32 @@ async function main() {
     await page.getByRole('button', { name: 'Paylaş', exact: true }).click();
     await expect(page.getByText('Hikayen 24 saat takipçilerine görünür.')).toBeVisible();
     await page.getByRole('button', { name: 'Hikayen', exact: true }).click();
-    await expect(page.getByText('1 görüntüleme')).toBeVisible();
-    await page.getByText('1 görüntüleme').click();
+    await expect(page.getByText('2 görüntüleme')).toBeVisible();
+    await expect(page.getByLabel('1 beğeni')).toBeVisible();
+    await page.getByText('2 görüntüleme').click();
     await expect(page.getByText('Görüntüleyenler')).toBeVisible();
+    await expect(page.getByTestId('viewer-liked-u-zeynep')).toBeVisible();
+    await expect(page.getByTestId('viewer-liked-u-ece')).toHaveCount(0);
+    await page.waitForTimeout(250); await page.screenshot({ path: path.join(out, 'story-viewers-hearts.png') });
     await page.getByRole('button', { name: 'Vazgeç' }).click();
     await page.getByRole('button', { name: 'Hikayeyi sil' }).click();
     await page.getByRole('button', { name: 'Evet, sil' }).click();
     await expect(page.getByTestId('story-viewer')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Hikaye ekle' })).toBeVisible();
+    // V2-3: swipe left turns to the next person (the release is not also a tap), swipe down closes.
+    await page.goto(url + '?scene=discover');
+    await page.getByRole('button', { name: /^zeynep, / }).click();
+    await expect(page.getByTestId('story-viewer')).toBeVisible();
+    await page.mouse.move(300, 400); await page.mouse.down();
+    for (let x = 300; x >= 60; x -= 12) await page.mouse.move(x, 402);
+    await page.mouse.up();
+    await expect(page.getByTestId('story-viewer').getByText('ece', { exact: true })).toBeVisible();
+    await page.waitForTimeout(500);
+    await expect(page.getByTestId('story-viewer')).toBeVisible();
+    await page.mouse.move(200, 300); await page.mouse.down();
+    for (let y = 300; y <= 560; y += 12) await page.mouse.move(202, y);
+    await page.mouse.up();
+    await expect(page.getByTestId('story-viewer')).toHaveCount(0);
     // P8.7: send a feed signal to a friend in chat (link + summary, no author).
     await page.goto(url + '?scene=discover');
     await page.getByTestId('feed-share-n-1').click();

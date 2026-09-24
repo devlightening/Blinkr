@@ -168,7 +168,7 @@ export const sendMessage = async (_auth: unknown, conversationId: string, text: 
   const quoted = extras.replyToId ? allMessages().find((m) => m.id === extras.replyToId) : null;
   const message: ChatMessage = { id: `sent-${sent.length}`, conversationId, senderId: 'qa', text, createdAtUtc: new Date().toISOString(), isRead: false, kind: extras.signal ? 'signal' : 'text', signal: extras.signal ?? null, clientId: extras.clientId ?? null, reactions: [], replyTo: quoted ? { messageId: quoted.id, senderId: quoted.senderId, text: quoted.text.slice(0, 120), kind: quoted.kind ?? 'text' } : null };
   sent = [message, ...sent];
-  if (typeof window !== 'undefined') (window as unknown as { __lastShare?: unknown }).__lastShare = extras.signal ?? null;
+  if (typeof window !== 'undefined') Object.assign(window as unknown as Record<string, unknown>, { __lastShare: extras.signal ?? null, __lastText: text });
   return message;
 };
 const allMessages = () => [...sent, ...chatMessages];
@@ -276,7 +276,13 @@ export const getDiscoverFollowing = async (_auth: unknown, page = 1) => {
 // Stories: zeynep has two unseen, ece one seen, I have none until I post one.
 const storyPixel = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="360" height="640"><rect width="360" height="640" fill="#2b5a4a"/></svg>');
 let myStories: Array<Record<string, unknown>> = [];
-const storyFor = (id: string, authorId: string, authorName: string, seen: boolean) => ({ id, authorId, authorName, mediaType: 'Image', caption: id === 'z-1' ? 'Kuyruk kısa' : null, durationSeconds: 3, createdAtUtc: new Date(feedNow - 30 * 60_000).toISOString(), expiresAtUtc: new Date(feedNow + 20 * 3_600_000).toISOString(), seen, viewerCount: null });
+// ?storylikefail = the heart is refused by the server.
+const likedStories = new Set<string>();
+export const likeStory = async (_auth: unknown, id: string, liked: boolean) => {
+  if (flag('storylikefail')) throw new Error('Network request failed');
+  if (liked) { likedStories.add(id); seenStories.add(id); } else likedStories.delete(id);
+};
+const storyFor = (id: string, authorId: string, authorName: string, seen: boolean) => ({ id, authorId, authorName, mediaType: 'Image', caption: id === 'z-1' ? 'Kuyruk kısa' : null, durationSeconds: 3, createdAtUtc: new Date(feedNow - 30 * 60_000).toISOString(), expiresAtUtc: new Date(feedNow + 20 * 3_600_000).toISOString(), seen, viewerCount: null, likedByMe: likedStories.has(id) });
 const seenStories = new Set<string>();
 export const listStoryTray = async () => [
   ...(myStories.length ? [{ authorId: 'qa', authorName: 'alper', isMine: true, storyCount: myStories.length, latestAtUtc: new Date().toISOString(), allSeen: true }] : []),
@@ -286,11 +292,11 @@ export const listStoryTray = async () => [
 export const listUserStories = async (_auth: unknown, userId: string) =>
   userId === 'qa' ? myStories : userId === 'u-zeynep' ? [storyFor('z-1', 'u-zeynep', 'zeynep', seenStories.has('z-1')), storyFor('z-2', 'u-zeynep', 'zeynep', seenStories.has('z-2'))] : [storyFor('e-1', 'u-ece', 'ece', true)];
 export const markStorySeen = async (_auth: unknown, id: string) => { seenStories.add(id); };
-export const listStoryViewers = async () => [{ userId: 'u-ece', userName: 'ece', seenAtUtc: new Date().toISOString() }];
+export const listStoryViewers = async () => [{ userId: 'u-ece', userName: 'ece', seenAtUtc: new Date().toISOString() }, { userId: 'u-zeynep', userName: 'zeynep', seenAtUtc: new Date(Date.now() - 60_000).toISOString(), liked: true }];
 export const deleteStory = async (_auth: unknown, id: string) => { myStories = myStories.filter((s) => s.id !== id); };
 export const storyMediaSource = (_auth: unknown, _id: string) => ({ uri: storyPixel, headers: {} as Record<string, string> });
 export const postStory = async () => {
-  const story = { ...storyFor(`m-${myStories.length + 1}`, 'qa', 'alper', true), viewerCount: 1 };
+  const story = { ...storyFor(`m-${myStories.length + 1}`, 'qa', 'alper', true), viewerCount: 2, likeCount: 1 };
   myStories = [...myStories, story];
   return story;
 };

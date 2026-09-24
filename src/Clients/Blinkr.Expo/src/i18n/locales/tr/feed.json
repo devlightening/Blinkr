@@ -60,6 +60,14 @@
     "next": "Sonraki",
     "previous": "Önceki",
     "share": "Paylaş",
-    "gone": "Bu hikaye artık yok."
+    "gone": "Bu hikaye artık yok.",
+    "reactionSent": "{{emoji}} mesaj olarak gönderildi.",
+    "react": "{{emoji}} ile yanıtla",
+    "like": "Hikayeyi beğen",
+    "unlike": "Beğeniyi geri al",
+    "likeFailed": "Beğeni kaydedilemedi. Tekrar dene.",
+    "likedIt": "Beğendi",
+    "likes_one": "{{count}} beğeni",
+    "likes_other": "{{count}} beğeni"
   }
 }

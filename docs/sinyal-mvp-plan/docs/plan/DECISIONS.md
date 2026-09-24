@@ -15,6 +15,14 @@
 
 ## Kararlar
 
+### D-026 — V2-3: hikaye beğenisi, hızlı emoji, küp geçiş (2026-09-24)
+- Karar:
+  - `POST/DELETE /api/stories/{id}/like` (NotificationsService): hikayeyi görebilen herkes, kendi hikayesi hariç (400 `SELF`), yetkisize 403; iki yönde idempotent. İlk beğeni görüldü sayılır ve yazara bir kez `StoryLiked` bildirimi gider (geri alınıp yeniden beğenmek ikinci bildirim üretmez). Beğeni sayısı yalnız yazara döner (`likeCount`); izleyen yalnız kendi `likedByMe`'sini görür; görüntüleyenler listesinde beğenenler üstte ve kalpli.
+  - Hızlı emoji (😂 😮 😍 😢 👏 🔥) ayrı bir tepki kaydı değil, mevcut "Hikayene yanıt" DM yoludur: yeni veri modeli ve bildirim türü gerekmedi.
+  - Kişiler arası geçiş: yana kaydırma küp dönüşüdür (yüz paylaştığı kenarda döner, UI thread'de tek `face` değeri); Hareketi Azalt açıkken düz kayma. Aşağı kaydırma hikayeyi küçülterek kapatır, arkası görünür. Bir kaydırmanın bırakılışı dokunma bölgesine ayrıca dokunma sayılmaz (350 ms koruma; web'de RNGH Pressable'ı iptal etmiyordu).
+  - Sonraki kişinin hikaye listesi önceden çekilir ve ilk fotoğrafı görünmez bir resimle önbelleğe alınır.
+- Etki: CLAUDE.md §6.5 ve §13 Stories, PROGRESS_V2 3.2-3.5.
+
 ### D-025 — V2-2: Sinyal Kartı tam sayfaya büyür, tek video oynatıcı, paylaşılan bağlantı (2026-09-24)
 - Karar:
   - Kart iki durakta: yüzen kart ve tam sayfa. Başlıktan yukarı çekmek, yorum düğmesi ya da (tek sinyalde) "Tam sayfa aç" kartı tüm ekrana büyütür; başlıktan aşağı çekmek ya da Geri kartı geri küçültür, karttan aşağı çekmek kapatır; Android geri tuşu da aynı sırayı izler. Tek `expand` değeri UI thread'de kenar boşluğunu, köşeyi ve yüksekliği (ölçülen kart yüksekliğinden ekran yüksekliğine) birlikte taşır.

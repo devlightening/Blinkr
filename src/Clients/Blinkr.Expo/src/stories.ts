@@ -15,8 +15,34 @@ export type Story = {
   expiresAtUtc: string;
   seen: boolean;
   viewerCount?: number | null;
+  /** V2-3: whether I liked it; the count is only ever sent to the author. */
+  likedByMe?: boolean;
+  likeCount?: number | null;
 };
-export type StoryViewer = { userId: string; userName: string; seenAtUtc: string };
+export type StoryViewer = { userId: string; userName: string; seenAtUtc: string; liked?: boolean };
+
+/** Quick replies under someone's story (V2-3): one tap sends the emoji as an ordinary story reply DM. */
+export const STORY_QUICK_REACTIONS = ['😂', '😮', '😍', '😢', '👏', '🔥'] as const;
+
+/** Optimistic heart: flip one story in the list (a like also counts as seen, as on the server). */
+export const withStoryLike = <T extends Pick<Story, 'id' | 'likedByMe' | 'seen'>>(stories: T[], storyId: string, liked: boolean): T[] =>
+  stories.map((story) => (story.id === storyId ? { ...story, likedByMe: liked, seen: story.seen || liked } : story));
+
+/** Viewers with a heart come first, then the latest views (mirrors the server). */
+export const sortViewers = (viewers: StoryViewer[]) =>
+  [...viewers].sort((a, b) => Number(Boolean(b.liked)) - Number(Boolean(a.liked)) || Date.parse(b.seenAtUtc) - Date.parse(a.seenAtUtc));
+
+export type StorySwipe = 'close' | 'nextAuthor' | 'previousAuthor' | 'none';
+/** How far (points) or how fast (points/s) a released drag must go to count. */
+export const STORY_SWIPE_DISTANCE = 80;
+const STORY_SWIPE_VELOCITY = 800;
+/** What a released drag means: down closes, sideways changes person; a short drag or an upward one does nothing. */
+export const storySwipe = (dx: number, dy: number, vx = 0, vy = 0): StorySwipe => {
+  if (Math.abs(dy) > Math.abs(dx)) return dy > STORY_SWIPE_DISTANCE || vy > STORY_SWIPE_VELOCITY ? 'close' : 'none';
+  if (dx < -STORY_SWIPE_DISTANCE || vx < -STORY_SWIPE_VELOCITY) return 'nextAuthor';
+  if (dx > STORY_SWIPE_DISTANCE || vx > STORY_SWIPE_VELOCITY) return 'previousAuthor';
+  return 'none';
+};
 
 export const STORY_PHOTO_SECONDS = [3, 5, 10] as const;
 export const DEFAULT_STORY_SECONDS = 5;

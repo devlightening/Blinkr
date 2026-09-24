@@ -29,7 +29,7 @@ type Props = {
 
 const iconFor = (type: string) => {
   switch (type) {
-    case 'PostLiked': return <Heart color={colors.danger} fill={colors.danger} size={14} />;
+    case 'PostLiked': case 'StoryLiked': return <Heart color={colors.danger} fill={colors.danger} size={14} />;
     case 'CommentCreated': return <MessageCircle color={colors.primary} size={14} />;
     case 'FollowAccepted': return <UserCheck color={colors.primary} size={14} />;
     case 'UserFollowed': case 'FollowRequested': return <UserPlus color={colors.primary} size={14} />;

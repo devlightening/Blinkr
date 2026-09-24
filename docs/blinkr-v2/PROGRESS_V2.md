@@ -3,7 +3,7 @@
 | Alan | Değer |
 |---|---|
 | Dal | `feat/blinkr-theme-redesign` |
-| Aktif faz | V2-3 |
+| Aktif faz | V2-4 |
 | Son güncelleme | 2026-09-24 |
 
 İşaretler: `[x]` bitti ve ekranda doğrulandı · `[~]` kısmen / cihaz bekliyor · `[ ]` yapılmadı · `[-]` bilinçli ertelendi
@@ -25,10 +25,10 @@
 
 ## V2-3 Hikayeler
 - [x] 3.1 Tepsi: gradyan halka (görülmemiş), gri (görülmüş), "Hikayen +"
-- [ ] 3.2 Görüntüleyici: küp geçiş, aşağı kaydır-kapat, ön yükleme
-- [ ] 3.3 Beğeni (♥) + emoji hızlı yanıt (DM olarak)
-- [ ] 3.4 Sunucu: `POST/DELETE /api/stories/{id}/like`, görüntüleyenlerde kalp
-- [ ] 3.5 Kabul: `test-story-likes.ps1`
+- [~] 3.2 Görüntüleyici: küp geçiş (yana kaydırma, Hareketi Azalt'ta düz kayma), aşağı kaydır-kapat (küçülerek, arkası görünür), sonraki kişinin ön yüklenmesi — tarayıcıda doğrulandı, native dokunuş/akıcılık cihazda bekliyor
+- [x] 3.3 Beğeni (♥, iyimser, hata olursa geri alır) + 6 emoji hızlı yanıt (hikaye yanıtı DM'i olarak)
+- [x] 3.4 Sunucu: `POST/DELETE /api/stories/{id}/like`, görüntüleyenlerde kalp (beğenenler üstte), yazara bir kez `StoryLiked` bildirimi
+- [x] 3.5 Kabul: `test-story-likes.ps1` (BLK-STORY-LIKES-01 PASS) + `test-stories.ps1` regresyon PASS
 
 ## V2-4 Tepkiler, mention, hashtag
 - [ ] 4.1 Emoji tepkileri (olay zinciri)
@@ -60,3 +60,8 @@
 
 ## Oturum günlüğü
 _(her fazın sonunda: yapılanlar, doğrulama, kalanlar)_
+
+### 2026-09-24 — V2-3 Hikayeler
+- Yapılan: hikaye beğenisi uçları + bildirim (D-026), görüntüleyicide kalp, 6 hızlı emoji, küp geçiş, aşağı kaydırıp kapatma, sonraki kişinin ön yüklenmesi; görüntüleyenlerde kalp; `StoryLiked` bildirimi kişiyi açar.
+- Doğrulama: `test-story-likes.ps1` PASS, `test-stories.ps1` PASS, `typecheck`, `test:nearby` (yeni: beğeni, sıralama, kaydırma, emoji), `test:theme`, `test:product`, `test:i18n`, `test:ui` (beğeni, emoji DM, kalpli görüntüleyenler, sola kaydırınca sonraki kişi, aşağı kaydırınca kapanma), iOS/Android export.
+- Cihazda: küp geçişin ve aşağı çekmenin akıcılığı, iOS'ta kaydırmanın dokunuşla çakışmaması.

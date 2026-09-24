@@ -9,5 +9,7 @@ public enum NotificationType
     FollowRequested = 5,
     FollowAccepted = 6,
     /// <summary>A moderation warning or sanction (Faz 10 P10.4).</summary>
-    ModerationNotice = 7
+    ModerationNotice = 7,
+    /// <summary>Someone liked your story (V2-3).</summary>
+    StoryLiked = 8
 }

@@ -60,6 +60,14 @@
     "next": "Next",
     "previous": "Previous",
     "share": "Share",
-    "gone": "This story is gone."
+    "gone": "This story is gone.",
+    "reactionSent": "{{emoji}} sent as a message.",
+    "react": "Reply with {{emoji}}",
+    "like": "Like story",
+    "unlike": "Remove like",
+    "likeFailed": "Couldn't save the like. Try again.",
+    "likedIt": "Liked",
+    "likes_one": "{{count}} like",
+    "likes_other": "{{count}} likes"
   }
 }

@@ -35,10 +35,10 @@ export const groupNotifications = (items: AppNotification[], now = new Date()): 
 
 export type NotificationTarget = { kind: 'post'; postId: string } | { kind: 'user'; userId: string; userName: string } | null;
 
-/** Where tapping a notification goes: the signal for likes/comments, the person for follows. */
+/** Where tapping a notification goes: the signal for likes/comments, the person for follows and story likes. */
 export const notificationTarget = (n: AppNotification): NotificationTarget => {
   if (n.postId && (n.type === 'PostLiked' || n.type === 'CommentCreated')) return { kind: 'post', postId: n.postId };
-  if (n.actorUserId && (n.type === 'UserFollowed' || n.type === 'FollowRequested' || n.type === 'FollowAccepted')) {
+  if (n.actorUserId && (n.type === 'UserFollowed' || n.type === 'FollowRequested' || n.type === 'FollowAccepted' || n.type === 'StoryLiked')) {
     return { kind: 'user', userId: n.actorUserId, userName: n.actorUserName ?? '' };
   }
   const link = parseDeepLink(n.deepLink);

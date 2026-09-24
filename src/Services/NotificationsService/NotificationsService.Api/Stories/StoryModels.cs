@@ -21,6 +21,14 @@ public class StoryDocument
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime ExpiresAtUtc { get; set; }
     public List<StoryView> Views { get; set; } = new();
+    /// <summary>V2-3: who liked it (Instagram's story heart). Only the author sees the list, in the viewers.</summary>
+    public List<StoryLike> Likes { get; set; } = new();
+}
+
+public class StoryLike
+{
+    public Guid UserId { get; set; }
+    public DateTime LikedAtUtc { get; set; }
 }
 
 public class StoryView
@@ -31,8 +39,8 @@ public class StoryView
 }
 
 public record StoryTrayItemDto(Guid AuthorId, string AuthorName, bool IsMine, int StoryCount, DateTime LatestAtUtc, bool AllSeen);
-public record StoryItemDto(string Id, Guid AuthorId, string AuthorName, string MediaType, string? Caption, int DurationSeconds, DateTime CreatedAtUtc, DateTime ExpiresAtUtc, bool Seen, int? ViewerCount);
-public record StoryViewerDto(Guid UserId, string UserName, DateTime SeenAtUtc);
+public record StoryItemDto(string Id, Guid AuthorId, string AuthorName, string MediaType, string? Caption, int DurationSeconds, DateTime CreatedAtUtc, DateTime ExpiresAtUtc, bool Seen, int? ViewerCount, bool LikedByMe = false, int? LikeCount = null);
+public record StoryViewerDto(Guid UserId, string UserName, DateTime SeenAtUtc, bool Liked = false);
 
 public static class StoryRules
 {

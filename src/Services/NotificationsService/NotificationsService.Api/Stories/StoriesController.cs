@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using NotificationsService.Application.Snaps;
+using NotificationsService.Domain.Entities;
+using NotificationsService.Domain.Enums;
 using NotificationsService.Domain.Interfaces;
 using Shared.Moderation;
 
@@ -22,10 +24,12 @@ public class StoriesController : ControllerBase
     private readonly ISnapStorage _storage;
     private readonly SnapSettings _settings;
     private readonly FollowGraphClient _graph;
+    private readonly INotificationRepository _notifications;
     private readonly ILogger<StoriesController> _logger;
 
-    public StoriesController(IMongoDatabase database, ISnapStorage storage, SnapSettings settings, FollowGraphClient graph, ILogger<StoriesController> logger)
+    public StoriesController(IMongoDatabase database, ISnapStorage storage, SnapSettings settings, FollowGraphClient graph, INotificationRepository notifications, ILogger<StoriesController> logger)
     {
+        _notifications = notifications;
         _stories = database.GetCollection<StoryDocument>("stories");
         _storage = storage;
         _settings = settings;
@@ -159,7 +163,53 @@ public class StoriesController : ControllerBase
         if (story is null || story.ExpiresAtUtc <= DateTime.UtcNow) return NotFound(new { code = "STORY_NOT_FOUND" });
         if (story.AuthorId != Me()) return StatusCode(StatusCodes.Status403Forbidden, new { code = "STORY_FORBIDDEN" });
         Response.Headers.CacheControl = "private, no-store";
-        return Ok(story.Views.OrderByDescending(v => v.SeenAtUtc).Select(v => new StoryViewerDto(v.UserId, v.UserName, v.SeenAtUtc)).ToList());
+        var likers = story.Likes.Select(l => l.UserId).ToHashSet();
+        return Ok(story.Views.OrderByDescending(v => likers.Contains(v.UserId)).ThenByDescending(v => v.SeenAtUtc)
+            .Select(v => new StoryViewerDto(v.UserId, v.UserName, v.SeenAtUtc, likers.Contains(v.UserId))).ToList());
+    }
+
+    /// <summary>
+    /// POST /api/stories/{id}/like (V2-3) - Instagram's story heart. Idempotent; only someone who may see the story;
+    /// not your own. The first like tells the author once ("X hikayeni beğendi"); a like also counts as a view.
+    /// </summary>
+    [HttpPost("{id}/like")]
+    public async Task<IActionResult> Like(string id, CancellationToken ct)
+    {
+        var (story, error) = await LoadVisibleAsync(id, ct);
+        if (story is null) return error!;
+        var me = Me();
+        if (story.AuthorId == me) return BadRequest(new { code = "SELF" });
+        var notYet = Builders<StoryDocument>.Filter.And(
+            Builders<StoryDocument>.Filter.Eq(s => s.Id, id),
+            Builders<StoryDocument>.Filter.Not(Builders<StoryDocument>.Filter.ElemMatch(s => s.Likes, l => l.UserId == me)));
+        var result = await _stories.UpdateOneAsync(notYet, Builders<StoryDocument>.Update.Push(s => s.Likes, new StoryLike { UserId = me, LikedAtUtc = DateTime.UtcNow }), cancellationToken: ct);
+        if (result.ModifiedCount == 1)
+        {
+            await Seen(id, ct);
+            var name = MyName();
+            await _notifications.InsertAsync(new Notification
+            {
+                UserId = story.AuthorId,
+                Type = NotificationType.StoryLiked,
+                ActorUserId = me,
+                ActorUserName = name,
+                Content = new() { Title = "Hikaye beğenisi", Body = $"{name} hikayeni beğendi.", DeepLink = $"blinkr://users/{me}" },
+                CreatedAtUtc = DateTime.UtcNow,
+            }, ct);
+            _logger.LogInformation("Story liked | StoryId={StoryId}", id);
+        }
+        return Ok(new { liked = true });
+    }
+
+    /// <summary>DELETE /api/stories/{id}/like - take the heart back (the notification already sent stays).</summary>
+    [HttpDelete("{id}/like")]
+    public async Task<IActionResult> Unlike(string id, CancellationToken ct)
+    {
+        var (story, error) = await LoadVisibleAsync(id, ct);
+        if (story is null) return error!;
+        var me = Me();
+        await _stories.UpdateOneAsync(s => s.Id == id, Builders<StoryDocument>.Update.PullFilter(s => s.Likes, l => l.UserId == me), cancellationToken: ct);
+        return Ok(new { liked = false });
     }
 
     /// <summary>DELETE /api/stories/{id} - the author removes it (media deleted at once).</summary>
@@ -187,5 +237,6 @@ public class StoriesController : ControllerBase
 
     private static StoryItemDto ToDto(StoryDocument s, Guid me) => new(
         s.Id, s.AuthorId, s.AuthorName, s.MediaType, s.Caption, s.DurationSeconds, s.CreatedAtUtc, s.ExpiresAtUtc,
-        s.AuthorId == me || s.Views.Any(v => v.UserId == me), s.AuthorId == me ? s.Views.Count : null);
+        s.AuthorId == me || s.Views.Any(v => v.UserId == me), s.AuthorId == me ? s.Views.Count : null,
+        s.Likes.Any(l => l.UserId == me), s.AuthorId == me ? s.Likes.Count : null);
 }

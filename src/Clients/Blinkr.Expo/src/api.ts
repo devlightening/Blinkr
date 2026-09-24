@@ -440,6 +440,11 @@ export const markStorySeen = async (auth: AuthResponse, storyId: string, refresh
 };
 export const listStoryViewers = (auth: AuthResponse, storyId: string, refresh: Refresh = {}) =>
   requestJson<StoryViewer[]>(`/api/stories/${storyId}/viewers`, { auth, ...refresh });
+/** V2-3: the story heart. Idempotent both ways; the author is told once, on the first like. */
+export const likeStory = async (auth: AuthResponse, storyId: string, liked: boolean, refresh: Refresh = {}) => {
+  const response = await request(`/api/stories/${storyId}/like`, { auth, method: liked ? 'POST' : 'DELETE', ...refresh });
+  if (!response.ok) throw new Error(await readError(response));
+};
 export const deleteStory = async (auth: AuthResponse, storyId: string, refresh: Refresh = {}) => {
   const response = await request(`/api/stories/${storyId}`, { auth, method: 'DELETE', ...refresh });
   if (!response.ok) throw new Error(await readError(response));
