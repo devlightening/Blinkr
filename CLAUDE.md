@@ -269,7 +269,7 @@ Kod: `src/Services/NotificationsService`
 
 Bu context MVP harita dongusunun birincil bloklayicisi degildir. Cekirdek event ve map akisi bozukken notification genisletilmemelidir.
 
-Chat v1 gercek zamanlilik icin WebSocket/SignalR kullanmaz; mobil istemci kisa aralikli (aktif konusma ekraninda ~4sn, liste ekraninda ~8sn) REST polling yapar. Bu bilincli bir MVP kapsam karari; sonsuz/agresif polling'e donusturulmemelidir.
+Gercek zamanlilik (V2-5, D-028): NotificationsService SignalR hub'i `/hubs/realtime` (Gateway `/hubs/**`, JWT `?access_token=` yalniz bu yolda). Olaylar yalniz kimlik tasir ("degisti"), uygulama REST'ten yeniler; boylece anonimlik/engel/gizlilik kurallari tek yerde (REST) kalir. Hub bagliyken ekran yoklamalari 30 sn'lik guvenlik agina iner; bagli degilken eski kisa aralikli REST polling'e (konusma ~4sn, liste ~8sn, yorum ~8sn) doner. Polling sonsuz/agresif hale getirilmemelidir. Istemci: `realtime.ts`, `useRealtime.ts`, `realtimePolicy.ts`.
 
 ### 6.6 Gateway Context
 
@@ -695,6 +695,10 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 ### Saved places (P6.8)
 
 - `GET /api/users/me/saved-places` (yeniden eskiye), `PUT /api/users/me/saved-places/{placeId}` (`{ name, category, latitude, longitude }`, idempotent; 400 `INVALID_PLACE`, 429 `SAVED_LIMIT` (100)), `DELETE /api/users/me/saved-places/{placeId}`, `POST /api/users/me/saved-places/import` (`{ items }`, cihazdaki eski kayitlar; yeni olanlar eklenir, birlesik liste doner). Yalniz hesabin sahibi okur; kimsenin kayitli yerleri baskasina gosterilmez.
+
+### Realtime (V2-5, D-028)
+
+- `wss://<gateway>/hubs/realtime?access_token=<jwt>` (SignalR JSON). Sunucu -> istemci: `message.created|message.updated|message.read` ve `typing` (`{ conversationId, userId }`; typing yalniz karsi tarafa), `comment.added|comment.deleted|comment.changed` (`{ postId, commentId }`), `reaction.changed` (`{ postId }`), `notification.created` (`{ id, type }`). Istemci -> sunucu: `JoinPost(postId)` (`bool`; BlogService gorunurluk kontrolu, okunamayan sinyal sessizce reddedilir), `LeavePost(postId)`. Token yoksa baglanti 401.
 
 ### Safety
 

@@ -87,7 +87,7 @@ POST /api/posts/9b1…/reactions   { "reaction": "🔥" }
 | DELETE | `/api/stories/{id}` | |
 
 ## 5. Gerçek zaman hub'ı **V2**
-`wss://<gateway>/hubs/realtime?access_token=<jwt>` (SignalR JSON protokolü).
+`wss://<gateway>/hubs/realtime?access_token=<jwt>` (SignalR JSON protokolü). **Uygulanan (D-028):** yükler yalnız kimlik taşır (`{ conversationId, userId }`, `{ postId, commentId }`, `{ postId }`, `{ id, type }`), uygulama REST'ten yeniler; ek olarak `message.updated`, `comment.changed`; `Typing` hub metodu yerine REST `/typing` kullanılır.
 
 | Sunucu → istemci | Yük |
 |---|---|

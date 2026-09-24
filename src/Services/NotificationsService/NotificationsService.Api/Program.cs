@@ -31,6 +31,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<NotificationsService.Api.Realtime.RealtimeHub>("/hubs/realtime");
 
 app.MapHealthChecks("/health").AllowAnonymous();
 app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions

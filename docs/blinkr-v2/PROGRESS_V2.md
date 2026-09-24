@@ -3,7 +3,7 @@
 | Alan | Değer |
 |---|---|
 | Dal | `feat/blinkr-theme-redesign` |
-| Aktif faz | V2-5 |
+| Aktif faz | V2-6 |
 | Son güncelleme | 2026-09-24 |
 
 İşaretler: `[x]` bitti ve ekranda doğrulandı · `[~]` kısmen / cihaz bekliyor · `[ ]` yapılmadı · `[-]` bilinçli ertelendi
@@ -39,11 +39,11 @@
 - [x] 4.6 Kabul: `test-reactions.ps1` (BLK-REACTIONS-01) ve `test-mentions-hashtags.ps1` (BLK-MENTIONS-01) PASS
 
 ## V2-5 Gerçek zamanlılık
-- [ ] 5.1 `/hubs/realtime` + Gateway WebSocket route
-- [ ] 5.2 Sohbet olayları (mesaj, yazıyor, okundu)
-- [ ] 5.3 Canlı yorum + bildirim
-- [ ] 5.4 İstemci `realtime.ts` + yoklamaya geri düşüş
-- [ ] 5.5 Kabul: `test-realtime.ps1`
+- [x] 5.1 `/hubs/realtime` (NotificationsService, JWT `?access_token=` yalnız `/hubs` için) + Gateway `realtime-route`
+- [x] 5.2 Sohbet olayları: `message.created/updated/read`, `typing` (yalnız karşı tarafa), tek `RealtimeChatFilter` ile
+- [x] 5.3 Canlı yorum/tepki (`post:{id}` odası, `JoinPost` BlogService görünürlük kontrolüyle) + `notification.created` (depo dekoratörü)
+- [~] 5.4 İstemci `realtime.ts` + `useRealtime` + yoklamaya geri düşüş (bağlıyken 30 sn güvenlik yoklaması) — tarayıcı/Node ile doğrulandı; cihazda uçak modu → yeniden bağlanma bekliyor
+- [x] 5.5 Kabul: `test-realtime.ps1` (BLK-REALTIME-01) PASS; `test-chat-thread/plus/smoke`, `test-log-privacy` regresyon PASS
 
 ## V2-6 Keşfet ve profil
 - [ ] 6.1 IG kart düzeni, çoklu medya karuseli, çift dokunma kalp
@@ -60,6 +60,11 @@
 
 ## Oturum günlüğü
 _(her fazın sonunda: yapılanlar, doğrulama, kalanlar)_
+
+### 2026-09-25 — V2-5 Gerçek zamanlılık
+- Yapılan: SignalR hub (NotificationsService `/hubs/realtime`, Gateway üzerinden), olaylar yalnız kimlik taşır ve uygulama REST'ten yeniler (D-028); sohbet, yazıyor, okundu, yorum, tepki, bildirim canlı; istemci `realtime.ts`/`useRealtime.ts`/`realtimePolicy.ts`, bağlıyken yoklama 30 sn'ye iner, kopunca eski hıza döner; arka planda 30 sn sonra kapanır.
+- Doğrulama: `test-realtime.ps1` PASS (mesaj < 1 sn), sohbet regresyonları, `test-log-privacy` (token URL'de ama loglarda yok), `test-auth-gateway-smoke`, `test-product-08` PASS; mobil `typecheck`, `test:nearby` (yeni `realtime-policy.test.ts`), `test:theme`, `test:product`, `test:i18n`, `test:ui`, iOS/Android export.
+- Cihazda: gerçek cihazda WebSocket bağlantısı, uçak modu → geri gelince yeniden bağlanma, arka plandan dönüş.
 
 ### 2026-09-24 — V2-4 Tepkiler, mention, hashtag
 - Yapılan: emoji tepkileri, yorum beğenisi, @mention (sunucu çözümü + bildirim + öneri), #hashtag (çıkarım, akış, arama), `RichText`, `ReactionButton`, `MentionSuggestions`; hesap silme yorum beğenilerini de kaldırıyor (D-027).

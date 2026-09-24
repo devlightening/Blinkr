@@ -24,6 +24,7 @@ public static class ServiceCollectionExtensions
             .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
         services.AddScoped<NotificationsService.Api.Filters.ChatExceptionFilter>();
+        services.AddScoped<NotificationsService.Api.Realtime.RealtimeChatFilter>();
 
         services.AddEndpointsApiExplorer();
         return services;
@@ -40,6 +41,14 @@ public static class ServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(3);
         });
         services.AddScoped<IBlockGuard, NotificationsService.Api.Services.IdentityBlockGuard>();
+        // V2-5 (D-028): the realtime hub; joining a signal's room asks BlogService whether the caller may read it.
+        services.AddSignalR();
+        services.AddSingleton<NotificationsService.Domain.Interfaces.IRealtimePublisher, NotificationsService.Api.Realtime.SignalRRealtimePublisher>();
+        services.AddHttpClient(NotificationsService.Api.Realtime.RealtimeHub.BlogClientName, client =>
+        {
+            client.BaseAddress = new Uri((configuration["Services:BlogBaseUrl"] ?? "http://localhost:5215").TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromSeconds(3);
+        });
         services.AddSingleton<NotificationsService.Application.Handlers.TypingTracker>();
         return services;
     }
@@ -56,7 +65,10 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddNotificationsRepositories(this IServiceCollection services)
     {
-        services.AddScoped<INotificationRepository, MongoNotificationRepository>();
+        // V2-5 (D-028): every stored notification is also pushed to its owner over the realtime hub.
+        services.AddScoped<MongoNotificationRepository>();
+        services.AddScoped<INotificationRepository>(sp => new NotificationsService.Api.Realtime.RealtimeNotificationRepository(
+            sp.GetRequiredService<MongoNotificationRepository>(), sp.GetRequiredService<NotificationsService.Domain.Interfaces.IRealtimePublisher>()));
         services.AddScoped<IDeviceTokenRepository, MongoDeviceTokenRepository>();
         services.AddScoped<IConversationRepository, MongoConversationRepository>();
         services.AddScoped<IChatMessageRepository, MongoChatMessageRepository>();
@@ -91,6 +103,7 @@ public static class ServiceCollectionExtensions
             busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.FollowAcceptedNotificationConsumer>();
             busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.ModerationNotificationConsumer>();
             busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.PostMentionNotificationConsumer>();
+            busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.PostRealtimeConsumer>();
             busCfg.AddConsumer<NotificationsService.Api.Consumers.UserDeletedConsumer>();
 
             busCfg.UsingRabbitMq((ctx, cfg) =>
@@ -167,6 +180,14 @@ public static class ServiceCollectionExtensions
 
                 options.Events = new JwtBearerEvents
                 {
+                    // V2-5: WebSockets cannot carry an Authorization header from a browser or React Native, so the hub
+                    // (and only the hub) reads the token from ?access_token=.
+                    OnMessageReceived = ctx =>
+                    {
+                        var token = ctx.Request.Query["access_token"].ToString();
+                        if (!string.IsNullOrEmpty(token) && ctx.HttpContext.Request.Path.StartsWithSegments("/hubs")) ctx.Token = token;
+                        return Task.CompletedTask;
+                    },
                     OnAuthenticationFailed = ctx =>
                     {
                         var logger = ctx.HttpContext.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("JwtBearer");

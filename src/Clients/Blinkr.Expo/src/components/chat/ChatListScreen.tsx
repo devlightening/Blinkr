@@ -25,6 +25,8 @@ import type { SnapRecipient } from '../snap/SnapSendStep';
 import { SnapStatusIcon, statusColor } from '../snap/SnapStatusIcon';
 import { SnapViewer } from '../snap/SnapViewer';
 import { tx } from '../../i18n/tx';
+import { isFor, pollIntervalMs } from '../../realtimePolicy';
+import { useRealtimeEvent, useRealtimeLive } from '../../useRealtime';
 
 const POLL_INTERVAL_MS = 8000;
 const AVATAR_SIZE = 48;
@@ -129,13 +131,19 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
 
   // The conversation screen owns its own faster poll, so the list poll pauses while one is
   // open, and ticks are skipped while the app is not in the foreground.
+  // V2-5 (D-028): with the realtime hub connected, the list follows its events and polls only as a safety net.
+  const live = useRealtimeLive();
   useEffect(() => {
     if (activeConversation) return;
     const timer = setInterval(() => {
       if (AppState.currentState === 'active') refresh(true);
-    }, POLL_INTERVAL_MS);
+    }, pollIntervalMs(live, POLL_INTERVAL_MS));
     return () => clearInterval(timer);
-  }, [refresh, activeConversation]);
+  }, [refresh, activeConversation, live]);
+  const refreshOnEvent = () => { if (!activeConversation) refresh(true); };
+  useRealtimeEvent('message.created', refreshOnEvent);
+  useRealtimeEvent('message.updated', refreshOnEvent);
+  useRealtimeEvent('message.read', refreshOnEvent);
 
   useEffect(() => {
     onUnreadChange?.(conversations.some((conversation) => (conversation.unreadCount ?? 0) > 0));

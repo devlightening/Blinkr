@@ -30,6 +30,8 @@ export const uploadMedia = async () => {
   if (flag('mediaok')) return { mediaId: 'media-1', mediaType: 'Image' as const }; // ?mediaok = the upload succeeds
   throw new Error('Media is covered by the Gateway smoke, not the browser harness.');
 };
+// The browser preview never opens the realtime hub (no sign-in); the address only has to exist.
+export const API_BASE_URL = 'http://127.0.0.1:9';
 export const toAbsoluteUrl = (url?: string | null) => url ?? null;
 export const authenticate = async () => { throw new Error('Auth not stubbed for login tests.'); };
 

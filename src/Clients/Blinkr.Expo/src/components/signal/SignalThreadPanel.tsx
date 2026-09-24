@@ -7,6 +7,9 @@ import { ApiCodeError, addPostComment, deletePostComment, getPostComments, getPo
 import { chooseReaction, reactionStateOf, tapHeart, toggleCommentLike, totalReactions, type ReactionState } from '../../reactions';
 import { insertMention, MENTION_LIMIT, mentionCount, type Mention } from '../../richText';
 import { MentionSuggestions } from '../ui/MentionSuggestions';
+import { joinPostRoom } from '../../realtime';
+import { isFor, nextRefetchDelay, pollIntervalMs } from '../../realtimePolicy';
+import { useRealtimeEvent, useRealtimeLive } from '../../useRealtime';
 import { ReactionButton } from '../ui/ReactionButton';
 import { RichText } from '../ui/RichText';
 import {
@@ -132,12 +135,44 @@ export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refre
   }, [loadFirstPage]);
 
   // Light polling while the thread is open, only while nothing past page 1 is shown (a poll replaces page 1).
+  // V2-5 (D-028): with the realtime hub connected the thread follows its events and polls only as a safety net.
+  const live = useRealtimeLive();
   useEffect(() => {
     if (page > 1) return undefined;
     const controller = new AbortController();
-    const timer = setInterval(() => { void loadFirstPage(controller.signal, true); }, COMMENT_POLL_MS);
+    const timer = setInterval(() => { void loadFirstPage(controller.signal, true); }, pollIntervalMs(live, COMMENT_POLL_MS));
     return () => { clearInterval(timer); controller.abort(); };
-  }, [loadFirstPage, page]);
+  }, [loadFirstPage, page, live]);
+
+  // The signal's room: joined while this thread is open (the server checks I may read the signal).
+  useEffect(() => joinPostRoom(postId), [postId]);
+  const commentsRef = useRef(comments);
+  commentsRef.current = comments;
+  const refetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (refetchTimer.current) clearTimeout(refetchTimer.current); }, []);
+  /** An event can arrive before the read model has the change: refetch until it shows (or the safety poll takes over). */
+  const refetchUntil = (seen: () => boolean, attempt = 0) => {
+    if (refetchTimer.current) clearTimeout(refetchTimer.current);
+    void loadFirstPage(undefined, true).then(() => {
+      if (seen()) return;
+      const delay = nextRefetchDelay(attempt);
+      if (delay !== null) refetchTimer.current = setTimeout(() => refetchUntil(seen, attempt + 1), delay);
+    });
+  };
+  const hasComment = (id: string) => commentsRef.current.some((c) => c.commentId === id || (c.replies ?? []).some((r) => r.commentId === id));
+  useRealtimeEvent('comment.added', (payload) => {
+    if (page > 1 || !isFor(payload, 'postId', postId)) return;
+    const id = String((payload as { commentId?: string }).commentId ?? '');
+    refetchUntil(() => !id || hasComment(id));
+  });
+  useRealtimeEvent('comment.deleted', (payload) => {
+    if (page > 1 || !isFor(payload, 'postId', postId)) return;
+    const id = String((payload as { commentId?: string }).commentId ?? '');
+    refetchUntil(() => !id || !hasComment(id));
+  });
+  const refetchSoon = (payload: unknown) => { if (page === 1 && isFor(payload, 'postId', postId)) refetchUntil(() => false, 1); };
+  useRealtimeEvent('comment.changed', refetchSoon);
+  useRealtimeEvent('reaction.changed', refetchSoon);
 
   const loadMore = async () => {
     if (loadingMore || !hasMore) return;

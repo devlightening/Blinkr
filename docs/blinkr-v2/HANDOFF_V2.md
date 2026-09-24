@@ -16,10 +16,14 @@ Hikaye beğenisi (sunucu + `StoryLiked` bildirimi), görüntüleyicide kalp, 6 h
 ## V2-4 tepkiler, mention, hashtag: bitti (2026-09-24)
 Emoji tepkileri (tek olay, zaman damgalı projeksiyon), yorum beğenisi, sunucu tarafı @mention + bildirim + öneri, #hashtag akışı ve arama, `RichText`. Karar: D-027. Kabul: `test-reactions.ps1`, `test-mentions-hashtags.ps1` PASS; regresyonlar ve tüm mobil testler yeşil. Worker Docker'da çalışır: kodu değişince `docker compose up -d --build projections-worker`.
 
+## V2-5 gerçek zamanlılık: bitti (2026-09-25)
+SignalR hub (`/hubs/realtime`), olaylar yalnız "değişti" der, uygulama REST'ten yeniler (D-028). Sohbet, yazıyor, okundu, yorum, tepki, bildirim canlı; hub yokken eski yoklama. Kabul: `test-realtime.ps1` PASS, regresyonlar yeşil.
+
 ## Sıradaki
-V2-5 (SignalR), V2-6 (Keşfet/profil cilası), V2-7 (paylaşım menüsü + Etkinlik ekranı), V2-8 (kapanış + ZIP yeniden).
+V2-6, V2-6 (Keşfet/profil cilası), V2-7 (paylaşım menüsü + Etkinlik ekranı), V2-8 (kapanış + ZIP yeniden).
 
 ## Cihazda doğrulanacaklar
+- Gerçek zaman: cihazda WebSocket bağlantısı, uçak modu → geri gelince yeniden bağlanma, arka plandan dönüş
 - Tepki: beğeniye uzun basınca seçici (iOS/Android), metindeki @ad/#etiket dokunuşunun kartı açmaması
 - Hikaye: küp geçişin ve aşağı çekmenin akıcılığı, kaydırmanın dokunma bölgeleriyle çakışmaması
 - Video oynatma: sürükleme, hız, ses

@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ApiCodeError, getDiscoverFollowing, getDiscoverNearby, getHashtagFeed, getPlace, getUnreadNotificationCount, postStory, setPostReaction } from '../../api';
 import { chooseReaction, reactionFields, reactionStateOf, tapHeart } from '../../reactions';
+import { useRealtimeEvent } from '../../useRealtime';
 import { NotificationsScreen } from '../notifications/NotificationsScreen';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { DEFAULT_STORY_SECONDS, type StoryTrayItem } from '../../stories';
@@ -98,6 +99,11 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
     return () => { cancelled = true; clearInterval(timer); };
   }, [auth, notificationsOpen]);
   useEffect(() => () => { Object.values(requests.current).forEach((c) => c?.abort()); onOverlayOpenChange?.(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // V2-5 (D-028): a new notification lights the bell at once (the minute poll stays as the safety net).
+  useRealtimeEvent('notification.created', () => {
+    if (notificationsOpen) return;
+    getUnreadNotificationCount(auth, undefined, refresh.current).then(setUnread).catch(() => {});
+  });
 
   const patch = (which: Which, next: Partial<FeedState>) =>
     setFeeds((current) => ({ ...current, [which]: { ...current[which], ...next } }));

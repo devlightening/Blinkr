@@ -15,6 +15,16 @@
 
 ## Kararlar
 
+### D-028 — V2-5: SignalR ile gerçek zamanlılık, olaylar yalnız "değişti" der (2026-09-25)
+- Karar:
+  - Hub NotificationsService'te: `/hubs/realtime`, Gateway `/hubs/{**catch-all}` rotası (YARP WebSocket). Kimlik: JWT, WebSocket başlık taşıyamadığı için yalnız `/hubs` yolunda `?access_token=`; token hiçbir logda yok (`test-log-privacy`). Her bağlantı `user:{id}` grubuna girer.
+  - Olaylar içerik taşımaz, yalnız kimlik: `message.created/updated/read`, `typing` `{ conversationId, userId }`; `comment.added/deleted/changed` `{ postId, commentId }`; `reaction.changed` `{ postId }`; `notification.created` `{ id, type }`. Planın `{ message }`/`{ comment }`/`{ counts }` yükleri uygulanmadı: anonimlik, `isMine/canDelete`, engeller ve "görüldü" gibi kişiye göre değişen kurallar REST uçlarında zaten var; olay yalnız "yenile" der, uygulama REST'ten çeker. Böylece gizlilik kuralı tek yerde kalır.
+  - Sohbet olayları tek bir `RealtimeChatFilter` ile yazma başarılı olduktan sonra iki katılımcıya gider (yazıyor yalnız karşı tarafa); `notification.created` bildirim deposu dekoratöründen; yorum/tepki olayları ayrı kuyruklu `PostRealtimeConsumer`'dan `post:{id}` odasına. Odaya `JoinPost` ile girilir; NotificationsService, BlogService `GET /api/posts/{id}`'ye kişinin kendi token'ıyla sorar, okuyamıyorsa sessizce reddeder (var olup olmadığı söylenmez).
+  - Yorum/tepki olayı okuma modelinden önce gelebilir (projeksiyon ve hub aynı olayı paralel tüketir): uygulama 0 / 0,8 / 2 / 4 sn'de, beklenen değişikliği görene kadar yeniler.
+  - İstemci: tek bağlantı (`realtime.ts`), otomatik yeniden bağlanma (0, 2, 5, 10, 30 sn), katılınan odalar yeniden bağlanınca yeniden istenir, arka planda 30 sn sonra kapanır. Hub bağlıyken ekran yoklamaları 30 sn'lik güvenlik ağına iner, bağlı değilken eski hızına (sohbet 4 sn, liste 8 sn, yorum 8 sn) döner; hub olmadan her şey eskisi gibi çalışır. Yayın hatası yazmayı asla bozmaz.
+  - Ölçek: tek örnekte bellek içi; çok örnekte Redis backplane gerekir (PERFORMANCE.md).
+- Etki: CLAUDE.md §6.5, §13; API-SPEC §5; PROGRESS_V2 5.1-5.5.
+
 ### D-027 — V2-4: emoji tepkileri, yorum beğenisi, @mention, #hashtag (2026-09-24)
 - Karar:
   - Tepki mevcut beğeni olayının üstündedir: `PostLikedEvent` + `Reaction` (null = ❤️, eski olaylar da böyle okunur) + `Replaces`. Planın "değiştirme = Unliked + Liked" önerisi uygulanmadı: iki ayrı kuyrukta sıra garanti değil, ters gelirse tepki kaybolurdu. Emoji değişimi tek olaydır, yazara ikinci bildirim gitmez. Worker her kişinin tepkisini zaman damgasıyla tutar (`Reactions[]`); eski tarihli mesaj yenisini ezemez, geri alma yalnız gerçekten silinen bir şey varsa sayıyı düşürür. `LikeCount`/`LikedByUserIds` aynen kalır, eski `/likes` ucu ❤️ olarak çalışır. Uç: `POST /api/posts/{id}/reactions { reaction }` → `{ reaction, counts }` (sayılar aggregate'ten, ekran projeksiyonu beklemez); kendi sinyaline 400 `CANNOT_LIKE_OWN`, set dışı 400 `INVALID_REACTION`.

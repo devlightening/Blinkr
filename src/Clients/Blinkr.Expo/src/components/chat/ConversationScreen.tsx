@@ -26,8 +26,12 @@ import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
 import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
 import { tx } from '../../i18n/tx';
 import { displayLocale } from '../../i18n/locale';
+import { isFor, pollIntervalMs } from '../../realtimePolicy';
+import { useRealtimeEvent, useRealtimeLive } from '../../useRealtime';
 
 const POLL_INTERVAL_MS = 4000;
+/** The server keeps "typing" for 6 s; a live typing event shows it as long. */
+const TYPING_SHOWN_MS = 6000;
 const MAX_MESSAGE_LENGTH = 2000;
 const BUBBLE_RADIUS = 18;
 const BUBBLE_TIGHT = 6;
@@ -112,11 +116,25 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
     }
   }, [auth, conversation.id, onAuthChange, onSessionExpired, t]);
 
+  // V2-5 (D-028): with the realtime hub connected the thread refreshes on its events and polls only as a safety net.
+  const live = useRealtimeLive();
   useEffect(() => {
     void load();
-    const timer = setInterval(() => { if (AppState.currentState === 'active') void load(true); }, POLL_INTERVAL_MS);
+    const timer = setInterval(() => { if (AppState.currentState === 'active') void load(true); }, pollIntervalMs(live, POLL_INTERVAL_MS));
     return () => clearInterval(timer);
-  }, [load]);
+  }, [load, live]);
+  const refreshOnEvent = (payload: unknown) => { if (isFor(payload, 'conversationId', conversation.id)) void load(true); };
+  useRealtimeEvent('message.created', refreshOnEvent);
+  useRealtimeEvent('message.updated', refreshOnEvent);
+  useRealtimeEvent('message.read', refreshOnEvent);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useRealtimeEvent('typing', (payload) => {
+    if (!isFor(payload, 'conversationId', conversation.id) || (payload as { userId?: string }).userId === auth.userId) return;
+    setOtherTyping(true);
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    typingTimer.current = setTimeout(() => setOtherTyping(false), TYPING_SHOWN_MS);
+  });
+  useEffect(() => () => { if (typingTimer.current) clearTimeout(typingTimer.current); }, []);
 
   useEffect(() => {
     if (!notice) return undefined;

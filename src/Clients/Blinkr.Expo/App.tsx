@@ -2,7 +2,7 @@ import { Outfit_600SemiBold, Outfit_700Bold, Outfit_800ExtraBold } from '@expo-g
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { BlinkrMark } from './src/components/BlinkrMark';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, BackHandler, Linking, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -19,6 +19,7 @@ initI18n();
 import { MapScreen } from './src/components/MapScreen';
 import { ChatListScreen } from './src/components/chat/ChatListScreen';
 import { DiscoverScreen } from './src/components/feed/DiscoverScreen';
+import { startRealtime, stopRealtime } from './src/realtime';
 import { OnboardingScreen } from './src/components/OnboardingScreen';
 import { PendingDeletionScreen } from './src/components/account/PendingDeletionScreen';
 import { ProfileScreen } from './src/components/ProfileScreen';
@@ -106,6 +107,16 @@ export default function App() {
     setOnboardingSeen(true);
     if (userId) void markOnboardingSeen(userId);
   }, [userId]);
+
+  // V2-5 (D-028): one realtime connection while someone is signed in; the token is read on every (re)connect.
+  const tokenRef = useRef<string | null>(null);
+  tokenRef.current = auth?.token ?? null;
+  const signedInAs = auth?.userId ?? null;
+  useEffect(() => {
+    if (!signedInAs) { void stopRealtime(); return undefined; }
+    startRealtime(() => tokenRef.current);
+    return () => { void stopRealtime(); };
+  }, [signedInAs]);
 
   // Stable identities: screens list these as effect dependencies, so a fresh function on every
   // App render used to restart their polling and loading state.

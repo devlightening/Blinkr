@@ -12,6 +12,7 @@ namespace NotificationsService.Api.Controllers;
 [Route("api/chat")]
 [Authorize]
 [ServiceFilter(typeof(ChatExceptionFilter))]
+[ServiceFilter(typeof(NotificationsService.Api.Realtime.RealtimeChatFilter))]
 public class ChatController : ControllerBase
 {
     private readonly IMediator _mediator;
