@@ -16,6 +16,7 @@ const AUTH_CODES = new Set([
   'AGE_TOO_YOUNG',
   'BIRTH_YEAR_REQUIRED',
   'INVALID_BIRTH_YEAR',
+  'TOO_MANY_ATTEMPTS',
 ]);
 
 /** The translation key for an identity error code, or null when it is not one of them. */

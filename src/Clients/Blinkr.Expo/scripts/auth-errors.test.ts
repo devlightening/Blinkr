@@ -6,6 +6,7 @@ const run = (name: string, fn: () => void) => { fn(); console.log('PASS', name);
 run('identity codes become the app\'s own words', () => {
   check(authErrorKey('INVALID_CREDENTIALS') === 'errors:auth.INVALID_CREDENTIALS', 'credentials');
   check(authErrorKey('PASSWORD_TOO_SHORT') === 'errors:auth.PASSWORD_TOO_SHORT', 'short');
+  check(authErrorKey('TOO_MANY_ATTEMPTS') === 'errors:auth.TOO_MANY_ATTEMPTS', 'throttled');
   check(authErrorKey('SOMETHING_ELSE') === null && authErrorKey(undefined) === null, 'others untouched');
 });
 run('passwords need at least 8 characters', () => {

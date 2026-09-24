@@ -100,10 +100,7 @@ public static class ServiceCollectionExtensions
             // Global rate limiter
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
             {
-                var deviceId = httpContext.Request.Headers["X-Device-Id"].ToString();
-                var key = string.IsNullOrWhiteSpace(deviceId)
-                    ? httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon"
-                    : $"dev:{deviceId}";
+                var key = RateLimitKey(httpContext);
 
                 return RateLimitPartition.GetFixedWindowLimiter(
                     partitionKey: key,
@@ -119,10 +116,7 @@ public static class ServiceCollectionExtensions
             // Feed-specific rate limiter (more restrictive)
             options.AddPolicy("feed", httpContext =>
             {
-                var deviceId = httpContext.Request.Headers["X-Device-Id"].ToString();
-                var key = string.IsNullOrWhiteSpace(deviceId)
-                    ? httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon"
-                    : $"dev:{deviceId}";
+                var key = RateLimitKey(httpContext);
 
                 return RateLimitPartition.GetFixedWindowLimiter(
                     partitionKey: key,
@@ -585,5 +579,20 @@ public static class ServiceCollectionExtensions
                 .AddPrometheusExporter());
 
         return services;
+    }
+
+    /// <summary>
+    /// Who a limit counts against (SECURITY S3, V2 closing): the signed-in person, else the device header, else the client IP
+    /// from the Gateway's X-Forwarded-For. It used to be the connection IP, and behind the Gateway every user has the same
+    /// one - so all users together shared one bucket of 100 requests a minute.
+    /// </summary>
+    private static string RateLimitKey(HttpContext httpContext)
+    {
+        var userId = httpContext.User?.FindFirst("sub")?.Value ?? httpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!string.IsNullOrWhiteSpace(userId)) return $"u:{userId}";
+        var deviceId = httpContext.Request.Headers["X-Device-Id"].ToString();
+        if (!string.IsNullOrWhiteSpace(deviceId)) return $"dev:{deviceId}";
+        var forwarded = httpContext.Request.Headers["X-Forwarded-For"].ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
+        return !string.IsNullOrEmpty(forwarded) ? $"ip:{forwarded}" : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon"}";
     }
 }

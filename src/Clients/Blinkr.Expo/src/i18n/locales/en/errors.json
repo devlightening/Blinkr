@@ -39,6 +39,9 @@
     "PASSWORD_TOO_LONG": "Passwords can be at most 128 characters.",
     "AGE_TOO_YOUNG": "You need to be at least 13 to use Blinkr.",
     "BIRTH_YEAR_REQUIRED": "Enter your birth year.",
-    "INVALID_BIRTH_YEAR": "Enter a valid birth year."
-  }
+    "INVALID_BIRTH_YEAR": "Enter a valid birth year.",
+    "TOO_MANY_ATTEMPTS": "Too many attempts. Try again in a little while."
+  },
+  "tooManyMessages": "You are sending messages too fast. Slow down a little.",
+  "tooManyRequests": "Too many requests. Try again in a moment."
 }

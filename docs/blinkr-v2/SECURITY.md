@@ -19,8 +19,8 @@
 |---|---|---|
 | S1 | TLS her yerde (Gateway HTTPS, HSTS), `ws://` → `wss://` | Ters vekil/ingress ile |
 | S2 | CORS allowlist | Yalnız web istemcisi gelirse |
-| S3 | Rate limiting (kullanıcı + IP; giriş, yorum, tepki, mention, hub bağlantısı) | Gateway + servis; Redis sayaç |
-| S4 | Secret store (JWT anahtarı, DB parolaları), geliştirme anahtarı fallback'i prod'da kapalı | Key Vault / Doppler |
+| S3 | Rate limiting — **büyük kısmı yapıldı (2026-09-25, D-030):** giriş/kayıt IP başına (kayan pencere), hesap başına 10 hatalı girişte 15 dk kilit, gönderi/yorum/tepki kişi başına (Redis kova), sohbet/snap kişi başına 60/dk; Blog genel sınırı artık kişi başına (önceden Gateway IP'si yüzünden herkes tek kovayı paylaşıyordu). Kalan: hub bağlantısı, çok örnekli Identity/Notifications için Redis sayaç | Gateway + servis; Redis sayaç |
+| S4 | Secret store (JWT anahtarı, DB parolaları) — geliştirme anahtarı fallback'i prod'da zaten kapalı (`BlinkrJwtOptions` Development dışında anahtarsız ya da dev anahtarıyla açılmaz); kalan: gerçek secret store | Key Vault / Doppler |
 | S5 | Kökteki `.env` git izlemesinden çıkarılsın, parolalar değişsin | Geçmiş temizliği kullanıcı kararı |
 | S6 | Refresh token rotasyonu + cihaz oturum listesi | |
 | S7 | NuGet/npm güvenlik uyarıları | |

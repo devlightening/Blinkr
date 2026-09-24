@@ -15,6 +15,16 @@
 
 ## Kararlar
 
+### D-030 — Güvenlik S3: hız sınırları kişi başına, giriş koruması, şifre en az 8 (2026-09-25)
+- Bağlam: V2 kapanışında iki kök hata bulundu: (1) Blog'un genel sınırı (100 istek/dk) ve Redis kovası bağlantı IP'sine göre sayıyordu; Gateway arkasında herkesin IP'si aynı olduğundan üretimde tüm kullanıcılar tek kovayı paylaşacaktı (testlerde 429'ların nedeni). Redis ara katmanı kimlik doğrulamadan önce çalıştığından kullanıcı hiç bilinmiyordu. (2) Kayıtta şifre uzunluğu kuralı yoktu; yanlış girişte düz İngilizce "Invalid credentials." dönüyordu.
+- Karar:
+  - Blog: sınırlar kimlik doğrulamadan sonra çalışır ve kişiye göre sayar (kullanıcı → cihaz başlığı → Gateway'in X-Forwarded-For ilk adresi). Yeni politikalar: gönderi oluşturma (10, 3/dk dolum), yorum (20, 12/dk), tepki/beğeni (60, 60/dk).
+  - Identity: giriş/kayıt IP başına kayan pencere (`RateLimits:AuthPerMinute`, varsayılan 30; Development 2000); bir hesap 15 dk içinde 10 kez yanlış girilirse doğru şifreyle bile 15 dk 429 `TOO_MANY_ATTEMPTS` (başarı sayacı sıfırlar). Bellek içi: tek örnek için; çok örnekte Redis gerekir.
+  - Notifications: sohbet mesajı ve snap kişi başına 60/dk (`RateLimits:ChatPerMinute`), 429 `TOO_MANY_MESSAGES`.
+  - Kayıt şifresi 8-128 karakter (`PASSWORD_TOO_SHORT`/`PASSWORD_TOO_LONG`); yanlış giriş 401 `INVALID_CREDENTIALS`. Uygulama bu kodları kendi dilinde gösterir (`authErrors.ts`), kayıt formunda "En az 8 karakter".
+  - Kabul: `test-rate-limits.ps1` (BLK-RATELIMIT-01); `test-auth-gateway-smoke` kodları denetler; `test-text-filter` kalabalık alana düşmesin diye kendi noktasında.
+- Etki: SECURITY.md S3/S4, CLAUDE.md §13/§20.1.
+
 ### D-029 — V2-7: gruplu bildirimler ve paylaşım menüsü (2026-09-25)
 - Karar:
   - Aynı gönderiye tepkiler (`reaction:{postId}`) ve aynı hikayeye beğeniler (`story_like:{storyId}`) 1 saat içinde tek bildirim satırında toplanır: `ActorIds` (herkes, aynı kişi iki kez sayılmaz), `ActorNames` (son 3, en yeni önce), `ActorCount`; metin sunucuda `GroupedText` ile ("a ve b ...", "a, b ve N kişi daha ..."). Büyüyen satır en üste çıkar ve yeniden okunmamış olur; aynı kişinin tekrar tepkisi yeni bir şey söylemez (push da gitmez). Yorumlar, takip, mention gruplanmaz (her birinin kendi metni/eylemi var). Planın ayrı `UpdatedAtUtc` alanı yerine `CreatedAtUtc` güncellenir (liste zaten ona göre sıralı).

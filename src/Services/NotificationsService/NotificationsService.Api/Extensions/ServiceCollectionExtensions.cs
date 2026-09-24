@@ -41,6 +41,20 @@ public static class ServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(3);
         });
         services.AddScoped<IBlockGuard, NotificationsService.Api.Services.IdentityBlockGuard>();
+        // S3: sending chat messages and snaps is limited per person (RateLimits:ChatPerMinute, 60 by default).
+        var chatPerMinute = Math.Clamp(configuration.GetValue("RateLimits:ChatPerMinute", 60), 1, 100_000);
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.OnRejected = async (context, ct) =>
+            {
+                context.HttpContext.Response.ContentType = "application/json";
+                await context.HttpContext.Response.WriteAsJsonAsync(new { code = "TOO_MANY_MESSAGES", message = "Çok hızlı mesaj gönderiyorsun. Biraz yavaşla." }, ct);
+            };
+            options.AddPolicy("chat-send", http => System.Threading.RateLimiting.RateLimitPartition.GetSlidingWindowLimiter(
+                http.User.FindFirst("sub")?.Value ?? http.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new System.Threading.RateLimiting.SlidingWindowRateLimiterOptions { PermitLimit = chatPerMinute, Window = TimeSpan.FromMinutes(1), SegmentsPerWindow = 6, QueueLimit = 0 }));
+        });
         // V2-5 (D-028): the realtime hub; joining a signal's room asks BlogService whether the caller may read it.
         services.AddSignalR();
         services.AddSingleton<NotificationsService.Domain.Interfaces.IRealtimePublisher, NotificationsService.Api.Realtime.SignalRRealtimePublisher>();

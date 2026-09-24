@@ -104,12 +104,13 @@ app.UseResponseCaching();
 
 app.UseMiddleware<DeviceHeadersMiddleware>();
 
-app.UseMiddleware<RateLimitingMiddleware>();
-app.UseRateLimiter();
-
 app.UseCors(corsPolicyName);
 
 app.UseAuthentication();
+// After authentication: the limits are per person (user + IP). Before, the user was never known here, so everyone
+// behind the Gateway shared one IP bucket (S3, V2 closing).
+app.UseMiddleware<RateLimitingMiddleware>();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();

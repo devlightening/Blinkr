@@ -63,7 +63,9 @@ Write-Host "BLK-TEXTFILTER-02 text filter via $GatewayBaseUrl"
 $suffix = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 $a = Register-SmokeUser -Label "a" -Suffix $suffix
 $b = Register-SmokeUser -Label "b" -Suffix $suffix
-$lat = 37.0746; $lon = 36.2464
+# Its own spot, 5-10 km from where the other scripts post: a crowded area would push the (lower-ranked) sensitive
+# post off the first feed page.
+$lat = [Math]::Round(37.0746 + (Get-Random -Minimum 500 -Maximum 900) / 10000, 5); $lon = [Math]::Round(36.2464 + (Get-Random -Minimum 500 -Maximum 900) / 10000, 5)
 
 function New-Post([string]$Title, [string]$Content, $User = $a) {
     Invoke-Api -Method POST -Path "/api/posts" -Token $User.Token -Body @{ title = $Title; content = $Content; latitude = $lat; longitude = $lon; accuracyMeters = 25; locationName = "Osmaniye"; signalType = "GeneralObservation"; audienceType = "Public"; identityDisclosure = "LimitedProfile"; locationPrecision = "ApproximateArea" }

@@ -76,6 +76,9 @@ const readError = async (response: Response) => {
       // Sign-in / sign-up: the app's own words in the app's language, by code.
       const authKey = authErrorKey(payload.code ?? payload.error);
       if (authKey) return i18n.t(authKey);
+      // Rate limits (SECURITY S3): the app's own words.
+      if (payload.code === 'TOO_MANY_MESSAGES') return i18n.t('errors:tooManyMessages');
+      if (response.status === 429 && !payload.code && !payload.error) return i18n.t('errors:tooManyRequests');
       const validationMessages = Object.values(payload.errors ?? {}).flat().filter(Boolean);
       const message = validationMessages[0]
         || payload.detail

@@ -1,3 +1,4 @@
+using IdentityService.Api.Account;
 using MassTransit;
 using HealthChecks.UI.Client;
 using IdentityService.Application.Interfaces;
@@ -69,6 +70,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // DI: Application <-> Infrastructure
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddAuthThrottle(builder.Configuration); // S3: sign-in / sign-up throttling
 builder.Services.AddScoped<IdentityService.Api.Moderation.ModerationService>();
 builder.Services.AddHostedService<IdentityService.Api.Account.AccountPurgeService>();
 
@@ -145,6 +147,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseRouting();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

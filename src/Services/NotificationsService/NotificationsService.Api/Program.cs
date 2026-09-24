@@ -29,6 +29,7 @@ if (app.Environment.IsDevelopment())
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter(); // after authentication: the chat limit is per signed-in person
 
 app.MapControllers();
 app.MapHub<NotificationsService.Api.Realtime.RealtimeHub>("/hubs/realtime");

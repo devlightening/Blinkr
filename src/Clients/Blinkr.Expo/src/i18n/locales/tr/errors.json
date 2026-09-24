@@ -39,6 +39,9 @@
     "PASSWORD_TOO_LONG": "Şifre en fazla 128 karakter olabilir.",
     "AGE_TOO_YOUNG": "Blinkr'ı kullanmak için en az 13 yaşında olmalısın.",
     "BIRTH_YEAR_REQUIRED": "Doğum yılını gir.",
-    "INVALID_BIRTH_YEAR": "Geçerli bir doğum yılı gir."
-  }
+    "INVALID_BIRTH_YEAR": "Geçerli bir doğum yılı gir.",
+    "TOO_MANY_ATTEMPTS": "Çok fazla deneme yaptın. Biraz sonra tekrar dene."
+  },
+  "tooManyMessages": "Çok hızlı mesaj gönderiyorsun. Biraz yavaşla.",
+  "tooManyRequests": "Çok hızlı işlem yapıyorsun. Biraz sonra tekrar dene."
 }

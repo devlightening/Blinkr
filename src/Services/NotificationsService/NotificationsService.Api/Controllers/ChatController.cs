@@ -55,6 +55,7 @@ public class ChatController : ControllerBase
     public record ReactionRequest(string? Emoji);
 
     [HttpPost("conversations/{id}/messages")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("chat-send")]
     public async Task<IActionResult> SendMessage(string id, [FromBody] SendMessageRequest req)
     {
         // Private 1:1 text is not masked (a person may share their own details with a friend), but threats and
@@ -83,6 +84,7 @@ public class ChatController : ControllerBase
     /// optional caption travel in the query. The media is private: only the recipient can fetch it, once.
     /// </summary>
     [HttpPost("conversations/{id}/snaps")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("chat-send")]
     [RequestSizeLimit(MaxSnapRequestBytes)]
     public async Task<IActionResult> SendSnap(string id, [FromQuery] int durationSeconds = 5, [FromQuery] string? caption = null, CancellationToken ct = default)
     {
