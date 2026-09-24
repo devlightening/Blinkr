@@ -14,7 +14,7 @@ import { AnimatedPressable } from '../AnimatedPressable';
 import { BlinkrButton } from '../ui/BlinkrButton';
 import { DraggableSticker } from './DraggableSticker';
 import { FilterOverlay } from './FilterOverlay';
-import { LensSelector } from './LensSelector';
+import { LensIndicator } from './LensIndicator';
 
 export type CapturedMedia = {
   uri: string;
@@ -160,7 +160,7 @@ export function PhotoEditor({ photo, lensId, onLensChange, onRetake, onDone, sub
       </View>
 
       <View style={[styles.tools, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
-        <LensSelector disabled={rendering} onSelect={onLensChange} selectedId={lensId} />
+        <LensIndicator disabled={rendering} onSelect={onLensChange} selectedId={lensId} />
         <ScrollView horizontal contentContainerStyle={styles.stickerRow} showsHorizontalScrollIndicator={false} style={styles.stickerScroll}>
           {STICKERS.map((def) => (
             <AnimatedPressable

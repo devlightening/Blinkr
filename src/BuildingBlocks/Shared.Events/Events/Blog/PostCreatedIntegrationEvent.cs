@@ -18,6 +18,7 @@ namespace Shared.Events.Events.Blog
         public string? LocationName { get; set; }
         public Guid? PlaceId { get; set; }
         public string? PublicationTrust { get; set; }
+        public bool FromGallery { get; set; }
         public string? SignalType { get; set; }
         public string? SignalValue { get; set; }
         public string? AudienceType { get; set; }

@@ -6,7 +6,8 @@ import { toAbsoluteUrl } from '../../api';
 import { canLikeFeedItem, feedDistanceLabel, type DiscoverItem } from '../../discoverFeed';
 import { formatCount } from '../../engagement';
 import { freshnessLabelKey, freshnessTier } from '../../freshness';
-import { formatAge, meaningfulTitle, signalLabels } from '../../presentation';
+import { formatAge, signalLabels } from '../../presentation';
+import { cardText } from '../../signalCard';
 import { signalValueLabel } from '../../productPresentation';
 import { colors, radii, signalColors, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
@@ -36,7 +37,7 @@ export function FeedCard({ item, myUserId, onLike, onOpenThread, onOpenAuthor, o
   const lang = i18n.language === 'en' ? 'en' : 'tr';
   const tone = signalColors[item.signalType] ?? colors.mint;
   const value = signalValueLabel(item.signalType, item.signalValue);
-  const title = meaningfulTitle(item.title, signalLabels[item.signalType]);
+  const text = cardText(item.title, item.content, item.signalType);
   const photo = item.media.find((media) => media.type !== 'Video') ?? item.media[0];
   const photoIsVideo = photo?.type === 'Video';
   // A video is only drawn from its thumbnail; its .mp4 url is not an image (plan-devam A6).
@@ -84,8 +85,7 @@ export function FeedCard({ item, myUserId, onLike, onOpenThread, onOpenAuthor, o
             </View>
           ) : null}
         </View>
-        {title ? <Text style={styles.title}>{title}</Text> : null}
-        {item.content ? <Text numberOfLines={4} style={styles.content}>{item.content}</Text> : null}
+        {text ? <Text numberOfLines={4} style={styles.content}>{text}</Text> : null}
         {photo ? <MediaImage style={styles.photo} uri={photoUrl} video={photoIsVideo} /> : null}
       </AnimatedPressable>
 

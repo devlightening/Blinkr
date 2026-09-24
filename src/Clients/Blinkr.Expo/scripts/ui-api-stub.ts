@@ -363,6 +363,7 @@ const cardDetails: Record<string, Record<string, unknown>> = {
 export const getSignalDetail = async (_auth: unknown, postId: string) => {
   const detail = { ...(cardDetails[postId] ?? cardDetails['card-1']) };
   if (postId === 'card-1' && flag('cardmine')) Object.assign(detail, { isMine: true, viewCount: 48 });
+  if (postId === 'card-1' && flag('gallery')) Object.assign(detail, { fromGallery: true, publicationTrust: 'NEARBY_PLACE_POST' });
   return { createdAt: new Date(Date.now() - 4 * 60_000).toISOString(), expiresAt: new Date(Date.now() + 88 * 60_000).toISOString(), ...detail };
 };
 export const recordedViews: string[] = [];

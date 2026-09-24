@@ -106,6 +106,8 @@
     "position": "{{index}} / {{count}}",
     "noSignals": "Burada şu an taze sinyal yok",
     "noSignalsHint": "Oradaysan neler olduğunu ilk sen paylaş.",
-    "firstSignal": "İlk sinyali bırak"
+    "firstSignal": "İlk sinyali bırak",
+    "fromGallery": "Galeriden",
+    "fromGalleryHint": "Galeriden, iki saatten eski bir fotoğraf; canlı durumu göstermez."
   }
 }

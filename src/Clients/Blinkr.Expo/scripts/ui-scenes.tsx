@@ -307,7 +307,8 @@ function CameraScene() {
   const [closed, setClosed] = useState(false);
   return (
     <View style={{ backgroundColor: '#000', flex: 1 }}>
-      {!closed && <SignalCamera onCapture={(asset) => setResult(`${asset.type}:${asset.mimeType}:${asset.uri.endsWith('#rendered') ? 'rendered' : 'original'}${asset.signalHint ? `:${asset.signalHint.type}` : ''}`)} onClose={() => setClosed(true)} onTextOnly={() => setResult('text')} />}
+      {/* ?place = at BİM, ?school = at a school (D11), ?loose = a 250 m fix (D3). */}
+      {!closed && <SignalCamera place={location.search.includes('loose') ? { place: null, label: 'Etimesgut civarı', uncertain: true, sensitivity: null } : location.search.includes('school') ? { place: { id: 'school', name: 'Atatürk İlkokulu' }, label: 'Atatürk İlkokulu', uncertain: false, sensitivity: 'education' } : location.search.includes('place') ? { place: { id: 'bim', name: 'BİM' }, label: 'BİM', uncertain: false, sensitivity: null } : null} onCapture={(asset) => setResult(`${asset.type}:${asset.mimeType}:${asset.uri.endsWith('#rendered') ? 'rendered' : 'original'}${asset.signalHint ? `:${asset.signalHint.type}` : ''}`)} onClose={() => setClosed(true)} onTextOnly={() => setResult('text')} />}
       <Text accessibilityLabel="captured" style={{ height: 0, opacity: 0, position: 'absolute' }}>{result}{closed ? 'closed' : ''}</Text>
     </View>
   );
@@ -383,7 +384,6 @@ function ComposerWithMedia() {
         auth={qaAuth}
         canAskLocationAgain
         error={null}
-        initialStep={location.search.includes('loose') ? 0 : 1}
         isSubmitting={false}
         locationReadiness="ready"
         nearbyPlaces={nearby}
@@ -394,7 +394,7 @@ function ComposerWithMedia() {
         onOpenSettings={() => {}}
         onSelectArea={async () => {}}
         onSessionExpired={() => {}}
-        onSubmit={async (_input, extras) => { setSnapTo(`sent:${(extras?.snapFriendIds ?? []).join(',')}:${extras?.snapAsset ? 'photo' : 'none'}`); }}
+        onSubmit={async (_input, extras) => { setSnapTo(`sent:${(extras?.snapFriendIds ?? []).join(',')}:${extras?.media.some((m) => m.kind === 'image') ? 'photo' : 'none'}${extras?.story ? ':story' : ''}`); }}
         pendingCapture={capture}
         visible
       />

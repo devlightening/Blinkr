@@ -8,7 +8,7 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz D (A, B, C tamam; A2/A3 silme kullanıcı onayı bekliyor) |
+| Aktif faz | Faz E (A, B, C, D tamam; A2/A3 silme kullanıcı onayı bekliyor) |
 | Önceki durum | Faz 0–9 işlevsel tamam · Faz 10 yarım (P10.1/3/4/8/9 bitti) |
 | Son güncelleme | 2026-09-24 |
 | Engelleyici | F1: gerçek destek/itiraz e-posta adresi kullanıcıdan alınacak |
@@ -58,17 +58,17 @@
 
 ## Faz D — Kamera-öncelikli oluşturma
 
-- [ ] D1 (+) doğrudan kamerayı açar
-- [ ] D2 Kamera ekranı tamamlanır
-- [ ] D3 Yer algılama kamerada
-- [ ] D4 Efekt ekranı: filtre kaydırmayla
-- [ ] D5 Çıkartmalar
-- [ ] D6 Detaylar tek sayfa
-- [ ] D7 Başlık verisi göçü
-- [ ] D8 Gönder ekranı
-- [ ] D9 Arka planda yükleme
-- [ ] D10 Galeri kuralları
-- [ ] D11 Hassas yer uyarısı
+- [x] D1 (+) doğrudan kamerayı açar — (+) kamera, basılı tut yazılı sinyal (P5.1'den beri)
+- [~] D2 Kamera ekranı tamamlanır — galeri, dokun=foto / basılı tut=video halkası, Aa, flaş/çevir, Foto·Video; zoom iki parmakla (deklanşörde yukarı kaydırma yok, D-019)
+- [x] D3 Yer algılama kamerada — izin varsa kamera açılınca konum; 100 m içindeki en yakın yer çipte ve composer onunla başlar; > 100 m "Konum belirsiz" (`cameraPlace.ts`, test)
+- [x] D4 Efekt ekranı: filtre kaydırmayla — daire listesi kalktı; kaydırma + adın 1 sn görünmesi + küçük "‹ ad ›" göstergesi
+- [x] D5 Çıkartmalar — sürükle, iki parmak ölçek/döndür, çöpe sürükle, boş alana yerleşim, ±2–4° eğim (`stickerTilt`, test)
+- [x] D6 Detaylar tek sayfa — sihirbaz yok; yer satırı, tür kareleri + seviye, 280 karakter tek açıklama, görünürlük, süre bilgisi; başlık alanı yok
+- [x] D7 Başlık verisi göçü — göç yerine görüntüde birleştirme (`cardText`) tüm liste/kartlarda (D-019)
+- [x] D8 Gönder ekranı — Haritaya / Hikayem / Arkadaşlar (snap, arama) + sarı Gönder, composer içinde
+- [~] D9 Arka planda yükleme — giden kutusu (cihazda kalıcı, bağlantı gelince otomatik), "Paylaşılıyor…/Bağlantı bekleniyor/Paylaşılamadı" çipi, toast; kendi pininin nabzı yok (D-019)
+- [x] D10 Galeri kuralları — EXIF sunucuya gitmez; 2 saatten eski galeri medyası güveni düşürür ve kartta "Galeriden" (sunucu yalnız `fromGallery` bayrağını tutar; BLK-CARD-01)
+- [x] D11 Hassas yer uyarısı — kamerada tek seferlik uyarı; okulda "Yazılı sinyal"; composer'da medya kapalı (sunucu da reddeder)
 
 ## Faz E — Sohbet yenileme
 
@@ -129,6 +129,11 @@
 - **Doğrulama:** `test-signal-card.ps1` (BLK-CARD-01) + engagement/discover/authz/map-core/nearby-ux/live-signal/friends PASS; `signal-card.test.ts`, `test:ui` (kart açık/uzak/kendi sinyali, beğeni, doğrulama, sayfalama, menü, yorumlar, kapanış; iki tema ekran görüntüsü), typecheck, i18n, theme, iOS + Android export PASS.
 - **Bulunan hata:** Faz A'daki `e2e_` öneki `e2e_location_smoke_` + ms damgasıyla 30 karakteri aşıyordu (kayıt 400); kısaltıldı.
 - **Ertelenen:** ReactionBar, menüde sessize al/düzenle/haritadan kaldır (D-018). **Cihazda bakılacak:** kart açılış süresi, nested kaydırma hissi, video otomatik oynatma.
+
+### Faz D — 2026-09-24
+- **Yapılanlar:** tek sayfa composer (tür kareleri, seviye, 280 karakter açıklama, yer satırı + yakın yer çipleri, görünürlük, gönder hedefleri Haritaya/Hikayem/Arkadaşlar, sarı Gönder); giden kutusu (`shareQueue.ts` saf kurallar + `shareOutbox.ts` cihazda kalıcı kuyruk, NetInfo/AppState ile uyanma, medya bir kez yüklenir) ve haritada `ShareProgressChip`; kamerada en yakın yer çipi, "Konum belirsiz", hassas yer uyarısı; lens daireleri yerine kaydırma + gösterge; çıkartma eğimi; başlık+açıklama tüm listelerde tek metin; sunucu `fromGallery` → kartta "Galeriden".
+- **Doğrulama:** typecheck, test:theme, test:nearby (share-queue, camera-place dahil), test:product, test:i18n, test:ui (tek sayfa yayın, yer seçici, gönder hedefleri, anonim kısıtları, kamera yer çipi/okul uyarısı/lens göstergesi, Galeriden) PASS; BLK-CARD-01 (fromGallery), BLK-CORE-03 medya, BLK-LOCATION-01, güvenilir olay teslimi PASS; iOS + Android export PASS.
+- **Cihazda bakılacak:** uçak modunda paylaş → bağlantı gelince yükleniyor mu; kamerada yer çipinin gelme süresi; klavye açıkken tek sayfa kaydırma.
 
 ## Performans ölçümleri (Faz G)
 

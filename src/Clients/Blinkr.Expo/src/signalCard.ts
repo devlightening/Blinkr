@@ -24,6 +24,8 @@ export type CardSignal = {
   media: CardMedia[];
   /** Server trust VERIFIED_LIVE: the "Konumda" badge. */
   verified: boolean;
+  /** An old gallery photo (plan-devam D10): the card says "Galeriden" instead of implying it is live. */
+  fromGallery?: boolean;
   placeId: string | null;
   placeName: string | null;
   placeCategory: string | null;
@@ -110,7 +112,7 @@ export const fromCoordinateSignal = (signal: CoordinateSignal): CardSignal => ({
 export type PostDetailDto = {
   id: string; title?: string | null; content?: string | null; authorId?: string | null; authorName?: string | null;
   createdAt?: string | null; expiresAt?: string | null; signalType?: string | null; signalValue?: string | null;
-  identityDisclosure?: string | null; publicationTrust?: string | null; isMine?: boolean; viewCount?: number | null;
+  identityDisclosure?: string | null; publicationTrust?: string | null; fromGallery?: boolean; isMine?: boolean; viewCount?: number | null;
   likeCount?: number; commentCount?: number; isLikedByCurrentUser?: boolean; placeId?: string | null; locationName?: string | null;
   latitude?: number | null; longitude?: number | null;
   media?: Array<{ url?: string | null; thumbnailUrl?: string | null; type?: string | number | null; width?: number | null; height?: number | null }>;
@@ -136,6 +138,7 @@ export const withDetail = (card: CardSignal, dto: PostDetailDto): CardSignal => 
     text: cardText(dto.title, dto.content, type) || card.text,
     media: media.length ? media : card.media,
     verified: dto.publicationTrust ? dto.publicationTrust === 'VERIFIED_LIVE' : card.verified,
+    fromGallery: Boolean(dto.fromGallery),
     placeId: dto.placeId ?? card.placeId,
     placeName: card.placeName ?? dto.locationName ?? null,
     latitude: card.latitude ?? dto.latitude ?? null,

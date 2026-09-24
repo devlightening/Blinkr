@@ -21,6 +21,7 @@ namespace BlogService.Domain.Entities
         public string? LocationName { get; private set; }
         public Guid? PlaceId { get; private set; }
         public string? PublicationTrust { get; private set; }
+        public bool FromGallery { get; private set; }
         public string SignalType { get; private set; } = "GeneralObservation";
         public string? SignalValue { get; private set; }
         public string AudienceType { get; private set; } = "Public";
@@ -57,7 +58,8 @@ namespace BlogService.Domain.Entities
             string sourceType = "Community",
             DateTime? expiresAt = null,
             ICollection<PostMediaInfo>? media = null,
-            string? publicationTrust = null)
+            string? publicationTrust = null,
+            bool fromGallery = false)
         {
             var post = new PostAggregate();
             post.ApplyNewEvent(new PostCreatedEvent(
@@ -81,7 +83,8 @@ namespace BlogService.Domain.Entities
                 sourceType,
                 expiresAt,
                 media,
-                publicationTrust));
+                publicationTrust,
+                fromGallery));
             return post;
         }
 
@@ -191,6 +194,7 @@ namespace BlogService.Domain.Entities
             LocationName = e.LocationName;
             PlaceId = e.PlaceId;
             PublicationTrust = e.PublicationTrust;
+            FromGallery = e.FromGallery;
             SignalType = e.SignalType;
             SignalValue = e.SignalValue;
             AudienceType = e.AudienceType;

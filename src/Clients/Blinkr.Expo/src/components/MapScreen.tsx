@@ -17,8 +17,11 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import i18n from 'i18next';
-import { createSignal, getNearbyPlaces, getPlace, getUnifiedMapBounds, previewPresence, getSignalContent, sendReport, sendSnap, startConversation } from '../api';
-import { COMPOSER_SNAP_SECONDS, summarizeSend } from '../snapPresentation';
+import { createSignal, getNearbyPlaces, getPlace, getUnifiedMapBounds, previewPresence, getSignalContent, sendReport } from '../api';
+import { useShareOutbox, type SharedResult } from '../shareOutbox';
+import { newOutboxId, type OutboxItem } from '../shareQueue';
+import { ShareProgressChip } from './map/ShareProgressChip';
+import { suggestCameraPlace } from '../cameraPlace';
 import { friendlyError } from '../productPresentation';
 import { BlinkrMapMarker, BlinkrClusterMarker } from './BlinkrMapMarker';
 import { bottomBarClearance } from './ui/BlinkrBottomBar';
@@ -47,7 +50,6 @@ import type {
   Bounds,
   ComposerArea,
   CoordinateSignal,
-  CreateSignalInput,
   LocationReadiness,
   NearbyStatus,
   ShareMode,
@@ -60,7 +62,7 @@ import { SignalCardModal } from './signal/SignalCardModal';
 import { fromCoordinateSignal, fromRecentSignal, type CardSignal } from '../signalCard';
 import { SignalCamera } from './camera/SignalCamera';
 import type { CapturedMedia } from './camera/PhotoEditor';
-import { SignalComposer, type ComposerExtras } from './SignalComposer';
+import { SignalComposer, type ComposerExtras, type ComposerInput } from './SignalComposer';
 
 type Props = {
   auth: AuthResponse;
@@ -141,7 +143,6 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
   const [searchProfileUser, setSearchProfileUser] = useState<UserSummary | null>(null);
   const [searchOrigin, setSearchOrigin] = useState({ latitude: 0, longitude: 0 });
   const [cameraOpen, setCameraOpen] = useState(false);
-  const [composerInitialStep, setComposerInitialStep] = useState(0);
   const [composerInitialSignal, setComposerInitialSignal] = useState<{ type: SignalType; value: string | null } | null>(null);
   const [mapLayer, setMapLayer] = useState<MapLayer>('all');
   const [activeTypeFilter, setActiveTypeFilter] = useState<Set<SignalType>>(new Set());
@@ -492,7 +493,6 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
     setComposerOpen(false);
     setComposerArea(null);
     setPendingCapture(null);
-    setComposerInitialStep(0);
   }, [isCreating]);
 
   const moveToDeviceLocation = useCallback(async (requestPermission = true) => {
@@ -702,11 +702,18 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
     if (generation === composerGeneration.current) setComposerArea({ ...location, name, source });
   }, [auth, onAuthChange, onLogout, getFreshDeviceLocation, loadNearbyPlaces, region, resolveAreaName]);
 
-  const openComposer = (place?: BlinkrPlace | null, initialStep = 0, initialSignal: { type: SignalType; value: string | null } | null = null) => {
-    const opening = ++composerGeneration.current;
+  const openComposer = (place?: BlinkrPlace | null, initialSignal: { type: SignalType; value: string | null } | null = null, keepArea = false) => {
     closeDetailSheet();
+    setComposerInitialSignal(initialSignal);
+    setComposerError(null);
+    // After the camera (D3) the device fix and nearby places are already here: keep them instead of asking again.
+    if (keepArea && !place && composerArea) {
+      setComposerOpen(true);
+      if (cameraPlace?.place) selectComposerArea('map', cameraPlace.place, 'COMPOSER_OPEN').catch((err) => setComposerError(friendlyError(err)));
+      return;
+    }
+    const opening = ++composerGeneration.current;
     setComposerArea(null);
-    setComposerInitialStep(initialStep);
     setComposerInitialSignal(initialSignal);
     nearbyOwner.current.reset();
     setComposerError(null);
@@ -730,45 +737,52 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
   };
 
   // (+) tap: camera (own UI with lenses and a gallery button); long press: a signal without media. Both end in the same composer.
+  // plan-devam D3: the camera takes the position while it is open (only if location is already allowed - it never
+  // asks here), so the nearest place can be shown on the preview and the composer starts with it.
   const startCamera = () => {
     setCameraOpen(true);
+    if (isComposerOpen) return;
+    composerGeneration.current += 1;
+    setComposerArea(null);
+    nearbyOwner.current.reset();
+    Location.getForegroundPermissionsAsync()
+      .then((permission) => (permission.status === 'granted' ? selectComposerArea('device', null, 'COMPOSER_OPEN') : undefined))
+      .catch(() => { /* the composer asks again when it opens */ });
   };
+  const cameraPlace = useMemo(() => suggestCameraPlace(composerArea, nearbyPlaces), [composerArea, nearbyPlaces]);
 
   const handleCaptured = (asset: CapturedMedia) => {
     setCameraOpen(false);
     setPendingCapture(asset);
-    if (!isComposerOpen) openComposer(selectedPlace, 1, asset.signalHint ?? null);
+    if (!isComposerOpen) openComposer(selectedPlace, asset.signalHint ?? null, true);
   };
 
   const startSignalOnly = () => {
-    openComposer(selectedPlace, 0);
+    openComposer(selectedPlace);
   };
 
-  // P5.9: the published photo also goes to the chosen friends as a snap, one conversation at a time. It runs after
-  // the signal is safely published; a failed snap never undoes the signal, it is only reported.
-  const sendComposerSnaps = async (extras: ComposerExtras) => {
-    if (!extras.snapAsset || extras.snapFriendIds.length === 0) return;
-    const results: Array<{ conversationId: string; ok: boolean }> = [];
-    for (const friendId of extras.snapFriendIds) {
-      try {
-        const conversation = await startConversation(auth, friendId, onAuthChange, onLogout);
-        await sendSnap(auth, conversation.id, extras.snapAsset, { durationSeconds: COMPOSER_SNAP_SECONDS }, onAuthChange, onLogout);
-        results.push({ conversationId: friendId, ok: true });
-      } catch (err) {
-        console.log('[Blinkr Snap]', { failedStage: 'composer-send', errorCode: err instanceof Error ? err.name : 'Unknown' });
-        results.push({ conversationId: friendId, ok: false });
-      }
+  // plan-devam D9: once a share is out, show it - fly there and reload until the new pin is in the answer.
+  const revealShared = useCallback(async ({ postId, item }: SharedResult) => {
+    setSuccess(i18n.t(item.story ? 'create:outbox.doneStory' : 'create:outbox.done'));
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await wait(1200);
+      const map = await loadPlaces(currentRegion.current, true, mapLayerRef.current === 'places');
+      if (map?.signals.some((s) => s.postId === postId) || (item.input.placeId && map?.places.some((p) => p.id === item.input.placeId))) break;
     }
-    const summary = summarizeSend(results);
-    setSuccess(summary.allSent
-      ? i18n.t('create:snap.sentAll', { count: summary.sent })
-      : i18n.t('create:snap.sentSome', { sent: summary.sent, failed: summary.failed.length }));
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const outbox = useShareOutbox({
+    auth,
+    refresh: { onAuthRefresh: onAuthChange, onSessionExpired: onLogout },
+    onShared: (result) => { void revealShared(result); },
+    onRefused: () => { void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); },
+  });
 
-  const submitSignal = async (
-    input: Omit<CreateSignalInput, 'latitude' | 'longitude' | 'accuracyMeters' | 'locationName'>,
-    extras?: ComposerExtras,
-  ) => {
+  // Gönder: take a fresh fix for a place signal (the server decides trust from where the person really is), hand the
+  // share to the outbox and close at once. Uploading and publishing go on in the background, and wait for a
+  // connection if there is none.
+  const submitSignal = async (input: ComposerInput, extras: ComposerExtras) => {
     if (submissionInFlight.current) return;
     submissionInFlight.current = true;
     setIsCreating(true);
@@ -776,35 +790,39 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
     try {
       if (!composerArea) throw new Error('Önce sinyalin ait olduğu yeri veya alanı seç.');
       const position = composerArea.place ? await getFreshDeviceLocation() : null;
-      const postId = await createSignal(auth, {
-        ...input,
-        accuracyMeters: composerArea.accuracyMeters,
-        latitude: composerArea.region.latitude,
-        longitude: composerArea.region.longitude,
-        observationAccuracyMeters: position?.coords.accuracy ?? composerArea.observationAccuracyMeters,
-        observationLatitude: position?.coords.latitude ?? composerArea.observationLatitude,
-        observationLongitude: position?.coords.longitude ?? composerArea.observationLongitude,
-        proximityAllowed: composerArea.proximity?.allowed ?? null,
-        proximityDistanceMeters: composerArea.proximity?.distanceMeters ?? null,
-        locationName: composerArea.name,
-      }, onAuthChange, onLogout);
+      const item: OutboxItem = {
+        id: newOutboxId(),
+        createdAtUtc: new Date().toISOString(),
+        attempts: 0,
+        nextAttemptAt: 0,
+        status: 'pending',
+        story: extras.story,
+        snapFriendIds: extras.snapFriendIds,
+        media: extras.media.map((m) => ({ localUri: m.uri, kind: m.kind, mimeType: m.mimeType, fileName: m.fileName })),
+        input: {
+          ...input,
+          accuracyMeters: composerArea.accuracyMeters,
+          latitude: composerArea.region.latitude,
+          longitude: composerArea.region.longitude,
+          observationAccuracyMeters: position?.coords.accuracy ?? composerArea.observationAccuracyMeters,
+          observationLatitude: position?.coords.latitude ?? composerArea.observationLatitude,
+          observationLongitude: position?.coords.longitude ?? composerArea.observationLongitude,
+          proximityAllowed: composerArea.proximity?.allowed ?? null,
+          proximityDistanceMeters: composerArea.proximity?.distanceMeters ?? null,
+          locationName: composerArea.name,
+        },
+      };
+      await outbox.enqueue(item);
       setComposerOpen(false);
+      setPendingCapture(null);
       composerGeneration.current += 1;
       nearbyRequest.current?.abort();
       nearbyOwner.current.reset();
-      setSuccess('Yayınlandı. Haritaya ekleniyor.');
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      if (extras) void sendComposerSnaps(extras);
-
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       const target = { ...composerArea.region, latitudeDelta: 0.01, longitudeDelta: 0.01 };
       currentRegion.current = target;
       setRegion(target);
       mapRef.current?.animateToRegion(target, 350);
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        await wait(1200);
-        const map = await loadPlaces(currentRegion.current, true, mapLayer === 'places');
-        if (map?.signals.some(s => s.postId === postId) || map?.places.some(p => p.id === composerArea.place?.id)) break;
-      }
     } catch (err) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setComposerError(friendlyError(err, 'Paylaşım tamamlanamadı. Tekrar dene.'));
@@ -935,8 +953,9 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
         userName={auth.userName}
       />
 
+      {!isComposerOpen ? <ShareProgressChip bottom={bottomBarClearance(insets.bottom) + 8} items={outbox.items} onDiscard={outbox.discard} onRetry={outbox.retry} /> : null}
       {(success || error) && (
-        <Animated.View entering={FadeIn.duration(motion.base)} style={[styles.toast, error ? styles.errorToast : styles.successToast, { bottom: bottomBarClearance(insets.bottom) + 8 }]}>
+        <Animated.View entering={FadeIn.duration(motion.base)} style={[styles.toast, error ? styles.errorToast : styles.successToast, { bottom: bottomBarClearance(insets.bottom) + 8 + (outbox.items.length > 0 ? 60 : 0) }]}>
           {error ? <Wifi color={colors.danger} size={18} /> : <CheckCircle2 color={colors.mint} size={18} />}
           <Text style={[styles.toastText, error && styles.errorToastText]} numberOfLines={3}>
             {error || success}
@@ -952,7 +971,6 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
         auth={auth}
         canAskLocationAgain={canAskLocationAgain}
         error={composerError}
-        initialStep={composerInitialStep}
         initialSignal={composerInitialSignal}
         isSubmitting={isCreating}
         locationReadiness={locationReadiness}
@@ -993,7 +1011,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
           user={searchProfileUser}
         />
       ) : null}
-      {cameraOpen && <View style={styles.cameraLayer}><SignalCamera onCapture={handleCaptured} onClose={() => setCameraOpen(false)} onTextOnly={() => { setCameraOpen(false); startSignalOnly(); }} /></View>}
+      {cameraOpen && <View style={styles.cameraLayer}><SignalCamera onCapture={handleCaptured} onClose={() => setCameraOpen(false)} place={isComposerOpen ? null : cameraPlace} onTextOnly={() => { setCameraOpen(false); startSignalOnly(); }} /></View>}
       {cardView && !isComposerOpen ? (
         <SignalCardModal
           auth={auth}
@@ -1001,7 +1019,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
           deviceOrigin={deviceSnapshot.current && Date.now() - deviceSnapshot.current.timestamp < MAX_NEARBY_LOCATION_AGE_MS ? deviceSnapshot.current : null}
           key={cardView.key}
           loading={cardView.loading}
-          onChanged={(card) => { const target = placeForCard(card); setCardView(null); openComposer(target, 1, { type: card.signalType, value: null }); }}
+          onChanged={(card) => { const target = placeForCard(card); setCardView(null); openComposer(target, { type: card.signalType, value: null }); }}
           onClose={() => { cardRequest.current?.abort(); setCardView(null); }}
           onConfirm={confirmFromCard}
           onCreateSignal={cardView.place ? () => { const target = cardView.place; setCardView(null); openComposer(target); } : undefined}
@@ -1017,7 +1035,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
         onClose={closeDetailSheet}
         onCreateSignal={() => openComposer(selectedDetail ?? selectedPlace)}
         // Confirming goes straight to the last step with the same value; "changed" asks for the new value.
-        onRecheck={(mode, current) => openComposer(selectedDetail ?? selectedPlace, mode === 'confirm' ? 3 : 1, { type: current.type, value: mode === 'confirm' ? current.value : null })}
+        onRecheck={(mode, current) => openComposer(selectedDetail ?? selectedPlace, { type: current.type, value: mode === 'confirm' ? current.value : null })}
         auth={auth}
         refresh={{ onAuthRefresh: onAuthChange, onSessionExpired: onLogout }}
         onReportSignal={async (postId, reason, note) => { await sendReport(auth, { targetType: 'signal', targetId: postId, reason, note }, { onAuthRefresh: onAuthChange, onSessionExpired: onLogout }); }}

@@ -1,8 +1,9 @@
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import { CameraOff, Images, SwitchCamera, Type, X, Zap, ZapOff } from 'lucide-react-native';
+import { AlertCircle, CameraOff, Images, MapPin, ShieldCheck, SwitchCamera, Type, X, Zap, ZapOff } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, BackHandler, Linking, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,13 +11,14 @@ import Svg, { Circle } from 'react-native-svg';
 
 import { HOLD_TO_RECORD_MS, MAX_VIDEO_SECONDS, clampZoom, recordingProgress, flashLabel, formatRecording, lensById, nextFlash, zoomMultiplierLabel, type FlashMode } from '../../cameraEffects';
 import { capturedAtOf } from '../../galleryCapture';
+import type { CameraPlace } from '../../cameraPlace';
 import { friendlyError } from '../../productPresentation';
 // Drawn over live camera/photo/video: always the dark media palette, whatever the app theme (plan-devam B3).
 import { media, mediaColors as colors, radii, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
 import { FilterOverlay } from './FilterOverlay';
-import { LensSelector } from './LensSelector';
+import { LensIndicator } from './LensIndicator';
 import { useLensSwipe } from './LensSwipe';
 import { PhotoEditor, type CapturedMedia } from './PhotoEditor';
 
@@ -29,6 +31,8 @@ type Props = {
   photoOnly?: boolean;
   /** "Aa": leave the camera for a text-only signal (sinyal-mvp-plan P5.2). Hidden when absent (snaps). */
   onTextOnly?: () => void;
+  /** plan-devam D3: where the share will start - the nearest place, or the approximate area, or "Konum belirsiz". */
+  place?: CameraPlace | null;
 };
 
 type Mode = 'photo' | 'video';
@@ -44,8 +48,11 @@ const videoMime = (uri: string) => (/\.mov(\?|$)/i.test(uri) ? 'video/quicktime'
  * as recorded, because a lens cannot be applied to a recording. It only hands a file to `onCapture`; publishing
  * (place, proximity, server trust) stays in the composer.
  */
-export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = false, onTextOnly }: Props) {
+export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = false, onTextOnly, place = null }: Props) {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation('create');
+  // plan-devam D11: the sensitive-place notice shows once per place while the camera is open.
+  const [noticeSeenFor, setNoticeSeenFor] = useState<string | null>(null);
   const camera = useRef<CameraView>(null);
   const mounted = useRef(true);
   const recordingRef = useRef(false);
@@ -291,6 +298,30 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
         </View>
       </View>
 
+      {place && !recording ? (
+        <View pointerEvents="none" style={[styles.placeChipRow, { top: insets.top + spacing.sm + 52 }]}>
+          <View accessibilityLabel={place.uncertain ? t('safety.uncertainTitle') : place.label} style={[styles.placeChip, place.uncertain && styles.placeChipWarn]} testID="camera-place">
+            {place.uncertain ? <AlertCircle color={colors.warning} size={15} /> : <MapPin color={colors.text} size={15} />}
+            <Text numberOfLines={1} style={[styles.placeChipText, place.uncertain && styles.placeChipWarnText]}>{place.uncertain ? t('safety.uncertainTitle') : place.label}</Text>
+          </View>
+        </View>
+      ) : null}
+      {place?.sensitivity && place.place && noticeSeenFor !== place.place.id && !photoOnly ? (
+        <View accessibilityRole="alert" style={[styles.notice, { top: insets.top + spacing.sm + 96 }]} testID="camera-sensitive">
+          <ShieldCheck color={colors.warning} size={20} />
+          <View style={styles.noticeBody}>
+            <Text style={styles.noticeTitle}>{t(place.sensitivity === 'education' ? 'safety.noMediaTitle' : 'safety.privacyTitle')}</Text>
+            <Text style={styles.noticeText}>{t(place.sensitivity === 'education' ? 'safety.noMediaBody' : 'safety.privacyBody')}</Text>
+            <View style={styles.noticeActions}>
+              {place.sensitivity === 'education' && onTextOnly ? (
+                <AnimatedPressable accessibilityRole="button" onPress={onTextOnly} pressScale={0.95} style={styles.noticePrimary}><Text style={styles.noticePrimaryText}>{t('camera.textOnly')}</Text></AnimatedPressable>
+              ) : null}
+              <AnimatedPressable accessibilityRole="button" onPress={() => setNoticeSeenFor(place.place?.id ?? null)} pressScale={0.95} style={styles.noticeSecondary}><Text style={styles.noticeSecondaryText}>{t('safety.gotIt')}</Text></AnimatedPressable>
+            </View>
+          </View>
+        </View>
+      ) : null}
+
       <AnimatedPressable
         accessibilityLabel={`Yakınlaştırma ${zoomMultiplierLabel(zoom)}, sıfırla`}
         accessibilityRole="button"
@@ -306,7 +337,7 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
 
       <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
         {mode === 'photo'
-          ? <LensSelector disabled={recording} onSelect={setLensId} selectedId={lensId} />
+          ? <LensIndicator disabled={recording} onSelect={setLensId} selectedId={lensId} />
           : <Text style={styles.note}>Video, seçtiğin efekt olmadan kaydedilir.</Text>}
         {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
 
@@ -402,4 +433,18 @@ const styles = StyleSheet.create({
   shutterCore: { backgroundColor: colors.text, borderRadius: radii.pill, height: 58, width: 58 },
   shutterCoreVideo: { backgroundColor: colors.danger },
   shutterCoreRecording: { borderRadius: 14, height: 34, width: 34 },
+  placeChipRow: { alignItems: 'center', left: 0, position: 'absolute', right: 0 },
+  placeChip: { alignItems: 'center', backgroundColor: media.chip, borderRadius: radii.pill, flexDirection: 'row', gap: 6, maxWidth: '70%', paddingHorizontal: 12, paddingVertical: 7 },
+  placeChipWarn: { backgroundColor: media.chipStrong, borderColor: colors.warning, borderWidth: 1 },
+  placeChipText: { ...typography.label, color: colors.text, flexShrink: 1 },
+  placeChipWarnText: { color: colors.warning },
+  notice: { alignItems: 'flex-start', backgroundColor: media.chipStrong, borderColor: media.line, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, left: spacing.md, padding: spacing.md, position: 'absolute', right: spacing.md },
+  noticeBody: { flex: 1, gap: 4 },
+  noticeTitle: { ...typography.bodyStrong, color: colors.text },
+  noticeText: { ...typography.caption, color: media.textSoft },
+  noticeActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
+  noticePrimary: { alignItems: 'center', backgroundColor: colors.flare, borderRadius: radii.pill, justifyContent: 'center', minHeight: 40, paddingHorizontal: spacing.md },
+  noticePrimaryText: { ...typography.label, color: colors.ink },
+  noticeSecondary: { alignItems: 'center', borderColor: media.line, borderRadius: radii.pill, borderWidth: 1, justifyContent: 'center', minHeight: 40, paddingHorizontal: spacing.md },
+  noticeSecondaryText: { ...typography.label, color: colors.text },
 });

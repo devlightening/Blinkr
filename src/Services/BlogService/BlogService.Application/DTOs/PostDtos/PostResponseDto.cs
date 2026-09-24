@@ -38,6 +38,7 @@
         public DateTime? ExpiresAt { get; set; }
         /// <summary>The server's publication trust (VERIFIED_LIVE shows "Konumda" on the Sinyal Kartı, plan-devam C3).</summary>
         public string? PublicationTrust { get; set; }
+        public bool FromGallery { get; set; }
         /// <summary>True only for the author asking about their own signal (anonymous ones too): menu and verify rules.</summary>
         public bool IsMine { get; set; }
         /// <summary>People who looked at the Sinyal Kartı (once per person per day); only returned to the author.</summary>

@@ -23,7 +23,8 @@ namespace BlogService.Domain.Events
         string SourceType = "Community",
         DateTime? ExpiresAt = null,
         ICollection<PostMediaInfo>? Media = null,
-        string? PublicationTrust = null) : IDomainEvent;
+        string? PublicationTrust = null,
+        bool FromGallery = false) : IDomainEvent;
 
     public record PostMediaInfo(
         string Url,

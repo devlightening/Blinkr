@@ -126,6 +126,7 @@ public class EventStorePublishingDecorator : IEventStoreRepository
                     e.LocationName,
                     e.PlaceId,
                     e.PublicationTrust,
+                    e.FromGallery,
                     e.SignalType,
                     e.SignalValue,
                     e.AudienceType,

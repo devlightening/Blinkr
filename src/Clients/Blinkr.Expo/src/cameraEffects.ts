@@ -187,6 +187,9 @@ export const stickersOverlap = (a: { x: number; y: number }, b: { x: number; y: 
  * A new sticker goes to the first free spot, scanning from the middle outwards, so it never lands on top of one
  * already there (sinyal-mvp-plan AUDIT #8). If the picture is full it falls back to the least crowded spot.
  */
+/** plan-devam D5: a real sticker never sits perfectly straight - 2 to 4 degrees, alternating sides (radians). */
+export const stickerTilt = (index: number, seed = Date.now()) => ((2 + (Math.abs(Math.floor(seed)) % 3)) * (index % 2 === 0 ? 1 : -1) * Math.PI) / 180;
+
 export const placeSticker = (existing: PlacedSticker[], stickerId: string, frame: { width: number; height: number }, now = Date.now()): PlacedSticker[] => {
   if (existing.length >= MAX_STICKERS) return existing;
   // Two columns a sticker-width apart, rows a sticker-height apart, middle rows first.
@@ -199,7 +202,7 @@ export const placeSticker = (existing: PlacedSticker[], stickerId: string, frame
   const nearest = (point: { x: number; y: number }) => existing.reduce((min, s) => Math.min(min, Math.hypot(s.x - point.x, s.y - point.y)), Number.POSITIVE_INFINITY);
   const free = candidates.find((point) => existing.every((s) => !stickersOverlap(s, point)));
   const spot = free ?? candidates.reduce((best, point) => (nearest(point) > nearest(best) ? point : best), candidates[0]);
-  return [...existing, { key: `${stickerId}-${now}-${existing.length}`, stickerId, x: spot.x, y: spot.y, scale: 1, rotation: 0 }];
+  return [...existing, { key: `${stickerId}-${now}-${existing.length}`, stickerId, x: spot.x, y: spot.y, scale: 1, rotation: stickerTilt(existing.length, now) }];
 };
 
 /** Dropping a sticker on the bin at the bottom centre of the picture deletes it. */

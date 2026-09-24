@@ -74,5 +74,25 @@ Check "an anonymous signal never reveals its author" ($anonCard.Json.authorId -e
 $anonOwn = Invoke-Api -Method GET -Path "/api/posts/$($anon.Json.postId)" -Token $author.Token
 Check "the author still knows the anonymous signal is theirs" ($anonOwn.Json.isMine -eq $true)
 
+# D10: a gallery photo older than two hours is flagged "Galeriden" (only the flag is kept, never the capture time);
+# a fresh photo is not.
+function Upload-Png([string]$Token) {
+    $png = [byte[]](0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A,0x00,0x00,0x00,0x0D,0x49,0x48,0x44,0x52,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x01,0x08,0x06,0x00,0x00,0x00,0x1F,0x15,0xC4,0x89)
+    $pre = Invoke-Api -Method POST -Path "/api/v1/media/presign" -Token $Token -Body @{ fileName = "g.png"; contentType = "image/png"; sizeBytes = $png.Length; width = 1; height = 1 }
+    $url = [string]$pre.Json.uploadUrl
+    if ($url.StartsWith("/")) { $url = "$GatewayBaseUrl$url" }
+    Invoke-WebRequest -Method PUT -Uri $url -Headers @{ Authorization = "Bearer $Token" } -ContentType "image/png" -Body $png -UseBasicParsing -TimeoutSec 30 | Out-Null
+    return $pre.Json.mediaId
+}
+$oldPhoto = Upload-Png $author.Token
+$oldPost = Invoke-Api -Method POST -Path "/api/posts" -Token $author.Token -Body @{ title = ""; content = "Galeriden eski kare"; latitude = 37.0746; longitude = 36.2464; accuracyMeters = 20; locationName = "Test"; signalType = "GeneralObservation"; audienceType = "Public"; identityDisclosure = "LimitedProfile"; locationPrecision = "ApproximateArea"; mediaCapturedAtUtc = [DateTime]::UtcNow.AddHours(-5).ToString("o"); media = @(@{ mediaId = $oldPhoto; mediaType = "Image" }) }
+$oldCard = Wait-Post $oldPost.Json.postId $viewer.Token
+Check "an old gallery photo is flagged" ($oldCard.Json.fromGallery -eq $true) "status=$($oldPost.Status) fromGallery=$($oldCard.Json.fromGallery)"
+Check "the capture time itself is never returned" ($oldCard.Raw -notmatch "mediaCapturedAtUtc")
+$newPhoto = Upload-Png $author.Token
+$newPost = Invoke-Api -Method POST -Path "/api/posts" -Token $author.Token -Body @{ title = ""; content = "Az önce çekildi"; latitude = 37.0746; longitude = 36.2464; accuracyMeters = 20; locationName = "Test"; signalType = "GeneralObservation"; audienceType = "Public"; identityDisclosure = "LimitedProfile"; locationPrecision = "ApproximateArea"; mediaCapturedAtUtc = [DateTime]::UtcNow.AddMinutes(-10).ToString("o"); media = @(@{ mediaId = $newPhoto; mediaType = "Image" }) }
+$newCard = Wait-Post $newPost.Json.postId $viewer.Token
+Check "a fresh photo is not flagged" ($newCard.Json.fromGallery -eq $false) "fromGallery=$($newCard.Json.fromGallery)"
+
 if ($script:failures.Count -gt 0) { Write-Host "BLK-CARD-01 FAILED: $($script:failures -join ', ')" -ForegroundColor Red; exit 1 }
 Write-Host "BLK-CARD-01 PASS"

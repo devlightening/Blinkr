@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { toAbsoluteUrl } from '../api';
-import { formatAge, formatCategory, formatDistance, meaningfulTitle, signalLabels } from '../presentation';
+import { formatAge, formatCategory, formatDistance, signalLabels } from '../presentation';
+import { cardText } from '../signalCard';
 import { isPlaceSaved, savePlace, unsavePlace } from '../savedPlaces';
 import { categoryTone, colors, radii, signalColors, spacing, typography } from '../theme';
 import type { AuthResponse, BlinkrMedia, BlinkrPlace, CoordinateSignal, RecentSignal, SignalType } from '../types';
@@ -135,8 +136,7 @@ const SignalItem = ({ signal, index, onReport, onOpenThread }: { signal: RecentS
         authorLabel={signal.authorName || 'Topluluk üyesi'}
         media={firstMedia ? <MediaThumb media={firstMedia} style={styles.signalMedia} /> : undefined}
         signalType={type}
-        text={signal.text}
-        title={meaningfulTitle(signal.title, signalLabels[type])}
+        text={cardText(signal.title, signal.text, type)}
         tone={signalColors[type] ?? colors.mint}
         trustLabel={trustLabel(signal.publicationTrust)}
         typeLabel={signalLabels[type] ?? 'Sinyal'}
@@ -245,8 +245,7 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
                   ? <Image accessibilityIgnoresInvertColors source={{ uri: toAbsoluteUrl(signal.mediaThumbnailUrl) ?? signal.mediaThumbnailUrl }} style={styles.signalMedia} />
                   : undefined}
               signalType={signal.signalType}
-              text={signal.content ?? signal.textPreview}
-              title={meaningfulTitle(signal.title, signalLabels[signal.signalType ?? 'GeneralObservation'])}
+              text={cardText(signal.title, signal.content ?? signal.textPreview, signal.signalType ?? 'GeneralObservation')}
               tone={signalColors[signal.signalType] ?? colors.mint}
               typeLabel={signalLabels[signal.signalType ?? 'GeneralObservation'] ?? 'Sinyal'}
             />

@@ -106,6 +106,8 @@
     "position": "{{index}} / {{count}}",
     "noSignals": "No fresh signals here right now",
     "noSignalsHint": "If you're there, be the first to share what's going on.",
-    "firstSignal": "Leave the first signal"
+    "firstSignal": "Leave the first signal",
+    "fromGallery": "From gallery",
+    "fromGalleryHint": "An older gallery photo; it does not show the live state."
   }
 }

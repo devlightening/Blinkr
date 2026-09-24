@@ -4,7 +4,7 @@ import { ActivityIndicator, StyleSheet, Text, View, type StyleProp, type ViewSty
 import { colors, radii, sizes, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 
-export type BlinkrButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+export type BlinkrButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'create';
 
 type Props = {
   label: string;
@@ -26,6 +26,8 @@ const palette = (variant: BlinkrButtonVariant, pressed: boolean) => {
     case 'primary': return { bg: pressed ? colors.primaryPressed : colors.primary, fg: colors.ink, border: 'transparent' };
     case 'secondary': return { bg: colors.surfaceElevated, fg: colors.text, border: colors.border };
     case 'danger': return { bg: 'transparent', fg: colors.danger, border: colors.coralLine };
+    // The sun fill: only the create/send action (plan-devam D8).
+    case 'create': return { bg: pressed ? colors.flarePressed : colors.flare, fg: colors.onCreate, border: 'transparent' };
     default: return { bg: 'transparent', fg: colors.mint, border: 'transparent' };
   }
 };

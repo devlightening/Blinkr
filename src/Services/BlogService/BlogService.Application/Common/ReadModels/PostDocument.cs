@@ -52,6 +52,10 @@ public class PostDocument
     /// </summary>
     [BsonIgnoreIfNull]
     public string? PublicationTrust { get; set; }
+
+    /// <summary>An old gallery photo (plan-devam D10) - the card says "Galeriden". Must match the other two PostDocument copies.</summary>
+    [BsonIgnoreIfDefault]
+    public bool FromGallery { get; set; }
     public List<PostCommentReadModel> Comments { get; set; } = new();
 
     [BsonIgnore]

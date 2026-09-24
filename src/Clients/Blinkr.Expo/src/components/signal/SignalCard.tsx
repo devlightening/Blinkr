@@ -88,6 +88,11 @@ export function SignalCard({
                   <Text style={styles.onSiteText}>{t('signal:card.onSite')}</Text>
                 </View>
               ) : null}
+              {card.fromGallery ? (
+                <View accessibilityLabel={t('signal:card.fromGalleryHint')} style={styles.gallery} testID="card-gallery">
+                  <Text style={styles.galleryText}>{t('signal:card.fromGallery')}</Text>
+                </View>
+              ) : null}
             </View>
             <Text numberOfLines={1} style={styles.meta}>{[formatAge(card.createdAtUtc ?? undefined), leftText].filter(Boolean).join(' · ')}</Text>
           </View>
@@ -217,6 +222,8 @@ const styles = StyleSheet.create({
   name: { ...typography.heading, color: colors.text, flexShrink: 1 },
   onSite: { alignItems: 'center', backgroundColor: colors.primaryTint, borderRadius: radii.pill, flexDirection: 'row', gap: 3, paddingHorizontal: 7, paddingVertical: 2 },
   onSiteText: { ...typography.micro, color: colors.primary },
+  gallery: { backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, paddingHorizontal: 7, paddingVertical: 2 },
+  galleryText: { ...typography.micro, color: colors.textSecondary },
   meta: { ...typography.caption, color: colors.textSecondary },
   iconButton: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
   badgeOnMedia: { backgroundColor: colors.surface, borderRadius: radii.pill },

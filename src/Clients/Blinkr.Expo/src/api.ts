@@ -203,9 +203,12 @@ const request = async (path: string, options: RequestOptions = {}, retrying = fa
   return response;
 };
 
+/** A failed response as an Error that also carries the HTTP status (the share outbox retries only 5xx/429, D9). */
+const httpError = async (response: Response) => Object.assign(new Error(await readError(response)), { status: response.status });
+
 const requestJson = async <T>(path: string, options: RequestOptions = {}) => {
   const response = await request(path, options);
-  if (!response.ok) throw new Error(await readError(response));
+  if (!response.ok) throw await httpError(response);
   return response.json() as Promise<T>;
 };
 
@@ -310,7 +313,7 @@ export const createSignal = async (
     onSessionExpired,
   });
 
-  if (!response.ok) throw new Error(await readError(response));
+  if (!response.ok) throw await httpError(response);
   const payload = await response.json();
   console.log('[Blinkr Publish]', {
     postId: payload.postId || payload.PostId,
@@ -682,7 +685,7 @@ export const uploadMedia = async (
     timeoutMs: 45000,
   });
 
-  if (!uploadResponse.ok) throw new Error(await readError(uploadResponse));
+  if (!uploadResponse.ok) throw await httpError(uploadResponse);
   if (isDev) console.log('[Blinkr Media]', { mediaId: presign.mediaId.slice(0, 8), mime: contentType, state: 'uploaded' });
 
   return {

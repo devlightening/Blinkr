@@ -15,6 +15,18 @@
 
 ## Kararlar
 
+### D-019 — plan-devam Faz D: tek sayfa oluşturma, gönder hedefleri ve giden kutusu (2026-09-24)
+- Bağlam: D1–D11 dört adımlı sihirbazı kamera-öncelikli, 3 dokunuşlu bir akışa çevirmeyi ve çevrimdışı paylaşımı istiyor.
+- Karar:
+  - Composer tek sayfa: medya, yer satırı (+ yakındaki yer çipleri; "Yer seç/Değiştir" eski 1. adımı ayrı görünümde açar), büyük tür kareleri + seviye, tek açıklama (280), görünürlük, "Nereye gönderilsin?" (Haritaya her zaman; Hikayem medya varsa varsayılan açık, anonimde kapalı; Arkadaşlar = snap, yalnız fotoğrafla ve anonim değilken), sarı Gönder. Başlık alanı kalktı; sunucu başlık veya metin istediği için yalnız fotoğraflı sinyalde başlık = tür adı (her yüzey bunu `cardText` ile gizler).
+  - D7 veri göçü yapılmadı: EventStore geçmişi yeniden yazılmaz; bütün liste/kart yüzeyleri (FeedCard, PostRow, yer sayfası, kart) başlık+açıklamayı `cardText` ile tek metin gösteriyor, tekrar görünmüyor.
+  - Giden kutusu (D9): Gönder yer sinyalinde taze konumu alır, paylaşımı cihazdaki kuyruğa (`outbox.json`, medya kopyası uygulama klasöründe) yazar ve kapanır. Yükleme/yayın arka planda; bağlantı yoksa bekler, NetInfo/ön plana dönüş/5 sn'de bir uyanır, 5 sn→5 dk artan bekleme. Sunucunun reddettiği (4xx) paylaşım "Paylaşılamadı" çipiyle durur (tekrar dene/vazgeç), sessizce yeniden denenmez. Medya bir kez yüklenir (mediaId hatırlanır). Hikaye/snap en iyi çabadır, sinyali geri almaz.
+  - Kamera (D3/D11): kamera açıkken, konum izni zaten varsa (asla burada sorulmaz) konum alınır; 100 m içinde ve doğruluk ≤ 100 m ise en yakın yer çipte gösterilir ve composer onunla başlar, değilse "Yaklaşık alan"; doğruluk > 100 m ise "Konum belirsiz". Okul/sağlık/ibadet yerinde tek seferlik uyarı; okulda "Yazılı sinyal" seçeneği.
+  - D4: lens daire listesi kalktı; kaydırma + küçük "‹ ad ›" göstergesi (erişilebilirlik için oklar).
+  - D10: sunucu yalnız `fromGallery` bayrağını saklar (2 saatten eski galeri medyası), çekim zamanını saklamaz; kart "Galeriden" der.
+  - Ertelenen: kendi pininin nabızla belirmesi (toast + harita yenileme var), zoom için deklanşörde yukarı kaydırma (iki parmak zoom var), tip çıkartmasının composer'da türü değiştirmesi zaten P5.5'te vardı.
+- Etki: (+) → çek → tür → Gönder = 3 dokunuş. `PostCreated` olayına geriye uyumlu `FromGallery` alanı eklendi (eski mesajlarda false).
+
 ### D-018 — plan-devam Faz C: Sinyal Kartı kapsamı ve sapmalar (2026-09-24)
 - Bağlam: C1–C13 merkez kartı, doğrulama, menü, görüntülenme ve harita düzeltmelerini istiyor.
 - Karar:

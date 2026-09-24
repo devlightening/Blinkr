@@ -10,6 +10,10 @@ public static class GalleryMediaPolicy
 {
     public static readonly TimeSpan LiveWindow = TimeSpan.FromHours(2);
 
+    /// <summary>plan-devam D10: the card labels such a photo "Galeriden". Only this flag is kept, never the capture time.</summary>
+    public static bool IsOldGalleryMedia(bool hasMedia, DateTime? mediaCapturedAtUtc, DateTime nowUtc) =>
+        hasMedia && mediaCapturedAtUtc.HasValue && nowUtc - DateTime.SpecifyKind(mediaCapturedAtUtc.Value, DateTimeKind.Utc) > LiveWindow;
+
     public static string? CapTrust(string? trustLevel, bool hasMedia, DateTime? mediaCapturedAtUtc, DateTime nowUtc)
     {
         if (!hasMedia || !mediaCapturedAtUtc.HasValue) return trustLevel;

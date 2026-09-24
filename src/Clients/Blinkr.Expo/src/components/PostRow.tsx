@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { freshnessLabelKey, freshnessTier } from '../freshness';
-import { formatAge, meaningfulTitle, signalLabels } from '../presentation';
+import { formatAge, signalLabels } from '../presentation';
+import { cardText } from '../signalCard';
 import { signalValueLabel } from '../productPresentation';
 import { colors, radii, signalColors, spacing, typography } from '../theme';
 import type { AuthoredPost } from '../types';
@@ -17,16 +18,15 @@ export function PostRow({ post }: { post: AuthoredPost }) {
   const freshness = freshnessTier(post.createdAtUtc, post.expiresAt);
   const anonymous = post.identityDisclosure === 'AnonymousMap';
   const value = signalValueLabel(post.signalType, post.signalValue);
-  const title = meaningfulTitle(post.title, signalLabels[post.signalType]);
+  const text = cardText(post.title, post.content, post.signalType);
   return (
     <View style={styles.post}>
       <View style={styles.postIcon}><SignalSymbol color={tone} size={18} type={post.signalType} /></View>
       <View style={styles.postBody}>
         <View style={styles.postTop}>
-          {title ? <Text numberOfLines={1} style={styles.postTitle}>{title}</Text> : <View style={styles.flex} />}
+          {text ? <Text numberOfLines={2} style={styles.postTitle}>{text}</Text> : <View style={styles.flex} />}
           <Text style={styles.postAge}>{formatAge(post.createdAtUtc)}</Text>
         </View>
-        {post.content ? <Text numberOfLines={2} style={styles.postText}>{post.content}</Text> : null}
         <View style={styles.postMeta}>
           <Text style={[styles.chip, { backgroundColor: `${tone}24`, color: tone }]}>{signalLabels[post.signalType] ?? 'Sinyal'}{value ? ` · ${value}` : ''}</Text>
           {anonymous ? <View style={styles.chipRow}><EyeOff color={colors.textSecondary} size={12} /><Text style={styles.chipMuted}>Anonim</Text></View> : null}

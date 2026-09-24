@@ -79,6 +79,7 @@ public class GetPostByIdHandler : IRequestHandler<GetPostByIdQuery, PostResponse
             SourceType = postDocument.SourceType,
             ExpiresAt = postDocument.ExpiresAt,
             PublicationTrust = postDocument.PublicationTrust,
+            FromGallery = postDocument.FromGallery,
             IsMine = isMine,
             ViewCount = viewCount,
             Media = postDocument.Media?.Select(m => new PostMediaDto

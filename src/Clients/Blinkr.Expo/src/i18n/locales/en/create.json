@@ -26,5 +26,81 @@
   },
   "gallery": {
     "stale": "From gallery · taken {{hours}} h ago. It shows as content but does not change the live status."
+  },
+  "title": "New signal",
+  "close": "Close",
+  "back": "Back",
+  "send": "Send",
+  "sending": "Sending",
+  "place": {
+    "locating": "Getting your location…",
+    "approximate": "Shared as an approximate area",
+    "change": "Change",
+    "choose": "Choose place",
+    "chooserTitle": "Where is it happening?",
+    "search": "Search places",
+    "nearMe": "Places near me",
+    "mapPoint": "Point on the map",
+    "nearby": "Places near you",
+    "count_one": "{{count}} place",
+    "count_other": "{{count}} places",
+    "searching": "Looking for nearby places",
+    "notLoaded": "Blinkr's place catalogue isn't ready for this area yet. You can share at this location.",
+    "failed": "Nearby places couldn't be refreshed. You can share at this location.",
+    "none": "No suitable place nearby. You can share at this location.",
+    "pick": "Choose {{name}}",
+    "shareHere": "Share at this location",
+    "more": "More places ({{count}})",
+    "less": "Back to the near list",
+    "permission": "Allow location",
+    "settings": "Open location settings",
+    "tooFar": "To share here you need a closer, up-to-date location."
+  },
+  "type": {
+    "heading": "What's happening?"
+  },
+  "text": {
+    "label": "Description",
+    "placeholder": "Write something current and concrete that helps people decide.",
+    "tooShort": "The description needs at least 5 characters.",
+    "missing": "Pick a type, add a photo or write a few words."
+  },
+  "media": {
+    "camera": "Camera",
+    "gallery": "Gallery",
+    "remove": "Remove media",
+    "cameraPermission": "Camera permission is needed.",
+    "libraryPermission": "Photo library permission is needed.",
+    "pickFailed": "Couldn't pick the media. Try again."
+  },
+  "identity": {
+    "heading": "How you appear on the map",
+    "limited": "Limited profile",
+    "anonymous": "Anonymous",
+    "note": "Your exact device location is never shown."
+  },
+  "targets": {
+    "heading": "Where should it go?",
+    "map": "To the map",
+    "story": "My story",
+    "storyHint": "Your followers see it for 24 hours; no location is added.",
+    "storyNeedsMedia": "Add a photo or video for your story.",
+    "storyAnonymous": "Anonymous signals aren't added to your story.",
+    "friends": "Friends",
+    "search": "Search friends"
+  },
+  "outbox": {
+    "sending": "Sharing…",
+    "waiting_one": "Waiting for connection · {{count}} share",
+    "waiting_other": "Waiting for connection · {{count}} shares",
+    "failed": "Couldn't share",
+    "retry": "Retry",
+    "discard": "Discard",
+    "done": "Shared. Adding it to the map.",
+    "doneStory": "Shared, and added to your story.",
+    "queued": "No connection. Your signal is waiting on the device and will go out by itself."
+  },
+  "camera": {
+    "textOnly": "Text signal"
   }
 }

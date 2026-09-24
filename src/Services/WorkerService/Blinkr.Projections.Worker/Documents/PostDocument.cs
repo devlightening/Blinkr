@@ -50,6 +50,10 @@ namespace Blinkr.Projections.Worker.Documents
         /// </summary>
         [BsonIgnoreIfNull]
         public string? PublicationTrust { get; set; }
+
+        /// <summary>An old gallery photo (plan-devam D10) - the card says "Galeriden". Must match the other two PostDocument copies.</summary>
+        [BsonIgnoreIfDefault]
+        public bool FromGallery { get; set; }
         public List<Comment> Comments { get; set; } = new List<Comment>();
         
         /// <summary>

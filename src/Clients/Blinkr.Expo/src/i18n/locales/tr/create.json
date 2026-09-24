@@ -26,5 +26,81 @@
   },
   "gallery": {
     "stale": "Galeriden · {{hours}} sa önce çekilmiş. İçerik olarak görünür, canlı durumu değiştirmez."
+  },
+  "title": "Yeni sinyal",
+  "close": "Kapat",
+  "back": "Geri",
+  "send": "Gönder",
+  "sending": "Gönderiliyor",
+  "place": {
+    "locating": "Konum alınıyor…",
+    "approximate": "Yaklaşık alan olarak paylaşılır",
+    "change": "Değiştir",
+    "choose": "Yer seç",
+    "chooserTitle": "Nerede oluyor?",
+    "search": "Yer ara",
+    "nearMe": "Yakınımdaki yerler",
+    "mapPoint": "Haritadaki nokta",
+    "nearby": "Yakınındaki yerler",
+    "count_one": "{{count}} yer",
+    "count_other": "{{count}} yer",
+    "searching": "Yakındaki yerler aranıyor",
+    "notLoaded": "Bu bölgedeki Blinkr yer kataloğu henüz hazır değil. Bu konumda paylaşabilirsin.",
+    "failed": "Yakındaki yerler şu an yenilenemedi. Bu konumda paylaşabilirsin.",
+    "none": "Yakınında uygun bir yer bulamadık. Bu konumda paylaşabilirsin.",
+    "pick": "{{name}} yerini seç",
+    "shareHere": "Bu konumda paylaş",
+    "more": "Daha fazla yer ({{count}})",
+    "less": "Yakın listeye dön",
+    "permission": "Konum izni ver",
+    "settings": "Konum ayarlarını aç",
+    "tooFar": "Burada paylaşmak için daha yakın ve güncel bir konum gerekli."
+  },
+  "type": {
+    "heading": "Ne oluyor?"
+  },
+  "text": {
+    "label": "Açıklama",
+    "placeholder": "Karar vermeyi kolaylaştıracak güncel ve somut bir bilgi yaz.",
+    "tooShort": "Açıklama en az 5 karakter olmalı.",
+    "missing": "Bir tür seç, fotoğraf ekle ya da birkaç kelime yaz."
+  },
+  "media": {
+    "camera": "Kamera",
+    "gallery": "Galeri",
+    "remove": "Medyayı kaldır",
+    "cameraPermission": "Kamera izni gerekiyor.",
+    "libraryPermission": "Fotoğraf arşivi izni gerekiyor.",
+    "pickFailed": "Medya seçilemedi. Tekrar dene."
+  },
+  "identity": {
+    "heading": "Haritada görünüm",
+    "limited": "Sınırlı profil",
+    "anonymous": "Anonim",
+    "note": "Kesin cihaz konumun hiçbir yerde gösterilmez."
+  },
+  "targets": {
+    "heading": "Nereye gönderilsin?",
+    "map": "Haritaya",
+    "story": "Hikayem",
+    "storyHint": "Takipçilerin 24 saat görür; konum eklenmez.",
+    "storyNeedsMedia": "Hikaye için fotoğraf veya video ekle.",
+    "storyAnonymous": "Anonim sinyal hikayeye eklenmez.",
+    "friends": "Arkadaşlar",
+    "search": "Arkadaş ara"
+  },
+  "outbox": {
+    "sending": "Paylaşılıyor…",
+    "waiting_one": "Bağlantı bekleniyor · {{count}} paylaşım",
+    "waiting_other": "Bağlantı bekleniyor · {{count}} paylaşım",
+    "failed": "Paylaşılamadı",
+    "retry": "Tekrar dene",
+    "discard": "Vazgeç",
+    "done": "Paylaşıldı. Haritaya ekleniyor.",
+    "doneStory": "Paylaşıldı, hikayene de eklendi.",
+    "queued": "Bağlantı yok. Sinyalin cihazda bekliyor, bağlantı gelince kendiliğinden gönderilecek."
+  },
+  "camera": {
+    "textOnly": "Yazılı sinyal"
   }
 }

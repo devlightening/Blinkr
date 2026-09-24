@@ -26,6 +26,8 @@ namespace Shared.Events.Abstractions
         string? LocationName { get; }
         Guid? PlaceId { get; }
         string? PublicationTrust { get; }
+        /// <summary>The photo came from the gallery and is older than two hours (plan-devam D10). False on older messages.</summary>
+        bool FromGallery { get; }
         string? SignalType { get; }
         string? SignalValue { get; }
         string? AudienceType { get; }

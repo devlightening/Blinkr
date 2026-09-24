@@ -12,32 +12,31 @@ async function main() {
     const errors=[]; page.on('pageerror', error => errors.push(page.url().replace(/^.*?/, '?') + ' ' + error.message));
     const url=`http://127.0.0.1:${server.address().port}`;
     await page.goto(url);
-    await expect(page.getByText('Nerede oluyor?')).toBeVisible();
-    await page.waitForTimeout(420); await page.screenshot({ path: path.join(out, 'composer-where.png') });
+    // plan-devam D6/D8: one page - place, type + level, one description (no title), identity, send targets, Gönder.
+    await expect(page.getByRole('heading', { name: 'Yeni sinyal' })).toBeVisible();
+    await expect(page.getByPlaceholder(/Bekleme süresi/)).toHaveCount(0);
+    await page.waitForTimeout(420); await page.screenshot({ path: path.join(out, 'composer-page.png') });
     await page.getByLabel('Şehit Mahmut Kavak Parkı yerini seç').click();
-    await expect(page.getByText('Yakındaki yer paylaşımı')).toBeVisible();
+    await expect(page.getByText(/Yakındaki yer paylaşımı/)).toBeVisible();
     await expect(page.getByText('Hz. Ali Camii')).toHaveCount(0);
-    await page.getByText('Devam', { exact: true }).click();
-    await page.getByText('Doluluk', { exact: true }).click();
-    await page.getByText('Sakin', { exact: true }).click();
-    await page.waitForTimeout(420); await page.screenshot({ path: path.join(out, 'composer-type.png') });
-    await page.getByText('Devam', { exact: true }).click();
-    await page.getByPlaceholder('Örn. Bekleme süresi 10 dakika').fill('Park bu akşam sakin');
-    await page.getByText('Devam', { exact: true }).click();
-    await page.waitForTimeout(420); await page.screenshot({ path: path.join(out, 'composer-review.png') });
+    await page.getByRole('button', { name: 'Doluluk', exact: true }).click();
+    await page.getByRole('button', { name: 'Sakin', exact: true }).click();
+    await page.getByLabel('Açıklama', { exact: true }).fill('Park bu akşam sakin');
     await expect(page.getByTestId('ttl-info')).toHaveText('Haritada 1 sa kalır');
-    await page.getByText('Sinyal bırak', { exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Yayınlanıyor' })).toBeDisabled();
+    await expect(page.getByTestId('target-story')).toHaveAttribute('aria-disabled', 'true');
+    await page.waitForTimeout(420); await page.screenshot({ path: path.join(out, 'composer-filled.png') });
+    await page.getByRole('button', { name: 'Gönder', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Gönderiliyor' })).toBeDisabled();
     await expect(page.getByLabel('Published result')).toHaveText('park:Crowd:Calm');
     await expect(page.getByLabel('Publication count')).toHaveText('1');
     await page.goto(url);
+    // The place chooser lives behind "Yer seç"; "Bu konumda paylaş" keeps a coordinate signal. Three taps to share.
+    await page.getByRole('button', { name: 'Yer seç', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Nerede oluyor?' })).toBeVisible();
     await page.getByLabel('Bu konumda paylaş', { exact: true }).click();
-    await page.getByRole('button', { name: 'Devam', exact: true }).click();
-    await page.getByText('Doluluk', { exact: true }).click();
-    await page.getByText('Sakin', { exact: true }).click();
-    await page.getByRole('button', { name: 'Devam', exact: true }).click();
-    await page.getByRole('button', { name: 'Devam', exact: true }).click();
-    await page.getByRole('button', { name: 'Sinyal bırak', exact: true }).click();
+    await page.getByRole('button', { name: 'Doluluk', exact: true }).click();
+    await page.getByRole('button', { name: 'Sakin', exact: true }).click();
+    await page.getByRole('button', { name: 'Gönder', exact: true }).click();
     await expect(page.getByLabel('Published result')).toHaveText('coordinate:Crowd:Calm');
     await expect(page.getByLabel('Publication count')).toHaveText('1');
     await page.goto(url+'?error');
@@ -45,8 +44,9 @@ async function main() {
     await expect(page.getByText('Network request timed out')).toHaveCount(0);
     await page.goto(url);
     await page.getByLabel('Kapat', { exact: true }).last().click();
-    await expect(page.getByText('Nerede oluyor?')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Yeni sinyal' })).toHaveCount(0);
     await page.getByLabel('Yeniden aç').click();
+    await page.getByRole('button', { name: 'Yer seç', exact: true }).click();
     await page.getByText('Yer ara', { exact: true }).click();
     await page.getByLabel('Yer adı veya kategori').fill('BİM');
     await expect(page.getByLabel(/BİM, .*seç/)).toHaveCount(2);
@@ -124,7 +124,7 @@ async function main() {
     await expect(page.getByText('Sinyal başlığı 20030')).toBeVisible();
     await expect(page.getByText('Anonim').first()).toBeVisible();
     // 50 rows per page: rows only appear after scrolling loads the next pages (the list is virtualised).
-    const lowestRow = async () => (await page.getByText(/^Sinyal başlığı \d+$/).allTextContents()).map((v) => Number(v.replace(/\D/g, ''))).reduce((a, b) => Math.min(a, b), Infinity);
+    const lowestRow = async () => (await page.getByText(/^Sinyal başlığı \d+/).allTextContents()).map((v) => Number(v.match(/\d+/)[0])).reduce((a, b) => Math.min(a, b), Infinity);
     const firstScreenLowest = await lowestRow();
     if (firstScreenLowest < 19981) throw new Error('rows beyond the first page were loaded before scrolling: ' + firstScreenLowest);
     await page.mouse.move(195, 500);
@@ -232,24 +232,25 @@ async function main() {
     await page.getByRole('button', { name: 'Snapı kapat' }).click();
     // Answering "Hâlâ böyle mi?": the composer opens on the last step with the current signal already chosen.
     await page.goto(url + '?prefill');
-    await expect(page.getByText('Paylaşmaya hazır')).toBeVisible();
-    await expect(page.getByText('Doluluk').first()).toBeVisible();
-    await page.getByText('Sinyal bırak', { exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Doluluk', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('button', { name: 'Kalabalık', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await page.getByRole('button', { name: 'Gönder', exact: true }).click();
     await expect(page.getByLabel('Published result')).toHaveText(/:Crowd:Busy$/);
 
     // In-app camera: lenses, mode switch, edit stage with lens + stickers, untouched photos are passed on as they are.
     await page.goto(url + '?scene=camera');
     await expect(page.getByLabel('Kamera önizlemesi')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Fotoğraf çek' })).toBeEnabled();
-    await expect(page.getByRole('button', { name: 'Neon efekti' })).toHaveAttribute('aria-selected', 'false');
-    await page.getByRole('button', { name: 'Neon efekti' }).click();
-    await expect(page.getByRole('button', { name: 'Neon efekti' })).toHaveAttribute('aria-selected', 'true');
+    // plan-devam D4: no row of lens circles - swipe, or the small arrows around the lens name.
+    await expect(page.getByTestId('lens-current')).toHaveText('Normal');
+    for (let i = 0; i < 3; i += 1) await page.getByRole('button', { name: 'Sonraki efekt' }).click();
+    await expect(page.getByTestId('lens-current')).toHaveText('Neon');
     await page.getByRole('button', { name: 'Flaş kapalı' }).click();
     await expect(page.getByRole('button', { name: 'Flaş açık' })).toBeVisible();
     await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'camera.png') });
     await page.getByRole('button', { name: 'Video modu' }).click();
     await expect(page.getByText('Video, seçtiğin efekt olmadan kaydedilir.')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Neon efekti' })).toHaveCount(0);
+    await expect(page.getByTestId('lens-current')).toHaveCount(0);
     await page.getByRole('button', { name: 'Fotoğraf modu' }).click();
     await page.getByRole('button', { name: 'Fotoğraf çek' }).click();
     await expect(page.getByRole('heading', { name: 'Efekt ve çıkartma' })).toBeVisible();
@@ -286,7 +287,7 @@ async function main() {
     await expect(page.getByLabel('captured')).toHaveText('image:image/jpeg:rendered:TemporaryStatus');
     await page.goto(url + '?scene=camera');
     await page.getByRole('button', { name: 'Fotoğraf çek' }).click();
-    await page.getByRole('button', { name: 'Normal efekti' }).click();
+    await expect(page.getByTestId('lens-current')).toHaveText('Normal');
     await page.getByRole('button', { name: 'Kullan' }).click();
     await expect(page.getByLabel('captured')).toHaveText('image:image/jpeg:original');
     await page.goto(url + '?scene=camera');
@@ -295,12 +296,26 @@ async function main() {
     await expect(page.getByRole('button', { name: 'Kaydı durdur' })).toBeVisible();
     await page.getByRole('button', { name: 'Kaydı durdur' }).click();
     await expect(page.getByLabel('captured')).toHaveText('video:video/mp4:original');
+    // D3/D11: the nearest place on the preview, "Konum belirsiz" for a loose fix, a school's no-media notice.
+    await page.goto(url + '?scene=camera&place');
+    await expect(page.getByTestId('camera-place')).toContainText('BİM');
+    await expect(page.getByTestId('camera-sensitive')).toHaveCount(0);
+    await page.goto(url + '?scene=camera&loose');
+    await expect(page.getByTestId('camera-place')).toContainText('Konum belirsiz');
+    await page.goto(url + '?scene=camera&school');
+    await expect(page.getByTestId('camera-sensitive')).toContainText('Bu yerde fotoğraf ve video kapalı');
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'camera-school.png') });
+    await page.getByRole('button', { name: 'Yazılı sinyal', exact: true }).click();
+    await expect(page.getByLabel('captured')).toHaveText('text');
+    await page.goto(url + '?scene=camera&school');
+    await page.getByRole('button', { name: 'Anladım' }).click();
+    await expect(page.getByTestId('camera-sensitive')).toHaveCount(0);
     // P5.4: a horizontal swipe over the preview changes the lens and shows its name.
     await page.goto(url + '?scene=camera');
     await expect(page.getByRole('button', { name: 'Fotoğraf çek' })).toBeEnabled();
     await page.mouse.move(300, 400); await page.mouse.down(); await page.mouse.move(250, 402, { steps: 5 }); await page.mouse.move(120, 405, { steps: 8 }); await page.mouse.up();
     await expect(page.getByTestId('lens-name')).toHaveText('Gün batımı');
-    await expect(page.getByRole('button', { name: 'Gün batımı efekti' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('lens-current')).toHaveText('Gün batımı');
     await expect(page.getByTestId('lens-name')).toHaveCount(0, { timeout: 3000 });
     // P5.2: holding the shutter records a clip (ring fills toward 15 s); releasing stops and hands it on.
     await page.goto(url + '?scene=camera');
@@ -627,22 +642,21 @@ async function main() {
     // P5.3 sensitive places: no media at a school (and attached media can be removed), a privacy reminder at a
     // clinic that goes away once acknowledged, a "location uncertain" note past 100 m, and a health notice on the place.
     await page.goto(url + '?scene=composerMedia&school');
-    await page.getByRole('button', { name: 'Devam', exact: true }).click();
     await expect(page.getByTestId('no-media-notice')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Galeri', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Eklenen medyayı kaldır' }).click();
     await expect(page.getByRole('button', { name: 'Eklenen medyayı kaldır' })).toHaveCount(0);
     await page.goto(url + '?scene=composerMedia&clinic');
-    await page.getByRole('button', { name: 'Devam', exact: true }).click();
     await expect(page.getByTestId('privacy-notice')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Galeri', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Anladım' }).click();
     await expect(page.getByTestId('privacy-notice')).toHaveCount(0);
     // P5.9: the photo can also go to friends as a snap from the review step - never from an anonymous signal.
     await page.goto(url + '?scene=composerMedia&mediaok');
-    await page.getByRole('button', { name: 'Devam', exact: true }).click();
-    await page.getByRole('button', { name: 'Devam', exact: true }).click();
+    await expect(page.getByTestId('target-story')).toHaveAttribute('aria-checked', 'true');
+    await page.getByRole('checkbox', { name: 'Arkadaşlar' }).click();
     await expect(page.getByTestId('snap-friends')).toBeVisible();
+    await page.waitForTimeout(420); await page.screenshot({ path: path.join(out, 'composer-media.png') });
     const firstFriend = page.getByTestId('snap-friends').getByRole('button').first();
     const friendName = (await firstFriend.innerText()).trim();
     await firstFriend.click();
@@ -650,16 +664,15 @@ async function main() {
     await page.getByRole('button', { name: 'Anonim', exact: true }).click();
     await expect(page.getByText(/Anonim sinyal arkadaşlara gönderilemez/)).toBeVisible();
     await expect(page.getByTestId('snap-friends')).toHaveCount(0);
+    await expect(page.getByTestId('target-story-hint')).toHaveText('Anonim sinyal hikayeye eklenmez.');
     await page.getByRole('button', { name: 'Sınırlı profil', exact: true }).click();
-    await page.getByRole('button', { name: 'Sinyal bırak', exact: true }).click();
-    await expect(page.getByLabel('snap-to')).toHaveText(/^sent:.+:photo$/);
+    await page.getByRole('button', { name: 'Gönder', exact: true }).click();
+    await expect(page.getByLabel('snap-to')).toHaveText(/^sent:.+:photo:story$/);
     if (!friendName) throw new Error('friend chip had no name');
     // P5.11: an old gallery photo is labelled and does not count as live.
     await page.goto(url + '?scene=composerMedia&oldphoto');
-    await page.getByRole('button', { name: 'Devam', exact: true }).click();
     await expect(page.getByTestId('gallery-stale')).toContainText('Galeriden · 5 sa önce');
     await page.goto(url + '?scene=composerMedia');
-    await page.getByRole('button', { name: 'Devam', exact: true }).click();
     await expect(page.getByTestId('gallery-stale')).toHaveCount(0);
     await page.goto(url + '?scene=composerMedia&loose');
     await expect(page.getByTestId('location-uncertain')).toContainText('250 m');
@@ -1001,6 +1014,12 @@ async function main() {
     await expect(page.getByTestId('card-pager')).toContainText('1 / 3');
     await expect(page.getByTestId('signal-card-card-1').getByTestId('card-on-site')).toContainText('Konumda');
     await expect(page.getByTestId('signal-card-card-1')).toContainText('1 sa 28 dk kaldı');
+    await expect(page.getByTestId('card-gallery')).toHaveCount(0);
+    // D10: an old gallery photo says so and is not 'Konumda'.
+    await page.goto(url + '?scene=card&gallery');
+    await expect(page.getByTestId('signal-card-card-1').getByTestId('card-gallery')).toContainText('Galeriden');
+    await expect(page.getByTestId('signal-card-card-1').getByTestId('card-on-site')).toHaveCount(0);
+    await page.goto(url + '?scene=card');
     await expect(page.getByTestId('signal-card-card-1').getByTestId('card-media')).toBeVisible();
     const media = await page.getByTestId('signal-card-card-1').getByTestId('card-media').boundingBox();
     if (Math.abs(media.width / media.height - 0.8) > 0.02) throw new Error('landscape photo should sit in a 4:5 frame, got ' + (media.width / media.height).toFixed(2));
