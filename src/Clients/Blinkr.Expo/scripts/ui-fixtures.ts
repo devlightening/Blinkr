@@ -32,10 +32,14 @@ export const conversations: Conversation[] = [
 export const chatMessages: ChatMessage[] = [
   { id: 'snap-1', conversationId: 'c1', senderId: 'u-zeynep', text: '', createdAtUtc: minutesAgo(1), isRead: false, kind: 'snap', snap: { mediaType: 'Image', durationSeconds: 3, caption: 'Burası çok kalabalık', state: 'sent', expiresAtUtc: minutesAgo(-1400) } },
   { id: 'snap-mine', conversationId: 'c1', senderId: 'qa', text: '', createdAtUtc: minutesAgo(1.5), isRead: true, kind: 'snap', snap: { mediaType: 'Video', durationSeconds: 0, state: 'opened', expiresAtUtc: minutesAgo(-1400), openedAtUtc: minutesAgo(1) } },
-  { id: 'm4', conversationId: 'c1', senderId: 'qa', text: 'Tamam, geliyorum.', createdAtUtc: minutesAgo(1), isRead: true },
-  { id: 'm3', conversationId: 'c1', senderId: 'u-zeynep', text: 'Şu an burası baya canlı, gel istersen.', createdAtUtc: minutesAgo(2), isRead: false },
+  { id: 'm4', conversationId: 'c1', senderId: 'qa', text: 'Tamam, geliyorum.', createdAtUtc: minutesAgo(1), isRead: true, seen: true, seenAtUtc: minutesAgo(0.5) },
+  { id: 'm3', conversationId: 'c1', senderId: 'u-zeynep', text: 'Şu an burası baya canlı, gel istersen.', createdAtUtc: minutesAgo(2), isRead: false, replyTo: { messageId: 'm2', senderId: 'qa', text: 'Merhaba! Orada yer var mı?', kind: 'text' } },
+  { id: 'share-1', conversationId: 'c1', senderId: 'u-zeynep', text: '', createdAtUtc: minutesAgo(3), isRead: true, kind: 'signal', signal: { postId: 'card-1', signalType: 'Queue', signalValue: 'Over15', title: 'Kasada uzun sıra var', locationName: 'BİM Merkez' } },
   { id: 'm2', conversationId: 'c1', senderId: 'qa', text: 'Merhaba! Orada yer var mı?', createdAtUtc: minutesAgo(5), isRead: true },
   { id: 'm1', conversationId: 'c1', senderId: 'u-zeynep', text: 'Selam', createdAtUtc: minutesAgo(9), isRead: true },
+  // Yesterday evening: a day separator sits between these and today's messages.
+  { id: 'y2', conversationId: 'c1', senderId: 'u-zeynep', text: 'Yarın uğrarım', createdAtUtc: new Date(new Date().setHours(0, 0, 0, 0) - 7 * 3_600_000 + 34 * 60_000).toISOString(), isRead: true },
+  { id: 'y1', conversationId: 'c1', senderId: 'qa', text: 'Kafe akşam açık mıydı?', createdAtUtc: new Date(new Date().setHours(0, 0, 0, 0) - 7 * 3_600_000).toISOString(), isRead: true, seen: true },
 ];
 
 // Sinyal Kartı photos (plan-devam Faz C): a landscape and a 4:5 portrait, to check nothing is cropped.

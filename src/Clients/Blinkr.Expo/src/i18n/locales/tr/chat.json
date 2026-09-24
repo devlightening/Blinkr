@@ -20,5 +20,19 @@
     "shareFailed": "Gönderilemedi. Tekrar dene.",
     "noFriends": "Sohbette paylaşmak için önce arkadaş ekle.",
     "share": "Paylaş"
+  },
+  "thread": {
+    "loadFailed": "Mesajlar yüklenemedi.",
+    "sendFailed": "Mesaj gönderilemedi. Tekrar dene.",
+    "typing": "yazıyor…",
+    "you": "Sen",
+    "snap": "Snap",
+    "replyingTo": "{{name}} kişisine yanıt",
+    "cancelReply": "Yanıtı iptal et",
+    "reply": "Yanıtla",
+    "copy": "Kopyala",
+    "copied": "Kopyalandı",
+    "report": "Bildir",
+    "reportNote": "Sohbet mesajı"
   }
 }

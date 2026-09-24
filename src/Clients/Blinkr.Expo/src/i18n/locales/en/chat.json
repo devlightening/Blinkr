@@ -20,5 +20,19 @@
     "shareFailed": "Couldn't send. Try again.",
     "noFriends": "Add a friend first to share in chat.",
     "share": "Share"
+  },
+  "thread": {
+    "loadFailed": "Messages couldn't be loaded.",
+    "sendFailed": "Message couldn't be sent. Try again.",
+    "typing": "typing…",
+    "you": "You",
+    "snap": "Snap",
+    "replyingTo": "Replying to {{name}}",
+    "cancelReply": "Cancel reply",
+    "reply": "Reply",
+    "copy": "Copy",
+    "copied": "Copied",
+    "report": "Report",
+    "reportNote": "Chat message"
   }
 }

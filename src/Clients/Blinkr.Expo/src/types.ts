@@ -311,6 +311,11 @@ export type ChatMessage = {
   signal?: import('./chatExtras').SignalShare | null;
   reactions?: import('./chatExtras').ChatReaction[] | null;
   clientId?: string | null;
+  /** plan-devam E7: the message this one answers (a short quote; blank once that message is taken back). */
+  replyTo?: { messageId: string; senderId: string; text: string; kind: string } | null;
+  /** Only on my own messages: the other person has read it (E4). */
+  seen?: boolean;
+  seenAtUtc?: string | null;
 };
 
 export const ISTANBUL_REGION: Region = {

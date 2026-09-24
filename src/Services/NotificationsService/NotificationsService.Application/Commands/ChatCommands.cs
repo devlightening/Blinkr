@@ -9,7 +9,10 @@ public record SignalShareInput(Guid PostId, string? SignalType, string? SignalVa
 
 /// <param name="ClientId">Optional idempotency key: the same key in the same conversation returns the first message.</param>
 /// <param name="Signal">Optional shared signal (the text is then an optional note).</param>
-public record SendMessageCommand(Guid UserId, string ConversationId, string Text, string? ClientId = null, SignalShareInput? Signal = null) : IRequest<ChatMessageDto>;
+public record SendMessageCommand(Guid UserId, string ConversationId, string Text, string? ClientId = null, SignalShareInput? Signal = null, string? ReplyToId = null) : IRequest<ChatMessageDto>;
+
+/// <summary>"I am typing" (plan-devam E4): remembered for a few seconds, never stored.</summary>
+public record TypingCommand(Guid UserId, string ConversationId) : IRequest<Unit>;
 
 /// <summary>Takes back my own text or signal message: its content is removed for both people.</summary>
 public record UnsendMessageCommand(Guid UserId, string ConversationId, string MessageId) : IRequest<ChatMessageDto>;

@@ -23,8 +23,14 @@ public record ChatMessageDto(
     SnapDto? Snap = null,
     SignalShareDto? Signal = null,
     IReadOnlyList<ReactionDto>? Reactions = null,
-    string? ClientId = null
+    string? ClientId = null,
+    ReplyDto? ReplyTo = null,
+    /// <summary>Only on my own messages: the other person has read it (and when, if known).</summary>
+    bool Seen = false,
+    DateTime? SeenAtUtc = null
 );
+
+public record ReplyDto(string MessageId, Guid SenderId, string Text, string Kind);
 
 public record SignalShareDto(Guid PostId, string SignalType, string? SignalValue, string? Title, string? LocationName);
 public record ReactionDto(Guid UserId, string Emoji);

@@ -161,10 +161,12 @@ export const getPlacesByIds = async (ids: string[]) => {
   return ids.map((id) => ({ id, name: id, category: 'CAFE', latitude: 37, longitude: 36, currentState: states[id] ?? null }));
 };
 let sent: ChatMessage[] = [];
-export const getMessages = async () => ({ items: flag('emptychat') ? [] : [...sent, ...chatMessages] });
-export const sendMessage = async (_auth: unknown, conversationId: string, text: string, _r?: unknown, _e?: unknown, extras: { clientId?: string; signal?: ChatMessage['signal'] } = {}): Promise<ChatMessage> => {
+export const getMessages = async () => ({ items: flag('emptychat') ? [] : [...sent, ...chatMessages], otherTyping: flag('typing') });
+export const sendTyping = async () => { (window as unknown as { __typingPings?: number }).__typingPings = ((window as unknown as { __typingPings?: number }).__typingPings ?? 0) + 1; };
+export const sendMessage = async (_auth: unknown, conversationId: string, text: string, _r?: unknown, _e?: unknown, extras: { clientId?: string; signal?: ChatMessage['signal']; replyToId?: string | null } = {}): Promise<ChatMessage> => {
   if (flag('sendfail')) throw new Error('Network request failed');
-  const message: ChatMessage = { id: `sent-${sent.length}`, conversationId, senderId: 'qa', text, createdAtUtc: new Date().toISOString(), isRead: false, kind: extras.signal ? 'signal' : 'text', signal: extras.signal ?? null, clientId: extras.clientId ?? null, reactions: [] };
+  const quoted = extras.replyToId ? allMessages().find((m) => m.id === extras.replyToId) : null;
+  const message: ChatMessage = { id: `sent-${sent.length}`, conversationId, senderId: 'qa', text, createdAtUtc: new Date().toISOString(), isRead: false, kind: extras.signal ? 'signal' : 'text', signal: extras.signal ?? null, clientId: extras.clientId ?? null, reactions: [], replyTo: quoted ? { messageId: quoted.id, senderId: quoted.senderId, text: quoted.text.slice(0, 120), kind: quoted.kind ?? 'text' } : null };
   sent = [message, ...sent];
   if (typeof window !== 'undefined') (window as unknown as { __lastShare?: unknown }).__lastShare = extras.signal ?? null;
   return message;

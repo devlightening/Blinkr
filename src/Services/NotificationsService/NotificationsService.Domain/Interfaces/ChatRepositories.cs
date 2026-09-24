@@ -16,6 +16,9 @@ public interface IChatMessageRepository
     Task<(IReadOnlyList<ChatMessage> Items, string? NextCursor)> ListByConversationAsync(string conversationId, int limit, string? beforeCursor, CancellationToken ct);
     Task MarkReadAsync(string conversationId, Guid userId, CancellationToken ct);
 
+    /// <summary>Blanks every quote of a taken-back message, so its text is gone everywhere.</summary>
+    Task ClearQuotesAsync(string conversationId, string messageId, CancellationToken ct);
+
     /// <summary>Messages from other participants that <paramref name="userId"/> has not read, per conversation. Conversations with none are absent.</summary>
     Task<IReadOnlyDictionary<string, int>> CountUnreadAsync(IReadOnlyCollection<string> conversationIds, Guid userId, CancellationToken ct);
 

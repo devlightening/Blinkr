@@ -57,7 +57,14 @@ public class MongoChatMessageRepository : IChatMessageRepository
                      Builders<ChatMessage>.Filter.Ne(x => x.Kind, "snap") &
                      Builders<ChatMessage>.Filter.Not(Builders<ChatMessage>.Filter.AnyEq(x => x.ReadByUserIds, userId));
 
-        var update = Builders<ChatMessage>.Update.AddToSet(x => x.ReadByUserIds, userId);
+        var update = Builders<ChatMessage>.Update.AddToSet(x => x.ReadByUserIds, userId).Set(x => x.ReadAtUtc, DateTime.UtcNow);
+        await _messages.UpdateManyAsync(filter, update, cancellationToken: ct);
+    }
+
+    public async Task ClearQuotesAsync(string conversationId, string messageId, CancellationToken ct)
+    {
+        var filter = Builders<ChatMessage>.Filter.Eq(x => x.ConversationId, conversationId) & Builders<ChatMessage>.Filter.Eq("ReplyTo.MessageId", messageId);
+        var update = Builders<ChatMessage>.Update.Set("ReplyTo.Text", string.Empty).Set("ReplyTo.Kind", "unsent");
         await _messages.UpdateManyAsync(filter, update, cancellationToken: ct);
     }
 

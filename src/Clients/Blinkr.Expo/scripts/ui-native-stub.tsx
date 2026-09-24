@@ -8,6 +8,7 @@ export const impactAsync = async () => {};
 export const ImpactFeedbackStyle = { Light: 'light', Medium: 'medium', Heavy: 'heavy' };
 export default { expoConfig: { version: '1.0.0' } };
 export const selectionAsync = async () => {};
+export const setStringAsync = async (value: string) => { (window as unknown as { __clipboard?: string }).__clipboard = value; return true; };
 export const requestCameraPermissionsAsync = async () => ({ status: 'denied' });
 export const requestMediaLibraryPermissionsAsync = requestCameraPermissionsAsync;
 export const launchCameraAsync = async () => ({ canceled: true, assets: [] });

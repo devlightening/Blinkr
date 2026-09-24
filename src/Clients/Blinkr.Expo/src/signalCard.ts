@@ -82,6 +82,17 @@ export const fromRecentSignal = (signal: RecentSignal, place: BlinkrPlace): Card
   };
 };
 
+/** A signal shared in chat (plan-devam E6): only a link and a snapshot, the card fills itself from the server. */
+export const fromShare = (share: { postId: string; signalType: string; signalValue?: string | null; title?: string | null; locationName?: string | null }): CardSignal => {
+  const type = share.signalType as SignalType;
+  return {
+    postId: share.postId, authorId: null, authorName: null, anonymous: false, isMine: false, createdAtUtc: null, expiresAtUtc: null,
+    signalType: type, signalValue: share.signalValue ?? null, text: cardText(share.title, '', type), media: [], verified: false,
+    placeId: null, placeName: share.locationName ?? null, placeCategory: null, latitude: null, longitude: null,
+    likeCount: 0, commentCount: 0, liked: false, viewCount: null, complete: false,
+  };
+};
+
 /** A coordinate signal from the map, shown at once while the full detail loads. */
 export const fromCoordinateSignal = (signal: CoordinateSignal): CardSignal => ({
   postId: signal.postId,

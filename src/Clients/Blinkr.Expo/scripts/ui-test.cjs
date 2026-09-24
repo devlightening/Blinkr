@@ -947,12 +947,44 @@ async function main() {
     await expect(page.getByText('Deneme mesajı')).toBeVisible();
     await expect(page.getByLabel('Mesaj yaz')).toHaveValue('');
     await page.screenshot({ path: path.join(out, 'conversation.png') });
-    // Faz 8: long-press a message for reactions; my own can be taken back.
+    // plan-devam Faz E: bubbles (mine right, theirs left), a day separator, "Görüldü" under my newest message only,
+    // a quoted reply, a shared signal as a card that opens the Sinyal Kartı, and "yazıyor".
+    await page.goto(url + '?scene=conversation');
+    const mineBox = await page.getByTestId('message-m4').boundingBox();
+    const theirsBox = await page.getByTestId('message-m3').boundingBox();
+    if (!mineBox || !theirsBox || !(mineBox.x + mineBox.width > theirsBox.x + theirsBox.width) || !(mineBox.x > theirsBox.x)) throw new Error('bubbles are not on their sides');
+    await expect(page.getByTestId('chat-day')).toHaveText(['Bugün', 'Dün']);
+    await expect(page.getByTestId('chat-receipt')).toHaveCount(1);
+    await expect(page.getByTestId('chat-receipt')).toContainText('Görüldü');
+    await expect(page.getByTestId('quote-m3')).toContainText('Merhaba! Orada yer var mı?');
+    await expect(page.getByText('Ben', { exact: true })).toHaveCount(0);
+    await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'conversation-bubbles.png') });
+    await page.getByTestId('message-share-1').click();
+    await expect(page.getByTestId('signal-card-modal')).toBeVisible();
+    await page.goto(url + '?scene=conversation&typing');
+    await expect(page.getByTestId('chat-typing')).toHaveText('yazıyor…');
+    // Long press: react, reply with a quote, copy; my own can be taken back, theirs reported.
     await page.goto(url + '?scene=conversation');
     await page.getByTestId('message-m3').hover();
     await page.mouse.down(); await page.waitForTimeout(500); await page.mouse.up();
+    await expect(page.getByRole('button', { name: 'Bildir', exact: true })).toBeVisible();
     await page.getByRole('button', { name: '❤️ tepkisi' }).click();
     await expect(page.getByText('❤️', { exact: true })).toBeVisible();
+    await page.getByTestId('message-m3').hover();
+    await page.mouse.down(); await page.waitForTimeout(500); await page.mouse.up();
+    await page.getByRole('button', { name: 'Kopyala', exact: true }).click();
+    await expect(page.getByText('Kopyalandı')).toBeVisible();
+    if ((await page.evaluate(() => window.__clipboard)) !== 'Şu an burası baya canlı, gel istersen.') throw new Error('copy did not reach the clipboard');
+    await page.waitForTimeout(500);
+    await page.getByTestId('message-m3').hover();
+    await page.mouse.down(); await page.waitForTimeout(500); await page.mouse.up();
+    await page.getByRole('button', { name: 'Yanıtla', exact: true }).click();
+    await expect(page.getByTestId('reply-bar')).toContainText('zeynep kişisine yanıt');
+    await page.getByLabel('Mesaj yaz').fill('Geliyorum o zaman');
+    if (!((await page.evaluate(() => window.__typingPings ?? 0)) >= 1)) throw new Error('typing was not sent');
+    await page.getByRole('button', { name: 'Gönder' }).click();
+    await expect(page.getByTestId('reply-bar')).toHaveCount(0);
+    await expect(page.getByTestId('quote-sent-0')).toContainText('Şu an burası baya canlı');
     await page.getByTestId('message-m4').hover();
     await page.mouse.down(); await page.waitForTimeout(500); await page.mouse.up();
     await page.getByRole('button', { name: 'Geri al' }).click();

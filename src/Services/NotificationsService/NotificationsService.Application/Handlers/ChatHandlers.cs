@@ -34,11 +34,14 @@ public sealed class SendMessageHandler : IRequestHandler<SendMessageCommand, Cha
     private readonly IChatMessageRepository _messages;
     private readonly IBlockGuard _blocks;
 
-    public SendMessageHandler(IConversationRepository conversations, IChatMessageRepository messages, IBlockGuard blocks)
+    private readonly TypingTracker _typing;
+
+    public SendMessageHandler(IConversationRepository conversations, IChatMessageRepository messages, IBlockGuard blocks, TypingTracker typing)
     {
         _conversations = conversations;
         _messages = messages;
         _blocks = blocks;
+        _typing = typing;
     }
 
     private static string? Clip(string? value, int max)
@@ -80,11 +83,28 @@ public sealed class SendMessageHandler : IRequestHandler<SendMessageCommand, Cha
             Title = Clip(req.Signal.Title, 120),
             LocationName = Clip(req.Signal.LocationName, 120),
         };
+        ReplyPayload? reply = null;
+        if (!string.IsNullOrWhiteSpace(req.ReplyToId))
+        {
+            var quoted = await _messages.GetByIdAsync(req.ReplyToId, ct);
+            if (quoted is null || quoted.ConversationId != req.ConversationId) throw new ChatValidationException("Yanıtlanan mesaj bulunamadı.");
+            reply = new ReplyPayload
+            {
+                MessageId = quoted.Id!,
+                SenderId = quoted.SenderId,
+                Kind = quoted.Kind,
+                // A snap never quotes its media; a taken-back message quotes nothing.
+                Text = quoted.Kind is "snap" or "unsent" ? string.Empty : Clip(quoted.Kind == "signal" ? quoted.Signal?.Title ?? quoted.Text : quoted.Text, 120) ?? string.Empty,
+            };
+        }
+        _typing.Clear(req.ConversationId, req.UserId);
+
         var message = new ChatMessage
         {
             ConversationId = req.ConversationId,
             SenderId = req.UserId,
             Text = text,
+            ReplyTo = reply,
             CreatedAtUtc = DateTime.UtcNow,
             ReadByUserIds = new List<Guid> { req.UserId },
             Kind = signal is null ? "text" : "signal",
@@ -159,18 +179,20 @@ public sealed class ListConversationsHandler : IRequestHandler<ListConversations
     }
 }
 
-public sealed class GetMessagesHandler : IRequestHandler<GetMessagesQuery, (IReadOnlyList<ChatMessageDto> Items, string? NextCursor)>
+public sealed class GetMessagesHandler : IRequestHandler<GetMessagesQuery, (IReadOnlyList<ChatMessageDto> Items, string? NextCursor, bool OtherTyping)>
 {
     private readonly IConversationRepository _conversations;
     private readonly IChatMessageRepository _messages;
+    private readonly TypingTracker _typing;
 
-    public GetMessagesHandler(IConversationRepository conversations, IChatMessageRepository messages)
+    public GetMessagesHandler(IConversationRepository conversations, IChatMessageRepository messages, TypingTracker typing)
     {
         _conversations = conversations;
         _messages = messages;
+        _typing = typing;
     }
 
-    public async Task<(IReadOnlyList<ChatMessageDto> Items, string? NextCursor)> Handle(GetMessagesQuery q, CancellationToken ct)
+    public async Task<(IReadOnlyList<ChatMessageDto> Items, string? NextCursor, bool OtherTyping)> Handle(GetMessagesQuery q, CancellationToken ct)
     {
         var conversation = await _conversations.GetByIdAsync(q.ConversationId, ct)
             ?? throw new ChatNotFoundException("Konuşma bulunamadı.");
@@ -180,7 +202,8 @@ public sealed class GetMessagesHandler : IRequestHandler<GetMessagesQuery, (IRea
 
         var limit = q.Limit is < 1 or > 100 ? 30 : q.Limit;
         var (items, next) = await _messages.ListByConversationAsync(q.ConversationId, limit, q.Before, ct);
-        return (items.Select(m => m.ToDto(q.UserId)).ToList(), next);
+        var typing = _typing.IsTyping(q.ConversationId, conversation.ParticipantIds.OtherParticipant(q.UserId), DateTime.UtcNow);
+        return (items.Select(m => m.ToDto(q.UserId)).ToList(), next, typing);
     }
 }
 
@@ -210,6 +233,7 @@ public sealed class UnsendMessageHandler : IRequestHandler<UnsendMessageCommand,
         message.Signal = null;
         message.Reactions = new();
         await _messages.ReplaceAsync(message, ct);
+        await _messages.ClearQuotesAsync(req.ConversationId, message.Id!, ct);
         if (conversation.LastMessageId == message.Id)
             await _conversations.UpdateLastMessageAsync(req.ConversationId, req.UserId, "Mesaj geri alındı", conversation.LastMessageAtUtc, "unsent", message.Id, ct);
         return message.ToDto(req.UserId);
@@ -243,5 +267,25 @@ public sealed class ReactToMessageHandler : IRequestHandler<ReactToMessageComman
         if (req.Emoji is not null) message.Reactions.Add(new MessageReaction { UserId = req.UserId, Emoji = req.Emoji });
         await _messages.ReplaceAsync(message, ct);
         return message.ToDto(req.UserId);
+    }
+}
+
+public sealed class TypingHandler : IRequestHandler<TypingCommand, Unit>
+{
+    private readonly IConversationRepository _conversations;
+    private readonly TypingTracker _typing;
+
+    public TypingHandler(IConversationRepository conversations, TypingTracker typing)
+    {
+        _conversations = conversations;
+        _typing = typing;
+    }
+
+    public async Task<Unit> Handle(TypingCommand req, CancellationToken ct)
+    {
+        var conversation = await _conversations.GetByIdAsync(req.ConversationId, ct) ?? throw new ChatNotFoundException("Konuşma bulunamadı.");
+        if (!conversation.ParticipantIds.Contains(req.UserId)) throw new ChatForbiddenException("Bu konuşmaya erişimin yok.");
+        _typing.Mark(req.ConversationId, req.UserId, DateTime.UtcNow);
+        return Unit.Value;
     }
 }

@@ -45,12 +45,12 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> GetMessages(string id, [FromQuery] int limit = 30, [FromQuery] string? before = null)
     {
         var userId = User.GetUserId();
-        var (items, nextCursor) = await _mediator.Send(new GetMessagesQuery(userId, id, limit, before));
-        return Ok(new { items, nextCursor });
+        var (items, nextCursor, otherTyping) = await _mediator.Send(new GetMessagesQuery(userId, id, limit, before));
+        return Ok(new { items, nextCursor, otherTyping });
     }
 
     public record SignalShareRequest(Guid PostId, string? SignalType, string? SignalValue, string? Title, string? LocationName);
-    public record SendMessageRequest(string? Text, string? ClientId = null, SignalShareRequest? Signal = null);
+    public record SendMessageRequest(string? Text, string? ClientId = null, SignalShareRequest? Signal = null, string? ReplyToId = null);
     public record ReactionRequest(string? Emoji);
 
     [HttpPost("conversations/{id}/messages")]
@@ -63,7 +63,7 @@ public class ChatController : ControllerBase
         var userId = User.GetUserId();
         _logger.LogInformation("Chat: SendMessage | UserId={UserId} | ConversationId={ConversationId} | Kind={Kind}", userId, id, req.Signal is null ? "text" : "signal");
         var signal = req.Signal is null ? null : new SignalShareInput(req.Signal.PostId, req.Signal.SignalType, req.Signal.SignalValue, req.Signal.Title, req.Signal.LocationName);
-        var message = await _mediator.Send(new SendMessageCommand(userId, id, req.Text ?? string.Empty, req.ClientId, signal));
+        var message = await _mediator.Send(new SendMessageCommand(userId, id, req.Text ?? string.Empty, req.ClientId, signal, req.ReplyToId));
         return Ok(message);
     }
 
@@ -126,6 +126,14 @@ public class ChatController : ControllerBase
         Response.Headers["Pragma"] = "no-cache";
         Response.Headers["X-Content-Type-Options"] = "nosniff";
         return File(content.Bytes, content.ContentType);
+    }
+
+    /// <summary>POST /api/chat/conversations/{id}/typing - "I am typing"; the other person's next poll shows it (plan-devam E4).</summary>
+    [HttpPost("conversations/{id}/typing")]
+    public async Task<IActionResult> Typing(string id)
+    {
+        await _mediator.Send(new TypingCommand(User.GetUserId(), id));
+        return NoContent();
     }
 
     [HttpPost("conversations/{id}/read")]

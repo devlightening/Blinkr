@@ -40,6 +40,7 @@ public static class ServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(3);
         });
         services.AddScoped<IBlockGuard, NotificationsService.Api.Services.IdentityBlockGuard>();
+        services.AddSingleton<NotificationsService.Application.Handlers.TypingTracker>();
         return services;
     }
 

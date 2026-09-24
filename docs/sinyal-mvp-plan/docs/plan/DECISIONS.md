@@ -15,6 +15,17 @@
 
 ## Kararlar
 
+### D-020 — plan-devam Faz E: balon sohbet, "yazıyor" yoklamayla, yanıt alıntısı (2026-09-24)
+- Bağlam: E1–E9 balon görünümü, gruplama, gün ayırıcı, okundu/yazıyor, snap ve sinyal balonları, mesaj eylemleri istiyor; sohbet gerçek zamanlı değil (CLAUDE.md §6.5, D-005).
+- Karar:
+  - "Yazıyor": istemci yazarken en fazla 3 sn'de bir `POST /api/chat/conversations/{id}/typing` gönderir; sunucu bunu yalnız bellekte 6 sn tutar (hiç saklanmaz), karşı tarafın açık konuşma ekranındaki ~4 sn'lik yoklaması `otherTyping` ile görür. Mesaj gönderilince silinir. Tek servis örneği varsayımı; çok örnekte Redis'e taşınmalı.
+  - "Görüldü": yalnız kendi mesajlarında `seen` + `seenAtUtc` (karşı taraf ilk okuduğunda yazılır); eski mesajlarda saat yok, yalnız "Görüldü". Snap'lerde gösterilmez (snap kendi durumunu taşır).
+  - Yanıt: `replyToId` ile gönderilir, sunucu aynı konuşmadan en fazla 120 karakterlik alıntı saklar; alıntılanan mesaj geri alınınca alıntılar da boşalır; snap alıntısı medya taşımaz.
+  - Mesaj eylemleri (uzun bas): mevcut sabit tepki seti (❤️😂😮😢👍🔥; plan 🙏 diyordu, sunucu seti değişmedi), Yanıtla, Kopyala (`expo-clipboard`), kendi mesajında Geri al, karşı tarafınkinde Bildir (kişi bildirimi, not "Sohbet mesajı").
+  - Paylaşılan sinyal balonu dokununca Sinyal Kartı'nı açar (konum bilinmediği için "Hâlâ böyle mi?" pasif).
+  - Ertelenen (E8): liste satırında kaydırma eylemleri (sessize al/sil) ve "mesaj istekleri" klasörü — sunucuda sessize alma/silme ve istek modeli yok; liste zaten önizleme + snap durumu + okunmamış göstergesi taşıyor.
+- Etki: `ChatMessageDto` geriye uyumlu alanlar kazandı (`replyTo`, `seen`, `seenAtUtc`); mesaj listesi yanıtı `otherTyping` taşır.
+
 ### D-019 — plan-devam Faz D: tek sayfa oluşturma, gönder hedefleri ve giden kutusu (2026-09-24)
 - Bağlam: D1–D11 dört adımlı sihirbazı kamera-öncelikli, 3 dokunuşlu bir akışa çevirmeyi ve çevrimdışı paylaşımı istiyor.
 - Karar:

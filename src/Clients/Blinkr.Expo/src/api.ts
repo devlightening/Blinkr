@@ -574,7 +574,7 @@ export const getMessages = (
   onAuthRefresh?: (auth: AuthResponse) => void,
   onSessionExpired?: () => void,
 ) =>
-  requestJson<{ items: ChatMessage[]; nextCursor?: string | null }>(`/api/chat/conversations/${conversationId}/messages`, {
+  requestJson<{ items: ChatMessage[]; nextCursor?: string | null; otherTyping?: boolean }>(`/api/chat/conversations/${conversationId}/messages`, {
     auth,
     onAuthRefresh,
     onSessionExpired,
@@ -587,11 +587,11 @@ export const sendMessage = (
   text: string,
   onAuthRefresh?: (auth: AuthResponse) => void,
   onSessionExpired?: () => void,
-  extras: { clientId?: string; signal?: SignalShare } = {},
+  extras: { clientId?: string; signal?: SignalShare; replyToId?: string | null } = {},
 ) =>
   requestJson<ChatMessage>(`/api/chat/conversations/${conversationId}/messages`, {
     auth,
-    body: { text, ...(extras.clientId ? { clientId: extras.clientId } : {}), ...(extras.signal ? { signal: extras.signal } : {}) },
+    body: { text, ...(extras.clientId ? { clientId: extras.clientId } : {}), ...(extras.signal ? { signal: extras.signal } : {}), ...(extras.replyToId ? { replyToId: extras.replyToId } : {}) },
     method: 'POST',
     onAuthRefresh,
     onSessionExpired,
@@ -604,6 +604,10 @@ export const unsendMessage = (auth: AuthResponse, conversationId: string, messag
 /** Set (or with null clear) my reaction on a message. */
 export const reactToMessage = (auth: AuthResponse, conversationId: string, messageId: string, emoji: string | null, refresh: Refresh = {}) =>
   requestJson<ChatMessage>(`/api/chat/conversations/${conversationId}/messages/${messageId}/reaction`, { auth, body: { emoji }, method: 'PUT', ...refresh });
+
+/** "I am typing" (plan-devam E4): the other person's next poll shows it for a few seconds. Best effort. */
+export const sendTyping = (auth: AuthResponse, conversationId: string, refresh: { onAuthRefresh?: (auth: AuthResponse) => void; onSessionExpired?: () => void } = {}) =>
+  request(`/api/chat/conversations/${conversationId}/typing`, { auth, method: 'POST', onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
 
 export const markConversationRead = (
   auth: AuthResponse,

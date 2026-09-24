@@ -37,6 +37,24 @@ public class ChatMessage
 
     /// <summary>One reaction per person (P8.5).</summary>
     public List<MessageReaction> Reactions { get; set; } = new();
+
+    /// <summary>The message this one answers (plan-devam E7): a short snapshot, cleared when that message is taken back.</summary>
+    [BsonIgnoreIfNull]
+    public ReplyPayload? ReplyTo { get; set; }
+
+    /// <summary>When the other person first read it (plan-devam E4, "Görüldü"). Null for older messages and snaps.</summary>
+    [BsonIgnoreIfNull]
+    public DateTime? ReadAtUtc { get; set; }
+}
+
+public class ReplyPayload
+{
+    public string MessageId { get; set; } = default!;
+    [BsonRepresentation(BsonType.String)]
+    public Guid SenderId { get; set; }
+    /// <summary>At most 120 characters of the quoted text; empty for a snap or a taken-back message.</summary>
+    public string Text { get; set; } = string.Empty;
+    public string Kind { get; set; } = "text";
 }
 
 public class SignalSharePayload

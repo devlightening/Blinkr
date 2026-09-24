@@ -8,7 +8,7 @@
 
 | Alan | Değer |
 |---|---|
-| Aktif faz | Faz E (A, B, C, D tamam; A2/A3 silme kullanıcı onayı bekliyor) |
+| Aktif faz | Faz F (A–E tamam; A2/A3 silme kullanıcı onayı bekliyor) |
 | Önceki durum | Faz 0–9 işlevsel tamam · Faz 10 yarım (P10.1/3/4/8/9 bitti) |
 | Son güncelleme | 2026-09-24 |
 | Engelleyici | F1: gerçek destek/itiraz e-posta adresi kullanıcıdan alınacak |
@@ -72,15 +72,15 @@
 
 ## Faz E — Sohbet yenileme
 
-- [ ] E1 Balon UI
-- [ ] E2 Gruplama
-- [ ] E3 Gün ayırıcı
-- [ ] E4 Okundu ve yazıyor
-- [ ] E5 Snap balonu
-- [ ] E6 Paylaşılan sinyal balonu
-- [ ] E7 Mesaj eylemleri
-- [ ] E8 Konuşma listesi
-- [ ] E9 Klavye davranışı
+- [x] E1 Balon UI — benimkiler sağda (marka tonu), karşı taraf solda (nötr); sol çizgi ve "Ben/ad" satırı yok
+- [x] E2 Gruplama — aynı kişi, aynı gün, ≤ 5 dk; grup içinde köşeler küçülür, saat yalnız grubun sonunda (`chatThread.ts`, test)
+- [x] E3 Gün ayırıcı — Bugün / Dün / gün adı / tarih
+- [x] E4 Okundu ve yazıyor — "Görüldü ss:dd" son giden mesajın altında; "yazıyor…" başlıkta ve balon olarak; yoklamayla (D-020, BLK-CHAT-03)
+- [x] E5 Snap balonu — dolu kare bekliyor, ok gönderildi, kontur açıldı/süresi doldu; bekleyen dokunulabilir
+- [x] E6 Paylaşılan sinyal balonu — tür karosu + başlık + yer; dokununca Sinyal Kartı
+- [x] E7 Mesaj eylemleri — tepki, alıntılı yanıt, kopyala, geri al (kendi), bildir (karşı taraf)
+- [~] E8 Konuşma listesi — önizleme + snap durumu + okunmamış zaten var; kaydırma eylemleri ve mesaj istekleri klasörü ertelendi (D-020)
+- [~] E9 Klavye davranışı — iOS padding / Android height, ters liste en altta kalır, sürükleyince klavye kapanır; cihazda bakılacak
 
 ## Faz F — Faz 10 kalanları
 
@@ -134,6 +134,11 @@
 - **Yapılanlar:** tek sayfa composer (tür kareleri, seviye, 280 karakter açıklama, yer satırı + yakın yer çipleri, görünürlük, gönder hedefleri Haritaya/Hikayem/Arkadaşlar, sarı Gönder); giden kutusu (`shareQueue.ts` saf kurallar + `shareOutbox.ts` cihazda kalıcı kuyruk, NetInfo/AppState ile uyanma, medya bir kez yüklenir) ve haritada `ShareProgressChip`; kamerada en yakın yer çipi, "Konum belirsiz", hassas yer uyarısı; lens daireleri yerine kaydırma + gösterge; çıkartma eğimi; başlık+açıklama tüm listelerde tek metin; sunucu `fromGallery` → kartta "Galeriden".
 - **Doğrulama:** typecheck, test:theme, test:nearby (share-queue, camera-place dahil), test:product, test:i18n, test:ui (tek sayfa yayın, yer seçici, gönder hedefleri, anonim kısıtları, kamera yer çipi/okul uyarısı/lens göstergesi, Galeriden) PASS; BLK-CARD-01 (fromGallery), BLK-CORE-03 medya, BLK-LOCATION-01, güvenilir olay teslimi PASS; iOS + Android export PASS.
 - **Cihazda bakılacak:** uçak modunda paylaş → bağlantı gelince yükleniyor mu; kamerada yer çipinin gelme süresi; klavye açıkken tek sayfa kaydırma.
+
+### Faz E — 2026-09-24
+- **Yapılanlar:** balon sohbet (`chat/ConversationScreen` yeniden yazıldı; saf düzen `chatThread.ts`), gruplama, gün ayırıcı, "Görüldü", "yazıyor…", snap ve sinyal balonları, uzun basma eylemleri (tepki/yanıtla/kopyala/geri al/bildir), yanıt çubuğu. Sunucu: `POST .../typing`, `otherTyping`, `seen`/`seenAtUtc`, `replyToId` + alıntı, geri alınınca alıntı temizliği.
+- **Doğrulama:** BLK-CHAT-03 (yeni), BLK-CHAT-01, BLK-CHAT-02 PASS; `chat-thread.test.ts`, test:ui (balon yönleri, gün ayırıcı, tek "Görüldü", alıntı, sinyal kartı, yazıyor, tepki/kopyala/yanıtla), typecheck, theme, product, i18n, iOS + Android export PASS.
+- **Cihazda bakılacak:** klavye açılınca giriş alanı ve liste; uzun basma hissi; "yazıyor"un gecikmesi (≤ ~4 sn).
 
 ## Performans ölçümleri (Faz G)
 
