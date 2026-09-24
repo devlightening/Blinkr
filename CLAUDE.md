@@ -617,7 +617,8 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 - `POST /api/users/me/deletion` (`{ password }`; 30 gun sonra silinir, tum oturumlar biter; 400 `WRONG_PASSWORD`), `DELETE /api/users/me/deletion` (vazgec). Giris/yenileme/`me` cevaplari `deletionScheduledForUtc` tasir.
 - `POST /api/users/me/data-requests` (30 gunde bir; tekrar ayni talebi doner), `GET /api/users/me/data-requests` (`{ latest }`)
 - `POST /api/auth/login` (yanlis bilgi 401 `{ code: "INVALID_CREDENTIALS" }`; eskiden duz Ingilizce metindi)
-- `POST /api/auth/refresh`
+- `POST /api/auth/refresh` (rotasyonlu; S6: dondurulmus token 60 sn sonra tekrar kullanilirsa kisinin tum oturumlari kapanir)
+- `GET /api/users/me/sessions` (`{ count, items: [{ id, createdAtUtc, expiresAtUtc }] }`), `POST /api/users/me/sessions/revoke-others` (`{ refreshToken }`: bu cihaz disindaki tum oturumlar kapanir; Ayarlar > Hesap > Oturumlar)
 - `GET /api/users/...`
 - `PUT /api/users/me/profile` (`{ bio }`; 160 karakter ustu 400 `BIO_TOO_LONG`; bos deger temizler)
 - `GET /api/users/me` (kendi e-postan, `bio`, `friendCount`, `incomingRequestCount`); `GET /api/users/{id}` herkese acik profil (`bio`, `joinedAtUtc`, `relation`; e-posta, arkadas listesi ve sayisi YOK); `GET /api/users/search` her sonucta `relation` (`none|self|friends|incoming|outgoing`) tasir

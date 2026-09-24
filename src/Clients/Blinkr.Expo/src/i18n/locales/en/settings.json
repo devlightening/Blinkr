@@ -32,7 +32,8 @@
     "delete": "Delete account",
     "community": "Community guidelines",
     "terms": "Terms of use",
-    "privacy": "Privacy policy"
+    "privacy": "Privacy policy",
+    "sessions": "Sessions"
   },
   "legal": {
     "updated": "Last updated: {{date}}"
@@ -97,5 +98,18 @@
   "language": {
     "title": "Language",
     "system": "System"
+  },
+  "sessions": {
+    "count_one": "{{count}} signed-in session",
+    "count_other": "{{count}} signed-in sessions",
+    "hint": "Every device signed in to your account is a session. If one looks unfamiliar, sign out of the other devices and change your password.",
+    "item": "Session {{index}}",
+    "since": "Since {{date}}",
+    "signOutOthers": "Sign out of other devices",
+    "confirm": "Every session except this device will be signed out.",
+    "confirmYes": "Yes, sign them out",
+    "cancel": "Cancel",
+    "revoked_one": "{{count}} session signed out.",
+    "revoked_other": "{{count}} sessions signed out."
   }
 }

@@ -155,8 +155,22 @@ namespace IdentityService.Infrastructure.Services
                 var storedToken = await _context.RefreshTokens
                     .FirstOrDefaultAsync(t => t.UserId == userId && t.TokenHash == incomingHash);
 
-                if (storedToken is null || !storedToken.IsActive)
+                if (storedToken is null)
                     return null;
+                if (!storedToken.IsActive)
+                {
+                    // S6 reuse detection: a token that was already rotated, used again well after its rotation, means
+                    // someone else holds a copy - every session of this person ends. (A retry within a minute is a lost
+                    // response, not an attack: it is only refused.)
+                    if (storedToken.ReplacedByTokenHash is not null && storedToken.RevokedAtUtc is { } rotatedAt && rotatedAt < DateTime.UtcNow - RefreshReuseGrace)
+                    {
+                        var now = DateTime.UtcNow;
+                        var active = await _context.RefreshTokens.Where(t => t.UserId == userId && t.RevokedAtUtc == null).ToListAsync();
+                        foreach (var token in active) token.RevokedAtUtc = now;
+                        await _context.SaveChangesAsync();
+                    }
+                    return null;
+                }
 
                 var response = await GenerateAuthResponseAsync(user, persistRefreshToken: false);
                 var replacementHash = HashToken(response.RefreshToken);
@@ -288,7 +302,10 @@ namespace IdentityService.Infrastructure.Services
             };
         }
 
-        private static string HashToken(string token)
+        /// <summary>S6: how long after a rotation the old refresh token may come back without counting as theft.</summary>
+        public static readonly TimeSpan RefreshReuseGrace = TimeSpan.FromSeconds(60);
+
+        public static string HashToken(string token)
         {
             var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
             return Convert.ToHexString(bytes);

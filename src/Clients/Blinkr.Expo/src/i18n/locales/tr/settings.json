@@ -32,7 +32,8 @@
     "delete": "Hesabı sil",
     "community": "Topluluk kuralları",
     "terms": "Kullanım şartları",
-    "privacy": "Gizlilik politikası"
+    "privacy": "Gizlilik politikası",
+    "sessions": "Oturumlar"
   },
   "legal": {
     "updated": "Son güncelleme: {{date}}"
@@ -97,5 +98,18 @@
   "language": {
     "title": "Dil",
     "system": "Sistem"
+  },
+  "sessions": {
+    "count_one": "{{count}} açık oturum",
+    "count_other": "{{count}} açık oturum",
+    "hint": "Hesabına giriş yapılmış her cihaz bir oturumdur. Tanımadığın bir oturum varsa diğer cihazlardan çıkış yap ve şifreni değiştir.",
+    "item": "Oturum {{index}}",
+    "since": "{{date}} tarihinden beri",
+    "signOutOthers": "Diğer cihazlardan çıkış yap",
+    "confirm": "Bu cihaz dışındaki tüm oturumlar kapanacak.",
+    "confirmYes": "Evet, çıkış yap",
+    "cancel": "Vazgeç",
+    "revoked_one": "{{count}} oturum kapatıldı.",
+    "revoked_other": "{{count}} oturum kapatıldı."
   }
 }

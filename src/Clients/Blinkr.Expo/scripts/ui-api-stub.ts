@@ -391,6 +391,11 @@ export const deletePostComment = async (_auth: unknown, _postId: string, comment
   return null;
 };
 
+// SECURITY S6: three sessions (this device + two), "sign out of other devices" leaves one.
+let stubSessions = [0, 1, 2].map((i) => ({ id: `s-${i}`, createdAtUtc: new Date(Date.now() - i * 86_400_000).toISOString(), expiresAtUtc: new Date(Date.now() + 6 * 86_400_000).toISOString() }));
+export const getSessions = async () => ({ count: stubSessions.length, items: stubSessions });
+export const revokeOtherSessions = async () => { const revoked = stubSessions.length - 1; stubSessions = stubSessions.slice(0, 1); return { revoked }; };
+
 export const getPlace = async (placeId: string) => {
   const found = catalogue.find((place) => place.id === placeId);
   if (!found) throw new Error('not found');

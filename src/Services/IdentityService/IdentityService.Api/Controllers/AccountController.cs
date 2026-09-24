@@ -98,6 +98,42 @@ namespace IdentityService.Api.Controllers
             return Ok(new { latest });
         }
 
+        public record RevokeOthersRequest(string? RefreshToken);
+
+        /// <summary>GET /api/users/me/sessions (S6) - my signed-in sessions (active refresh tokens), newest first. No device
+        /// details are stored, so a session is its start and end.</summary>
+        [HttpGet("api/users/me/sessions")]
+        public async Task<IActionResult> Sessions()
+        {
+            var user = await CurrentAsync();
+            if (user is null) return Unauthorized(new { error = "Unauthorized" });
+            var now = DateTime.UtcNow;
+            var sessions = await _db.RefreshTokens.Where(t => t.UserId == user.Id && t.RevokedAtUtc == null && t.ExpiresAtUtc > now)
+                .OrderByDescending(t => t.CreatedAtUtc).Select(t => new { id = t.Id, createdAtUtc = t.CreatedAtUtc, expiresAtUtc = t.ExpiresAtUtc }).ToListAsync();
+            return Ok(new { count = sessions.Count, items = sessions });
+        }
+
+        /// <summary>
+        /// POST /api/users/me/sessions/revoke-others { refreshToken } (S6) - "sign out of every other device": every active
+        /// session ends except the one this refresh token belongs to (which must be mine and active).
+        /// </summary>
+        [HttpPost("api/users/me/sessions/revoke-others")]
+        public async Task<IActionResult> RevokeOthers([FromBody] RevokeOthersRequest request)
+        {
+            var user = await CurrentAsync();
+            if (user is null) return Unauthorized(new { error = "Unauthorized" });
+            if (string.IsNullOrWhiteSpace(request?.RefreshToken)) return BadRequest(new { error = "REFRESH_TOKEN_REQUIRED" });
+            var keep = IdentityService.Infrastructure.Services.UserService.HashToken(request.RefreshToken);
+            var now = DateTime.UtcNow;
+            var active = await _db.RefreshTokens.Where(t => t.UserId == user.Id && t.RevokedAtUtc == null && t.ExpiresAtUtc > now).ToListAsync();
+            if (!active.Any(t => t.TokenHash == keep)) return BadRequest(new { error = "SESSION_NOT_FOUND" });
+            var others = active.Where(t => t.TokenHash != keep).ToList();
+            foreach (var token in others) token.RevokedAtUtc = now;
+            await _db.SaveChangesAsync();
+            _logger.LogInformation("Sessions revoked | Count={Count}", others.Count);
+            return Ok(new { revoked = others.Count });
+        }
+
         private async Task<User?> CurrentAsync()
         {
             var raw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

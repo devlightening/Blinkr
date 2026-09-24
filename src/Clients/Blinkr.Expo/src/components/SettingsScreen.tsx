@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { ArrowLeft, BookOpen, ChevronRight, Code2, Download, FileText, Info, LogOut, Lock, ShieldCheck, Trash2, UserX, Users } from 'lucide-react-native';
+import { ArrowLeft, BookOpen, ChevronRight, Code2, Download, FileText, Info, LogOut, Lock, MonitorSmartphone, ShieldCheck, Trash2, UserX, Users } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +15,7 @@ import { DevComponentPreview } from './DevComponentPreview';
 import { LegalDocView } from './LegalDocView';
 import { DataRequestView } from './account/DataRequestView';
 import { DeleteAccountView } from './account/DeleteAccountView';
+import { SessionsView } from './account/SessionsView';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
 import { SegmentedControl } from './ui/BlinkrSegmentedControl';
@@ -37,7 +38,7 @@ type Props = {
   onPrivacyChange?: (isPrivate: boolean) => void;
 };
 
-type Page = 'main' | 'blocked' | 'dev' | 'data' | 'delete' | 'community' | 'terms' | 'privacy';
+type Page = 'main' | 'blocked' | 'dev' | 'data' | 'delete' | 'sessions' | 'community' | 'terms' | 'privacy';
 
 const appVersion = () => Constants.expoConfig?.version ?? '1.0.0';
 
@@ -140,6 +141,7 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
           <View style={styles.group}>
             <Row icon={<Text style={styles.glyph}>@</Text>} title={tx('settings:account.username', 'Kullanıcı adı')} value={auth.userName} />
             <Row icon={<Text style={styles.glyph}>✉</Text>} title={tx('settings:account.email', 'E-posta')} value={auth.email} />
+            <Row icon={<MonitorSmartphone color={colors.text} size={18} />} onPress={() => setPage('sessions')} title={t('pages.sessions')} />
             <Row icon={<Download color={colors.text} size={18} />} onPress={() => setPage('data')} title={t('pages.data')} />
             <Row icon={<Trash2 color={colors.danger} size={18} />} onPress={() => setPage('delete')} title={t('pages.delete')} />
           </View>
@@ -236,9 +238,10 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
             <Text style={styles.logoutText}>{tx('common:actions.logout', 'Oturumu kapat')}</Text>
           </AnimatedPressable>
         </ScrollView>
-      ) : page === 'data' || page === 'delete' || page === 'community' || page === 'terms' || page === 'privacy' ? (
+      ) : page === 'data' || page === 'delete' || page === 'sessions' || page === 'community' || page === 'terms' || page === 'privacy' ? (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]} showsVerticalScrollIndicator={false}>
           {page === 'data' ? <DataRequestView auth={auth} refresh={refresh} /> : null}
+          {page === 'sessions' ? <SessionsView auth={auth} refresh={refresh} /> : null}
           {page === 'delete' ? <DeleteAccountView auth={auth} onDeleted={onLogout} refresh={refresh} /> : null}
           {page === 'community' || page === 'terms' || page === 'privacy' ? <LegalDocView id={page} /> : null}
         </ScrollView>

@@ -251,6 +251,13 @@ export type DataRequestInfo = { id: string; createdAtUtc: string; status: string
 export const requestDataCopy = (auth: AuthResponse, refresh: AccountRefresh = {}) =>
   requestJson<DataRequestInfo & { repeated: boolean }>('/api/users/me/data-requests', { auth, method: 'POST', onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
 
+/** SECURITY S6: my signed-in sessions, and "sign out of every other device" (this one stays signed in). */
+export type SessionInfo = { id: string; createdAtUtc: string; expiresAtUtc: string };
+export const getSessions = (auth: AuthResponse, refresh: AccountRefresh = {}) =>
+  requestJson<{ count: number; items: SessionInfo[] }>('/api/users/me/sessions', { auth, onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
+export const revokeOtherSessions = (auth: AuthResponse, refresh: AccountRefresh = {}) =>
+  requestJson<{ revoked: number }>('/api/users/me/sessions/revoke-others', { auth, method: 'POST', body: { refreshToken: auth.refreshToken }, onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
+
 export const getLatestDataRequest = (auth: AuthResponse, refresh: AccountRefresh = {}) =>
   requestJson<{ latest: DataRequestInfo | null }>('/api/users/me/data-requests', { auth, onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
 

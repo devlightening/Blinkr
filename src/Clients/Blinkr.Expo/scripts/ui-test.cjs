@@ -595,6 +595,16 @@ async function main() {
     await expect(page.getByRole('heading', { name: 'Ayarlar' })).toBeVisible();
     await page.getByRole('button', { name: 'Oturumu kapat' }).click();
     await expect(page.getByLabel('chosen')).toHaveText('logout');
+    // SECURITY S6: sessions - how many devices are signed in, and signing out of the others (two steps).
+    await page.goto(url + '?scene=settings');
+    await page.getByRole('button', { name: 'Oturumlar' }).click();
+    await expect(page.getByText('3 açık oturum')).toBeVisible();
+    await page.getByRole('button', { name: 'Diğer cihazlardan çıkış yap' }).click();
+    await expect(page.getByText('Bu cihaz dışındaki tüm oturumlar kapanacak.')).toBeVisible();
+    await page.getByRole('button', { name: 'Evet, çıkış yap' }).click();
+    await expect(page.getByText('2 oturum kapatıldı.')).toBeVisible();
+    await expect(page.getByText('1 açık oturum')).toBeVisible();
+    await page.waitForTimeout(200); await page.screenshot({ path: path.join(out, 'settings-sessions.png') });
     await page.goto(url + '?scene=settings&noblocks');
     await page.getByRole('button', { name: 'Engellenen kişiler' }).click();
     await expect(page.getByText('Kimseyi engellemedin')).toBeVisible();
