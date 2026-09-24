@@ -1,6 +1,32 @@
 {
   "search": {
-    "placeholder": "Where are you headed?"
+    "placeholder": "Where are you going?",
+    "tierNear": "Near you",
+    "tierCity": "In the city",
+    "tierOther": "Other cities",
+    "rowA11y": "{{name}}, {{subtitle}}. Show on map",
+    "failed": "Search isn't working right now. Try again.",
+    "close": "Close search",
+    "searchPlaces": "Search places",
+    "searchPeople": "Search people",
+    "clear": "Clear search",
+    "modeA11y": "Places or people",
+    "places": "Places",
+    "people": "People",
+    "openFailed": "Search couldn't open",
+    "friends": "Your friends",
+    "openProfile": "Open {{name}}'s profile",
+    "nearby": "Search nearby",
+    "recent": "Recent searches",
+    "clearRecent": "Clear recent searches",
+    "recentA11y": "{{name}}, recent search. Show on map",
+    "saved": "Your saved places",
+    "savedA11y": "{{name}}, saved place. Show on map",
+    "goToA11y": "Go to {{name}}",
+    "addressHint": "Address or area · move the map there",
+    "noResultsHint": "Check the spelling or try a shorter name. We searched all of Turkey.",
+    "noResults": "No results",
+    "clearShort": "Clear"
   },
   "scan": {
     "action": "Scan this area",
@@ -10,5 +36,70 @@
   "empty": {
     "title": "No live signals in this area",
     "action": "Leave the first signal"
+  },
+  "nearby": {
+    "filterAll": "All",
+    "filterCrowd": "Crowd",
+    "filterQueue": "Wait",
+    "filterOther": "Other",
+    "observation": "Observation",
+    "rowA11y": "{{title}}, {{summary}}, {{distance}}, {{age}}. Open on map",
+    "noFix": "Couldn't get your location. Move somewhere open and try again.",
+    "loadFailed": "Couldn't load what's nearby. Try again.",
+    "permissionCheckFailed": "Couldn't check the location permission. Try again.",
+    "title": "Nearby",
+    "updated": " · updated {{age}}",
+    "subtitle": "Fresh place updates around you",
+    "locating": "Getting your location…",
+    "scanning": "Looking around you…",
+    "useLocation": "Use my location",
+    "permissionOff": "Location is off. Turn it on in Settings to see fresh signals around you here.",
+    "permissionWhy": "Your location is only used to find fresh signals nearby; your exact location is never shared.",
+    "permissionTitle": "Location is needed to see what's nearby",
+    "openFailed": "Couldn't open Nearby",
+    "filterA11y": "{{label}}, {{count}} results",
+    "share": "Share a signal",
+    "emptyHint": "No signal was shared within 1.5 km in the last 3 hours. You could be the first.",
+    "filterEmptyHint": "No fresh signal matches this filter. Try another one.",
+    "empty": "No fresh signals around you",
+    "filterEmpty": "Nothing for this filter"
+  },
+  "errors": {
+    "noFixPlease": "Couldn't get your current location. Please try again.",
+    "noFix": "Couldn't get your current location. Try again.",
+    "looseFix": "Your location isn't precise enough. Try again somewhere open.",
+    "nearbyFailed": "Couldn't refresh nearby places. Try again.",
+    "permissionForMap": "Location permission is needed to show you on the map.",
+    "zoomIn": "Zoom in a bit more to pick an area.",
+    "permissionForNearby": "Location permission is needed to see nearby places.",
+    "pickPlace": "First pick the place or area of your signal.",
+    "shareFailed": "Sharing didn't finish. Try again.",
+    "settingsFailed": "Couldn't open device settings."
+  },
+  "closeNotice": "Dismiss",
+  "layer": {
+    "all": "All",
+    "live": "Live",
+    "places": "Places",
+    "signals": "Signals"
+  },
+  "top": {
+    "searchA11y": "Search places: where are you going?",
+    "scan": "Search this area",
+    "scanning": "Searching",
+    "updating": "Updating the area",
+    "locate": "Go to my location"
+  },
+  "shortcut": {
+    "cafe": "Café",
+    "restaurant": "Restaurant",
+    "pharmacy": "Pharmacy",
+    "market": "Supermarket",
+    "park": "Park",
+    "health": "Hospital",
+    "fuel": "Fuel",
+    "mosque": "Mosque",
+    "school": "School",
+    "bakery": "Bakery"
   }
 }

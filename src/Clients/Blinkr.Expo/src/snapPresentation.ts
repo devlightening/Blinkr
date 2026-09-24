@@ -1,4 +1,5 @@
 import type { ChatMessage, Conversation } from './types';
+import { tx } from './i18n/tx';
 
 /**
  * How snaps (view-once photos and videos) are described in the chat list and inside a conversation. The words and
@@ -30,15 +31,15 @@ export const conversationStatus = (conversation: Conversation, myId: string): Co
 
   if (conversation.lastMessageKind === 'snap') {
     const state = conversation.lastMessageState ?? 'sent';
-    if (state === 'expired') return STATUS('snap-expired', 'Süresi doldu', 'quiet', mine ? 'arrow' : 'square', false);
-    if (mine) return state === 'opened' ? STATUS('snap-opened', 'Açıldı', 'quiet', 'arrow', false) : STATUS('snap-sent', 'Gönderildi', 'snap', 'arrow', false);
+    if (state === 'expired') return STATUS('snap-expired', tx('chat:snap.expired', 'Süresi doldu'), 'quiet', mine ? 'arrow' : 'square', false);
+    if (mine) return state === 'opened' ? STATUS('snap-opened', tx('chat:snap.opened', 'Açıldı'), 'quiet', 'arrow', false) : STATUS('snap-sent', tx('chat:snap.sent', 'Gönderildi'), 'snap', 'arrow', false);
     return state === 'opened'
-      ? STATUS('snap-received-opened', 'Açıldı', 'quiet', 'square', false)
-      : STATUS('new-snap', 'Yeni Snap', 'snap', 'square', true, true);
+      ? STATUS('snap-received-opened', tx('chat:snap.opened', 'Açıldı'), 'quiet', 'square', false)
+      : STATUS('new-snap', tx('chat:snap.new', 'Yeni Snap'), 'snap', 'square', true, true);
   }
 
-  if (!conversation.lastMessagePreview) return STATUS('empty', 'Yeni konuşma', 'quiet', 'none', false);
-  if (!mine && unread > 0) return STATUS('new-chat', 'Yeni sohbet', 'chat', 'square', true);
+  if (!conversation.lastMessagePreview) return STATUS('empty', tx('chat:snap.newConversation', 'Yeni konuşma'), 'quiet', 'none', false);
+  if (!mine && unread > 0) return STATUS('new-chat', tx('chat:snap.newChat', 'Yeni sohbet'), 'chat', 'square', true);
   return STATUS(mine ? 'chat-sent' : 'chat', conversation.lastMessagePreview ?? '', 'quiet', 'none', false);
 };
 
@@ -57,13 +58,13 @@ export type SnapRow = {
 export const snapRow = (message: ChatMessage, myId: string): SnapRow | null => {
   if (message.kind !== 'snap' || !message.snap) return null;
   const mine = message.senderId === myId;
-  const title = message.snap.mediaType === 'Video' ? 'Video' : 'Snap';
+  const title = message.snap.mediaType === 'Video' ? tx('chat:snap.video', 'Video') : tx('chat:snap.snap', 'Snap');
   const { state } = message.snap;
-  if (state === 'expired') return { title, status: 'Süresi doldu', tone: 'quiet', icon: mine ? 'arrow' : 'square', filled: false, tappable: false };
-  if (mine) return { title, status: state === 'opened' ? 'Açıldı' : 'Gönderildi', tone: state === 'opened' ? 'quiet' : 'snap', icon: 'arrow', filled: false, tappable: false };
+  if (state === 'expired') return { title, status: tx('chat:snap.expired', 'Süresi doldu'), tone: 'quiet', icon: mine ? 'arrow' : 'square', filled: false, tappable: false };
+  if (mine) return { title, status: state === 'opened' ? tx('chat:snap.opened', 'Açıldı') : tx('chat:snap.sent', 'Gönderildi'), tone: state === 'opened' ? 'quiet' : 'snap', icon: 'arrow', filled: false, tappable: false };
   return state === 'opened'
-    ? { title, status: 'Açıldı', tone: 'quiet', icon: 'square', filled: false, tappable: false }
-    : { title, status: 'Görmek için dokun', tone: 'snap', icon: 'square', filled: true, tappable: true };
+    ? { title, status: tx('chat:snap.opened', 'Açıldı'), tone: 'quiet', icon: 'square', filled: false, tappable: false }
+    : { title, status: tx('chat:snap.tapToView', 'Görmek için dokun'), tone: 'snap', icon: 'square', filled: true, tappable: true };
 };
 
 /** Timer choices offered to the sender of a photo; 0 (until closed) is not offered for photos. */
@@ -90,7 +91,7 @@ export const toggleRecipient = (selected: string[], conversationId: string, limi
     : selected.length >= limit ? selected : [...selected, conversationId];
 
 export const sendButtonLabel = (count: number, firstName?: string) =>
-  count <= 0 ? 'Kişi seç' : count === 1 && firstName ? `Gönder · ${firstName}` : `Gönder · ${count} kişi`;
+  count <= 0 ? tx('chat:snap.pickPeople', 'Kişi seç') : count === 1 && firstName ? tx('chat:snap.sendTo', 'Gönder · {{name}}', { name: firstName }) : tx('chat:snap.sendToMany', 'Gönder · {{count}} kişi', { count });
 
 /** Result of sending one snap to several people: which conversations still need a retry. */
 export const summarizeSend = (results: Array<{ conversationId: string; ok: boolean }>) => {
@@ -100,7 +101,7 @@ export const summarizeSend = (results: Array<{ conversationId: string; ok: boole
 
 /** Spoken/accessible description of a chat list row. */
 export const conversationLabel = (name: string, status: ConversationStatus, when: string) =>
-  `${name}, ${status.label}${when ? `, ${when}` : ''}${status.opensSnap ? '. Snapı aç' : '. Sohbeti aç'}`;
+  `${name}, ${status.label}${when ? `, ${when}` : ''}${status.opensSnap ? tx('chat:snap.openSnap', '. Snapı aç') : tx('chat:snap.openChat', '. Sohbeti aç')}`;
 
 /**
  * "Also send to friends as a snap" from the signal composer (sinyal-mvp-plan P5.9). Only a photo can go as a snap,

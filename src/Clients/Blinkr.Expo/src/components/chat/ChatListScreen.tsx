@@ -24,12 +24,13 @@ import { SnapFlow, type SnapFlowRequest } from '../snap/SnapFlow';
 import type { SnapRecipient } from '../snap/SnapSendStep';
 import { SnapStatusIcon, statusColor } from '../snap/SnapStatusIcon';
 import { SnapViewer } from '../snap/SnapViewer';
+import { tx } from '../../i18n/tx';
 
 const POLL_INTERVAL_MS = 8000;
 const AVATAR_SIZE = 48;
 const ROW_GAP = spacing.md;
 const NAME_BATCH_SIZE = 30;
-const FALLBACK_NAME = 'Kullanıcı';
+const FALLBACK_NAME = tx('chat:list.fallbackName', 'Kullanıcı');
 
 // user id -> user name. Names are public and stable, so successful lookups are kept for the
 // whole app session and survive the tab being unmounted and remounted.
@@ -111,7 +112,7 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
       void resolveNames(items);
     } catch (err) {
       console.log('[Blinkr Chat]', { status: 'failed', reason: err instanceof Error ? err.message : String(err) });
-      if (!background) setError(friendlyError(err, 'Sohbetler yüklenemedi. Tekrar dene.'));
+      if (!background) setError(friendlyError(err, tx('chat:list.loadFailed', 'Sohbetler yüklenemedi. Tekrar dene.')));
     } finally {
       pollInFlight.current = false;
       hasSettled.current = true;
@@ -169,7 +170,7 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
       const conversation = await startConversation(auth, user.id, onAuthChange, onSessionExpired);
       setActiveConversation(conversation);
     } catch (err) {
-      setError(friendlyError(err, 'Konuşma başlatılamadı. Tekrar dene.'));
+      setError(friendlyError(err, tx('chat:list.startFailed', 'Konuşma başlatılamadı. Tekrar dene.')));
     }
   };
 
@@ -219,7 +220,7 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
           auth={auth}
           onAuthChange={onAuthChange}
           onClose={() => setFlow(null)}
-          onSent={(count) => { setFlow(null); setNotice(count > 1 ? `Snap ${count} kişiye gönderildi` : 'Snap gönderildi'); refresh(true); }}
+          onSent={(count) => { setFlow(null); setNotice(count > 1 ? tx('chat:list.snapSentMany', 'Snap {{count}} kişiye gönderildi', { count }) : tx('chat:list.snapSent', 'Snap gönderildi')); refresh(true); }}
           onSessionExpired={onSessionExpired}
           recipients={recipients}
           request={flow}
@@ -247,8 +248,8 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
 
   return <View style={styles.screen}>
     <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
-      <Text accessibilityRole="header" style={styles.title}>Sohbetler</Text>
-      <AnimatedPressable accessibilityLabel="Yeni mesaj" accessibilityRole="button" onPress={() => setSearchOpen(true)} pressScale={0.95} style={styles.newButton}>
+      <Text accessibilityRole="header" style={styles.title}>{tx('chat:list.title', 'Sohbetler')}</Text>
+      <AnimatedPressable accessibilityLabel={tx('chat:list.newMessage', 'Yeni mesaj')} accessibilityRole="button" onPress={() => setSearchOpen(true)} pressScale={0.95} style={styles.newButton}>
         <SquarePen color={colors.primary} size={20} strokeWidth={2} />
       </AnimatedPressable>
     </View>
@@ -258,19 +259,19 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
     ) : error ? (
       <View style={styles.centerFill}>
         <BlinkrEmptyState
-          action={{ label: 'Tekrar dene', onPress: () => refresh() }}
+          action={{ label: tx('common:actions.retry', 'Tekrar dene'), onPress: () => refresh() }}
           description={error}
           icon={<WifiOff color={colors.textSecondary} size={26} />}
-          title="Sohbetler açılamadı"
+          title={tx('chat:list.openFailed', 'Sohbetler açılamadı')}
         />
       </View>
     ) : !total ? (
       <View style={styles.centerFill}>
         <BlinkrEmptyState
-          action={{ label: 'Yeni mesaj', onPress: () => setSearchOpen(true), icon: <SquarePen color={colors.ink} size={18} /> }}
-          description="Bir kullanıcı bul ve konuşmaya başla."
+          action={{ label: tx('chat:list.newMessage', 'Yeni mesaj'), onPress: () => setSearchOpen(true), icon: <SquarePen color={colors.ink} size={18} /> }}
+          description={tx('chat:list.emptyHint', 'Bir kullanıcı bul ve konuşmaya başla.')}
           icon={<MessageCircle color={colors.textSecondary} size={26} />}
-          title="Henüz mesajın yok"
+          title={tx('chat:list.empty', 'Henüz mesajın yok')}
         />
       </View>
     ) : (
@@ -310,7 +311,7 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
                     </View>
                   </View>
                 </AnimatedPressable>
-                <AnimatedPressable accessibilityLabel={`${name} kişisine Snap gönder`} accessibilityRole="button" hitSlop={6} onPress={() => setFlow({ mode: 'reply', conversationId: item.id })} pressScale={0.95} style={styles.cameraButton}>
+                <AnimatedPressable accessibilityLabel={tx('chat:list.snapToA11y', '{{name}} kişisine Snap gönder', { name })} accessibilityRole="button" hitSlop={6} onPress={() => setFlow({ mode: 'reply', conversationId: item.id })} pressScale={0.95} style={styles.cameraButton}>
                   <Camera color={colors.textSecondary} size={18} />
                 </AnimatedPressable>
               </View>

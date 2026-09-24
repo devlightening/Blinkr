@@ -3,6 +3,7 @@ import { meaningfulTitle, signalLabels } from './presentation';
 import { freshnessTier, isLive } from './freshness';
 import { isFresh } from './productPresentation';
 import type { BlinkrPlace, CoordinateSignal, SignalType, UnifiedMapResponse } from './types';
+import { tx } from './i18n/tx';
 
 /** How far around the device the "Yakında" tab looks. Matches the Discovery radius of the product rules. */
 export const ACTIVITY_RADIUS_METERS = 1500;
@@ -84,7 +85,7 @@ export const buildNearbyActivity = (
       kind: 'signal',
       // A title that just repeats the type ("Gözlem") would sit directly above the same word in the
       // summary line below it; fall back to where it is instead (sinyal-mvp-plan AUDIT #4).
-      title: meaningfulTitle(signal.title, signal.signalType ? signalLabels[signal.signalType] : null) ?? signal.locationName ?? 'Yaklaşık alan',
+      title: meaningfulTitle(signal.title, signal.signalType ? signalLabels[signal.signalType] : null) ?? signal.locationName ?? tx('common:approxArea', 'Yaklaşık alan'),
       distanceMeters: distance,
       signalType: signal.signalType ?? null,
       signalValue: signal.signalValue ?? null,

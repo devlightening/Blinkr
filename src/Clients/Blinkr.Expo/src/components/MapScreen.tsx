@@ -32,6 +32,7 @@ import { selectMapData, filterBySignalTypes, type MapLayer } from '../mapSelecti
 import { loadTypeFilter, saveTypeFilter } from '../mapTypeFilterStorage';
 import { MapTypeFilterBar } from './map/MapTypeFilterBar';
 import { clusterMapPoints, zoomToLongitudeDelta, type RenderableMapCluster } from '../mapClusters';
+import { tx } from '../i18n/tx';
 
 const MAX_MAP_PINS = 300;
 import {
@@ -194,16 +195,16 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
     setLocationReadiness('locating');
     const current = await Promise.race([
       Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Güncel konum alınamadı. Lütfen tekrar dene.')), LOCATION_TIMEOUT_MS)),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error(tx('map:errors.noFixPlease', 'Güncel konum alınamadı. Lütfen tekrar dene.'))), LOCATION_TIMEOUT_MS)),
     ]);
     const ageMs = Date.now() - current.timestamp;
     if (ageMs > MAX_NEARBY_LOCATION_AGE_MS || (current.coords.accuracy ?? 9999) > 150) {
       const refreshed = await Promise.race([
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Güncel konum alınamadı. Tekrar dene.')), LOCATION_TIMEOUT_MS)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error(tx('map:errors.noFix', 'Güncel konum alınamadı. Tekrar dene.'))), LOCATION_TIMEOUT_MS)),
       ]);
       if (Date.now() - refreshed.timestamp > MAX_NEARBY_LOCATION_AGE_MS || (refreshed.coords.accuracy ?? 9999) > 150)
-        throw new Error('Konum yeterince net değil. Açık bir alanda tekrar dene.');
+        throw new Error(tx('map:errors.looseFix', 'Konum yeterince net değil. Açık bir alanda tekrar dene.'));
       setLocationReadiness('ready');
       deviceSnapshot.current = { latitude: refreshed.coords.latitude, longitude: refreshed.coords.longitude, timestamp: refreshed.timestamp };
       return refreshed;
@@ -285,7 +286,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
         nearestMeters: null,
         reason: err instanceof Error ? err.message : String(err),
       });
-      setComposerError('Yakındaki yerler şu an yenilenemedi. Tekrar dene.');
+      setComposerError(tx('map:errors.nearbyFailed', 'Yakındaki yerler şu an yenilenemedi. Tekrar dene.'));
       return [];
     } finally {
       if (nearbyLoadingRequest.current === requestId) {
@@ -502,7 +503,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
     setCanAskLocationAgain(permission.canAskAgain);
     if (permission.status !== 'granted') {
       setLocationReadiness('permission-required');
-      throw new Error('Haritada konumunu göstermek için konum izni gerekiyor.');
+      throw new Error(tx('map:errors.permissionForMap', 'Haritada konumunu göstermek için konum izni gerekiyor.'));
     }
 
     const position = await getFreshDeviceLocation();
@@ -585,9 +586,9 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
       });
       const primary = address?.district || address?.subregion || address?.city || address?.region;
       const secondary = address?.city && address.city !== primary ? address.city : address?.region;
-      return [primary, secondary].filter(Boolean).join(', ') || 'Yaklaşık alan';
+      return [primary, secondary].filter(Boolean).join(', ') || tx('common:approxArea', 'Yaklaşık alan');
     } catch {
-      return 'Yaklaşık alan';
+      return tx('common:approxArea', 'Yaklaşık alan');
     }
   }, []);
 
@@ -653,7 +654,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
 
     if (source === 'map') {
       if (region.latitudeDelta > 0.15 || region.longitudeDelta > 0.15) {
-        throw new Error('Alan seçmek için haritayı biraz daha yakınlaştır.');
+        throw new Error(tx('map:errors.zoomIn', 'Alan seçmek için haritayı biraz daha yakınlaştır.'));
       }
       const name = await resolveAreaName(region);
       if (generation !== composerGeneration.current) return;
@@ -675,7 +676,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
     setCanAskLocationAgain(permission.canAskAgain);
     if (permission.status !== 'granted') {
       setLocationReadiness('permission-required');
-      throw new Error('Yakındaki yerleri görmek için konum izni gerekiyor.');
+      throw new Error(tx('map:errors.permissionForNearby', 'Yakındaki yerleri görmek için konum izni gerekiyor.'));
     }
     const position = await getFreshDeviceLocation();
     if (generation !== composerGeneration.current) return;
@@ -696,7 +697,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
       observationLongitude: position.coords.longitude,
       region: target,
     };
-    setComposerArea({ ...location, name: 'Yaklaşık alan', source });
+    setComposerArea({ ...location, name: tx('common:approxArea', 'Yaklaşık alan'), source });
     void loadNearbyPlaces(location.region, 'DEVICE', reason, { accuracyMeters: position.coords.accuracy, timestamp: position.timestamp });
     const name = await resolveAreaName(location.region);
     if (generation === composerGeneration.current) setComposerArea({ ...location, name, source });
@@ -788,7 +789,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
     setIsCreating(true);
     setComposerError(null);
     try {
-      if (!composerArea) throw new Error('Önce sinyalin ait olduğu yeri veya alanı seç.');
+      if (!composerArea) throw new Error(tx('map:errors.pickPlace', 'Önce sinyalin ait olduğu yeri veya alanı seç.'));
       const position = composerArea.place ? await getFreshDeviceLocation() : null;
       const item: OutboxItem = {
         id: newOutboxId(),
@@ -825,7 +826,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
       mapRef.current?.animateToRegion(target, 350);
     } catch (err) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setComposerError(friendlyError(err, 'Paylaşım tamamlanamadı. Tekrar dene.'));
+      setComposerError(friendlyError(err, tx('map:errors.shareFailed', 'Paylaşım tamamlanamadı. Tekrar dene.')));
     } finally {
       submissionInFlight.current = false;
       setIsCreating(false);
@@ -960,7 +961,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
           <Text style={[styles.toastText, error && styles.errorToastText]} numberOfLines={3}>
             {error || success}
           </Text>
-          <AnimatedPressable accessibilityLabel="Bildirimi kapat" hitSlop={10} onPress={() => { setError(null); setSuccess(null); }} pressScale={0.85}>
+          <AnimatedPressable accessibilityLabel={tx('map:closeNotice', 'Bildirimi kapat')} hitSlop={10} onPress={() => { setError(null); setSuccess(null); }} pressScale={0.85}>
             <X color={error ? colors.danger : colors.mint} size={18} />
           </AnimatedPressable>
         </Animated.View>
@@ -981,7 +982,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, shareRe
         onClearError={() => setComposerError(null)}
         onClose={closeComposer}
         onOpenSettings={() => {
-          Linking.openSettings().catch(() => setComposerError('Cihaz ayarları açılamadı.'));
+          Linking.openSettings().catch(() => setComposerError(tx('map:errors.settingsFailed', 'Cihaz ayarları açılamadı.')));
         }}
         onRequestCamera={() => setCameraOpen(true)}
         onSelectArea={selectComposerArea}

@@ -14,5 +14,16 @@
   },
   "contentBlocked": "This doesn't follow the community rules: threats, hate speech and targeted insults can't be posted.",
   "postingRestricted": "You can't post right now because of the community rules. You can post again when the limit ends.",
-  "accountSuspended": "This account has been suspended or closed because of the community rules."
+  "accountSuspended": "This account has been suspended or closed because of the community rules.",
+  "http": {
+    "401": "Your session ended. Please sign in again.",
+    "403": "You're not allowed to do that.",
+    "404": "That item wasn't found.",
+    "server": "Can't connect right now. Please try again.",
+    "unreachable": "The signal service can't be reached right now. Try again shortly.",
+    "generic": "That didn't work. Please try again.",
+    "noRefresh": "Session refresh details are missing.",
+    "timeout": "The connection timed out. Try again.",
+    "mediaTimeout": "Couldn't read the media file (timed out). Try again."
+  }
 }

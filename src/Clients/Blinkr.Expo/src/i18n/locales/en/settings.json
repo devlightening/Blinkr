@@ -12,7 +12,11 @@
   "privacy": {
     "privateTitle": "Private account",
     "privateHint": "When on, only people you approve see your signal list and follow lists. Your signals on the map stay public.",
-    "privateFailed": "Couldn't save the setting. Try again."
+    "privateFailed": "Couldn't save the setting. Try again.",
+    "exact": "Your exact device location is never shown to others; the map shows the place centre or an approximate area.",
+    "anon": "Only you see the signals you share anonymously.",
+    "snaps": "Snaps disappear after one view; location data in photos is removed.",
+    "friends": "Friendship is only for finding each other and messaging; it never shares location."
   },
   "appearance": {
     "title": "Appearance",
@@ -60,5 +64,36 @@
     "cancel": "Cancel deletion",
     "logout": "Sign out",
     "failed": "Couldn't cancel. Try again."
+  },
+  "blocked": {
+    "loadFailed": "Couldn't load blocked people. Try again.",
+    "unblockFailed": "Couldn't unblock. Try again.",
+    "title": "Blocked people",
+    "emptyHint": "People you block are listed here. A blocked person can't find you or send you requests or messages.",
+    "empty": "You haven't blocked anyone",
+    "unblockA11y": "Unblock {{name}}",
+    "unblock": "Unblock"
+  },
+  "sections": {
+    "account": "Account",
+    "safety": "Safety",
+    "privacy": "Privacy",
+    "developer": "Developer",
+    "about": "About"
+  },
+  "account": {
+    "username": "Username",
+    "email": "Email"
+  },
+  "dev": {
+    "preview": "Component preview"
+  },
+  "about": {
+    "version": "Version",
+    "attribution": "Place data © OpenStreetMap contributors (ODbL). The base map belongs to Apple Maps / Google Maps; Blinkr markers are drawn only from Blinkr data."
+  },
+  "language": {
+    "title": "Language",
+    "system": "System"
   }
 }

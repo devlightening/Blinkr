@@ -1,3 +1,4 @@
+import { tx } from './i18n/tx';
 /**
  * Avatars are drawn characters chosen from a small catalogue, never uploaded photos: nobody's face is stored
  * and there is nothing to moderate. A key is three digits - colour (0-7), face (0-5), accessory (0-5) - and the
@@ -5,9 +6,9 @@
  * stable, friendly default derived from their user id.
  */
 export const AVATAR_COLORS = ['#9CCB7E', '#7FCFC0', '#EDBE7D', '#E7A2BE', '#B1A4E6', '#8DB4EA', '#E79A90', '#E2CB86'] as const;
-export const AVATAR_COLOR_NAMES = ['Yeşil', 'Nane', 'Turuncu', 'Pembe', 'Mor', 'Mavi', 'Mercan', 'Sarı'] as const;
-export const AVATAR_FACE_NAMES = ['Mutlu', 'Göz kırpan', 'Şaşkın', 'Uykulu', 'Kocaman gülen', 'Sırıtan'] as const;
-export const AVATAR_ACCESSORY_NAMES = ['Yok', 'Gözlük', 'Şapka', 'Kulaklık', 'Filiz', 'Yanaklar'] as const;
+export const AVATAR_COLOR_NAMES = [tx('profile:avatar.color0', 'Yeşil'), tx('profile:avatar.color1', 'Nane'), tx('profile:avatar.color2', 'Turuncu'), tx('profile:avatar.color3', 'Pembe'), tx('profile:avatar.color4', 'Mor'), tx('profile:avatar.color5', 'Mavi'), tx('profile:avatar.color6', 'Mercan'), tx('profile:avatar.color7', 'Sarı')] as const;
+export const AVATAR_FACE_NAMES = [tx('profile:avatar.face0', 'Mutlu'), tx('profile:avatar.face1', 'Göz kırpan'), tx('profile:avatar.face2', 'Şaşkın'), tx('profile:avatar.face3', 'Uykulu'), tx('profile:avatar.face4', 'Kocaman gülen'), tx('profile:avatar.face5', 'Sırıtan')] as const;
+export const AVATAR_ACCESSORY_NAMES = [tx('profile:avatar.acc0', 'Yok'), tx('profile:avatar.acc1', 'Gözlük'), tx('profile:avatar.acc2', 'Şapka'), tx('profile:avatar.acc3', 'Kulaklık'), tx('profile:avatar.acc4', 'Filiz'), tx('profile:avatar.acc5', 'Yanaklar')] as const;
 
 export const AVATAR_COLOR_COUNT = AVATAR_COLORS.length;
 export const AVATAR_FACE_COUNT = AVATAR_FACE_NAMES.length;

@@ -6,6 +6,7 @@ import { CAMERA_LENSES, lensAfterSwipe, lensById } from '../../cameraEffects';
 // Drawn over live camera/photo/video: always the dark media palette, whatever the app theme (plan-devam B3).
 import { media, mediaColors as colors, radii, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
+import { tx } from '../../i18n/tx';
 
 /**
  * plan-devam D4: lenses change by swiping over the picture; the old row of circles is gone. What is left is this
@@ -20,16 +21,16 @@ export function LensIndicator({ selectedId, onSelect, disabled = false }: { sele
   };
   return (
     <View style={styles.row}>
-      <AnimatedPressable accessibilityLabel="Önceki efekt" accessibilityRole="button" disabled={disabled} hitSlop={8} onPress={() => step(1_000)} pressScale={0.9} style={styles.arrow}>
+      <AnimatedPressable accessibilityLabel={tx('create:lens.prev', 'Önceki efekt')} accessibilityRole="button" disabled={disabled} hitSlop={8} onPress={() => step(1_000)} pressScale={0.9} style={styles.arrow}>
         <ChevronLeft color={colors.text} size={18} />
       </AnimatedPressable>
       <View style={styles.pill}>
-        <Text accessibilityLabel={`Efekt: ${lens.label}`} style={styles.name} testID="lens-current">{lens.label}</Text>
+        <Text accessibilityLabel={tx('create:lens.current', 'Efekt: {{name}}', { name: lens.label })} style={styles.name} testID="lens-current">{lens.label}</Text>
         <View style={styles.dots}>
           {CAMERA_LENSES.map((item) => <View key={item.id} style={[styles.dot, item.id === lens.id && styles.dotOn]} />)}
         </View>
       </View>
-      <AnimatedPressable accessibilityLabel="Sonraki efekt" accessibilityRole="button" disabled={disabled} hitSlop={8} onPress={() => step(-1_000)} pressScale={0.9} style={styles.arrow}>
+      <AnimatedPressable accessibilityLabel={tx('create:lens.next', 'Sonraki efekt')} accessibilityRole="button" disabled={disabled} hitSlop={8} onPress={() => step(-1_000)} pressScale={0.9} style={styles.arrow}>
         <ChevronRight color={colors.text} size={18} />
       </AnimatedPressable>
     </View>

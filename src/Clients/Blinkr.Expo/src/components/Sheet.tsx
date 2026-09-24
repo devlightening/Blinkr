@@ -3,6 +3,7 @@ import { BackHandler, KeyboardAvoidingView, Platform, Pressable, StyleSheet } fr
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown, ReduceMotion } from 'react-native-reanimated';
 
 import { colors, springs } from '../theme';
+import { tx } from '../i18n/tx';
 
 // In-tree host: no native Modal window can retain the map's gesture responder.
 export function Sheet({ children, onClose }: { children: ReactNode; onClose: () => void }) {
@@ -12,7 +13,7 @@ export function Sheet({ children, onClose }: { children: ReactNode; onClose: () 
   }, [onClose]);
   return <KeyboardAvoidingView accessibilityViewIsModal behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.host}>
     <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(150)} style={StyleSheet.absoluteFill}>
-      <Pressable accessibilityLabel="Kapat" onPress={onClose} style={styles.backdrop} />
+      <Pressable accessibilityLabel={tx('common:actions.close', 'Kapat')} onPress={onClose} style={styles.backdrop} />
     </Animated.View>
     <Animated.View
       // Calm spring: a sheet that overshoots upwards would flash a gap under itself. Reduce motion is respected.

@@ -16,6 +16,7 @@ import { BlinkrButton } from '../ui/BlinkrButton';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
 import { SkeletonList } from '../ui/BlinkrSkeleton';
 import { UserProfileSheet } from './UserProfileSheet';
+import { tx } from '../../i18n/tx';
 
 const MIN_QUERY_LENGTH = 2;
 type Tab = 'friends' | 'requests' | 'add';
@@ -53,7 +54,7 @@ function MiniButton({ label, onPress, primary = false, disabled = false, accessi
 function PersonRow({ person, subtitle, onOpen, right }: { person: Person; subtitle?: string; onOpen: () => void; right?: React.ReactNode }) {
   return (
     <View style={styles.row}>
-      <AnimatedPressable accessibilityLabel={`${person.userName}, profili aç`} accessibilityRole="button" onPress={onOpen} pressScale={0.98} style={styles.rowMain}>
+      <AnimatedPressable accessibilityLabel={tx('profile:friends.openProfileA11y', '{{name}}, profili aç', { name: person.userName })} accessibilityRole="button" onPress={onOpen} pressScale={0.98} style={styles.rowMain}>
         <Avatar avatarKey={person.avatarKey} seed={person.id} size={44} />
         <View style={styles.rowCopy}>
           <Text numberOfLines={1} style={styles.rowName}>{person.userName}</Text>
@@ -102,7 +103,7 @@ export function FriendsScreen({ auth, onAuthChange, onSessionExpired, onBack, on
       onCountsChange?.({ friends: nextFriends.length, incoming: nextRequests.incoming.length });
     } catch (err) {
       // A failed refresh keeps whatever was already shown; only an empty screen shows the error.
-      if (!controller.signal.aborted) setError(friendlyError(err, 'Arkadaş listesi yüklenemedi. Tekrar dene.'));
+      if (!controller.signal.aborted) setError(friendlyError(err, tx('profile:friends.loadFailed', 'Arkadaş listesi yüklenemedi. Tekrar dene.')));
     } finally {
       if (load.current === controller) { load.current = null; setRefreshing(false); }
     }
@@ -127,7 +128,7 @@ export function FriendsScreen({ auth, onAuthChange, onSessionExpired, onBack, on
         const found = await searchUsers(auth, query.trim(), controller.signal);
         if (!controller.signal.aborted) setResults(orderPeople(found.filter((user) => user.id !== auth.userId)));
       } catch (err) {
-        if (!controller.signal.aborted) setSearchError(friendlyError(err, 'Kullanıcılar aranamadı. Tekrar dene.'));
+        if (!controller.signal.aborted) setSearchError(friendlyError(err, tx('common:people.searchFailed', 'Kullanıcılar aranamadı. Tekrar dene.')));
       } finally {
         if (!controller.signal.aborted) setSearching(false);
       }
@@ -145,7 +146,7 @@ export function FriendsScreen({ auth, onAuthChange, onSessionExpired, onBack, on
       setResults((current) => current.map((user) => (user.id === userId ? { ...user, relation } : user)));
       await loadAll();
     } catch (err) {
-      setActionError(friendlyError(err, 'İşlem tamamlanamadı. Tekrar dene.'));
+      setActionError(friendlyError(err, tx('profile:friends.actionFailed', 'İşlem tamamlanamadı. Tekrar dene.')));
     } finally {
       setBusy((current) => { const next = new Set(current); next.delete(userId); return next; });
     }
@@ -167,7 +168,7 @@ export function FriendsScreen({ auth, onAuthChange, onSessionExpired, onBack, on
         onOpen={() => setProfileUser({ id: friend.id, userName: friend.userName, avatarKey: friend.avatarKey, relation: 'friends' })}
         person={friend}
         right={(
-          <AnimatedPressable accessibilityLabel={`${friend.userName} ile mesajlaş`} accessibilityRole="button" onPress={() => onMessage({ id: friend.id, userName: friend.userName, avatarKey: friend.avatarKey, relation: 'friends' })} pressScale={0.92} style={styles.iconButton}>
+          <AnimatedPressable accessibilityLabel={tx('profile:friends.messageA11y', '{{name}} ile mesajlaş', { name: friend.userName })} accessibilityRole="button" onPress={() => onMessage({ id: friend.id, userName: friend.userName, avatarKey: friend.avatarKey, relation: 'friends' })} pressScale={0.92} style={styles.iconButton}>
             <MessageCircle color={colors.text} size={20} />
           </AnimatedPressable>
         )}
@@ -175,11 +176,11 @@ export function FriendsScreen({ auth, onAuthChange, onSessionExpired, onBack, on
     ))
   ) : (
     <BlinkrEmptyState
-      action={{ label: 'Arkadaş ekle', onPress: () => setTab('add'), icon: <UserPlus color={colors.ink} size={20} /> }}
-      description="Kullanıcı adıyla arayıp arkadaşlık isteği gönderebilirsin. Arkadaşların sohbette önce görünür."
+      action={{ label: tx('profile:friends.addFriend', 'Arkadaş ekle'), onPress: () => setTab('add'), icon: <UserPlus color={colors.ink} size={20} /> }}
+      description={tx('profile:friends.emptyHint', 'Kullanıcı adıyla arayıp arkadaşlık isteği gönderebilirsin. Arkadaşların sohbette önce görünür.')}
       icon={<Users color={colors.textSecondary} size={24} />}
       style={styles.empty}
-      title="Henüz arkadaşın yok"
+      title={tx('profile:friends.empty', 'Henüz arkadaşın yok')}
     />
   );
 
@@ -187,7 +188,7 @@ export function FriendsScreen({ auth, onAuthChange, onSessionExpired, onBack, on
     <View style={styles.sections}>
       {incomingCount > 0 ? (
         <View>
-          <Text style={styles.sectionTitle}>Gelen istekler</Text>
+          <Text style={styles.sectionTitle}>{tx('profile:friends.incoming', 'Gelen istekler')}</Text>
           {requests.incoming.map((request) => (
             <PersonRow
               key={request.id}
@@ -195,8 +196,8 @@ export function FriendsScreen({ auth, onAuthChange, onSessionExpired, onBack, on
               person={request}
               right={(
                 <View style={styles.pair}>
-                  <MiniButton accessibilityLabel={`${request.userName} isteğini kabul et`} disabled={busy.has(request.id)} label="Kabul et" onPress={() => void act(request.id, 'accept')} primary />
-                  <MiniButton accessibilityLabel={`${request.userName} isteğini reddet`} disabled={busy.has(request.id)} label="Reddet" onPress={() => void act(request.id, 'decline')} />
+                  <MiniButton accessibilityLabel={tx('profile:friends.acceptA11y', '{{name}} isteğini kabul et', { name: request.userName })} disabled={busy.has(request.id)} label={tx('profile:friends.accept', 'Kabul et')} onPress={() => void act(request.id, 'accept')} primary />
+                  <MiniButton accessibilityLabel={tx('profile:friends.declineA11y', '{{name}} isteğini reddet', { name: request.userName })} disabled={busy.has(request.id)} label={tx('profile:friends.decline', 'Reddet')} onPress={() => void act(request.id, 'decline')} />
                 </View>
               )}
             />
@@ -205,14 +206,14 @@ export function FriendsScreen({ auth, onAuthChange, onSessionExpired, onBack, on
       ) : null}
       {outgoingCount > 0 ? (
         <View>
-          <Text style={styles.sectionTitle}>Gönderilen istekler</Text>
+          <Text style={styles.sectionTitle}>{tx('profile:friends.outgoing', 'Gönderilen istekler')}</Text>
           {requests.outgoing.map((request) => (
             <PersonRow
               key={request.id}
               onOpen={() => setProfileUser({ id: request.id, userName: request.userName, avatarKey: request.avatarKey, relation: 'outgoing' })}
               person={request}
-              right={<MiniButton accessibilityLabel={`${request.userName} isteğini geri al`} disabled={busy.has(request.id)} label="Geri al" onPress={() => void act(request.id, 'cancel')} />}
-              subtitle="Yanıt bekleniyor"
+              right={<MiniButton accessibilityLabel={tx('profile:friends.cancelA11y', '{{name}} isteğini geri al', { name: request.userName })} disabled={busy.has(request.id)} label={tx('profile:friends.withdraw', 'Geri al')} onPress={() => void act(request.id, 'cancel')} />}
+              subtitle={tx('profile:friends.waiting', 'Yanıt bekleniyor')}
             />
           ))}
         </View>
@@ -220,10 +221,10 @@ export function FriendsScreen({ auth, onAuthChange, onSessionExpired, onBack, on
     </View>
   ) : (
     <BlinkrEmptyState
-      description="Sana gelen ve senin gönderdiğin arkadaşlık istekleri burada görünür."
+      description={tx('profile:friends.requestsHint', 'Sana gelen ve senin gönderdiğin arkadaşlık istekleri burada görünür.')}
       icon={<UserPlus color={colors.textSecondary} size={24} />}
       style={styles.empty}
-      title="Bekleyen istek yok"
+      title={tx('profile:friends.noRequests', 'Bekleyen istek yok')}
     />
   );
 
@@ -233,18 +234,18 @@ export function FriendsScreen({ auth, onAuthChange, onSessionExpired, onBack, on
       <View style={styles.search}>
         <Search color={colors.textSecondary} size={18} />
         <TextInput
-          accessibilityLabel="Kullanıcı adı ara"
+          accessibilityLabel={tx('common:people.searchUsername', 'Kullanıcı adı ara')}
           autoCapitalize="none"
           autoCorrect={false}
           maxLength={40}
           onChangeText={setQuery}
-          placeholder="Kullanıcı adı ara"
+          placeholder={tx('common:people.searchUsername', 'Kullanıcı adı ara')}
           placeholderTextColor={colors.textSecondary}
           style={styles.input}
           value={query}
         />
       </View>
-      {searching ? <ActivityIndicator accessibilityLabel="Aranıyor" color={colors.primary} style={styles.progress} /> : null}
+      {searching ? <ActivityIndicator accessibilityLabel={tx('common:actions.searching', 'Aranıyor')} color={colors.primary} style={styles.progress} /> : null}
       {searchError ? <Text accessibilityRole="alert" style={styles.error}>{searchError}</Text> : null}
       {results.map((user) => {
         const main = primaryAction(user.relation);
@@ -255,16 +256,16 @@ export function FriendsScreen({ auth, onAuthChange, onSessionExpired, onBack, on
             onOpen={() => setProfileUser(user)}
             person={user}
             right={user.relation === 'incoming' ? (
-              <MiniButton accessibilityLabel={`${user.userName} isteğini kabul et`} disabled={busy.has(user.id)} label="Kabul et" onPress={() => void act(user.id, 'accept')} primary />
+              <MiniButton accessibilityLabel={tx('profile:friends.acceptA11y', '{{name}} isteğini kabul et', { name: user.userName })} disabled={busy.has(user.id)} label={tx('profile:friends.accept', 'Kabul et')} onPress={() => void act(user.id, 'accept')} primary />
             ) : main ? (
-              <MiniButton accessibilityLabel={main.action === 'add' ? `${user.userName} için arkadaşlık isteği gönder` : `${user.userName} isteğini geri al`} disabled={busy.has(user.id)} label={main.action === 'add' ? 'Ekle' : 'Geri al'} onPress={() => void act(user.id, main.action)} primary={main.action === 'add'} />
+              <MiniButton accessibilityLabel={main.action === 'add' ? tx('profile:friends.sendA11y', '{{name}} için arkadaşlık isteği gönder', { name: user.userName }) : tx('profile:friends.cancelA11y', '{{name}} isteğini geri al', { name: user.userName })} disabled={busy.has(user.id)} label={main.action === 'add' ? tx('profile:friends.add', 'Ekle') : tx('profile:friends.withdraw', 'Geri al')} onPress={() => void act(user.id, main.action)} primary={main.action === 'add'} />
             ) : label ? <Text style={styles.relationLabel}>{label}</Text> : null}
             subtitle={user.relation === 'incoming' ? 'Seni ekledi' : undefined}
           />
         );
       })}
       {!searching && !searchError && searched && results.length === 0 ? (
-        <BlinkrEmptyState description="Yazımı kontrol et ya da başka bir kullanıcı adı dene." icon={<Search color={colors.textSecondary} size={24} />} style={styles.empty} title="Kullanıcı bulunamadı" />
+        <BlinkrEmptyState description={tx('common:people.notFoundHint', 'Yazımı kontrol et ya da başka bir kullanıcı adı dene.')} icon={<Search color={colors.textSecondary} size={24} />} style={styles.empty} title={tx('common:people.notFound', 'Kullanıcı bulunamadı')} />
       ) : null}
       {!searched ? <Text style={styles.hint}>Eklemek istediğin kişinin kullanıcı adını yaz (en az {MIN_QUERY_LENGTH} harf).</Text> : null}
     </View>
@@ -273,14 +274,14 @@ export function FriendsScreen({ auth, onAuthChange, onSessionExpired, onBack, on
   return (
     <View style={styles.screen}>
       <View style={[styles.bar, { paddingTop: insets.top + spacing.sm }]}>
-        <AnimatedPressable accessibilityLabel="Geri dön" accessibilityRole="button" onPress={onBack} pressScale={0.95} style={styles.back}>
+        <AnimatedPressable accessibilityLabel={tx('common:actions.back', 'Geri dön')} accessibilityRole="button" onPress={onBack} pressScale={0.95} style={styles.back}>
           <ArrowLeft color={colors.text} size={22} />
         </AnimatedPressable>
-        <Text accessibilityRole="header" style={styles.title}>Arkadaşlar</Text>
+        <Text accessibilityRole="header" style={styles.title}>{tx('profile:friends.title', 'Arkadaşlar')}</Text>
       </View>
 
       <View accessibilityRole="tablist" style={styles.tabs}>
-        {([['friends', 'Arkadaşlarım', friends ? String(friends.length) : ''], ['requests', 'İstekler', incomingCount > 0 ? badgeText(incomingCount) : ''], ['add', 'Ekle', '']] as const).map(([id, label, count]) => (
+        {([['friends', tx('profile:friends.tabFriends', 'Arkadaşlarım'), friends ? String(friends.length) : ''], ['requests', tx('profile:friends.tabRequests', 'İstekler'), incomingCount > 0 ? badgeText(incomingCount) : ''], ['add', tx('profile:friends.add', 'Ekle'), '']] as const).map(([id, label, count]) => (
           <AnimatedPressable accessibilityLabel={count && id === 'requests' ? `${label}, ${count} yeni` : label} accessibilityRole="tab" aria-selected={tab === id} key={id} onPress={() => setTab(id)} pressScale={0.97} style={[styles.tabItem, tab === id && styles.tabItemActive]}>
             <Text style={[styles.tabText, tab === id && styles.tabTextActive]}>{label}</Text>
             {count ? <Text style={[styles.count, id === 'requests' && styles.countAlert]}>{count}</Text> : null}
@@ -299,7 +300,7 @@ export function FriendsScreen({ auth, onAuthChange, onSessionExpired, onBack, on
           : error && !friends ? (
             <View style={styles.inline}>
               <Text accessibilityRole="alert" style={styles.error}>{error}</Text>
-              <BlinkrButton label="Tekrar dene" onPress={() => void loadAll()} variant="secondary" />
+              <BlinkrButton label={tx('common:actions.retry', 'Tekrar dene')} onPress={() => void loadAll()} variant="secondary" />
             </View>
           ) : tab === 'friends' ? friendsTab : requestsTab}
       </ScrollView>

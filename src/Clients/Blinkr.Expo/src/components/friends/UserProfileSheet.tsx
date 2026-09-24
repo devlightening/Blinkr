@@ -21,6 +21,8 @@ import { BlinkrButton } from '../ui/BlinkrButton';
 import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
 import { FollowButton } from './FollowButton';
 import { FollowListPanel, type FollowListTab } from './FollowListSheet';
+import { tx } from '../../i18n/tx';
+import { displayLocale } from '../../i18n/locale';
 
 const SIGNALS_SHOWN = 5;
 
@@ -79,7 +81,7 @@ export function UserProfileSheet({ auth, user, onAuthChange, onSessionExpired, o
       setPosts(page?.items ?? []);
       setTotal(page?.total ?? 0);
     } catch (err) {
-      if (!signal.aborted) setError(friendlyError(err, 'Profil açılamadı. Tekrar dene.'));
+      if (!signal.aborted) setError(friendlyError(err, tx('profile:person.loadFailed', 'Profil açılamadı. Tekrar dene.')));
     } finally {
       if (!signal.aborted) setLoading(false);
     }
@@ -105,7 +107,7 @@ export function UserProfileSheet({ auth, user, onAuthChange, onSessionExpired, o
       setConfirmBlock(false);
       onRelationChange?.(user.id, next);
     } catch (err) {
-      if (mounted.current) setActionError(friendlyError(err, 'İşlem tamamlanamadı. Tekrar dene.'));
+      if (mounted.current) setActionError(friendlyError(err, tx('profile:friends.actionFailed', 'İşlem tamamlanamadı. Tekrar dene.')));
     } finally {
       if (mounted.current) setBusy(false);
     }
@@ -161,11 +163,11 @@ export function UserProfileSheet({ auth, user, onAuthChange, onSessionExpired, o
           ) : null}
           {profile && profile.followsYou && follow !== 'self' ? <Text style={styles.followsYou}>{t('follow.followsYou')}</Text> : null}
 
-          {loading && !profile ? <ActivityIndicator accessibilityLabel="Profil yükleniyor" color={colors.primary} style={styles.loading} /> : null}
+          {loading && !profile ? <ActivityIndicator accessibilityLabel={tx('profile:person.loading', 'Profil yükleniyor')} color={colors.primary} style={styles.loading} /> : null}
           {error ? (
             <View style={styles.block}>
               <Text accessibilityRole="alert" style={styles.error}>{error}</Text>
-              <BlinkrButton label="Tekrar dene" onPress={() => { const controller = new AbortController(); void load(controller.signal); }} variant="secondary" />
+              <BlinkrButton label={tx('common:actions.retry', 'Tekrar dene')} onPress={() => { const controller = new AbortController(); void load(controller.signal); }} variant="secondary" />
             </View>
           ) : null}
 
@@ -186,21 +188,21 @@ export function UserProfileSheet({ auth, user, onAuthChange, onSessionExpired, o
               ) : null}
               {relation === 'incoming' ? (
                 <View style={styles.pair}>
-                  <BlinkrButton disabled={busy} label="Kabul et" loading={busy} onPress={() => void act('accept')} style={styles.flex} />
-                  <BlinkrButton disabled={busy} label="Reddet" onPress={() => void act('decline')} style={styles.flex} variant="secondary" />
+                  <BlinkrButton disabled={busy} label={tx('profile:friends.accept', 'Kabul et')} loading={busy} onPress={() => void act('accept')} style={styles.flex} />
+                  <BlinkrButton disabled={busy} label={tx('profile:friends.decline', 'Reddet')} onPress={() => void act('decline')} style={styles.flex} variant="secondary" />
                 </View>
               ) : main ? (
                 <BlinkrButton disabled={busy} label={main.label} loading={busy} onPress={() => void act(main.action)} variant={main.action === 'add' ? 'primary' : 'secondary'} />
               ) : relation === 'friends' ? (
                 <View style={styles.friendsRow}>
                   <UserCheck color={colors.primary} size={18} />
-                  <Text style={styles.friendsText}>Arkadaşsınız</Text>
+                  <Text style={styles.friendsText}>{tx('profile:person.friends', 'Arkadaşsınız')}</Text>
                 </View>
               ) : null}
               {relation !== 'blocked' ? (
                 <BlinkrButton
                   icon={<MessageCircle color={colors.text} size={18} />}
-                  label="Mesaj gönder"
+                  label={tx('profile:person.message', 'Mesaj gönder')}
                   onPress={() => onMessage({ id: user.id, userName: name, avatarKey, relation })}
                   variant="secondary"
                 />
@@ -209,13 +211,13 @@ export function UserProfileSheet({ auth, user, onAuthChange, onSessionExpired, o
               {relation === 'friends' ? (
                 confirmRemove ? (
                   <View style={styles.pair}>
-                    <BlinkrButton disabled={busy} label="Evet, çıkar" onPress={() => void act('remove')} style={styles.flex} variant="danger" />
-                    <BlinkrButton label="Vazgeç" onPress={() => setConfirmRemove(false)} style={styles.flex} variant="ghost" />
+                    <BlinkrButton disabled={busy} label={tx('profile:person.confirmRemove', 'Evet, çıkar')} onPress={() => void act('remove')} style={styles.flex} variant="danger" />
+                    <BlinkrButton label={tx('common:actions.cancel', 'Vazgeç')} onPress={() => setConfirmRemove(false)} style={styles.flex} variant="ghost" />
                   </View>
                 ) : (
-                  <AnimatedPressable accessibilityLabel="Arkadaşlıktan çıkar" accessibilityRole="button" onPress={() => setConfirmRemove(true)} pressScale={0.98} style={styles.remove}>
+                  <AnimatedPressable accessibilityLabel={tx('profile:person.remove', 'Arkadaşlıktan çıkar')} accessibilityRole="button" onPress={() => setConfirmRemove(true)} pressScale={0.98} style={styles.remove}>
                     <UserMinus color={colors.textSecondary} size={16} />
-                    <Text style={styles.removeText}>Arkadaşlıktan çıkar</Text>
+                    <Text style={styles.removeText}>{tx('profile:person.remove', 'Arkadaşlıktan çıkar')}</Text>
                   </AnimatedPressable>
                 )
               ) : null}
@@ -223,23 +225,23 @@ export function UserProfileSheet({ auth, user, onAuthChange, onSessionExpired, o
                 {relation !== 'blocked' ? (
                   confirmBlock ? (
                     <View style={styles.confirmBlock}>
-                      <Text style={styles.confirmText}>Engellersen arkadaşlığınız biter; birbirinizi bulamaz, mesajlaşamazsınız. Karşı taraf bilgilendirilmez.</Text>
+                      <Text style={styles.confirmText}>{tx('profile:person.blockWarning', 'Engellersen arkadaşlığınız biter; birbirinizi bulamaz, mesajlaşamazsınız. Karşı taraf bilgilendirilmez.')}</Text>
                       <View style={styles.pair}>
-                        <BlinkrButton disabled={busy} label="Evet, engelle" onPress={() => void act('block')} style={styles.flex} variant="danger" />
-                        <BlinkrButton label="Vazgeç" onPress={() => setConfirmBlock(false)} style={styles.flex} variant="ghost" />
+                        <BlinkrButton disabled={busy} label={tx('profile:person.confirmBlock', 'Evet, engelle')} onPress={() => void act('block')} style={styles.flex} variant="danger" />
+                        <BlinkrButton label={tx('common:actions.cancel', 'Vazgeç')} onPress={() => setConfirmBlock(false)} style={styles.flex} variant="ghost" />
                       </View>
                     </View>
                   ) : (
-                    <AnimatedPressable accessibilityLabel="Engelle" accessibilityRole="button" onPress={() => setConfirmBlock(true)} pressScale={0.98} style={styles.safetyLink}>
+                    <AnimatedPressable accessibilityLabel={tx('profile:person.block', 'Engelle')} accessibilityRole="button" onPress={() => setConfirmBlock(true)} pressScale={0.98} style={styles.safetyLink}>
                       <Ban color={colors.textSecondary} size={16} />
-                      <Text style={styles.removeText}>Engelle</Text>
+                      <Text style={styles.removeText}>{tx('profile:person.block', 'Engelle')}</Text>
                     </AnimatedPressable>
                   )
                 ) : null}
                 {!confirmBlock ? (
-                  <AnimatedPressable accessibilityLabel="Bildir" accessibilityRole="button" onPress={() => setReporting(true)} pressScale={0.98} style={styles.safetyLink}>
+                  <AnimatedPressable accessibilityLabel={tx('common:actions.report', 'Bildir')} accessibilityRole="button" onPress={() => setReporting(true)} pressScale={0.98} style={styles.safetyLink}>
                     <Flag color={colors.textSecondary} size={16} />
-                    <Text style={styles.removeText}>Bildir</Text>
+                    <Text style={styles.removeText}>{tx('common:actions.report', 'Bildir')}</Text>
                   </AnimatedPressable>
                 ) : null}
               </View>
@@ -256,15 +258,15 @@ export function UserProfileSheet({ auth, user, onAuthChange, onSessionExpired, o
           {profile && relation !== 'blocked' && !locked ? (
             <View style={styles.signals}>
               <View style={styles.signalsHead}>
-                <Text accessibilityRole="header" style={styles.signalsTitle}>Sinyalleri</Text>
-                {total > 0 ? <Text style={styles.signalsCount}>{total.toLocaleString('tr-TR')}</Text> : null}
+                <Text accessibilityRole="header" style={styles.signalsTitle}>{tx('profile:person.signals', 'Sinyalleri')}</Text>
+                {total > 0 ? <Text style={styles.signalsCount}>{total.toLocaleString(displayLocale())}</Text> : null}
               </View>
               {posts && posts.length > 0
                 ? posts.map((post) => <PostRow key={post.id} post={post} />)
                 : (
                   <View style={styles.noSignals}>
                     <Radio color={colors.textSecondary} size={18} />
-                    <Text style={styles.noSignalsText}>Henüz herkese açık sinyali yok.</Text>
+                    <Text style={styles.noSignalsText}>{tx('profile:person.noSignals', 'Henüz herkese açık sinyali yok.')}</Text>
                   </View>
                 )}
             </View>

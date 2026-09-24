@@ -23,7 +23,8 @@
     "comments_one": "{{count}} yorum",
     "comments_other": "{{count}} yorum",
     "openComments": "Yorumları aç",
-    "viewLikers": "Beğenenleri gör"
+    "viewLikers": "Beğenenleri gör",
+    "shareChat": "Sohbette paylaş"
   },
   "comments": {
     "title": "Yorumlar",
@@ -109,5 +110,56 @@
     "firstSignal": "İlk sinyali bırak",
     "fromGallery": "Galeriden",
     "fromGalleryHint": "Galeriden, iki saatten eski bir fotoğraf; canlı durumu göstermez."
-  }
+  },
+  "place": {
+    "directionsFailed": "Yol tarifi açılamadı",
+    "photo": "Fotoğraf",
+    "reportSignal": "Bu sinyali bildir",
+    "engagement": "Beğeni ve yorumlar",
+    "saveFailed": "Yer kaydedilemedi",
+    "tryAgain": "Tekrar dene.",
+    "coordinateSignal": "Yaklaşık konum sinyali",
+    "loadingContent": "İçerik yükleniyor",
+    "refreshing": "Yer detayı yenileniyor",
+    "noFresh": "Henüz taze sinyal yok",
+    "noVerified": "Henüz doğrulanmış canlı gözlem yok.",
+    "recheckHint": "Buradaysan cevabın bu yerin canlı durumunu güncel tutar.",
+    "whatsHappening": "Burada neler oluyor?",
+    "unsave": "Kayıttan kaldır",
+    "save": "Kaydet",
+    "saved": "Kayıtlı",
+    "shareFailed": "Paylaşılamadı",
+    "directions": "Yol tarifi",
+    "recent": "Son sinyaller",
+    "emptyHint": "İlk sinyali paylaşarak haritadaki kararı kolaylaştırabilirsin.",
+    "empty": "Bu yer için taze içerik bekleniyor"
+  },
+  "catalog": {
+    "GeneralObservation": "Gözlem",
+    "Crowd": "Doluluk",
+    "Calm": "Sakin",
+    "Moderate": "Hareketli",
+    "Busy": "Kalabalık",
+    "Queue": "Bekleme",
+    "QueueNone": "Sıra yok",
+    "Queue5To15": "5–15 dk",
+    "QueueOver15": "15 dk üzeri",
+    "TemporaryStatus": "Geçici durum",
+    "Closed": "Kapalı",
+    "Open": "Açık",
+    "Event": "Etkinlik",
+    "Started": "Başladı",
+    "Ended": "Bitti",
+    "Offer": "Fırsat",
+    "Available": "Devam ediyor",
+    "OfferEnded": "Sona erdi",
+    "NewOpening": "Yeni açılış",
+    "QueueLong": "Uzun sıra"
+  },
+  "trust": {
+    "verified": "Konum doğrulandı",
+    "nearby": "Yakındaki yer paylaşımı",
+    "unverified": "Konum doğrulanamadı"
+  },
+  "generic": "Sinyal"
 }

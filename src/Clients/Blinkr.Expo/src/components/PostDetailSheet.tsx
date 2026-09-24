@@ -28,6 +28,7 @@ import { BlinkrSheetPanel } from './ui/BlinkrSheetPanel';
 import { BlinkrSignalCard } from './ui/BlinkrSignalCard';
 import { StatRow } from './ui/BlinkrStatRow';
 import { MediaImage } from './ui/BlinkrMediaImage';
+import { tx } from '../i18n/tx';
 
 type Props = {
   /** Signed-in session: likes and comments. Without it the thread is read-only. */
@@ -38,7 +39,7 @@ type Props = {
   isLoading: boolean;
   onClose: () => void;
   onCreateSignal: () => void;
-  /** Answer to "Hâlâ böyle mi?": confirm the current value, or say it changed. Both open the composer pre-filled. */
+  /** Answer to tx('signal:verify.question', 'Hâlâ böyle mi?'): confirm the current value, or say it changed. Both open the composer pre-filled. */
   onRecheck?: (mode: 'confirm' | 'changed', signal: { type: SignalType; value: string }) => void;
   /** Files a report about one signal (wrong or inappropriate content). Rejects with the failure to show. */
   onReportSignal?: (postId: string, reason: ReportReasonId, note: string) => Promise<void>;
@@ -58,7 +59,7 @@ const openDirections = (place: BlinkrPlace) => {
     android: `geo:0,0?q=${place.latitude},${place.longitude}(${label})`,
     default: `https://maps.google.com/?q=${place.latitude},${place.longitude}`,
   });
-  Linking.openURL(url ?? `https://maps.google.com/?q=${place.latitude},${place.longitude}`).catch(() => Alert.alert('Yol tarifi açılamadı'));
+  Linking.openURL(url ?? `https://maps.google.com/?q=${place.latitude},${place.longitude}`).catch(() => Alert.alert(tx('signal:place.directionsFailed', 'Yol tarifi açılamadı')));
 };
 
 /**
@@ -98,7 +99,7 @@ const PhotoRail = ({ signals }: { signals: RecentSignal[] }) => {
       {extra > 0 && (
         <View style={[styles.photo, styles.photoSide, styles.photoMore]}>
           <Text style={styles.photoMoreText}>+{extra}</Text>
-          <Text style={styles.photoMoreLabel}>Fotoğraf</Text>
+          <Text style={styles.photoMoreLabel}>{tx('signal:place.photo', 'Fotoğraf')}</Text>
         </View>
       )}
     </View>
@@ -120,9 +121,9 @@ const ActionTile = ({ label, icon, onPress, accessibilityLabel, selected }: { la
 );
 
 const ReportLink = ({ onPress }: { onPress: () => void }) => (
-  <AnimatedPressable accessibilityLabel="Bu sinyali bildir" accessibilityRole="button" onPress={onPress} pressScale={0.97} style={styles.reportLink}>
+  <AnimatedPressable accessibilityLabel={tx('signal:place.reportSignal', 'Bu sinyali bildir')} accessibilityRole="button" onPress={onPress} pressScale={0.97} style={styles.reportLink}>
     <Flag color={colors.textSecondary} size={14} />
-    <Text style={styles.reportText}>Bildir</Text>
+    <Text style={styles.reportText}>{tx('common:actions.report', 'Bildir')}</Text>
   </AnimatedPressable>
 );
 
@@ -133,7 +134,7 @@ const SignalItem = ({ signal, index, onReport, onOpenThread }: { signal: RecentS
     <View>
       <BlinkrSignalCard
         ageLabel={formatAge(signal.createdAtUtc)}
-        authorLabel={signal.authorName || 'Topluluk üyesi'}
+        authorLabel={signal.authorName || tx('common:member', 'Topluluk üyesi')}
         media={firstMedia ? <MediaThumb media={firstMedia} style={styles.signalMedia} /> : undefined}
         signalType={type}
         text={cardText(signal.title, signal.text, type)}
@@ -143,9 +144,9 @@ const SignalItem = ({ signal, index, onReport, onOpenThread }: { signal: RecentS
       />
       <View style={styles.itemLinks}>
         {onOpenThread ? (
-          <AnimatedPressable accessibilityLabel="Beğeni ve yorumlar" accessibilityRole="button" onPress={onOpenThread} pressScale={0.97} style={styles.reportLink} testID={`open-thread-${signal.postId}`}>
+          <AnimatedPressable accessibilityLabel={tx('signal:place.engagement', 'Beğeni ve yorumlar')} accessibilityRole="button" onPress={onOpenThread} pressScale={0.97} style={styles.reportLink} testID={`open-thread-${signal.postId}`}>
             <MessageCircle color={colors.textSecondary} size={14} />
-            <Text style={styles.reportText}>Yorumlar</Text>
+            <Text style={styles.reportText}>{tx('signal:comments.title', 'Yorumlar')}</Text>
           </AnimatedPressable>
         ) : null}
         {onReport ? <ReportLink onPress={onReport} /> : null}
@@ -181,7 +182,7 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
       else await savePlace(userId, place);
       setSaved(!saved);
     } catch (err) {
-      Alert.alert('Yer kaydedilemedi', err instanceof Error && err.message.startsWith('En fazla') ? err.message : 'Tekrar dene.');
+      Alert.alert(tx('signal:place.saveFailed', 'Yer kaydedilemedi'), err instanceof Error && err.message.startsWith('En fazla') ? err.message : tx('signal:place.tryAgain', 'Tekrar dene.'));
     }
   };
 
@@ -227,18 +228,18 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
               <SignalSymbol color={signalColors[signal.signalType] ?? colors.mint} size={24} type={signal.signalType} />
             </View>
             <View style={styles.headerText}>
-              <Text accessibilityRole="header" numberOfLines={1} style={styles.title}>{signal.locationName || 'Yaklaşık konum sinyali'}</Text>
+              <Text accessibilityRole="header" numberOfLines={1} style={styles.title}>{signal.locationName || tx('signal:place.coordinateSignal', 'Yaklaşık konum sinyali')}</Text>
               <Text style={styles.subtitle}>Yaklaşık konum · {formatAge(signal.createdAtUtc)}</Text>
             </View>
-            <AnimatedPressable accessibilityLabel="Kapat" accessibilityRole="button" hitSlop={10} onPress={onClose} pressScale={0.88} style={styles.close}>
+            <AnimatedPressable accessibilityLabel={tx('common:actions.close', 'Kapat')} accessibilityRole="button" hitSlop={10} onPress={onClose} pressScale={0.88} style={styles.close}>
               <X color={colors.text} size={22} />
             </AnimatedPressable>
           </View>
           <ScrollView showsVerticalScrollIndicator={false} style={styles.body}>
-            {isLoading && <ActivityIndicator accessibilityLabel="İçerik yükleniyor" color={colors.mint} style={styles.loading} />}
+            {isLoading && <ActivityIndicator accessibilityLabel={tx('signal:place.loadingContent', 'İçerik yükleniyor')} color={colors.mint} style={styles.loading} />}
             <BlinkrSignalCard
               ageLabel={formatAge(signal.createdAtUtc)}
-              authorLabel={signal.authorPreview || 'Topluluk üyesi'}
+              authorLabel={signal.authorPreview || tx('common:member', 'Topluluk üyesi')}
               media={signal.media?.[0]
                 ? <MediaThumb media={signal.media[0]} style={styles.signalMedia} />
                 : signal.mediaThumbnailUrl
@@ -252,7 +253,7 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
             <View style={styles.itemLinks}>
               {signal.postId ? (
                 <AnimatedPressable
-                  accessibilityLabel="Beğeni ve yorumlar"
+                  accessibilityLabel={tx('signal:place.engagement', 'Beğeni ve yorumlar')}
                   accessibilityRole="button"
                   onPress={() => setThread({ postId: signal.postId, title: signal.title, text: signal.content ?? signal.textPreview, signalType: signal.signalType, signalValue: signal.signalValue, createdAtUtc: signal.createdAtUtc, authorName: signal.authorPreview, media: signal.media })}
                   pressScale={0.97}
@@ -260,10 +261,10 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
                   testID="open-thread-signal"
                 >
                   <MessageCircle color={colors.textSecondary} size={14} />
-                  <Text style={styles.reportText}>Beğeni ve yorumlar</Text>
+                  <Text style={styles.reportText}>{tx('signal:place.engagement', 'Beğeni ve yorumlar')}</Text>
                 </AnimatedPressable>
               ) : null}
-              {onReportSignal && signal.postId ? <ReportLink onPress={() => setReportTarget({ postId: signal.postId, label: signal.title || 'Yaklaşık konum sinyali' })} /> : null}
+              {onReportSignal && signal.postId ? <ReportLink onPress={() => setReportTarget({ postId: signal.postId, label: signal.title || tx('signal:place.coordinateSignal', 'Yaklaşık konum sinyali') })} /> : null}
             </View>
           </ScrollView>
         </BlinkrSheetPanel>
@@ -282,7 +283,7 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
                 <Text accessibilityRole="header" style={styles.title}>{place.name}</Text>
                 <Text style={styles.subtitle}>{formatCategory(place.category)}{distance ? ` · ${distance}` : ''}</Text>
               </View>
-              <AnimatedPressable accessibilityLabel="Kapat" accessibilityRole="button" hitSlop={10} onPress={onClose} pressScale={0.88} style={styles.close}>
+              <AnimatedPressable accessibilityLabel={tx('common:actions.close', 'Kapat')} accessibilityRole="button" hitSlop={10} onPress={onClose} pressScale={0.88} style={styles.close}>
                 <X color={colors.text} size={22} />
               </AnimatedPressable>
             </View>
@@ -290,7 +291,7 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
             {isLoading && (
               <View style={styles.loadingRow}>
                 <ActivityIndicator color={colors.mint} size="small" />
-                <Text style={styles.subtitle}>Yer detayı yenileniyor</Text>
+                <Text style={styles.subtitle}>{tx('signal:place.refreshing', 'Yer detayı yenileniyor')}</Text>
               </View>
             )}
 
@@ -301,8 +302,8 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
                 {stateType ? <SignalSymbol color={colors.mint} size={22} type={stateType} /> : <Clock3 color={colors.textSecondary} size={22} />}
               </View>
               <View style={styles.statusCopy}>
-                <Text style={styles.statusTitle}>{stateType ? signalLabels[stateType] ?? stateType : 'Henüz taze sinyal yok'}</Text>
-                <Text style={styles.subtitle}>{signalValueLabel(stateType, state?.signalValue) || 'Henüz doğrulanmış canlı gözlem yok.'}</Text>
+                <Text style={styles.statusTitle}>{stateType ? signalLabels[stateType] ?? stateType : tx('signal:place.noFresh', 'Henüz taze sinyal yok')}</Text>
+                <Text style={styles.subtitle}>{signalValueLabel(stateType, state?.signalValue) || tx('signal:place.noVerified', 'Henüz doğrulanmış canlı gözlem yok.')}</Text>
               </View>
             </View>
 
@@ -319,11 +320,11 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
 
             {recheck && onRecheck ? (
               <View style={styles.recheck}>
-                <Text style={styles.recheckTitle}>Hâlâ böyle mi?</Text>
-                <Text style={styles.recheckHint}>Buradaysan cevabın bu yerin canlı durumunu güncel tutar.</Text>
+                <Text style={styles.recheckTitle}>{tx('signal:verify.question', 'Hâlâ böyle mi?')}</Text>
+                <Text style={styles.recheckHint}>{tx('signal:place.recheckHint', 'Buradaysan cevabın bu yerin canlı durumunu güncel tutar.')}</Text>
                 <View style={styles.recheckRow}>
-                  <BlinkrChip accessibilityLabel="Evet, hâlâ böyle" selected={false} icon={(color) => <Check color={color} size={18} />} label="Evet, hâlâ böyle" onPress={() => onRecheck('confirm', recheck)} />
-                  <BlinkrChip accessibilityLabel="Değişti" selected={false} icon={(color) => <RefreshCw color={color} size={18} />} label="Değişti" onPress={() => onRecheck('changed', recheck)} />
+                  <BlinkrChip accessibilityLabel={tx('signal:verify.yes', 'Evet, hâlâ böyle')} selected={false} icon={(color) => <Check color={color} size={18} />} label={tx('signal:verify.yes', 'Evet, hâlâ böyle')} onPress={() => onRecheck('confirm', recheck)} />
+                  <BlinkrChip accessibilityLabel={tx('signal:verify.changed', 'Değişti')} selected={false} icon={(color) => <RefreshCw color={color} size={18} />} label={tx('signal:verify.changed', 'Değişti')} onPress={() => onRecheck('changed', recheck)} />
                 </View>
               </View>
             ) : null}
@@ -331,36 +332,36 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
             <View style={styles.actions}>
               <BlinkrButton
                 icon={<Camera color={colors.ink} size={22} />}
-                label="Sinyal bırak"
+                label={tx('signal:drop', 'Sinyal bırak')}
                 onPress={onCreateSignal}
                 size="lg"
                 style={styles.primaryAction}
-                subtitle="Burada neler oluyor?"
+                subtitle={tx('signal:place.whatsHappening', 'Burada neler oluyor?')}
               />
               <ActionTile
-                accessibilityLabel={saved ? 'Kayıttan kaldır' : 'Kaydet'}
+                accessibilityLabel={saved ? tx('signal:place.unsave', 'Kayıttan kaldır') : tx('signal:place.save', 'Kaydet')}
                 icon={<Bookmark color={colors.text} fill={saved ? colors.primary : 'none'} size={24} />}
-                label={saved ? 'Kayıtlı' : 'Kaydet'}
+                label={saved ? tx('signal:place.saved', 'Kayıtlı') : tx('signal:place.save', 'Kaydet')}
                 onPress={toggleSaved}
                 selected={saved}
               />
               <ActionTile
                 icon={<Share2 color={colors.text} size={24} />}
-                label="Paylaş"
-                onPress={() => Share.share({ message: `${place.name} · ${formatCategory(place.category)}\nhttps://maps.apple.com/?q=${encodeURIComponent(place.name)}&ll=${place.latitude},${place.longitude}` }).catch(() => Alert.alert('Paylaşılamadı'))}
+                label={tx('common:actions.share', 'Paylaş')}
+                onPress={() => Share.share({ message: `${place.name} · ${formatCategory(place.category)}\nhttps://maps.apple.com/?q=${encodeURIComponent(place.name)}&ll=${place.latitude},${place.longitude}` }).catch(() => Alert.alert(tx('signal:place.shareFailed', 'Paylaşılamadı')))}
               />
-              <ActionTile accessibilityLabel="Yol tarifi" icon={<Compass color={colors.text} size={24} />} label="Yol tarifi" onPress={() => openDirections(place)} />
+              <ActionTile accessibilityLabel={tx('signal:place.directions', 'Yol tarifi')} icon={<Compass color={colors.text} size={24} />} label={tx('signal:place.directions', 'Yol tarifi')} onPress={() => openDirections(place)} />
             </View>
 
             <View style={styles.sectionHeader}>
-              <Text accessibilityRole="header" style={styles.sectionLabel}>Son sinyaller</Text>
+              <Text accessibilityRole="header" style={styles.sectionLabel}>{tx('signal:place.recent', 'Son sinyaller')}</Text>
               <Text style={styles.sectionCount}>{recentSignals.length}</Text>
             </View>
             {recentSignals.length === 0 ? (
               <BlinkrEmptyState
-                description="İlk sinyali paylaşarak haritadaki kararı kolaylaştırabilirsin."
+                description={tx('signal:place.emptyHint', 'İlk sinyali paylaşarak haritadaki kararı kolaylaştırabilirsin.')}
                 icon={<ImageIcon color={colors.textSecondary} size={28} />}
-                title="Bu yer için taze içerik bekleniyor"
+                title={tx('signal:place.empty', 'Bu yer için taze içerik bekleniyor')}
               />
             ) : (
               <View style={styles.signalList}>

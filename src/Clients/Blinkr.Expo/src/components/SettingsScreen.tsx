@@ -18,8 +18,11 @@ import { DeleteAccountView } from './account/DeleteAccountView';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
 import { SegmentedControl } from './ui/BlinkrSegmentedControl';
-import { useTheme } from './ThemeProvider';
+import { reloadApp, useTheme } from './ThemeProvider';
+import * as SecureStore from 'expo-secure-store';
+import { LANGUAGE_PREFERENCE_KEY, readLanguagePreference, type LanguagePreference } from '../i18n';
 import type { ThemePreference } from '../theme';
+import { tx } from '../i18n/tx';
 
 type Props = {
   auth: AuthResponse;
@@ -57,6 +60,7 @@ function Row({ icon, title, value, onPress, danger = false }: { icon: React.Reac
 export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, onLogout, isPrivate = false, onPrivacyChange }: Props) {
   const { t } = useTranslation('settings');
   const theme = useTheme();
+  const [language, setLanguage] = useState<LanguagePreference>(readLanguagePreference);
   const [privateOn, setPrivateOn] = useState(isPrivate);
   const [privacyError, setPrivacyError] = useState<string | null>(null);
   useEffect(() => { setPrivateOn(isPrivate); }, [isPrivate]);
@@ -77,7 +81,7 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
       const rows = await listBlocks(auth, controller.signal, refresh);
       if (!controller.signal.aborted) setBlocked(rows);
     } catch (err) {
-      if (!controller.signal.aborted) setError(friendlyError(err, 'Engellenen kişiler yüklenemedi. Tekrar dene.'));
+      if (!controller.signal.aborted) setError(friendlyError(err, tx('settings:blocked.loadFailed', 'Engellenen kişiler yüklenemedi. Tekrar dene.')));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.userId, auth.token]);
@@ -97,7 +101,7 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
       await unblockUser(auth, userId, refresh);
       setBlocked((current) => (current ? current.filter((user) => user.id !== userId) : current));
     } catch (err) {
-      setError(friendlyError(err, 'Engel kaldırılamadı. Tekrar dene.'));
+      setError(friendlyError(err, tx('settings:blocked.unblockFailed', 'Engel kaldırılamadı. Tekrar dene.')));
     } finally {
       setBusy((current) => { const next = new Set(current); next.delete(userId); return next; });
     }
@@ -121,28 +125,28 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
   return (
     <View style={styles.screen}>
       <View style={[styles.bar, { paddingTop: insets.top + spacing.sm }]}>
-        <AnimatedPressable accessibilityLabel="Geri dön" accessibilityRole="button" onPress={() => (page !== 'main' ? setPage('main') : onBack())} pressScale={0.95} style={styles.back}>
+        <AnimatedPressable accessibilityLabel={tx('common:actions.back', 'Geri dön')} accessibilityRole="button" onPress={() => (page !== 'main' ? setPage('main') : onBack())} pressScale={0.95} style={styles.back}>
           <ArrowLeft color={colors.text} size={22} />
         </AnimatedPressable>
-        <Text accessibilityRole="header" numberOfLines={1} style={styles.title}>{page === 'blocked' ? 'Engellenen kişiler' : page === 'main' ? 'Ayarlar' : t(`pages.${page}`)}</Text>
+        <Text accessibilityRole="header" numberOfLines={1} style={styles.title}>{page === 'blocked' ? tx('settings:blocked.title', 'Engellenen kişiler') : page === 'main' ? tx('settings:title', 'Ayarlar') : t(`pages.${page}`)}</Text>
       </View>
 
       {page === 'main' ? (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]} showsVerticalScrollIndicator={false}>
-          <Text style={styles.section}>Hesap</Text>
+          <Text style={styles.section}>{tx('settings:sections.account', 'Hesap')}</Text>
           <View style={styles.group}>
-            <Row icon={<Text style={styles.glyph}>@</Text>} title="Kullanıcı adı" value={auth.userName} />
-            <Row icon={<Text style={styles.glyph}>✉</Text>} title="E-posta" value={auth.email} />
+            <Row icon={<Text style={styles.glyph}>@</Text>} title={tx('settings:account.username', 'Kullanıcı adı')} value={auth.userName} />
+            <Row icon={<Text style={styles.glyph}>✉</Text>} title={tx('settings:account.email', 'E-posta')} value={auth.email} />
             <Row icon={<Download color={colors.text} size={18} />} onPress={() => setPage('data')} title={t('pages.data')} />
             <Row icon={<Trash2 color={colors.danger} size={18} />} onPress={() => setPage('delete')} title={t('pages.delete')} />
           </View>
 
-          <Text style={styles.section}>Güvenlik</Text>
+          <Text style={styles.section}>{tx('settings:sections.safety', 'Güvenlik')}</Text>
           <View style={styles.group}>
-            <Row icon={<UserX color={colors.text} size={18} />} onPress={() => setPage('blocked')} title="Engellenen kişiler" value={blocked ? String(blocked.length) : undefined} />
+            <Row icon={<UserX color={colors.text} size={18} />} onPress={() => setPage('blocked')} title={tx('settings:blocked.title', 'Engellenen kişiler')} value={blocked ? String(blocked.length) : undefined} />
           </View>
 
-          <Text style={styles.section}>Gizlilik</Text>
+          <Text style={styles.section}>{tx('settings:sections.privacy', 'Gizlilik')}</Text>
           <View style={styles.group}>
             <View style={styles.row}>
               <View style={styles.noteCopy}>
@@ -156,14 +160,32 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
           <View style={styles.note}>
             <ShieldCheck color={colors.primary} size={18} />
             <View style={styles.noteCopy}>
-              <Text style={styles.noteText}>Kesin cihaz konumun diğer kullanıcılara gösterilmez; haritada yer merkezi ya da yaklaşık alan görünür.</Text>
-              <Text style={styles.noteText}>Anonim paylaştığın sinyalleri yalnızca sen görürsün.</Text>
-              <Text style={styles.noteText}>Snap’ler bir kez izlenip kaybolur; fotoğraflardaki konum bilgisi silinir.</Text>
-              <Text style={styles.noteText}>Arkadaşlık yalnızca birbirini bulmak ve mesajlaşmak içindir; konum paylaşmaz.</Text>
+              <Text style={styles.noteText}>{tx('settings:privacy.exact', 'Kesin cihaz konumun diğer kullanıcılara gösterilmez; haritada yer merkezi ya da yaklaşık alan görünür.')}</Text>
+              <Text style={styles.noteText}>{tx('settings:privacy.anon', 'Anonim paylaştığın sinyalleri yalnızca sen görürsün.')}</Text>
+              <Text style={styles.noteText}>{tx('settings:privacy.snaps', 'Snap’ler bir kez izlenip kaybolur; fotoğraflardaki konum bilgisi silinir.')}</Text>
+              <Text style={styles.noteText}>{tx('settings:privacy.friends', 'Arkadaşlık yalnızca birbirini bulmak ve mesajlaşmak içindir; konum paylaşmaz.')}</Text>
             </View>
           </View>
 
           {/* plan-devam B3: Sistem / Açık / Koyu. Choosing one reloads the app so every surface, the map included, repaints. */}
+          {/* plan-devam G3: Sistem / Türkçe / English. Choosing one reloads the app so every label is rebuilt in it. */}
+          <Text style={styles.section}>{t('language.title')}</Text>
+          <View style={[styles.group, styles.appearance]}>
+            <SegmentedControl<LanguagePreference>
+              accessibilityLabel={t('language.title')}
+              onChange={(next) => {
+                setLanguage(next);
+                void SecureStore.setItemAsync(LANGUAGE_PREFERENCE_KEY, next).catch(() => {}).finally(() => { void reloadApp(); });
+              }}
+              options={[
+                { value: 'system', label: t('language.system') },
+                { value: 'tr', label: 'Türkçe' }, // i18n-fallback: language names are shown in their own language
+                { value: 'en', label: 'English' }, // i18n-fallback: language names are shown in their own language
+              ]}
+              value={language}
+            />
+          </View>
+
           <Text style={styles.section}>{t('appearance.title')}</Text>
           <View style={[styles.group, styles.appearance]}>
             <SegmentedControl<ThemePreference>
@@ -181,25 +203,25 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
 
           {__DEV__ ? (
             <>
-              <Text style={styles.section}>Geliştirici</Text>
+              <Text style={styles.section}>{tx('settings:sections.developer', 'Geliştirici')}</Text>
               <View style={styles.group}>
-                <Row icon={<Code2 color={colors.text} size={18} />} onPress={() => setPage('dev')} title="Bileşen önizleme" />
+                <Row icon={<Code2 color={colors.text} size={18} />} onPress={() => setPage('dev')} title={tx('settings:dev.preview', 'Bileşen önizleme')} />
               </View>
             </>
           ) : null}
 
-          <Text style={styles.section}>Hakkında</Text>
+          <Text style={styles.section}>{tx('settings:sections.about', 'Hakkında')}</Text>
           <View style={styles.group}>
             <Row icon={<Users color={colors.text} size={18} />} onPress={() => setPage('community')} title={t('pages.community')} />
             <Row icon={<FileText color={colors.text} size={18} />} onPress={() => setPage('terms')} title={t('pages.terms')} />
             <Row icon={<Lock color={colors.text} size={18} />} onPress={() => setPage('privacy')} title={t('pages.privacy')} />
-            <Row icon={<Info color={colors.text} size={18} />} title="Sürüm" value={appVersion()} />
+            <Row icon={<Info color={colors.text} size={18} />} title={tx('settings:about.version', 'Sürüm')} value={appVersion()} />
           </View>
-          <Text style={styles.attribution}>Yer verileri © OpenStreetMap katkıcıları (ODbL). Taban harita Apple Maps / Google Maps’e aittir; Blinkr işaretleri yalnızca Blinkr verisinden çizilir.</Text>
+          <Text style={styles.attribution}>{tx('settings:about.attribution', 'Yer verileri © OpenStreetMap katkıcıları (ODbL). Taban harita Apple Maps / Google Maps’e aittir; Blinkr işaretleri yalnızca Blinkr verisinden çizilir.')}</Text>
 
-          <AnimatedPressable accessibilityLabel="Oturumu kapat" accessibilityRole="button" onPress={onLogout} pressScale={0.98} style={styles.logout}>
+          <AnimatedPressable accessibilityLabel={tx('common:actions.logout', 'Oturumu kapat')} accessibilityRole="button" onPress={onLogout} pressScale={0.98} style={styles.logout}>
             <LogOut color={colors.danger} size={18} />
-            <Text style={styles.logoutText}>Oturumu kapat</Text>
+            <Text style={styles.logoutText}>{tx('common:actions.logout', 'Oturumu kapat')}</Text>
           </AnimatedPressable>
         </ScrollView>
       ) : page === 'data' || page === 'delete' || page === 'community' || page === 'terms' || page === 'privacy' ? (
@@ -211,17 +233,17 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
       ) : (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]} showsVerticalScrollIndicator={false}>
           {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
-          {blocked === null && !error ? <ActivityIndicator accessibilityLabel="Yükleniyor" color={colors.primary} style={styles.loading} /> : null}
-          {blocked === null && error ? <BlinkrButton label="Tekrar dene" onPress={() => void loadBlocked()} variant="secondary" /> : null}
+          {blocked === null && !error ? <ActivityIndicator accessibilityLabel={tx('common:loading', 'Yükleniyor')} color={colors.primary} style={styles.loading} /> : null}
+          {blocked === null && error ? <BlinkrButton label={tx('common:actions.retry', 'Tekrar dene')} onPress={() => void loadBlocked()} variant="secondary" /> : null}
           {blocked && blocked.length === 0 ? (
-            <BlinkrEmptyState description="Engellediğin kişiler burada listelenir. Engelli biri seni bulamaz, sana istek ya da mesaj gönderemez." icon={<UserX color={colors.textSecondary} size={24} />} style={styles.empty} title="Kimseyi engellemedin" />
+            <BlinkrEmptyState description={tx('settings:blocked.emptyHint', 'Engellediğin kişiler burada listelenir. Engelli biri seni bulamaz, sana istek ya da mesaj gönderemez.')} icon={<UserX color={colors.textSecondary} size={24} />} style={styles.empty} title={tx('settings:blocked.empty', 'Kimseyi engellemedin')} />
           ) : null}
           {blocked?.map((user) => (
             <View key={user.id} style={styles.person}>
               <Avatar avatarKey={user.avatarKey} seed={user.id} size={44} />
               <Text numberOfLines={1} style={styles.personName}>{user.userName}</Text>
-              <AnimatedPressable accessibilityLabel={`${user.userName} engelini kaldır`} accessibilityRole="button" aria-disabled={busy.has(user.id)} disabled={busy.has(user.id)} onPress={() => void unblock(user.id)} pressScale={0.95} style={styles.mini}>
-                <Text style={styles.miniText}>Engeli kaldır</Text>
+              <AnimatedPressable accessibilityLabel={tx('settings:blocked.unblockA11y', '{{name}} engelini kaldır', { name: user.userName })} accessibilityRole="button" aria-disabled={busy.has(user.id)} disabled={busy.has(user.id)} onPress={() => void unblock(user.id)} pressScale={0.95} style={styles.mini}>
+                <Text style={styles.miniText}>{tx('settings:blocked.unblock', 'Engeli kaldır')}</Text>
               </AnimatedPressable>
             </View>
           ))}

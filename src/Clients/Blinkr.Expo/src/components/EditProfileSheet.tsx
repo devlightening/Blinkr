@@ -12,6 +12,7 @@ import { Sheet } from './Sheet';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { BlinkrSheetPanel } from './ui/BlinkrSheetPanel';
 import { PersonalDataNotice } from './ui/PersonalDataNotice';
+import { tx } from '../i18n/tx';
 
 type Props = {
   auth: AuthResponse;
@@ -42,7 +43,7 @@ export function EditProfileSheet({ auth, bio, onAuthChange, onSessionExpired, on
       success();
       onClose();
     } catch (err) {
-      setError(friendlyError(err, 'Profil kaydedilemedi. Tekrar dene.'));
+      setError(friendlyError(err, tx('profile:edit.failed', 'Profil kaydedilemedi. Tekrar dene.')));
       setSaving(false);
     }
   };
@@ -50,31 +51,31 @@ export function EditProfileSheet({ auth, bio, onAuthChange, onSessionExpired, on
   return (
     <Sheet onClose={onClose}>
       <BlinkrSheetPanel maxHeightRatio={0.92}>
-        <Text accessibilityRole="header" style={styles.heading}>Profili düzenle</Text>
+        <Text accessibilityRole="header" style={styles.heading}>{tx('profile:me.edit', 'Profili düzenle')}</Text>
         <View style={styles.avatarRow}>
           <Avatar avatarKey={auth.avatarKey} seed={auth.userId} size={56} />
           <View style={styles.avatarCopy}>
             <Text style={styles.name}>{auth.userName}</Text>
-            <BlinkrButton label="Avatarı değiştir" onPress={onChangeAvatar} style={styles.avatarButton} variant="ghost" />
+            <BlinkrButton label={tx('profile:me.changeAvatar', 'Avatarı değiştir')} onPress={onChangeAvatar} style={styles.avatarButton} variant="ghost" />
           </View>
         </View>
-        <Text style={styles.label}>Hakkında</Text>
+        <Text style={styles.label}>{tx('profile:edit.about', 'Hakkında')}</Text>
         <TextInput
-          accessibilityLabel="Hakkında"
+          accessibilityLabel={tx('profile:edit.about', 'Hakkında')}
           multiline
           onChangeText={setText}
-          placeholder="Kendini kısaca tanıt. Kahve, yürüyüş, hangi semt…"
+          placeholder={tx('profile:edit.placeholder', 'Kendini kısaca tanıt. Kahve, yürüyüş, hangi semt…')}
           placeholderTextColor={colors.textSecondary}
           style={[styles.input, state.tooLong && styles.inputError]}
           value={text}
         />
         <View style={styles.meta}>
-          <Text style={styles.help}>Herkes görebilir. Konumun ve e-postan paylaşılmaz.</Text>
+          <Text style={styles.help}>{tx('profile:edit.help', 'Herkes görebilir. Konumun ve e-postan paylaşılmaz.')}</Text>
           <Text accessibilityLabel={`${state.length} / ${BIO_MAX} karakter`} style={[styles.count, state.tooLong && styles.countError]}>{state.length}/{BIO_MAX}</Text>
         </View>
         <PersonalDataNotice texts={[text]} />
         {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
-        <BlinkrButton disabled={state.tooLong || unchanged} label="Kaydet" loading={saving} onPress={() => void save()} size="lg" />
+        <BlinkrButton disabled={state.tooLong || unchanged} label={tx('common:actions.save', 'Kaydet')} loading={saving} onPress={() => void save()} size="lg" />
       </BlinkrSheetPanel>
     </Sheet>
   );

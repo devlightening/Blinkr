@@ -6,6 +6,7 @@ import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanima
 import { clampToFrame, isOverTrash, textOnColor, type PlacedSticker } from '../../cameraEffects';
 // Drawn over live camera/photo/video: always the dark media palette, whatever the app theme (plan-devam B3).
 import { media, mediaColors as colors, radii, spacing, typography } from '../../theme';
+import { tx } from '../../i18n/tx';
 
 type Props = {
   sticker: PlacedSticker;
@@ -67,7 +68,7 @@ export function DraggableSticker({ sticker, glyph, text, frame, onCommit, onRemo
 
   return (
     <GestureDetector gesture={Gesture.Simultaneous(pan, pinch, rotate)}>
-      <Animated.View accessibilityLabel={`${text || glyph} çıkartması`} aria-label={`${text || glyph} çıkartması`} style={[styles.host, animated]}>
+      <Animated.View accessibilityLabel={tx('create:editor.stickerA11y', '{{name}} çıkartması', { name: text || glyph })} aria-label={tx('create:editor.stickerA11y', '{{name}} çıkartması', { name: text || glyph })} style={[styles.host, animated]}>
         {sticker.text ? (
           <Text
             style={[
@@ -88,7 +89,7 @@ export function DraggableSticker({ sticker, glyph, text, frame, onCommit, onRemo
           </View>
         )}
         {showControls ? (
-          <Pressable accessibilityLabel={`${text || glyph} çıkartmasını kaldır`} accessibilityRole="button" hitSlop={10} onPress={() => onRemove(sticker.key)} style={styles.remove}>
+          <Pressable accessibilityLabel={tx('create:editor.removeSticker', '{{name}} çıkartmasını kaldır', { name: text || glyph })} accessibilityRole="button" hitSlop={10} onPress={() => onRemove(sticker.key)} style={styles.remove}>
             <X color={colors.ink} size={14} strokeWidth={3} />
           </Pressable>
         ) : null}

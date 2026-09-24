@@ -18,6 +18,8 @@ import { bottomBarClearance } from './ui/BlinkrBottomBar';
 import { BlinkrChip } from './ui/BlinkrChip';
 import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
 import { SkeletonList } from './ui/BlinkrSkeleton';
+import { tx } from '../i18n/tx';
+import { displayLocale } from '../i18n/locale';
 
 type Props = {
   /** Opens a Place with live state on the map, with its detail sheet. */
@@ -37,11 +39,11 @@ const LOCATION_TIMEOUT_MS = 12_000;
 const LAST_KNOWN_MAX_AGE_MS = 2 * 60_000;
 
 const FILTERS: Array<{ id: ActivityFilter; label: string }> = [
-  { id: 'all', label: 'Tümü' },
-  { id: 'live', label: 'Canlı' },
-  { id: 'crowd', label: 'Doluluk' },
-  { id: 'queue', label: 'Bekleme' },
-  { id: 'other', label: 'Diğer' },
+  { id: 'all', label: tx('map:nearby.filterAll', 'Tümü') },
+  { id: 'live', label: tx('common:live', 'Canlı') },
+  { id: 'crowd', label: tx('map:nearby.filterCrowd', 'Doluluk') },
+  { id: 'queue', label: tx('map:nearby.filterQueue', 'Bekleme') },
+  { id: 'other', label: tx('map:nearby.filterOther', 'Diğer') },
 ];
 
 const withTimeout = <T,>(promise: Promise<T>, ms: number) => new Promise<T>((resolve, reject) => {
@@ -50,19 +52,19 @@ const withTimeout = <T,>(promise: Promise<T>, ms: number) => new Promise<T>((res
 });
 
 const describe = (item: ActivityItem) => {
-  const type = item.signalType ? signalLabels[item.signalType] : 'Gözlem';
+  const type = item.signalType ? signalLabels[item.signalType] : tx('map:nearby.observation', 'Gözlem');
   const value = signalValueLabel(item.signalType, item.signalValue);
   return value ? `${type} · ${value}` : type;
 };
 
 function ActivityRow({ item, index, onPress }: { item: ActivityItem; index: number; onPress: () => void }) {
   const tone = (item.signalType && signalColors[item.signalType]) || colors.mint;
-  const category = item.place ? formatCategory(item.place.category) : 'Yaklaşık alan';
+  const category = item.place ? formatCategory(item.place.category) : tx('common:approxArea', 'Yaklaşık alan');
   const summary = describe(item);
   return (
     <Animated.View entering={FadeIn.duration(motion.base)}>
       <AnimatedPressable
-        accessibilityLabel={`${item.title}, ${summary}, ${formatDistance(item.distanceMeters)}, ${formatAge(item.observedAtUtc)}. Haritada aç`}
+        accessibilityLabel={tx('map:nearby.rowA11y', '{{title}}, {{summary}}, {{distance}}, {{age}}. Haritada aç', { title: item.title, summary, distance: formatDistance(item.distanceMeters), age: formatAge(item.observedAtUtc) })}
         accessibilityRole="button"
         onPress={onPress}
         pressScale={0.99}
@@ -84,7 +86,7 @@ function ActivityRow({ item, index, onPress }: { item: ActivityItem; index: numb
         </View>
         <View style={styles.cardEnd}>
           {item.live
-            ? <View style={styles.liveChip}><Radio color={colors.mint} size={13} /><Text style={styles.liveText}>Canlı</Text></View>
+            ? <View style={styles.liveChip}><Radio color={colors.mint} size={13} /><Text style={styles.liveText}>{tx('common:live', 'Canlı')}</Text></View>
             : null}
           {item.activeSignalCount > 1 ? <Text style={styles.count}>{item.activeSignalCount} sinyal</Text> : null}
         </View>
@@ -94,7 +96,7 @@ function ActivityRow({ item, index, onPress }: { item: ActivityItem; index: numb
 }
 
 /**
- * "Yakında": what is happening within 1.5 km of the device right now, as a ranked list - the list view of the map.
+ * tx('map:nearby.title', 'Yakında'): what is happening within 1.5 km of the device right now, as a ranked list - the list view of the map.
  * It is a decision aid, not a feed: only fresh, unexpired information, freshest and closest first, capped, no
  * infinite scroll. Location is only requested when the person asks for it here.
  */
@@ -150,7 +152,7 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedd
     } catch (err) {
       if (!current()) return;
       const timedOut = err instanceof Error && err.message === 'location-timeout';
-      const message = timedOut ? 'Konumun şu an alınamadı. Açık bir alana geçip tekrar dene.' : friendlyError(err, 'Yakındakiler yüklenemedi. Tekrar dene.');
+      const message = timedOut ? tx('map:nearby.noFix', 'Konumun şu an alınamadı. Açık bir alana geçip tekrar dene.') : friendlyError(err, tx('map:nearby.loadFailed', 'Yakındakiler yüklenemedi. Tekrar dene.'));
       console.log('[Blinkr Nearby]', { status: 'failed', reason: timedOut ? 'location-timeout' : 'request', totalMs: Date.now() - startedAt });
       // Stale-while-revalidate: a failed refresh keeps the last good list and says so.
       if (hasResult.current) { setNotice(message); setPhase('ready'); } else { setError(message); setPhase('error'); }
@@ -167,7 +169,7 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedd
       // The system dialog no longer appears once it was refused with "don't ask again": only Ayarlar can help.
       setPhase(permission.canAskAgain === false ? 'blocked' : 'needsPermission');
     } catch {
-      if (mounted.current) { setError('Konum izni kontrol edilemedi. Tekrar dene.'); setPhase('error'); }
+      if (mounted.current) { setError(tx('map:nearby.permissionCheckFailed', 'Konum izni kontrol edilemedi. Tekrar dene.')); setPhase('error'); }
     }
   }, [load]);
 
@@ -187,11 +189,11 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedd
 
   const header = (
     <View style={[styles.header, { paddingTop: embedded ? 0 : insets.top + spacing.md }]}>
-      {embedded ? null : <Text accessibilityRole="header" style={styles.title}>Yakında</Text>}
+      {embedded ? null : <Text accessibilityRole="header" style={styles.title}>{tx('map:nearby.title', 'Yakında')}</Text>}
       <Text style={styles.subtitle}>
         {phase === 'ready'
-          ? `${t('nearby.summary', { count: counts.all, live: counts.live, km: (ACTIVITY_RADIUS_METERS / 1000).toLocaleString('tr-TR', { minimumFractionDigits: 1 }) })}${updatedAt ? ` · ${formatAge(new Date(updatedAt).toISOString())} güncellendi` : ''}`
-          : 'Çevrendeki taze yer durumları'}
+          ? `${t('nearby.summary', { count: counts.all, live: counts.live, km: (ACTIVITY_RADIUS_METERS / 1000).toLocaleString(displayLocale(), { minimumFractionDigits: 1 }) })}${updatedAt ? tx('map:nearby.updated', ' · {{age}} güncellendi', { age: formatAge(new Date(updatedAt).toISOString()) }) : ''}`
+          : tx('map:nearby.subtitle', 'Çevrendeki taze yer durumları')}
       </Text>
     </View>
   );
@@ -201,7 +203,7 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedd
       <View style={styles.screen}>
         {header}
         <View style={styles.loadingBlock}>
-          <Text accessibilityLiveRegion="polite" style={styles.status}>{phase === 'locating' ? 'Konumun alınıyor…' : phase === 'loading' ? 'Çevren taranıyor…' : ''}</Text>
+          <Text accessibilityLiveRegion="polite" style={styles.status}>{phase === 'locating' ? tx('map:nearby.locating', 'Konumun alınıyor…') : phase === 'loading' ? tx('map:nearby.scanning', 'Çevren taranıyor…') : ''}</Text>
           <SkeletonList rows={4} variant="card" />
         </View>
       </View>
@@ -215,13 +217,13 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedd
         <View style={styles.centerFill}>
           <BlinkrEmptyState
             action={phase === 'blocked'
-              ? { label: 'Ayarları aç', onPress: () => { void Linking.openSettings(); } }
-              : { label: 'Konumu kullan', onPress: () => { void start(true); } }}
+              ? { label: tx('common:actions.openSettings', 'Ayarları aç'), onPress: () => { void Linking.openSettings(); } }
+              : { label: tx('map:nearby.useLocation', 'Konumu kullan'), onPress: () => { void start(true); } }}
             description={phase === 'blocked'
-              ? 'Konum izni kapalı. Ayarlar’dan açarsan çevrendeki taze sinyalleri burada görürsün.'
-              : 'Konumun yalnızca yakındaki taze sinyalleri bulmak için kullanılır; kesin konumun kimseyle paylaşılmaz.'}
+              ? tx('map:nearby.permissionOff', 'Konum izni kapalı. Ayarlar’dan açarsan çevrendeki taze sinyalleri burada görürsün.')
+              : tx('map:nearby.permissionWhy', 'Konumun yalnızca yakındaki taze sinyalleri bulmak için kullanılır; kesin konumun kimseyle paylaşılmaz.')}
             icon={<MapPin color={colors.textSecondary} size={34} />}
-            title="Yakındakileri görmek için konum gerekli"
+            title={tx('map:nearby.permissionTitle', 'Yakındakileri görmek için konum gerekli')}
           />
         </View>
       </View>
@@ -234,10 +236,10 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedd
         {header}
         <View style={styles.centerFill}>
           <BlinkrEmptyState
-            action={{ label: 'Tekrar dene', onPress: () => { void start(false); } }}
+            action={{ label: tx('common:actions.retry', 'Tekrar dene'), onPress: () => { void start(false); } }}
             description={error ?? undefined}
             icon={<WifiOff color={colors.textSecondary} size={32} />}
-            title="Yakındakiler açılamadı"
+            title={tx('map:nearby.openFailed', 'Yakındakiler açılamadı')}
           />
         </View>
       </View>
@@ -250,7 +252,7 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedd
       {items.length > 0 ? (
         <ScrollView horizontal contentContainerStyle={styles.filters} showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
           {FILTERS.map(({ id, label }) => (
-            <BlinkrChip accessibilityLabel={`${label}, ${counts[id]} sonuç`} key={id} label={`${label} ${counts[id]}`} onPress={() => setFilter(id)} selected={filter === id} />
+            <BlinkrChip accessibilityLabel={tx('map:nearby.filterA11y', '{{label}}, {{count}} sonuç', { label, count: counts[id] })} key={id} label={`${label} ${counts[id]}`} onPress={() => setFilter(id)} selected={filter === id} />
           ))}
         </ScrollView>
       ) : null}
@@ -258,12 +260,12 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedd
       {visible.length === 0 ? (
         <View style={styles.centerFill}>
           <BlinkrEmptyState
-            action={items.length === 0 && onCreateSignal ? { label: 'Sinyal paylaş', onPress: onCreateSignal } : undefined}
+            action={items.length === 0 && onCreateSignal ? { label: tx('map:nearby.share', 'Sinyal paylaş'), onPress: onCreateSignal } : undefined}
             description={items.length === 0
-              ? 'Son 3 saatte 1,5 km içinde paylaşılmış bir sinyal görünmüyor. İlk paylaşan sen olabilirsin.'
-              : 'Bu filtreye uyan taze sinyal yok. Başka bir filtre dene.'}
+              ? tx('map:nearby.emptyHint', 'Son 3 saatte 1,5 km içinde paylaşılmış bir sinyal görünmüyor. İlk paylaşan sen olabilirsin.')
+              : tx('map:nearby.filterEmptyHint', 'Bu filtreye uyan taze sinyal yok. Başka bir filtre dene.')}
             icon={<Compass color={colors.textSecondary} size={34} />}
-            title={items.length === 0 ? 'Çevrende taze sinyal yok' : 'Bu filtrede sonuç yok'}
+            title={items.length === 0 ? tx('map:nearby.empty', 'Çevrende taze sinyal yok') : tx('map:nearby.filterEmpty', 'Bu filtrede sonuç yok')}
           />
         </View>
       ) : (

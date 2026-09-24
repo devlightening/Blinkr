@@ -10,8 +10,8 @@
   },
   "verify": {
     "question": "Still like this?",
-    "yes": "Yes, still true",
-    "changed": "It changed"
+    "yes": "Yes, still like this",
+    "changed": "Changed"
   },
   "live": "Live",
   "drop": "Drop a signal",
@@ -23,7 +23,8 @@
     "comments_one": "{{count}} comment",
     "comments_other": "{{count}} comments",
     "openComments": "Open comments",
-    "viewLikers": "See who liked"
+    "viewLikers": "See who liked",
+    "shareChat": "Share in chat"
   },
   "comments": {
     "title": "Comments",
@@ -109,5 +110,56 @@
     "firstSignal": "Leave the first signal",
     "fromGallery": "From gallery",
     "fromGalleryHint": "An older gallery photo; it does not show the live state."
-  }
+  },
+  "place": {
+    "directionsFailed": "Couldn't open directions",
+    "photo": "Photo",
+    "reportSignal": "Report this signal",
+    "engagement": "Likes and comments",
+    "saveFailed": "Couldn't save the place",
+    "tryAgain": "Try again.",
+    "coordinateSignal": "Approximate-area signal",
+    "loadingContent": "Loading content",
+    "refreshing": "Refreshing the place",
+    "noFresh": "No fresh signal yet",
+    "noVerified": "No verified live observation yet.",
+    "recheckHint": "If you're here, your answer keeps this place's live state current.",
+    "whatsHappening": "What's happening here?",
+    "unsave": "Remove from saved",
+    "save": "Save",
+    "saved": "Saved",
+    "shareFailed": "Couldn't share",
+    "directions": "Directions",
+    "recent": "Recent signals",
+    "emptyHint": "Share the first signal and make the decision easier for everyone.",
+    "empty": "Waiting for fresh content about this place"
+  },
+  "catalog": {
+    "GeneralObservation": "Observation",
+    "Crowd": "Crowd",
+    "Calm": "Quiet",
+    "Moderate": "Busy-ish",
+    "Busy": "Crowded",
+    "Queue": "Wait",
+    "QueueNone": "No queue",
+    "Queue5To15": "5–15 min",
+    "QueueOver15": "Over 15 min",
+    "TemporaryStatus": "Temporary status",
+    "Closed": "Closed",
+    "Open": "Open",
+    "Event": "Event",
+    "Started": "Started",
+    "Ended": "Ended",
+    "Offer": "Deal",
+    "Available": "On now",
+    "OfferEnded": "Over",
+    "NewOpening": "New opening",
+    "QueueLong": "Long queue"
+  },
+  "trust": {
+    "verified": "Location verified",
+    "nearby": "Shared from nearby",
+    "unverified": "Location not verified"
+  },
+  "generic": "Signal"
 }

@@ -1,3 +1,4 @@
+import { tx } from './i18n/tx';
 /**
  * Stories (sinyal-mvp-plan Faz 7 P7.6-P7.8). Pure logic, no React Native imports.
  * Server: NotificationsService `/api/stories` (24 h, author + accepted followers).
@@ -46,7 +47,7 @@ export const segmentFill = (segment: number, current: number, progress: number) 
 /** A reply to a story goes to the author as an ordinary direct message, clearly marked. */
 export const storyReplyText = (reply: string) => {
   const clean = reply.replace(/\s+/g, ' ').trim().slice(0, STORY_REPLY_MAX);
-  return clean ? `↩ Hikayene yanıt: ${clean}` : '';
+  return clean ? tx('chat:story.reply', '↩ Hikayene yanıt: {{text}}', { text: clean }) : '';
 };
 
 /** The tray ring: my own story (or the "+" when I have none), unseen (bright) or seen (quiet). */

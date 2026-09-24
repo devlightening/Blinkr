@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-na
 
 import { colors, radii, spacing, typography } from '../../theme';
 import { BlinkrButton } from './BlinkrButton';
+import { tx } from '../../i18n/tx';
 
 type Props = {
   /** What went wrong, in plain words - never a raw exception or stack trace (anayasa §16). */
@@ -17,7 +18,7 @@ type Props = {
  * Several screens already write this by hand (a `friendlyError()` message next to a "Tekrar dene"
  * button); this is the shared shape for new screens, not a forced migration of the working ones.
  */
-export function BlinkrErrorState({ description, onRetry, retryLabel = 'Tekrar dene', style }: Props) {
+export function BlinkrErrorState({ description, onRetry, retryLabel = tx('common:actions.retry', 'Tekrar dene'), style }: Props) {
   return (
     <View style={[styles.wrap, style]}>
       <View style={styles.iconTile}><TriangleAlert color={colors.danger} size={24} /></View>

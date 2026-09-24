@@ -1,3 +1,4 @@
+import { tx } from './i18n/tx';
 /**
  * Camera lenses and stickers for the in-app camera. Everything here is plain data plus a few pure helpers so
  * it can be tested without a device; the components only draw it.
@@ -18,14 +19,14 @@ export type CameraLens = {
 };
 
 export const CAMERA_LENSES: CameraLens[] = [
-  { id: 'none', label: 'Normal', swatch: '#E9F1EC', layers: [] },
-  { id: 'sunset', label: 'Gün batımı', swatch: '#FF8A3D', layers: [{ color: '#FF8A3D', opacity: 0.22 }, { color: '#FF3D7F', opacity: 0.1 }], vignette: 0.25 },
-  { id: 'mint', label: 'Nane', swatch: '#65E6B5', layers: [{ color: '#65E6B5', opacity: 0.2 }] },
-  { id: 'neon', label: 'Neon', swatch: '#D9FF57', layers: [{ color: '#D9FF57', opacity: 0.16 }, { color: '#159B72', opacity: 0.14 }], vignette: 0.3 },
-  { id: 'ice', label: 'Buz', swatch: '#6FB7FF', layers: [{ color: '#6FB7FF', opacity: 0.22 }] },
-  { id: 'retro', label: 'Retro', swatch: '#C9A26B', layers: [{ color: '#C9A26B', opacity: 0.3 }], vignette: 0.4 },
-  { id: 'cinema', label: 'Sinema', swatch: '#3B4A63', layers: [{ color: '#0B1B3A', opacity: 0.18 }], vignette: 0.6 },
-  { id: 'night', label: 'Gece', swatch: '#0B1220', layers: [{ color: '#0B1220', opacity: 0.38 }], vignette: 0.35 },
+  { id: 'none', label: tx('create:lens.none', 'Normal'), swatch: '#E9F1EC', layers: [] },
+  { id: 'sunset', label: tx('create:lens.sunset', 'Gün batımı'), swatch: '#FF8A3D', layers: [{ color: '#FF8A3D', opacity: 0.22 }, { color: '#FF3D7F', opacity: 0.1 }], vignette: 0.25 },
+  { id: 'mint', label: tx('create:lens.mint', 'Nane'), swatch: '#65E6B5', layers: [{ color: '#65E6B5', opacity: 0.2 }] },
+  { id: 'neon', label: tx('create:lens.neon', 'Neon'), swatch: '#D9FF57', layers: [{ color: '#D9FF57', opacity: 0.16 }, { color: '#159B72', opacity: 0.14 }], vignette: 0.3 },
+  { id: 'ice', label: tx('create:lens.ice', 'Buz'), swatch: '#6FB7FF', layers: [{ color: '#6FB7FF', opacity: 0.22 }] },
+  { id: 'retro', label: tx('create:lens.retro', 'Retro'), swatch: '#C9A26B', layers: [{ color: '#C9A26B', opacity: 0.3 }], vignette: 0.4 },
+  { id: 'cinema', label: tx('create:lens.cinema', 'Sinema'), swatch: '#3B4A63', layers: [{ color: '#0B1B3A', opacity: 0.18 }], vignette: 0.6 },
+  { id: 'night', label: tx('create:lens.night', 'Gece'), swatch: '#0B1220', layers: [{ color: '#0B1220', opacity: 0.38 }], vignette: 0.35 },
 ];
 
 export const lensById = (id: string | null | undefined) => CAMERA_LENSES.find((lens) => lens.id === id) ?? CAMERA_LENSES[0];
@@ -53,17 +54,17 @@ export type StickerDef = { id: string; kind: StickerKind; glyph: string; label: 
  */
 export const STICKERS: StickerDef[] = [
   { id: 'time', kind: 'time', glyph: '🕒', label: '' },
-  { id: 'crowded', kind: 'label', glyph: '👥', label: 'Kalabalık' },
-  { id: 'queue', kind: 'label', glyph: '⏳', label: 'Sıra var' },
-  { id: 'calm', kind: 'label', glyph: '🍃', label: 'Sakin' },
-  { id: 'seat', kind: 'label', glyph: '🪑', label: 'Yer var' },
-  { id: 'open', kind: 'label', glyph: '✅', label: 'Açık' },
-  { id: 'closed', kind: 'label', glyph: '⛔', label: 'Kapalı' },
-  { id: 'offer', kind: 'label', glyph: '🏷️', label: 'Fırsat' },
-  { id: 'event', kind: 'label', glyph: '🎉', label: 'Etkinlik' },
-  { id: 'roadwork', kind: 'label', glyph: '🚧', label: 'Yol çalışması' },
-  { id: 'weather', kind: 'label', glyph: '☀️', label: 'Güzel hava' },
-  { id: 'parking', kind: 'label', glyph: '🅿️', label: 'Park yok' },
+  { id: 'crowded', kind: 'label', glyph: '👥', label: tx('create:sticker.crowded', 'Kalabalık') },
+  { id: 'queue', kind: 'label', glyph: '⏳', label: tx('create:sticker.queue', 'Sıra var') },
+  { id: 'calm', kind: 'label', glyph: '🍃', label: tx('create:sticker.calm', 'Sakin') },
+  { id: 'seat', kind: 'label', glyph: '🪑', label: tx('create:sticker.seat', 'Yer var') },
+  { id: 'open', kind: 'label', glyph: '✅', label: tx('create:sticker.open', 'Açık') },
+  { id: 'closed', kind: 'label', glyph: '⛔', label: tx('create:sticker.closed', 'Kapalı') },
+  { id: 'offer', kind: 'label', glyph: '🏷️', label: tx('create:sticker.offer', 'Fırsat') },
+  { id: 'event', kind: 'label', glyph: '🎉', label: tx('create:sticker.event', 'Etkinlik') },
+  { id: 'roadwork', kind: 'label', glyph: '🚧', label: tx('create:sticker.roadwork', 'Yol çalışması') },
+  { id: 'weather', kind: 'label', glyph: '☀️', label: tx('create:sticker.weather', 'Güzel hava') },
+  { id: 'parking', kind: 'label', glyph: '🅿️', label: tx('create:sticker.parking', 'Park yok') },
   // Plain emoji stickers: decoration only, no text.
   { id: 'e-fire', kind: 'emoji', glyph: '🔥', label: '' },
   { id: 'e-heart', kind: 'emoji', glyph: '❤️', label: '' },
@@ -125,7 +126,7 @@ export const formatRecording = (seconds: number) => {
 export type FlashMode = 'off' | 'on' | 'auto';
 const FLASH_ORDER: FlashMode[] = ['off', 'on', 'auto'];
 export const nextFlash = (mode: FlashMode): FlashMode => FLASH_ORDER[(FLASH_ORDER.indexOf(mode) + 1) % FLASH_ORDER.length];
-export const flashLabel = (mode: FlashMode) => (mode === 'on' ? 'Flaş açık' : mode === 'auto' ? 'Flaş otomatik' : 'Flaş kapalı');
+export const flashLabel = (mode: FlashMode) => (mode === 'on' ? tx('create:camera.flashOn', 'Flaş açık') : mode === 'auto' ? tx('create:camera.flashAuto', 'Flaş otomatik') : tx('create:camera.flashOff', 'Flaş kapalı'));
 
 /** expo-camera zoom is a 0..1 fraction of the device maximum; people pinch to change it. */
 export const clampZoom = (value: number) => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
@@ -153,7 +154,7 @@ export type PlacedSticker = {
 /** Text tool (sinyal-mvp-plan 05 §1.2 "Metin (T): 3 stil (düz, zeminli, vurgulu), renk seçimi, sürüklenebilir"). */
 export type TextStyleId = 'plain' | 'solid' | 'highlight';
 export const TEXT_STYLES: TextStyleId[] = ['plain', 'solid', 'highlight'];
-export const TEXT_STYLE_LABELS: Record<TextStyleId, string> = { plain: 'Düz', solid: 'Zeminli', highlight: 'Vurgulu' };
+export const TEXT_STYLE_LABELS: Record<TextStyleId, string> = { plain: tx('create:text.plain', 'Düz'), solid: tx('create:text.solid', 'Zeminli'), highlight: tx('create:text.highlight', 'Vurgulu') };
 export const nextTextStyle = (style: TextStyleId): TextStyleId => TEXT_STYLES[(TEXT_STYLES.indexOf(style) + 1) % TEXT_STYLES.length];
 /** Text colours are picture content (like lens swatches), not UI chrome. */
 export const TEXT_COLORS = ['#FFFFFF', '#111111', '#FFC845', '#5FD3A0', '#FF6B6B', '#6FB7FF', '#C58CFF'];

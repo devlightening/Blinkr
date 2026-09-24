@@ -15,6 +15,7 @@ import { Avatar } from './Avatar';
 import { Sheet } from './Sheet';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { BlinkrSheetPanel } from './ui/BlinkrSheetPanel';
+import { tx } from '../i18n/tx';
 
 type Props = {
   auth: AuthResponse;
@@ -42,7 +43,7 @@ export function AvatarPickerSheet({ auth, onAuthChange, onSessionExpired, onClos
       onAuthChange({ ...auth, avatarKey: saved.avatarKey ?? key });
       onClose();
     } catch (err) {
-      setError(friendlyError(err, 'Avatar kaydedilemedi. Tekrar dene.'));
+      setError(friendlyError(err, tx('profile:avatar.saveFailed', 'Avatar kaydedilemedi. Tekrar dene.')));
       setSaving(false);
     }
   };
@@ -50,17 +51,17 @@ export function AvatarPickerSheet({ auth, onAuthChange, onSessionExpired, onClos
   return (
     <Sheet onClose={onClose}>
       <BlinkrSheetPanel maxHeightRatio={0.92}>
-        <Text accessibilityRole="header" style={styles.heading}>Avatarını seç</Text>
-        <Text style={styles.hint}>Sohbetlerde ve profilinde bu karakter görünür. Fotoğrafın hiçbir yerde saklanmaz.</Text>
+        <Text accessibilityRole="header" style={styles.heading}>{tx('profile:avatar.title', 'Avatarını seç')}</Text>
+        <Text style={styles.hint}>{tx('profile:avatar.hint', 'Sohbetlerde ve profilinde bu karakter görünür. Fotoğrafın hiçbir yerde saklanmaz.')}</Text>
         <View style={styles.preview}>
           <Avatar avatarKey={key} ringColor={colors.primary} seed={auth.userId} size={96} />
-          <AnimatedPressable accessibilityLabel="Rastgele avatar" accessibilityRole="button" onPress={() => setConfig(randomAvatarConfig())} pressScale={0.92} style={styles.shuffle}>
+          <AnimatedPressable accessibilityLabel={tx('profile:avatar.shuffle', 'Rastgele avatar')} accessibilityRole="button" onPress={() => setConfig(randomAvatarConfig())} pressScale={0.92} style={styles.shuffle}>
             <Shuffle color={colors.text} size={20} />
-            <Text style={styles.shuffleText}>Rastgele</Text>
+            <Text style={styles.shuffleText}>{tx('profile:avatar.random', 'Rastgele')}</Text>
           </AnimatedPressable>
         </View>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} style={styles.scrollView}>
-          <Text style={styles.section}>Renk</Text>
+          <Text style={styles.section}>{tx('profile:avatar.colour', 'Renk')}</Text>
           <View style={styles.row}>
             {range(AVATAR_COLORS.length).map((color) => (
               <AnimatedPressable accessibilityLabel={`${AVATAR_COLOR_NAMES[color]} renk`} accessibilityRole="button" aria-selected={config.color === color} key={color} onPress={() => setConfig({ ...config, color })} pressScale={0.9} style={[styles.swatchRing, config.color === color && styles.selectedRing]}>
@@ -69,16 +70,16 @@ export function AvatarPickerSheet({ auth, onAuthChange, onSessionExpired, onClos
             ))}
           </View>
 
-          <Text style={styles.section}>Yüz</Text>
+          <Text style={styles.section}>{tx('profile:avatar.face', 'Yüz')}</Text>
           <View style={styles.row}>
             {range(AVATAR_FACE_COUNT).map((face) => (
-              <AnimatedPressable accessibilityLabel={`${AVATAR_FACE_NAMES[face]} yüz`} accessibilityRole="button" aria-selected={config.face === face} key={face} onPress={() => setConfig({ ...config, face })} pressScale={0.9} style={[styles.tile, config.face === face && styles.selectedRing]}>
+              <AnimatedPressable accessibilityLabel={tx('profile:avatar.faceA11y', '{{name}} yüz', { name: AVATAR_FACE_NAMES[face] })} accessibilityRole="button" aria-selected={config.face === face} key={face} onPress={() => setConfig({ ...config, face })} pressScale={0.9} style={[styles.tile, config.face === face && styles.selectedRing]}>
                 <Avatar avatarKey={avatarKeyOf({ ...config, face })} seed={auth.userId} size={52} />
               </AnimatedPressable>
             ))}
           </View>
 
-          <Text style={styles.section}>Aksesuar</Text>
+          <Text style={styles.section}>{tx('profile:avatar.accessory', 'Aksesuar')}</Text>
           <View style={styles.row}>
             {range(AVATAR_ACCESSORY_COUNT).map((accessory) => (
               <AnimatedPressable accessibilityLabel={`${AVATAR_ACCESSORY_NAMES[accessory]} aksesuar`} accessibilityRole="button" aria-selected={config.accessory === accessory} key={accessory} onPress={() => setConfig({ ...config, accessory })} pressScale={0.9} style={[styles.tile, config.accessory === accessory && styles.selectedRing]}>
@@ -88,7 +89,7 @@ export function AvatarPickerSheet({ auth, onAuthChange, onSessionExpired, onClos
           </View>
         </ScrollView>
         {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
-        <BlinkrButton disabled={unchanged} icon={<Check color={colors.ink} size={22} />} label="Kaydet" loading={saving} onPress={save} size="lg" style={styles.save} />
+        <BlinkrButton disabled={unchanged} icon={<Check color={colors.ink} size={22} />} label={tx('common:actions.save', 'Kaydet')} loading={saving} onPress={save} size="lg" style={styles.save} />
       </BlinkrSheetPanel>
     </Sheet>
   );

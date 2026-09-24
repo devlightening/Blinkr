@@ -21,6 +21,7 @@ import { FilterOverlay } from './FilterOverlay';
 import { LensIndicator } from './LensIndicator';
 import { useLensSwipe } from './LensSwipe';
 import { PhotoEditor, type CapturedMedia } from './PhotoEditor';
+import { tx } from '../../i18n/tx';
 
 type Props = {
   onClose: () => void;
@@ -124,7 +125,7 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
       if (mounted.current) { setPhoto({ uri: picture.uri, width: picture.width, height: picture.height }); setStage('edit'); }
     } catch (err) {
       console.log('[Blinkr Camera]', { failedStage: 'photo', errorCode: err instanceof Error ? err.name : 'Unknown' });
-      if (mounted.current) setError(friendlyError(err, 'Fotoğraf çekilemedi. Tekrar dene.'));
+      if (mounted.current) setError(friendlyError(err, tx('create:camera.photoFailed', 'Fotoğraf çekilemedi. Tekrar dene.')));
     } finally {
       if (mounted.current) setBusy(false);
     }
@@ -136,7 +137,7 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
     setError(null);
     if (!micPermission?.granted) {
       const asked = await requestMic();
-      if (!asked.granted) { setError('Video için mikrofon izni gerekiyor.'); return; }
+      if (!asked.granted) { setError(tx('create:camera.micNeeded', 'Video için mikrofon izni gerekiyor.')); return; }
     }
     recordingRef.current = true;
     setRecording(true);
@@ -147,7 +148,7 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
       if (video?.uri && mounted.current) onCapture({ uri: video.uri, width: 0, height: 0, type: 'video', mimeType: videoMime(video.uri), fileName: `blinkr-${Date.now()}.${videoMime(video.uri) === 'video/quicktime' ? 'mov' : 'mp4'}` });
     } catch (err) {
       console.log('[Blinkr Camera]', { failedStage: 'video', errorCode: err instanceof Error ? err.name : 'Unknown' });
-      if (mounted.current) setError(friendlyError(err, 'Video kaydedilemedi. Tekrar dene.'));
+      if (mounted.current) setError(friendlyError(err, tx('create:camera.videoFailed', 'Video kaydedilemedi. Tekrar dene.')));
     } finally {
       recordingRef.current = false;
       if (mounted.current) setRecording(false);
@@ -187,14 +188,14 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
     setError(null);
     try {
       const allowed = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (allowed.status !== 'granted') { setError('Fotoğraf arşivi izni gerekiyor.'); return; }
+      if (allowed.status !== 'granted') { setError(tx('create:camera.libraryNeeded', 'Fotoğraf arşivi izni gerekiyor.')); return; }
       const result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: false, mediaTypes: photoOnly ? ['images'] : ['images', 'videos'], quality: 0.84, videoMaxDuration: MAX_VIDEO_SECONDS, exif: true });
       const asset = result.assets?.[0];
       if (result.canceled || !asset) return;
       if (asset.type === 'video') onCapture({ uri: asset.uri, width: asset.width, height: asset.height, type: 'video', mimeType: asset.mimeType ?? videoMime(asset.uri), fileName: asset.fileName ?? undefined });
       else { setPhoto({ uri: asset.uri, width: asset.width, height: asset.height, capturedAtUtc: capturedAtOf(asset)?.toISOString() ?? null }); setStage('edit'); }
     } catch (err) {
-      setError(friendlyError(err, 'Medya seçilemedi. Tekrar dene.'));
+      setError(friendlyError(err, tx('create:camera.pickFailed', 'Medya seçilemedi. Tekrar dene.')));
     }
   };
 
@@ -215,7 +216,7 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
   if (!permission) {
     return (
       <View style={[styles.screen, styles.center]}>
-        <ActivityIndicator accessibilityLabel="Kamera hazırlanıyor" color={colors.flare} />
+        <ActivityIndicator accessibilityLabel={tx('create:camera.preparing', 'Kamera hazırlanıyor')} color={colors.flare} />
       </View>
     );
   }
@@ -223,16 +224,16 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
   if (!permission.granted) {
     return (
       <View style={[styles.screen, styles.center, { paddingTop: insets.top }]}>
-        <AnimatedPressable accessibilityLabel="Kamerayı kapat" accessibilityRole="button" onPress={onClose} pressScale={0.9} style={[styles.round, styles.closeAbsolute, { top: insets.top + spacing.sm }]}>
+        <AnimatedPressable accessibilityLabel={tx('create:camera.close', 'Kamerayı kapat')} accessibilityRole="button" onPress={onClose} pressScale={0.9} style={[styles.round, styles.closeAbsolute, { top: insets.top + spacing.sm }]}>
           <X color={colors.text} size={24} />
         </AnimatedPressable>
         <BlinkrEmptyState
           action={permission.canAskAgain
-            ? { label: 'Kameraya izin ver', onPress: () => { void requestPermission(); } }
-            : { label: 'Ayarları aç', onPress: () => { void Linking.openSettings(); } }}
-          description="Sinyaline fotoğraf veya video eklemek için kameraya erişmemiz gerekiyor. İstersen kamerasız da paylaşabilirsin."
+            ? { label: tx('create:camera.allow', 'Kameraya izin ver'), onPress: () => { void requestPermission(); } }
+            : { label: tx('common:actions.openSettings', 'Ayarları aç'), onPress: () => { void Linking.openSettings(); } }}
+          description={tx('create:camera.permissionWhy', 'Sinyaline fotoğraf veya video eklemek için kameraya erişmemiz gerekiyor. İstersen kamerasız da paylaşabilirsin.')}
           icon={<CameraOff color={colors.textSecondary} size={34} />}
-          title="Kamera izni gerekiyor"
+          title={tx('create:camera.permissionTitle', 'Kamera izni gerekiyor')}
         />
       </View>
     );
@@ -278,11 +279,11 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
       <View pointerEvents="none" style={styles.topScrim} />
 
       <View style={[styles.topBar, { top: insets.top + spacing.sm }]}>
-        <AnimatedPressable accessibilityLabel="Kamerayı kapat" accessibilityRole="button" disabled={recording} onPress={onClose} pressScale={0.9} style={[styles.round, recording && styles.dim]}>
+        <AnimatedPressable accessibilityLabel={tx('create:camera.close', 'Kamerayı kapat')} accessibilityRole="button" disabled={recording} onPress={onClose} pressScale={0.9} style={[styles.round, recording && styles.dim]}>
           <X color={colors.text} size={24} />
         </AnimatedPressable>
         {recording ? (
-          <View accessibilityLabel={`Kayıt ${formatRecording(seconds)}`} accessibilityLiveRegion="polite" style={styles.timer}>
+          <View accessibilityLabel={tx('create:camera.recording', 'Kayıt {{time}}', { time: formatRecording(seconds) })} accessibilityLiveRegion="polite" style={styles.timer}>
             <View style={styles.recDot} />
             <Text style={styles.timerText}>{formatRecording(seconds)} / {formatRecording(MAX_VIDEO_SECONDS)}</Text>
           </View>
@@ -292,7 +293,7 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
             <FlashIcon color={flash === 'off' ? colors.text : colors.flare} size={22} />
             {flash === 'auto' ? <Text style={styles.autoBadge}>A</Text> : null}
           </AnimatedPressable>
-          <AnimatedPressable accessibilityLabel="Kamerayı çevir" accessibilityRole="button" disabled={recording} onPress={() => setFacing(facing === 'back' ? 'front' : 'back')} pressScale={0.9} style={styles.round}>
+          <AnimatedPressable accessibilityLabel={tx('create:camera.flip', 'Kamerayı çevir')} accessibilityRole="button" disabled={recording} onPress={() => setFacing(facing === 'back' ? 'front' : 'back')} pressScale={0.9} style={styles.round}>
             <SwitchCamera color={colors.text} size={22} />
           </AnimatedPressable>
         </View>
@@ -323,7 +324,7 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
       ) : null}
 
       <AnimatedPressable
-        accessibilityLabel={`Yakınlaştırma ${zoomMultiplierLabel(zoom)}, sıfırla`}
+        accessibilityLabel={tx('create:camera.zoomA11y', 'Yakınlaştırma {{zoom}}, sıfırla', { zoom: zoomMultiplierLabel(zoom) })}
         accessibilityRole="button"
         onPress={resetZoom}
         pressScale={0.92}
@@ -338,14 +339,14 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
       <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
         {mode === 'photo'
           ? <LensIndicator disabled={recording} onSelect={setLensId} selectedId={lensId} />
-          : <Text style={styles.note}>Video, seçtiğin efekt olmadan kaydedilir.</Text>}
+          : <Text style={styles.note}>{tx('create:camera.videoNoLens', 'Video, seçtiğin efekt olmadan kaydedilir.')}</Text>}
         {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
 
         {photoOnly ? null : (
           <View style={styles.modes}>
             {(['photo', 'video'] as const).map((item) => (
               <AnimatedPressable
-                accessibilityLabel={item === 'photo' ? 'Fotoğraf modu' : 'Video modu'}
+                accessibilityLabel={item === 'photo' ? tx('create:camera.photoMode', 'Fotoğraf modu') : tx('create:camera.videoMode', 'Video modu')}
                 accessibilityRole="button"
                 aria-selected={mode === item}
                 disabled={recording}
@@ -354,22 +355,22 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
                 pressScale={0.94}
                 style={[styles.modeChip, mode === item && styles.modeChipActive]}
               >
-                <Text style={[styles.modeText, mode === item && styles.modeTextActive]}>{item === 'photo' ? 'Fotoğraf' : 'Video'}</Text>
+                <Text style={[styles.modeText, mode === item && styles.modeTextActive]}>{item === 'photo' ? tx('create:camera.photo', 'Fotoğraf') : tx('create:camera.video', 'Video')}</Text>
               </AnimatedPressable>
             ))}
           </View>
         )}
 
         <View style={styles.shutterRow}>
-          <AnimatedPressable accessibilityLabel="Galeriden seç" accessibilityRole="button" disabled={recording || busy} onPress={pickFromLibrary} pressScale={0.9} style={[styles.gallery, (recording || busy) && styles.dim]}>
+          <AnimatedPressable accessibilityLabel={tx('create:camera.gallery', 'Galeriden seç')} accessibilityRole="button" disabled={recording || busy} onPress={pickFromLibrary} pressScale={0.9} style={[styles.gallery, (recording || busy) && styles.dim]}>
             <Images color={colors.text} size={26} />
           </AnimatedPressable>
           <AnimatedPressable
-            accessibilityLabel={mode === 'photo' ? 'Fotoğraf çek' : recording ? 'Kaydı durdur' : 'Kaydı başlat'}
+            accessibilityLabel={mode === 'photo' ? tx('create:camera.shoot', 'Fotoğraf çek') : recording ? tx('create:camera.stop', 'Kaydı durdur') : tx('create:camera.start', 'Kaydı başlat')}
             accessibilityRole="button"
             aria-disabled={!ready}
             disabled={!ready || busy}
-            accessibilityHint={mode === 'photo' && !photoOnly ? 'Basılı tutarsan video kaydeder (en fazla 15 sn).' : undefined}
+            accessibilityHint={mode === 'photo' && !photoOnly ? tx('create:camera.holdHint', 'Basılı tutarsan video kaydeder (en fazla 15 sn).') : undefined}
             delayLongPress={HOLD_TO_RECORD_MS}
             onLongPress={mode === 'photo' ? startHold : undefined}
             onPress={mode === 'photo' ? takePhoto : toggleRecording}
@@ -379,14 +380,14 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
             testID="shutter"
           >
             {recording ? (
-              <Svg accessibilityLabel={`kayıt ilerlemesi ${Math.round(recordingProgress(seconds) * 100)}`} height={RING} style={StyleSheet.absoluteFill} width={RING}>
+              <Svg accessibilityLabel={tx('create:camera.progressA11y', 'kayıt ilerlemesi {{percent}}', { percent: Math.round(recordingProgress(seconds) * 100) })} height={RING} style={StyleSheet.absoluteFill} width={RING}>
                 <Circle cx={RING / 2} cy={RING / 2} fill="none" r={RING_R} stroke={colors.danger} strokeDasharray={`${RING_C} ${RING_C}`} strokeDashoffset={RING_C * (1 - recordingProgress(seconds))} strokeLinecap="round" strokeWidth={4} transform={`rotate(-90 ${RING / 2} ${RING / 2})`} />
               </Svg>
             ) : null}
             <View style={[styles.shutterCore, mode === 'video' && styles.shutterCoreVideo, recording && styles.shutterCoreRecording]} />
           </AnimatedPressable>
           {onTextOnly ? (
-            <AnimatedPressable accessibilityLabel="Sadece yazılı sinyal" accessibilityRole="button" disabled={recording || busy} onPress={onTextOnly} pressScale={0.9} style={[styles.gallery, (recording || busy) && styles.dim]}>
+            <AnimatedPressable accessibilityLabel={tx('create:camera.textOnlyA11y', 'Sadece yazılı sinyal')} accessibilityRole="button" disabled={recording || busy} onPress={onTextOnly} pressScale={0.9} style={[styles.gallery, (recording || busy) && styles.dim]}>
               <Type color={colors.text} size={26} />
             </AnimatedPressable>
           ) : <View style={styles.gallery} />}

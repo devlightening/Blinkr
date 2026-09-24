@@ -1,5 +1,6 @@
 import { distanceMeters } from './nearbyRequestOwnership';
 import type { BlinkrPlace } from './types';
+import { tx } from './i18n/tx';
 
 /**
  * Pure logic of the map's "where to?" search: Turkish-insensitive matching, ranking, match highlighting,
@@ -124,16 +125,16 @@ export type CategoryShortcut = { id: string; label: string; query: string };
 
 /** One-tap searches for what people most often look for; the server maps these words to category codes. */
 export const CATEGORY_SHORTCUTS: CategoryShortcut[] = [
-  { id: 'cafe', label: 'Kafe', query: 'kafe' },
-  { id: 'restaurant', label: 'Restoran', query: 'restoran' },
-  { id: 'pharmacy', label: 'Eczane', query: 'eczane' },
-  { id: 'market', label: 'Market', query: 'market' },
-  { id: 'park', label: 'Park', query: 'park' },
-  { id: 'health', label: 'Hastane', query: 'hastane' },
-  { id: 'fuel', label: 'Akaryakıt', query: 'akaryakıt' },
-  { id: 'mosque', label: 'Cami', query: 'cami' },
-  { id: 'school', label: 'Okul', query: 'okul' },
-  { id: 'bakery', label: 'Fırın', query: 'fırın' },
+  { id: 'cafe', label: tx('map:shortcut.cafe', 'Kafe'), query: 'kafe' },
+  { id: 'restaurant', label: tx('map:shortcut.restaurant', 'Restoran'), query: 'restoran' },
+  { id: 'pharmacy', label: tx('map:shortcut.pharmacy', 'Eczane'), query: 'eczane' },
+  { id: 'market', label: tx('map:shortcut.market', 'Market'), query: 'market' },
+  { id: 'park', label: tx('map:shortcut.park', 'Park'), query: 'park' },
+  { id: 'health', label: tx('map:shortcut.health', 'Hastane'), query: 'hastane' },
+  { id: 'fuel', label: tx('map:shortcut.fuel', 'Akaryakıt'), query: 'akaryakıt' }, // i18n-fallback: search term sent to the server
+  { id: 'mosque', label: tx('map:shortcut.mosque', 'Cami'), query: 'cami' },
+  { id: 'school', label: tx('map:shortcut.school', 'Okul'), query: 'okul' },
+  { id: 'bakery', label: tx('map:shortcut.bakery', 'Fırın'), query: 'fırın' }, // i18n-fallback: search term sent to the server
 ];
 
 /** A search only starts once there is something meaningful to look for. */

@@ -1,6 +1,32 @@
 {
   "search": {
-    "placeholder": "Nereye gidiyorsun?"
+    "placeholder": "Nereye gidiyorsun?",
+    "tierNear": "Yakınında",
+    "tierCity": "Şehirde",
+    "tierOther": "Diğer şehirler",
+    "rowA11y": "{{name}}, {{subtitle}}. Haritada göster",
+    "failed": "Arama şu anda yapılamadı. Tekrar dene.",
+    "close": "Aramayı kapat",
+    "searchPlaces": "Yer ara",
+    "searchPeople": "Kullanıcı ara",
+    "clear": "Aramayı temizle",
+    "modeA11y": "Yerler veya kişiler",
+    "places": "Yerler",
+    "people": "Kişiler",
+    "openFailed": "Arama açılamadı",
+    "friends": "Arkadaşların",
+    "openProfile": "{{name}} profilini aç",
+    "nearby": "Yakınında ara",
+    "recent": "Son aramalar",
+    "clearRecent": "Son aramaları temizle",
+    "recentA11y": "{{name}}, son arama. Haritada göster",
+    "saved": "Kaydettiğin yerler",
+    "savedA11y": "{{name}}, kayıtlı yer. Haritada göster",
+    "goToA11y": "{{name}} konumuna git",
+    "addressHint": "Adres veya bölge · haritayı oraya taşı",
+    "noResultsHint": "Yazımı kontrol et ya da daha kısa bir ad dene. Tüm Türkiye'de aradık.",
+    "noResults": "Sonuç bulunamadı",
+    "clearShort": "Temizle"
   },
   "scan": {
     "action": "Bu alanı tara",
@@ -10,5 +36,70 @@
   "empty": {
     "title": "Bu bölgede canlı sinyal yok",
     "action": "İlk sinyali bırak"
+  },
+  "nearby": {
+    "filterAll": "Tümü",
+    "filterCrowd": "Doluluk",
+    "filterQueue": "Bekleme",
+    "filterOther": "Diğer",
+    "observation": "Gözlem",
+    "rowA11y": "{{title}}, {{summary}}, {{distance}}, {{age}}. Haritada aç",
+    "noFix": "Konumun şu an alınamadı. Açık bir alana geçip tekrar dene.",
+    "loadFailed": "Yakındakiler yüklenemedi. Tekrar dene.",
+    "permissionCheckFailed": "Konum izni kontrol edilemedi. Tekrar dene.",
+    "title": "Yakında",
+    "updated": " · {{age}} güncellendi",
+    "subtitle": "Çevrendeki taze yer durumları",
+    "locating": "Konumun alınıyor…",
+    "scanning": "Çevren taranıyor…",
+    "useLocation": "Konumu kullan",
+    "permissionOff": "Konum izni kapalı. Ayarlar’dan açarsan çevrendeki taze sinyalleri burada görürsün.",
+    "permissionWhy": "Konumun yalnızca yakındaki taze sinyalleri bulmak için kullanılır; kesin konumun kimseyle paylaşılmaz.",
+    "permissionTitle": "Yakındakileri görmek için konum gerekli",
+    "openFailed": "Yakındakiler açılamadı",
+    "filterA11y": "{{label}}, {{count}} sonuç",
+    "share": "Sinyal paylaş",
+    "emptyHint": "Son 3 saatte 1,5 km içinde paylaşılmış bir sinyal görünmüyor. İlk paylaşan sen olabilirsin.",
+    "filterEmptyHint": "Bu filtreye uyan taze sinyal yok. Başka bir filtre dene.",
+    "empty": "Çevrende taze sinyal yok",
+    "filterEmpty": "Bu filtrede sonuç yok"
+  },
+  "errors": {
+    "noFixPlease": "Güncel konum alınamadı. Lütfen tekrar dene.",
+    "noFix": "Güncel konum alınamadı. Tekrar dene.",
+    "looseFix": "Konum yeterince net değil. Açık bir alanda tekrar dene.",
+    "nearbyFailed": "Yakındaki yerler şu an yenilenemedi. Tekrar dene.",
+    "permissionForMap": "Haritada konumunu göstermek için konum izni gerekiyor.",
+    "zoomIn": "Alan seçmek için haritayı biraz daha yakınlaştır.",
+    "permissionForNearby": "Yakındaki yerleri görmek için konum izni gerekiyor.",
+    "pickPlace": "Önce sinyalin ait olduğu yeri veya alanı seç.",
+    "shareFailed": "Paylaşım tamamlanamadı. Tekrar dene.",
+    "settingsFailed": "Cihaz ayarları açılamadı."
+  },
+  "closeNotice": "Bildirimi kapat",
+  "layer": {
+    "all": "Tümü",
+    "live": "Canlı",
+    "places": "Yerler",
+    "signals": "Sinyaller"
+  },
+  "top": {
+    "searchA11y": "Yer ara: nereye gidiyorsun?",
+    "scan": "Bu alanı tara",
+    "scanning": "Taranıyor",
+    "updating": "Çevre güncelleniyor",
+    "locate": "Konumuma git"
+  },
+  "shortcut": {
+    "cafe": "Kafe",
+    "restaurant": "Restoran",
+    "pharmacy": "Eczane",
+    "market": "Market",
+    "park": "Park",
+    "health": "Hastane",
+    "fuel": "Akaryakıt",
+    "mosque": "Cami",
+    "school": "Okul",
+    "bakery": "Fırın"
   }
 }

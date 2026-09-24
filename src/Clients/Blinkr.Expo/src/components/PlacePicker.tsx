@@ -9,6 +9,7 @@ import { AnimatedPressable } from './AnimatedPressable';
 import { PlaceSymbol } from './PlaceSymbol';
 import { categoryTone, colors, motion, radii, typography, sizes, spacing } from '../theme';
 import type { BlinkrPlace } from '../types';
+import { tx } from '../i18n/tx';
 
 export function PlacePicker({ origin, nearby, onSelect, onBack }: {
   origin: { latitude: number; longitude: number } | null; nearby: BlinkrPlace[];
@@ -30,30 +31,30 @@ export function PlacePicker({ origin, nearby, onSelect, onBack }: {
         const next = await searchPlaces(query.trim(), lat, lon, controller.signal);
         if (!controller.signal.aborted) setResults(next);
       } catch (err) {
-        if (!controller.signal.aborted) setError(friendlyError(err, 'Yerler aranamadı. Tekrar dene.'));
+        if (!controller.signal.aborted) setError(friendlyError(err, tx('create:picker.failed', 'Yerler aranamadı. Tekrar dene.')));
       } finally { if (!controller.signal.aborted) setLoading(false); }
     }, 300);
     return () => { clearTimeout(timer); controller.abort(); };
   }, [query, lat, lon, nearby]);
   return <View style={styles.flex}>
     <View style={styles.bar}>
-      <AnimatedPressable accessibilityLabel="Yer seçimine dön" accessibilityRole="button" onPress={onBack} pressScale={0.88} style={styles.back}>
+      <AnimatedPressable accessibilityLabel={tx('create:picker.back', 'Yer seçimine dön')} accessibilityRole="button" onPress={onBack} pressScale={0.88} style={styles.back}>
         <ArrowLeft color={colors.text} size={22} />
       </AnimatedPressable>
-      <Text accessibilityRole="header" style={styles.heading}>Yer seç</Text>
+      <Text accessibilityRole="header" style={styles.heading}>{tx('create:place.choose', 'Yer seç')}</Text>
     </View>
     <View style={styles.search}>
       <Search size={20} color={colors.textSecondary} />
-      <TextInput accessibilityLabel="Yer adı veya kategori" autoFocus maxLength={80} onChangeText={setQuery} placeholder="Yer adı veya kategori" placeholderTextColor={colors.textSecondary} style={styles.input} value={query} />
+      <TextInput accessibilityLabel={tx('create:picker.input', 'Yer adı veya kategori')} autoFocus maxLength={80} onChangeText={setQuery} placeholder={tx('create:picker.input', 'Yer adı veya kategori')} placeholderTextColor={colors.textSecondary} style={styles.input} value={query} />
     </View>
-    {loading && <ActivityIndicator accessibilityLabel="Aranıyor" style={styles.progress} color={colors.mint} />}
+    {loading && <ActivityIndicator accessibilityLabel={tx('common:actions.searching', 'Aranıyor')} style={styles.progress} color={colors.mint} />}
     {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       {results.map((place, index) => {
         const tone = categoryTone(place.category);
         return (
           <Animated.View entering={FadeIn.duration(motion.base)} key={place.id}>
-            <AnimatedPressable accessibilityLabel={`${place.name}, ${formatDistance(place.distanceMeters)}, seç`} accessibilityRole="button" onPress={() => onSelect(place)} pressScale={0.97} style={styles.row}>
+            <AnimatedPressable accessibilityLabel={tx('create:picker.rowA11y', '{{name}}, {{distance}}, seç', { name: place.name, distance: formatDistance(place.distanceMeters) })} accessibilityRole="button" onPress={() => onSelect(place)} pressScale={0.97} style={styles.row}>
               <View style={[styles.tile, { borderColor: tone }]}><PlaceSymbol category={place.category} color={tone} size={20} /></View>
               <View style={styles.flex}>
                 <Text numberOfLines={1} style={styles.name}>{place.name}</Text>
@@ -64,7 +65,7 @@ export function PlacePicker({ origin, nearby, onSelect, onBack }: {
           </Animated.View>
         );
       })}
-      {!loading && !results.length && <Text style={styles.empty}>Bu arama için yakınında eşleşen yer bulunamadı.</Text>}
+      {!loading && !results.length && <Text style={styles.empty}>{tx('create:picker.none', 'Bu arama için yakınında eşleşen yer bulunamadı.')}</Text>}
     </ScrollView>
   </View>;
 }

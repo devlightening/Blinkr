@@ -9,6 +9,7 @@ import { AnimatedPressable } from '../AnimatedPressable';
 import { HeaderAvatar } from '../ui/BlinkrHeader';
 import { MapLayerBar } from './MapLayerBar';
 import { MapTypeFilterBar } from './MapTypeFilterBar';
+import { tx } from '../../i18n/tx';
 
 type Props = {
   userId: string;
@@ -21,10 +22,10 @@ type Props = {
   activeTypeFilter: ReadonlySet<SignalType>;
   onToggleTypeFilter: (type: SignalType) => void;
   onOpenProfile: () => void;
-  /** Opens the full-screen "Nereye gidiyorsun?" search. */
+  /** Opens the full-screen tx('map:search.placeholder', 'Nereye gidiyorsun?') search. */
   onOpenSearch: () => void;
   /**
-   * "Bu alanı tara" is a manual fallback only — the viewport auto-loads once it settles
+   * tx('map:top.scan', 'Bu alanı tara') is a manual fallback only — the viewport auto-loads once it settles
    * (sinyal-mvp-plan 04 §1.2). This shows only when that auto-load actually failed, so there is
    * still a way to retry; it is not offered on every pan any more.
    */
@@ -43,9 +44,9 @@ export function MapTopChrome({ userId, userName, avatarKey, layer, onLayerChange
   return (
     <View pointerEvents="box-none" style={[styles.overlay, { paddingTop: Math.max(topInset, spacing.sm) }]}>
       <View style={styles.searchBar}>
-        <AnimatedPressable accessibilityLabel="Yer ara: nereye gidiyorsun?" accessibilityRole="search" onPress={onOpenSearch} pressScale={0.99} style={styles.searchField}>
+        <AnimatedPressable accessibilityLabel={tx('map:top.searchA11y', 'Yer ara: nereye gidiyorsun?')} accessibilityRole="search" onPress={onOpenSearch} pressScale={0.99} style={styles.searchField}>
           <Search color={colors.textSecondary} size={18} />
-          <Text numberOfLines={1} style={styles.searchPlaceholder}>Nereye gidiyorsun?</Text>
+          <Text numberOfLines={1} style={styles.searchPlaceholder}>{tx('map:search.placeholder', 'Nereye gidiyorsun?')}</Text>
         </AnimatedPressable>
         <HeaderAvatar avatarKey={avatarKey} onPress={onOpenProfile} userId={userId} userName={userName} />
       </View>
@@ -55,18 +56,18 @@ export function MapTopChrome({ userId, userName, avatarKey, layer, onLayerChange
       <View pointerEvents="box-none" style={styles.scanRow}>
         {scanAvailable ? (
           <Animated.View entering={FadeIn.duration(motion.base)}>
-            <AnimatedPressable accessibilityLabel="Bu alanı tara" accessibilityRole="button" disabled={isLoading} onPress={onScan} pressScale={0.97} style={styles.scanButton}>
+            <AnimatedPressable accessibilityLabel={tx('map:top.scan', 'Bu alanı tara')} accessibilityRole="button" disabled={isLoading} onPress={onScan} pressScale={0.97} style={styles.scanButton}>
               {isLoading ? <ActivityIndicator color={colors.text} size="small" /> : <RefreshCw color={colors.text} size={17} />}
-              <Text style={styles.scanText}>{isLoading ? 'Taranıyor' : 'Bu alanı tara'}</Text>
+              <Text style={styles.scanText}>{isLoading ? tx('map:top.scanning', 'Taranıyor') : tx('map:top.scan', 'Bu alanı tara')}</Text>
             </AnimatedPressable>
           </Animated.View>
         ) : isLoading ? (
           <View style={styles.loadingBadge}>
             <ActivityIndicator color={colors.primary} size="small" />
-            <Text style={styles.loadingText}>Çevre güncelleniyor</Text>
+            <Text style={styles.loadingText}>{tx('map:top.updating', 'Çevre güncelleniyor')}</Text>
           </View>
         ) : null}
-        <AnimatedPressable accessibilityLabel="Konumuma git" accessibilityRole="button" onPress={onLocate} pressScale={0.95} style={styles.locateButton}>
+        <AnimatedPressable accessibilityLabel={tx('map:top.locate', 'Konumuma git')} accessibilityRole="button" onPress={onLocate} pressScale={0.95} style={styles.locateButton}>
           <Navigation2 color={colors.text} fill={colors.text} size={19} strokeWidth={2} />
         </AnimatedPressable>
       </View>

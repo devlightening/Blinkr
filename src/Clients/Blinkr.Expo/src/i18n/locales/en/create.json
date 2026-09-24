@@ -63,7 +63,10 @@
     "label": "Description",
     "placeholder": "Write something current and concrete that helps people decide.",
     "tooShort": "The description needs at least 5 characters.",
-    "missing": "Pick a type, add a photo or write a few words."
+    "missing": "Pick a type, add a photo or write a few words.",
+    "plain": "Plain",
+    "solid": "Filled",
+    "highlight": "Outlined"
   },
   "media": {
     "camera": "Camera",
@@ -101,6 +104,84 @@
     "queued": "No connection. Your signal is waiting on the device and will go out by itself."
   },
   "camera": {
-    "textOnly": "Text signal"
+    "textOnly": "Text signal",
+    "flashOn": "Flash on",
+    "flashAuto": "Flash auto",
+    "flashOff": "Flash off",
+    "photoFailed": "Couldn't take the photo. Try again.",
+    "micNeeded": "Video needs microphone permission.",
+    "videoFailed": "Couldn't record the video. Try again.",
+    "libraryNeeded": "Photo library permission is needed.",
+    "pickFailed": "Couldn't pick the media. Try again.",
+    "preparing": "Preparing the camera",
+    "close": "Close camera",
+    "allow": "Allow camera",
+    "permissionWhy": "We need the camera to add a photo or video to your signal. You can also share without one.",
+    "permissionTitle": "Camera permission needed",
+    "recording": "Recording {{time}}",
+    "flip": "Flip camera",
+    "zoomA11y": "Zoom {{zoom}}, reset",
+    "videoNoLens": "Video is recorded without the effect you picked.",
+    "photoMode": "Photo mode",
+    "videoMode": "Video mode",
+    "photo": "Photo",
+    "video": "Video",
+    "gallery": "Pick from gallery",
+    "shoot": "Take photo",
+    "stop": "Stop recording",
+    "start": "Start recording",
+    "holdHint": "Hold to record a video (up to 15 s).",
+    "progressA11y": "recording progress {{percent}}",
+    "textOnlyA11y": "Text-only signal"
+  },
+  "lens": {
+    "none": "Normal",
+    "sunset": "Sunset",
+    "mint": "Mint",
+    "neon": "Neon",
+    "ice": "Ice",
+    "retro": "Retro",
+    "cinema": "Cinema",
+    "night": "Night",
+    "prev": "Previous effect",
+    "next": "Next effect",
+    "current": "Effect: {{name}}"
+  },
+  "sticker": {
+    "crowded": "Crowded",
+    "queue": "Queue",
+    "calm": "Quiet",
+    "seat": "Seats free",
+    "open": "Open",
+    "closed": "Closed",
+    "offer": "Deal",
+    "event": "Event",
+    "roadwork": "Roadwork",
+    "weather": "Nice weather",
+    "parking": "No parking"
+  },
+  "editor": {
+    "renderFailed": "Couldn't prepare the photo. Remove the effects and try again.",
+    "retake": "Retake",
+    "title": "Effects and stickers",
+    "addText": "Add text",
+    "photo": "Your photo",
+    "textInput": "Text on photo",
+    "write": "Type…",
+    "textStyle": "Text style: {{style}}",
+    "color": "Colour {{color}}",
+    "placeText": "Place text",
+    "done": "Done",
+    "use": "Use",
+    "addSticker": "Add {{name}} sticker",
+    "stickerA11y": "{{name}} sticker",
+    "removeSticker": "Remove {{name}} sticker"
+  },
+  "picker": {
+    "failed": "Couldn't search places. Try again.",
+    "back": "Back to place choice",
+    "input": "Place name or category",
+    "rowA11y": "{{name}}, {{distance}}, choose",
+    "none": "No nearby place matches this search."
   }
 }

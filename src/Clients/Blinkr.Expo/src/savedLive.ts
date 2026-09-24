@@ -1,6 +1,7 @@
 import { signalLabels } from './presentation';
 import { signalValueLabel } from './productPresentation';
 import type { BlinkrPlace } from './types';
+import { tx } from './i18n/tx';
 
 /**
  * How the places a person saved are doing right now. A saved place is a watch list: the point is to know, before going,
@@ -21,7 +22,7 @@ export const savedLiveStatus = (place: BlinkrPlace | null | undefined): SavedLiv
   const type = state.signalType ?? 'GeneralObservation';
   const value = signalValueLabel(type, state.signalValue);
   return {
-    headline: value ? `${signalLabels[type] ?? 'Sinyal'} · ${value}` : (signalLabels[type] ?? 'Sinyal'),
+    headline: value ? `${signalLabels[type] ?? tx('signal:generic', 'Sinyal')} · ${value}` : (signalLabels[type] ?? tx('signal:generic', 'Sinyal')),
     observedAtUtc: state.observedAtUtc ?? null,
     signals: state.activeSignalCount ?? 1,
   };

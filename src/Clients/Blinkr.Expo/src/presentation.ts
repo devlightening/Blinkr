@@ -1,5 +1,6 @@
 import { SIGNAL_CATALOG, type SignalCatalogEntry } from './signalCatalog';
 import type { SignalType } from './types';
+import { tx } from './i18n/tx';
 
 /**
  * A title only earns its own line when it says something the type badge doesn't already say. The
@@ -20,31 +21,31 @@ export const signalLabels: Record<SignalType, string> = Object.fromEntries(
 ) as Record<SignalType, string>;
 
 export const categoryLabels: Record<string, string> = {
-  BAR: 'Bar',
-  BAKERY: 'Fırın',
-  CAFE: 'Kafe',
-  EDUCATION: 'Okul',
-  ENTERTAINMENT: 'Eğlence',
-  FAST_FOOD: 'Fast Food',
-  FUEL: 'Akaryakıt',
-  HEALTH: 'Sağlık',
-  OTHER: 'Diğer',
-  PARK: 'Park',
-  PHARMACY: 'Eczane',
-  PLAYGROUND: 'Oyun alanı',
-  PUBLIC: 'Kamusal yer',
-  PLACE_OF_WORSHIP: 'İbadethane',
-  MOSQUE: 'Cami',
-  RESTAURANT: 'Restoran',
-  SHOP: 'Mağaza',
-  SPORT: 'Spor',
-  SUPERMARKET: 'Market',
-  TOURISM: 'Gezilecek yer',
-  TRANSPORT: 'Ulaşım',
+  BAR: tx('common:category.BAR', 'Bar'),
+  BAKERY: tx('common:category.BAKERY', 'Fırın'),
+  CAFE: tx('common:category.CAFE', 'Kafe'),
+  EDUCATION: tx('common:category.EDUCATION', 'Okul'),
+  ENTERTAINMENT: tx('common:category.ENTERTAINMENT', 'Eğlence'),
+  FAST_FOOD: tx('common:category.FAST_FOOD', 'Fast Food'),
+  FUEL: tx('common:category.FUEL', 'Akaryakıt'),
+  HEALTH: tx('common:category.HEALTH', 'Sağlık'),
+  OTHER: tx('common:category.OTHER', 'Diğer'),
+  PARK: tx('common:category.PARK', 'Park'),
+  PHARMACY: tx('common:category.PHARMACY', 'Eczane'),
+  PLAYGROUND: tx('common:category.PLAYGROUND', 'Oyun alanı'),
+  PUBLIC: tx('common:category.PUBLIC', 'Kamusal yer'),
+  PLACE_OF_WORSHIP: tx('common:category.PLACE_OF_WORSHIP', 'İbadethane'),
+  MOSQUE: tx('common:category.MOSQUE', 'Cami'),
+  RESTAURANT: tx('common:category.RESTAURANT', 'Restoran'),
+  SHOP: tx('common:category.SHOP', 'Mağaza'),
+  SPORT: tx('common:category.SPORT', 'Spor'),
+  SUPERMARKET: tx('common:category.SUPERMARKET', 'Market'),
+  TOURISM: tx('common:category.TOURISM', 'Gezilecek yer'),
+  TRANSPORT: tx('common:category.TRANSPORT', 'Ulaşım'),
 };
 
 export const formatCategory = (category?: string | null) =>
-  categoryLabels[(category ?? '').toUpperCase()] ?? 'Yer';
+  categoryLabels[(category ?? '').toUpperCase()] ?? tx('common:category.place', 'Yer');
 
 export const formatDistance = (meters?: number | null) => {
   if (meters == null || !Number.isFinite(meters)) return '';
@@ -54,9 +55,9 @@ export const formatDistance = (meters?: number | null) => {
 };
 
 export const formatAge = (createdAt?: string | null) => {
-  if (!createdAt) return 'Az önce';
+  if (!createdAt) return tx('common:age.now', 'Az önce');
   const minutes = Math.max(1, Math.round((Date.now() - new Date(createdAt).getTime()) / 60_000));
-  if (minutes < 60) return `${minutes} dk önce`;
-  if (minutes < 1440) return `${Math.round(minutes / 60)} sa önce`;
-  return `${Math.round(minutes / 1440)} gün önce`;
+  if (minutes < 60) return tx('common:age.minutes', '{{n}} dk önce', { n: minutes });
+  if (minutes < 1440) return tx('common:age.hours', '{{n}} sa önce', { n: Math.round(minutes / 60) });
+  return tx('common:age.days', '{{n}} gün önce', { n: Math.round(minutes / 1440) });
 };

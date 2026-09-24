@@ -3,6 +3,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
 import { colors, radii, spacing } from '../../theme';
+import { tx } from '../../i18n/tx';
 
 type Props = {
   /** `person`: avatar + two lines (chat, friends). `card`: icon tile + three lines (nearby, places). */
@@ -17,7 +18,7 @@ type Props = {
  * What a list looks like while it loads: the shape of the rows to come, gently pulsing. It calms the screen down compared
  * with a lone spinner and shows that something specific is on its way. Purely visual; nothing here is data.
  */
-export function SkeletonList({ variant = 'person', rows = 5, accessibilityLabel = 'Yükleniyor', style }: Props) {
+export function SkeletonList({ variant = 'person', rows = 5, accessibilityLabel = tx('common:loading', 'Yükleniyor'), style }: Props) {
   const pulse = useSharedValue(1);
   useEffect(() => {
     pulse.value = withRepeat(withSequence(withTiming(0.5, { duration: 800, easing: Easing.inOut(Easing.quad) }), withTiming(1, { duration: 800, easing: Easing.inOut(Easing.quad) })), -1);

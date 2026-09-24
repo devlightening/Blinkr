@@ -15,6 +15,7 @@ import { BlinkrButton } from '../ui/BlinkrButton';
 import { DraggableSticker } from './DraggableSticker';
 import { FilterOverlay } from './FilterOverlay';
 import { LensIndicator } from './LensIndicator';
+import { tx } from '../../i18n/tx';
 
 export type CapturedMedia = {
   uri: string;
@@ -44,7 +45,7 @@ const TOOLS_HEIGHT = 250;
  * Edit stage for a photo: pick a lens, add stickers, then render the result to a file.
  * A photo without a lens and without stickers is passed on untouched (no re-encoding).
  */
-export function PhotoEditor({ photo, lensId, onLensChange, onRetake, onDone, submitLabel = 'Kullan' }: Props) {
+export function PhotoEditor({ photo, lensId, onLensChange, onRetake, onDone, submitLabel = tx('create:editor.use', 'Kullan') }: Props) {
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const shot = useRef<View>(null);
@@ -89,7 +90,7 @@ export function PhotoEditor({ photo, lensId, onLensChange, onRetake, onDone, sub
       if (mounted.current) onDone({ uri, width: photo.width, height: photo.height, type: 'image', mimeType: 'image/jpeg', fileName: `blinkr-${Date.now()}.jpg`, signalHint, capturedAtUtc: photo.capturedAtUtc ?? null });
     } catch (err) {
       console.log('[Blinkr Camera]', { failedStage: 'render', errorCode: err instanceof Error ? err.name : 'Unknown' });
-      if (mounted.current) setError(friendlyError(err, 'Fotoğraf hazırlanamadı. Efektleri kaldırıp tekrar dene.'));
+      if (mounted.current) setError(friendlyError(err, tx('create:editor.renderFailed', 'Fotoğraf hazırlanamadı. Efektleri kaldırıp tekrar dene.')));
     } finally {
       if (mounted.current) setRendering(false);
     }
@@ -98,11 +99,11 @@ export function PhotoEditor({ photo, lensId, onLensChange, onRetake, onDone, sub
   return (
     <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
       <View style={styles.top}>
-        <AnimatedPressable accessibilityLabel="Yeniden çek" accessibilityRole="button" onPress={onRetake} pressScale={0.9} style={styles.back}>
+        <AnimatedPressable accessibilityLabel={tx('create:editor.retake', 'Yeniden çek')} accessibilityRole="button" onPress={onRetake} pressScale={0.9} style={styles.back}>
           <ChevronLeft color={colors.text} size={26} />
         </AnimatedPressable>
-        <Text accessibilityRole="header" style={styles.title}>Efekt ve çıkartma</Text>
-        <AnimatedPressable accessibilityLabel="Yazı ekle" accessibilityRole="button" disabled={rendering || stickers.length >= MAX_STICKERS} onPress={() => setWriting({ value: '', style: 'solid', color: TEXT_COLORS[0] })} pressScale={0.9} style={[styles.back, stickers.length >= MAX_STICKERS && styles.dim]}>
+        <Text accessibilityRole="header" style={styles.title}>{tx('create:editor.title', 'Efekt ve çıkartma')}</Text>
+        <AnimatedPressable accessibilityLabel={tx('create:editor.addText', 'Yazı ekle')} accessibilityRole="button" disabled={rendering || stickers.length >= MAX_STICKERS} onPress={() => setWriting({ value: '', style: 'solid', color: TEXT_COLORS[0] })} pressScale={0.9} style={[styles.back, stickers.length >= MAX_STICKERS && styles.dim]}>
           <Type color={colors.text} size={22} />
         </AnimatedPressable>
       </View>
@@ -110,7 +111,7 @@ export function PhotoEditor({ photo, lensId, onLensChange, onRetake, onDone, sub
       <View style={styles.stage}>
         <GestureDetector gesture={lensSwipe.gesture}>
         <View collapsable={false} ref={shot} style={[styles.frame, frame]}>
-          <Image accessibilityLabel="Çekilen fotoğraf" resizeMode="cover" source={{ uri: photo.uri }} style={StyleSheet.absoluteFill} />
+          <Image accessibilityLabel={tx('create:editor.photo', 'Çekilen fotoğraf')} resizeMode="cover" source={{ uri: photo.uri }} style={StyleSheet.absoluteFill} />
           <FilterOverlay lens={lens} />
           {stickers.map((sticker) => {
             const def = sticker.text ? { glyph: '', id: 'text', kind: 'label' as const, label: sticker.text } : STICKERS.find((item) => item.id === sticker.stickerId);
@@ -120,32 +121,32 @@ export function PhotoEditor({ photo, lensId, onLensChange, onRetake, onDone, sub
           {writing ? (
             <View style={styles.writeLayer}>
               <TextInput
-                accessibilityLabel="Fotoğrafa yazı"
+                accessibilityLabel={tx('create:editor.textInput', 'Fotoğrafa yazı')}
                 autoFocus
                 maxLength={TEXT_MAX}
                 multiline
                 onChangeText={(value) => setWriting((w) => (w ? { ...w, value } : w))}
-                placeholder="Yaz…"
+                placeholder={tx('create:editor.write', 'Yaz…')}
                 placeholderTextColor={media.textFaint}
                 style={[styles.writeInput, writing.style === 'solid' ? { backgroundColor: writing.color, color: textOnColor(writing.color) } : { color: writing.color }]}
                 value={writing.value}
               />
               <View style={styles.writeTools}>
-                <AnimatedPressable accessibilityLabel={`Yazı stili: ${TEXT_STYLE_LABELS[writing.style]}`} accessibilityRole="button" onPress={() => setWriting((w) => (w ? { ...w, style: nextTextStyle(w.style) } : w))} pressScale={0.92} style={styles.writeStyle}>
+                <AnimatedPressable accessibilityLabel={tx('create:editor.textStyle', 'Yazı stili: {{style}}', { style: TEXT_STYLE_LABELS[writing.style] })} accessibilityRole="button" onPress={() => setWriting((w) => (w ? { ...w, style: nextTextStyle(w.style) } : w))} pressScale={0.92} style={styles.writeStyle}>
                   <Text style={styles.writeStyleText}>{TEXT_STYLE_LABELS[writing.style]}</Text>
                 </AnimatedPressable>
                 {TEXT_COLORS.map((color) => (
-                  <AnimatedPressable accessibilityLabel={`Renk ${color}`} accessibilityRole="button" aria-selected={writing.color === color} key={color} onPress={() => setWriting((w) => (w ? { ...w, color } : w))} pressScale={0.9} style={[styles.swatch, { backgroundColor: color }, writing.color === color && styles.swatchActive]} />
+                  <AnimatedPressable accessibilityLabel={tx('create:editor.color', 'Renk {{color}}', { color })} accessibilityRole="button" aria-selected={writing.color === color} key={color} onPress={() => setWriting((w) => (w ? { ...w, color } : w))} pressScale={0.9} style={[styles.swatch, { backgroundColor: color }, writing.color === color && styles.swatchActive]} />
                 ))}
               </View>
               <AnimatedPressable
-                accessibilityLabel="Yazıyı ekle"
+                accessibilityLabel={tx('create:editor.placeText', 'Yazıyı ekle')}
                 accessibilityRole="button"
                 onPress={() => { setStickers((current) => placeText(current, writing.value, writing.style, writing.color, frame)); setWriting(null); }}
                 pressScale={0.95}
                 style={styles.writeDone}
               >
-                <Text style={styles.writeDoneText}>Bitti</Text>
+                <Text style={styles.writeDoneText}>{tx('create:editor.done', 'Bitti')}</Text>
               </AnimatedPressable>
             </View>
           ) : null}
@@ -164,7 +165,7 @@ export function PhotoEditor({ photo, lensId, onLensChange, onRetake, onDone, sub
         <ScrollView horizontal contentContainerStyle={styles.stickerRow} showsHorizontalScrollIndicator={false} style={styles.stickerScroll}>
           {STICKERS.map((def) => (
             <AnimatedPressable
-              accessibilityLabel={`${stickerName(def, now.current)} çıkartması ekle`}
+              accessibilityLabel={tx('create:editor.addSticker', '{{name}} çıkartması ekle', { name: stickerName(def, now.current) })}
               accessibilityRole="button"
               disabled={rendering || stickers.length >= 6}
               key={def.id}

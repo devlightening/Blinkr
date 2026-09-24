@@ -23,6 +23,8 @@ import { SignalCardModal } from '../signal/SignalCardModal';
 import { SnapStatusIcon, statusColor } from '../snap/SnapStatusIcon';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
 import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
+import { tx } from '../../i18n/tx';
+import { displayLocale } from '../../i18n/locale';
 
 const POLL_INTERVAL_MS = 4000;
 const MAX_MESSAGE_LENGTH = 2000;
@@ -31,7 +33,7 @@ const BUBBLE_TIGHT = 6;
 
 const formatClock = (iso: string) => {
   const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString(displayLocale(), { hour: '2-digit', minute: '2-digit' });
 };
 
 /**
@@ -283,10 +285,10 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
 
   return <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.screen}>
     <View style={[styles.bar, { paddingTop: insets.top + spacing.sm }]}>
-      <AnimatedPressable accessibilityLabel="Geri dön" accessibilityRole="button" onPress={onBack} pressScale={0.95} style={styles.back}>
+      <AnimatedPressable accessibilityLabel={tx('common:actions.back', 'Geri dön')} accessibilityRole="button" onPress={onBack} pressScale={0.95} style={styles.back}>
         <ArrowLeft color={colors.text} size={22} />
       </AnimatedPressable>
-      <AnimatedPressable accessibilityLabel={`${otherUserName}, profili aç`} accessibilityRole="button" disabled={!onOpenProfile} onPress={() => onOpenProfile?.()} pressScale={0.98} style={styles.identity}>
+      <AnimatedPressable accessibilityLabel={tx('chat:thread.openProfile', '{{name}}, profili aç', { name: otherUserName })} accessibilityRole="button" disabled={!onOpenProfile} onPress={() => onOpenProfile?.()} pressScale={0.98} style={styles.identity}>
         <Avatar avatarKey={otherAvatarKey} seed={conversation.otherUserId} size={36} />
         <View style={styles.identityCopy}>
           <Text accessibilityRole="header" numberOfLines={1} style={styles.heading}>{otherUserName}</Text>
@@ -294,17 +296,17 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
         </View>
       </AnimatedPressable>
       {onSendSnap ? (
-        <AnimatedPressable accessibilityLabel={`${otherUserName} kişisine Snap gönder`} accessibilityRole="button" onPress={onSendSnap} pressScale={0.95} style={styles.headerCamera}>
+        <AnimatedPressable accessibilityLabel={tx('chat:list.snapToA11y', '{{name}} kişisine Snap gönder', { name: otherUserName })} accessibilityRole="button" onPress={onSendSnap} pressScale={0.95} style={styles.headerCamera}>
           <Camera color={colors.text} size={20} />
         </AnimatedPressable>
       ) : null}
     </View>
 
     {isLoading ? (
-      <View style={styles.centerFill}><ActivityIndicator accessibilityLabel="Mesajlar yükleniyor" color={colors.primary} /></View>
+      <View style={styles.centerFill}><ActivityIndicator accessibilityLabel={tx('chat:thread.loading', 'Mesajlar yükleniyor')} color={colors.primary} /></View>
     ) : !messages.length ? (
       <View style={styles.centerFill}>
-        <BlinkrEmptyState description={`${otherUserName} ile ilk mesajı sen yaz.`} icon={<MessageCircle color={colors.textSecondary} size={26} />} title="Henüz mesaj yok" />
+        <BlinkrEmptyState description={tx('chat:thread.emptyHint', '{{name}} ile ilk mesajı sen yaz.', { name: otherUserName })} icon={<MessageCircle color={colors.textSecondary} size={26} />} title={tx('chat:thread.empty', 'Henüz mesaj yok')} />
       </View>
     ) : (
       // Inverted: the newest message sits at the bottom without manual scrolling, and stays there as new ones arrive.
@@ -345,23 +347,23 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
 
     <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
       {onSendSnap ? (
-        <AnimatedPressable accessibilityLabel="Snap gönder" accessibilityRole="button" onPress={onSendSnap} pressScale={0.95} style={styles.cameraButton}>
+        <AnimatedPressable accessibilityLabel={tx('chat:thread.sendSnap', 'Snap gönder')} accessibilityRole="button" onPress={onSendSnap} pressScale={0.95} style={styles.cameraButton}>
           <Camera color={colors.text} size={20} />
         </AnimatedPressable>
       ) : null}
       <TextInput
-        accessibilityLabel="Mesaj yaz"
+        accessibilityLabel={tx('chat:thread.write', 'Mesaj yaz')}
         maxLength={MAX_MESSAGE_LENGTH}
         multiline
         onChangeText={onChangeDraft}
-        placeholder="Mesaj"
+        placeholder={tx('chat:thread.placeholder', 'Mesaj')}
         placeholderTextColor={colors.textSecondary}
         ref={inputRef}
         style={styles.input}
         value={draft}
       />
       {draft.trim().length > 0 || isSending ? (
-        <AnimatedPressable accessibilityLabel="Gönder" accessibilityRole="button" aria-disabled={!canSend} disabled={!canSend} onPress={handleSend} pressScale={0.95} style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}>
+        <AnimatedPressable accessibilityLabel={tx('chat:thread.send', 'Gönder')} accessibilityRole="button" aria-disabled={!canSend} disabled={!canSend} onPress={handleSend} pressScale={0.95} style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}>
           {isSending ? <ActivityIndicator color={colors.ink} /> : <Send color={colors.ink} size={18} strokeWidth={2.2} />}
         </AnimatedPressable>
       ) : null}

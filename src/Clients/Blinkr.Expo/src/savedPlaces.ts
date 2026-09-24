@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 
 import { deleteSavedPlace, importSavedPlaces, listServerSavedPlaces, putSavedPlace } from './api';
 import type { AuthResponse, BlinkrPlace } from './types';
+import { tx } from './i18n/tx';
 
 /**
  * Saved places (sinyal-mvp-plan P6.8). The account on the server is the truth, so the same places show on every
@@ -113,7 +114,7 @@ export const savePlace = async (userId: string, place: BlinkrPlace) => {
     await putSavedPlace(synced.auth, record, synced.refresh); // the server enforces the limit (429 "En fazla ...")
     if (serverIds?.userId === userId) serverIds.ids.add(place.id);
   } else if (!ids.includes(place.id) && ids.length >= MAX_SAVED_PLACES) {
-    throw new Error(`En fazla ${MAX_SAVED_PLACES} yer kaydedebilirsin.`);
+    throw new Error(tx('profile:saved.limit', 'En fazla {{max}} yer kaydedebilirsin.', { max: MAX_SAVED_PLACES }));
   }
   await SecureStore.setItemAsync(itemKey(userId, place.id), JSON.stringify(record));
   if (!ids.includes(place.id)) await SecureStore.setItemAsync(indexKey(userId), [...ids, place.id].join(','));

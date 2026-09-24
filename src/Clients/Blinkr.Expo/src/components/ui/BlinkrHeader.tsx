@@ -6,6 +6,7 @@ import { colors, radii, shadowSoft, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
 import { BlinkrMark } from '../BlinkrMark';
+import { tx } from '../../i18n/tx';
 
 type Props = {
   /** Line under the wordmark - e.g. the live-area status on the map. */
@@ -32,7 +33,7 @@ export function BlinkrHeader({ subtitle, right, safeArea = true, style }: Props)
 }
 
 /** Round initial button on the header's right edge. Uses the real user name, never a placeholder image. */
-export function HeaderAvatar({ userId, userName, avatarKey, onPress, accessibilityLabel = 'Profili aç' }: { userId: string; userName: string; avatarKey?: string | null; onPress?: () => void; accessibilityLabel?: string }) {
+export function HeaderAvatar({ userId, userName, avatarKey, onPress, accessibilityLabel = tx('common:actions.openProfile', 'Profili aç') }: { userId: string; userName: string; avatarKey?: string | null; onPress?: () => void; accessibilityLabel?: string }) {
   return (
     <AnimatedPressable accessibilityLabel={`${accessibilityLabel}: ${userName}`} accessibilityRole="button" disabled={!onPress} onPress={onPress} pressScale={0.9} style={styles.avatar}>
       <Avatar avatarKey={avatarKey} ringColor={colors.border} seed={userId} size={40} />

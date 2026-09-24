@@ -33,6 +33,84 @@
     "copy": "Copy",
     "copied": "Copied",
     "report": "Report",
-    "reportNote": "Chat message"
+    "reportNote": "Chat message",
+    "openProfile": "{{name}}, open profile",
+    "loading": "Loading messages",
+    "emptyHint": "Write the first message to {{name}}.",
+    "empty": "No messages yet",
+    "sendSnap": "Send a Snap",
+    "write": "Write a message",
+    "placeholder": "Message",
+    "send": "Send"
+  },
+  "list": {
+    "fallbackName": "User",
+    "loadFailed": "Couldn't load chats. Try again.",
+    "startFailed": "Couldn't start the conversation. Try again.",
+    "snapSentMany": "Snap sent to {{count}} people",
+    "snapSent": "Snap sent",
+    "newMessage": "New message",
+    "openFailed": "Couldn't open chats",
+    "emptyHint": "Find someone and start a conversation.",
+    "empty": "No messages yet",
+    "snapToA11y": "Send {{name}} a Snap",
+    "title": "Chats"
+  },
+  "snap": {
+    "expired": "Expired",
+    "opened": "Opened",
+    "sent": "Delivered",
+    "new": "New Snap",
+    "newConversation": "New conversation",
+    "newChat": "New chat",
+    "video": "Video",
+    "snap": "Snap",
+    "tapToView": "Tap to view",
+    "pickPeople": "Choose people",
+    "sendTo": "Send · {{name}}",
+    "sendToMany": "Send · {{count}} people",
+    "openSnap": ". Open Snap",
+    "openChat": ". Open chat"
+  },
+  "search": {
+    "friends": "Your friends",
+    "messageA11y": "Message {{name}}",
+    "none": "No user with this name."
+  },
+  "send": {
+    "title": "Send Snap",
+    "timerA11y": "Timer {{timer}}, change",
+    "preview": "Snap preview",
+    "caption": "Snap caption",
+    "captionPlaceholder": "Add a caption",
+    "to": "To whom?",
+    "addPersonA11y": "Add someone",
+    "addPerson": "Someone new",
+    "noOne": "You have no chats yet. Find someone with “Someone new”.",
+    "selectedA11y": "{{name}}, selected",
+    "failed": "Couldn't send the Snap. Try again.",
+    "someFailed": "Couldn't send to {{count}} people. Try again.",
+    "addFailed": "Couldn't add the person. Try again.",
+    "next": "Next"
+  },
+  "day": {
+    "today": "Today",
+    "yesterday": "Yesterday"
+  },
+  "receipt": {
+    "sent": "Sent",
+    "seen": "Seen"
+  },
+  "viewer": {
+    "openFailed": "This Snap couldn't be opened. Try again.",
+    "loadFailed": "The Snap couldn't load. Check your connection and try again.",
+    "close": "Close Snap",
+    "loading": "Loading Snap",
+    "captionA11y": "Snap caption: {{caption}}",
+    "replyA11y": "Reply with a Snap",
+    "reply": "Reply"
+  },
+  "story": {
+    "reply": "↩ Reply to your story: {{text}}"
   }
 }

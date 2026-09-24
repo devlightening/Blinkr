@@ -10,6 +10,7 @@ import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
 import type { CapturedMedia } from '../camera/PhotoEditor';
 import { BlinkrButton } from '../ui/BlinkrButton';
+import { tx } from '../../i18n/tx';
 
 export type SnapRecipient = { id: string; name: string; userId: string; avatarKey?: string | null };
 
@@ -43,24 +44,24 @@ export function SnapSendStep({ asset, recipients, selected, onSelectedChange, fi
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
       <View style={styles.top}>
-        <AnimatedPressable accessibilityLabel="Geri" accessibilityRole="button" disabled={sending} onPress={onBack} pressScale={0.95} style={styles.round}>
+        <AnimatedPressable accessibilityLabel={tx('common:actions.backShort', 'Geri')} accessibilityRole="button" disabled={sending} onPress={onBack} pressScale={0.95} style={styles.round}>
           <ChevronLeft color={colors.text} size={24} />
         </AnimatedPressable>
-        <Text accessibilityRole="header" style={styles.title}>Snap gönder</Text>
-        <AnimatedPressable accessibilityLabel={`Süre ${timerLabel(timer)}, değiştir`} accessibilityRole="button" disabled={sending} onPress={() => setTimer(nextTimer(timer))} pressScale={0.95} style={styles.timerChip}>
+        <Text accessibilityRole="header" style={styles.title}>{tx('chat:send.title', 'Snap gönder')}</Text>
+        <AnimatedPressable accessibilityLabel={tx('chat:send.timerA11y', 'Süre {{timer}}, değiştir', { timer: timerLabel(timer) })} accessibilityRole="button" disabled={sending} onPress={() => setTimer(nextTimer(timer))} pressScale={0.95} style={styles.timerChip}>
           <Timer color={colors.flare} size={16} />
           <Text style={styles.timerText}>{timerLabel(timer)}</Text>
         </AnimatedPressable>
       </View>
 
       <View style={styles.preview}>
-        <Image accessibilityLabel="Snap önizleme" resizeMode="cover" source={{ uri: asset.uri }} style={StyleSheet.absoluteFill} />
+        <Image accessibilityLabel={tx('chat:send.preview', 'Snap önizleme')} resizeMode="cover" source={{ uri: asset.uri }} style={StyleSheet.absoluteFill} />
         <View pointerEvents="box-none" style={styles.captionWrap}>
           <TextInput
-            accessibilityLabel="Snap yazısı"
+            accessibilityLabel={tx('chat:send.caption', 'Snap yazısı')}
             maxLength={MAX_CAPTION_LENGTH}
             onChangeText={(value) => setCaption(value.replace(/\n/g, ' '))}
-            placeholder="Yazı ekle"
+            placeholder={tx('chat:send.captionPlaceholder', 'Yazı ekle')}
             placeholderTextColor={media.textSoft}
             style={styles.caption}
             value={caption}
@@ -71,21 +72,21 @@ export function SnapSendStep({ asset, recipients, selected, onSelectedChange, fi
       {fixedRecipient ? null : (
         <View style={styles.recipients}>
           <View style={styles.recipientsHeader}>
-            <Text style={styles.recipientsTitle}>Kime?</Text>
+            <Text style={styles.recipientsTitle}>{tx('chat:send.to', 'Kime?')}</Text>
             {onAddPerson ? (
-              <AnimatedPressable accessibilityLabel="Yeni kişi ekle" accessibilityRole="button" onPress={onAddPerson} pressScale={0.97} style={styles.addPerson}>
+              <AnimatedPressable accessibilityLabel={tx('chat:send.addPersonA11y', 'Yeni kişi ekle')} accessibilityRole="button" onPress={onAddPerson} pressScale={0.97} style={styles.addPerson}>
                 <UserPlus color={colors.flare} size={16} />
-                <Text style={styles.addPersonText}>Yeni kişi</Text>
+                <Text style={styles.addPersonText}>{tx('chat:send.addPerson', 'Yeni kişi')}</Text>
               </AnimatedPressable>
             ) : null}
           </View>
           <ScrollView contentContainerStyle={styles.recipientList} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            {recipients.length === 0 ? <Text style={styles.empty}>Henüz kimseyle sohbetin yok. “Yeni kişi” ile birini bul.</Text> : null}
+            {recipients.length === 0 ? <Text style={styles.empty}>{tx('chat:send.noOne', 'Henüz kimseyle sohbetin yok. “Yeni kişi” ile birini bul.')}</Text> : null}
             {recipients.map((item) => {
               const on = selected.includes(item.id);
               return (
                 <AnimatedPressable
-                  accessibilityLabel={`${item.name}${on ? ', seçili' : ''}`}
+                  accessibilityLabel={(on ? tx('chat:send.selectedA11y', '{{name}}, seçili', { name: item.name }) : item.name)}
                   accessibilityRole="checkbox"
                   aria-checked={on}
                   disabled={sending}

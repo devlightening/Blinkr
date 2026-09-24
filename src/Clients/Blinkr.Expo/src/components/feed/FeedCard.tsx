@@ -14,6 +14,7 @@ import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
 import { SignalSymbol } from '../SignalSymbol';
 import { MediaImage } from '../ui/BlinkrMediaImage';
+import { tx } from '../../i18n/tx';
 
 type Props = {
   item: DiscoverItem;
@@ -91,7 +92,7 @@ export function FeedCard({ item, myUserId, onLike, onOpenThread, onOpenAuthor, o
 
       {hideActions ? null : <View style={styles.actions}>
         <AnimatedPressable
-          accessibilityLabel={item.isLikedByCurrentUser ? 'Beğeniyi geri al' : 'Beğen'}
+          accessibilityLabel={item.isLikedByCurrentUser ? tx('signal:engagement.unlike', 'Beğeniyi geri al') : tx('signal:engagement.like', 'Beğen')}
           accessibilityRole="button"
           aria-selected={item.isLikedByCurrentUser}
           disabled={!likeable}
@@ -108,7 +109,7 @@ export function FeedCard({ item, myUserId, onLike, onOpenThread, onOpenAuthor, o
           <Text style={styles.actionCount}>{formatCount(item.commentCount, lang)}</Text>
         </AnimatedPressable>
         {onShare ? (
-          <AnimatedPressable accessibilityLabel="Sohbette paylaş" accessibilityRole="button" onPress={() => onShare(item)} pressScale={0.9} style={styles.action} testID={`feed-share-${item.id}`}>
+          <AnimatedPressable accessibilityLabel={tx('signal:engagement.shareChat', 'Sohbette paylaş')} accessibilityRole="button" onPress={() => onShare(item)} pressScale={0.9} style={styles.action} testID={`feed-share-${item.id}`}>
             <Send color={colors.text} size={19} />
           </AnimatedPressable>
         ) : null}

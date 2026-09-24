@@ -1,3 +1,4 @@
+import { tx } from './i18n/tx';
 /**
  * How a conversation is laid out as bubbles (plan-devam Faz E). Pure logic, no React Native imports.
  * Messages arrive newest-first (the list is inverted), so "older" is the next item in the array.
@@ -20,8 +21,8 @@ export function dayLabel(iso: string, now = new Date(), language: 'tr' | 'en' = 
   if (Number.isNaN(date.getTime())) return '';
   const days = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000);
   const locale = language === 'en' ? 'en-GB' : 'tr-TR';
-  if (days <= 0) return language === 'en' ? 'Today' : 'Bugün';
-  if (days === 1) return language === 'en' ? 'Yesterday' : 'Dün';
+  if (days <= 0) return (language === 'en' ? 'Today' : tx('chat:day.today', 'Bugün'));
+  if (days === 1) return (language === 'en' ? 'Yesterday' : tx('chat:day.yesterday', 'Dün'));
   if (days < 7) return date.toLocaleDateString(locale, { weekday: 'long' });
   return date.toLocaleDateString(locale, date.getFullYear() === now.getFullYear() ? { day: 'numeric', month: 'long' } : { day: 'numeric', month: 'long', year: 'numeric' });
 }
@@ -62,10 +63,10 @@ export const lastOwnMessageId = (messages: MessageLike[], me: string) =>
 
 /** "Görüldü 14:32" when the time is known, "Görüldü" for older messages, otherwise "Gönderildi". */
 export function receiptLabel(message: MessageLike, language: 'tr' | 'en' = 'tr') {
-  if (!message.seen) return language === 'en' ? 'Sent' : 'Gönderildi';
+  if (!message.seen) return (language === 'en' ? 'Sent' : tx('chat:receipt.sent', 'Gönderildi'));
   const at = message.seenAtUtc ? new Date(message.seenAtUtc) : null;
   const time = at && !Number.isNaN(at.getTime()) ? at.toLocaleTimeString(language === 'en' ? 'en-GB' : 'tr-TR', { hour: '2-digit', minute: '2-digit' }) : '';
-  return `${language === 'en' ? 'Seen' : 'Görüldü'}${time ? ` ${time}` : ''}`;
+  return `${language === 'en' ? 'Seen' : tx('chat:receipt.seen', 'Görüldü')}${time ? ` ${time}` : ''}`;
 }
 
 /** "Typing" is sent at most every few seconds while the person types (the server forgets it after 6 s). */

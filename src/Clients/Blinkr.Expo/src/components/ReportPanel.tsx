@@ -11,6 +11,7 @@ import { friendlyError } from '../productPresentation';
 import { colors, radii, spacing, typography } from '../theme';
 import { AnimatedPressable } from './AnimatedPressable';
 import { BlinkrButton } from './ui/BlinkrButton';
+import { tx } from '../i18n/tx';
 
 type Props = {
   target: ReportTarget;
@@ -44,7 +45,7 @@ export function ReportPanel({ target, subject, onSubmit, onDone }: Props) {
       success();
       setSent(true);
     } catch (err) {
-      setError(friendlyError(err, 'Bildirim gönderilemedi. Tekrar dene.'));
+      setError(friendlyError(err, tx('common:report.failed', 'Bildirim gönderilemedi. Tekrar dene.')));
     } finally {
       busy.current = false;
       setSending(false);
@@ -55,8 +56,8 @@ export function ReportPanel({ target, subject, onSubmit, onDone }: Props) {
     return (
       <View style={styles.done}>
         <View style={styles.doneIcon}><Check color={colors.primary} size={28} strokeWidth={2.6} /></View>
-        <Text accessibilityRole="header" style={styles.doneTitle}>Bildirimin alındı</Text>
-        <Text style={styles.doneText}>{target === 'user' ? 'Teşekkürler. Bildirimin kaydedildi. İstersen bu kişiyi engelleyerek onunla tüm teması kesebilirsin.' : 'Teşekkürler. Bildirimin kaydedildi.'}</Text>
+        <Text accessibilityRole="header" style={styles.doneTitle}>{tx('common:report.doneTitle', 'Bildirimin alındı')}</Text>
+        <Text style={styles.doneText}>{target === 'user' ? tx('common:report.doneUser', 'Teşekkürler. Bildirimin kaydedildi. İstersen bu kişiyi engelleyerek onunla tüm teması kesebilirsin.') : tx('common:report.done', 'Teşekkürler. Bildirimin kaydedildi.')}</Text>
         {reason === 'self_harm' ? (
           // A self-harm report is reviewed first; the reporter is shown where to get help right now (11 §4).
           <View accessibilityRole="alert" style={styles.help} testID="report-self-harm-help">
@@ -64,7 +65,7 @@ export function ReportPanel({ target, subject, onSubmit, onDone }: Props) {
             <Text style={styles.helpText}>{t('report.selfHarmHelp', { number: emergencyNumber(Localization.getLocales()[0]?.regionCode) })}</Text>
           </View>
         ) : null}
-        <BlinkrButton label="Tamam" onPress={onDone} size="lg" />
+        <BlinkrButton label={tx('common:actions.ok', 'Tamam')} onPress={onDone} size="lg" />
       </View>
     );
   }
@@ -73,11 +74,11 @@ export function ReportPanel({ target, subject, onSubmit, onDone }: Props) {
     <View style={styles.wrap}>
       <View style={styles.head}>
         <Flag color={colors.textSecondary} size={18} />
-        <Text accessibilityRole="header" style={styles.title}>Bildir</Text>
+        <Text accessibilityRole="header" style={styles.title}>{tx('common:actions.report', 'Bildir')}</Text>
       </View>
       <Text numberOfLines={2} style={styles.subject}>{subject}</Text>
       <ScrollView bounces={false} showsVerticalScrollIndicator={false} style={styles.scroll}>
-        <Text style={styles.label}>Neden bildiriyorsun?</Text>
+        <Text style={styles.label}>{tx('common:report.why', 'Neden bildiriyorsun?')}</Text>
         {reportReasons(target).map((item) => {
           const selected = reason === item.id;
           return (
@@ -89,11 +90,11 @@ export function ReportPanel({ target, subject, onSubmit, onDone }: Props) {
         })}
         <Text style={[styles.label, styles.noteLabel]}>Eklemek istediğin bir şey var mı? (isteğe bağlı)</Text>
         <TextInput
-          accessibilityLabel="Bildirim notu"
+          accessibilityLabel={tx('common:report.noteA11y', 'Bildirim notu')}
           maxLength={REPORT_NOTE_MAX + 40}
           multiline
           onChangeText={setNote}
-          placeholder="Kısaca anlat"
+          placeholder={tx('common:report.notePlaceholder', 'Kısaca anlat')}
           placeholderTextColor={colors.textSecondary}
           style={styles.input}
           value={note}
@@ -102,8 +103,8 @@ export function ReportPanel({ target, subject, onSubmit, onDone }: Props) {
       </ScrollView>
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       <View style={styles.actions}>
-        <BlinkrButton disabled={!reason || !canSendReport(reason, note)} label="Bildirimi gönder" loading={sending} onPress={() => void send()} style={styles.flex} />
-        <BlinkrButton label="Vazgeç" onPress={onDone} variant="ghost" />
+        <BlinkrButton disabled={!reason || !canSendReport(reason, note)} label={tx('common:report.send', 'Bildirimi gönder')} loading={sending} onPress={() => void send()} style={styles.flex} />
+        <BlinkrButton label={tx('common:actions.cancel', 'Vazgeç')} onPress={onDone} variant="ghost" />
       </View>
     </View>
   );

@@ -14,5 +14,16 @@
   },
   "contentBlocked": "Bu içerik topluluk kurallarına uymuyor: tehdit, nefret söylemi ya da hedefli hakaret paylaşılamaz.",
   "postingRestricted": "Topluluk kuralları nedeniyle şu an paylaşım yapamazsın. Kısıtlama bitince yeniden paylaşabilirsin.",
-  "accountSuspended": "Bu hesap topluluk kuralları nedeniyle askıya alındı ya da kapatıldı."
+  "accountSuspended": "Bu hesap topluluk kuralları nedeniyle askıya alındı ya da kapatıldı.",
+  "http": {
+    "401": "Oturumun sona erdi. Lütfen yeniden giriş yap.",
+    "403": "Bu işlemi yapmak için yetkin bulunmuyor.",
+    "404": "İstenen kayıt bulunamadı.",
+    "server": "Şu anda bağlantı kurulamıyor. Lütfen tekrar dene.",
+    "unreachable": "Sinyal servisine şu anda ulaşılamıyor. Backend servislerini kontrol edip tekrar dene.",
+    "generic": "İşlem tamamlanamadı. Lütfen tekrar dene.",
+    "noRefresh": "Oturum yenileme bilgisi bulunamadı.",
+    "timeout": "Bağlantı zaman aşımına uğradı. Tekrar dene.",
+    "mediaTimeout": "Medya dosyası okunamadı (zaman aşımı). Tekrar dene."
+  }
 }

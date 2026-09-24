@@ -8,6 +8,7 @@ import { colors, radii, spacing, typography } from '../theme';
 import { AnimatedPressable } from './AnimatedPressable';
 import { BlinkrMark } from './BlinkrMark';
 import { BlinkrButton } from './ui/BlinkrButton';
+import { tx } from '../i18n/tx';
 
 const visuals = {
   know: { Icon: MapPin, tone: colors.primary },
@@ -31,8 +32,8 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
       <View style={styles.top}>
         <BlinkrMark size={30} />
         {!last ? (
-          <AnimatedPressable accessibilityLabel="Tanıtımı atla" accessibilityRole="button" onPress={onDone} pressScale={0.95} style={styles.skip}>
-            <Text style={styles.skipText}>Atla</Text>
+          <AnimatedPressable accessibilityLabel={tx('common:onboarding.skip', 'Tanıtımı atla')} accessibilityRole="button" onPress={onDone} pressScale={0.95} style={styles.skip}>
+            <Text style={styles.skipText}>{tx('common:onboarding.skipShort', 'Atla')}</Text>
           </AnimatedPressable>
         ) : null}
       </View>
@@ -50,10 +51,10 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
       </View>
 
       <View style={styles.bottom}>
-        <View accessibilityLabel={`Sayfa ${index + 1} / ${ONBOARDING_PAGES.length}`} style={styles.dots}>
+        <View accessibilityLabel={tx('common:onboarding.page', 'Sayfa {{n}} / {{total}}', { n: index + 1, total: ONBOARDING_PAGES.length })} style={styles.dots}>
           {ONBOARDING_PAGES.map((item, position) => <View key={item.id} style={[styles.dot, position === index && styles.dotActive]} />)}
         </View>
-        <BlinkrButton label={last ? 'Başla' : 'İleri'} onPress={last ? onDone : () => setIndex(nextPage(index))} size="lg" />
+        <BlinkrButton label={last ? tx('common:onboarding.start', 'Başla') : tx('common:onboarding.next', 'İleri')} onPress={last ? onDone : () => setIndex(nextPage(index))} size="lg" />
       </View>
     </View>
   );

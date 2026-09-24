@@ -1,5 +1,6 @@
 import { signalColors } from './theme';
 import type { SignalType } from './types';
+import { tx } from './i18n/tx';
 
 export type SignalCatalogEntry = {
   label: string;
@@ -25,28 +26,28 @@ export type SignalCatalogEntry = {
  * If the server changes, this display must change with it - the server value always wins.
  */
 export const SIGNAL_CATALOG: Record<SignalType, SignalCatalogEntry> = {
-  GeneralObservation: { label: 'Gözlem', tone: signalColors.GeneralObservation },
+  GeneralObservation: { label: tx('signal:catalog.GeneralObservation', 'Gözlem'), tone: signalColors.GeneralObservation },
   Crowd: {
-    label: 'Doluluk', tone: signalColors.Crowd,
-    options: [{ value: 'Calm', label: 'Sakin' }, { value: 'Moderate', label: 'Hareketli' }, { value: 'Busy', label: 'Kalabalık' }],
+    label: tx('signal:catalog.Crowd', 'Doluluk'), tone: signalColors.Crowd,
+    options: [{ value: 'Calm', label: tx('signal:catalog.Calm', 'Sakin') }, { value: 'Moderate', label: tx('signal:catalog.Moderate', 'Hareketli') }, { value: 'Busy', label: tx('signal:catalog.Busy', 'Kalabalık') }],
   },
   Queue: {
-    label: 'Bekleme', tone: signalColors.Queue,
-    options: [{ value: 'None', label: 'Sıra yok' }, { value: '5To15', label: '5–15 dk' }, { value: 'Over15', label: '15 dk üzeri' }],
+    label: tx('signal:catalog.Queue', 'Bekleme'), tone: signalColors.Queue,
+    options: [{ value: 'None', label: tx('signal:catalog.QueueNone', 'Sıra yok') }, { value: '5To15', label: tx('signal:catalog.Queue5To15', '5–15 dk') }, { value: 'Over15', label: tx('signal:catalog.QueueOver15', '15 dk üzeri') }],
   },
   TemporaryStatus: {
-    label: 'Geçici durum', tone: signalColors.TemporaryStatus,
-    options: [{ value: 'Closed', label: 'Kapalı' }, { value: 'Open', label: 'Açık' }],
+    label: tx('signal:catalog.TemporaryStatus', 'Geçici durum'), tone: signalColors.TemporaryStatus,
+    options: [{ value: 'Closed', label: tx('signal:catalog.Closed', 'Kapalı') }, { value: 'Open', label: tx('signal:catalog.Open', 'Açık') }],
   },
   Event: {
-    label: 'Etkinlik', tone: signalColors.Event,
-    options: [{ value: 'Started', label: 'Başladı' }, { value: 'Ended', label: 'Bitti' }],
+    label: tx('signal:catalog.Event', 'Etkinlik'), tone: signalColors.Event,
+    options: [{ value: 'Started', label: tx('signal:catalog.Started', 'Başladı') }, { value: 'Ended', label: tx('signal:catalog.Ended', 'Bitti') }],
   },
   Offer: {
-    label: 'Fırsat', tone: signalColors.Offer,
-    options: [{ value: 'Available', label: 'Devam ediyor' }, { value: 'Ended', label: 'Sona erdi' }],
+    label: tx('signal:catalog.Offer', 'Fırsat'), tone: signalColors.Offer,
+    options: [{ value: 'Available', label: tx('signal:catalog.Available', 'Devam ediyor') }, { value: 'Ended', label: tx('signal:catalog.OfferEnded', 'Sona erdi') }],
   },
-  NewOpening: { label: 'Yeni açılış', tone: signalColors.NewOpening },
+  NewOpening: { label: tx('signal:catalog.NewOpening', 'Yeni açılış'), tone: signalColors.NewOpening },
 };
 
 /** Mirror of the server's default lifetime per type (display only - see the note above). */
@@ -65,5 +66,5 @@ export const formatLifetime = (minutes: number, language: 'tr' | 'en' = 'tr') =>
   if (minutes < 60) return `${minutes} ${language === 'en' ? 'min' : 'dk'}`;
   if (minutes < 1440) return `${Math.round(minutes / 60)} ${language === 'en' ? 'h' : 'sa'}`;
   const days = Math.round(minutes / 1440);
-  return language === 'en' ? `${days} ${days === 1 ? 'day' : 'days'}` : `${days} gün`;
+  return language === 'en' ? `${days} ${days === 1 ? 'day' : 'days'}` : `${days} gün`; // i18n-fallback: language-aware already
 };

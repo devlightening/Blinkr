@@ -12,7 +12,11 @@
   "privacy": {
     "privateTitle": "Gizli hesap",
     "privateHint": "Açıksa yalnız onayladığın kişiler sinyal listeni ve takip listelerini görür. Haritadaki sinyallerin yine herkese açıktır.",
-    "privateFailed": "Ayar kaydedilemedi. Tekrar dene."
+    "privateFailed": "Ayar kaydedilemedi. Tekrar dene.",
+    "exact": "Kesin cihaz konumun diğer kullanıcılara gösterilmez; haritada yer merkezi ya da yaklaşık alan görünür.",
+    "anon": "Anonim paylaştığın sinyalleri yalnızca sen görürsün.",
+    "snaps": "Snap’ler bir kez izlenip kaybolur; fotoğraflardaki konum bilgisi silinir.",
+    "friends": "Arkadaşlık yalnızca birbirini bulmak ve mesajlaşmak içindir; konum paylaşmaz."
   },
   "appearance": {
     "title": "Görünüm",
@@ -60,5 +64,36 @@
     "cancel": "Silmeyi geri al",
     "logout": "Çıkış yap",
     "failed": "Geri alınamadı. Tekrar dene."
+  },
+  "blocked": {
+    "loadFailed": "Engellenen kişiler yüklenemedi. Tekrar dene.",
+    "unblockFailed": "Engel kaldırılamadı. Tekrar dene.",
+    "title": "Engellenen kişiler",
+    "emptyHint": "Engellediğin kişiler burada listelenir. Engelli biri seni bulamaz, sana istek ya da mesaj gönderemez.",
+    "empty": "Kimseyi engellemedin",
+    "unblockA11y": "{{name}} engelini kaldır",
+    "unblock": "Engeli kaldır"
+  },
+  "sections": {
+    "account": "Hesap",
+    "safety": "Güvenlik",
+    "privacy": "Gizlilik",
+    "developer": "Geliştirici",
+    "about": "Hakkında"
+  },
+  "account": {
+    "username": "Kullanıcı adı",
+    "email": "E-posta"
+  },
+  "dev": {
+    "preview": "Bileşen önizleme"
+  },
+  "about": {
+    "version": "Sürüm",
+    "attribution": "Yer verileri © OpenStreetMap katkıcıları (ODbL). Taban harita Apple Maps / Google Maps’e aittir; Blinkr işaretleri yalnızca Blinkr verisinden çizilir."
+  },
+  "language": {
+    "title": "Dil",
+    "system": "Sistem"
   }
 }

@@ -10,6 +10,7 @@ import { SignalCamera } from '../camera/SignalCamera';
 import type { CapturedMedia } from '../camera/PhotoEditor';
 import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
 import { SnapSendStep, type SnapRecipient } from './SnapSendStep';
+import { tx } from '../../i18n/tx';
 
 export type SnapFlowRequest = { mode: 'reply'; conversationId: string } | { mode: 'compose' };
 
@@ -60,7 +61,7 @@ export function SnapFlow({ auth, request, recipients, onClose, onSent, onAuthCha
       } catch (err) {
         console.log('[Blinkr Snap]', { failedStage: 'send', errorCode: err instanceof Error ? err.name : 'Unknown' });
         results.push({ conversationId, ok: false });
-        if (conversationIds.length === 1) setError(friendlyError(err, 'Snap gönderilemedi. Tekrar dene.'));
+        if (conversationIds.length === 1) setError(friendlyError(err, tx('chat:send.failed', 'Snap gönderilemedi. Tekrar dene.')));
       }
     }
     sendingRef.current = false;
@@ -70,7 +71,7 @@ export function SnapFlow({ auth, request, recipients, onClose, onSent, onAuthCha
     if (summary.allSent) { onSent(summary.sent); return; }
     // Keep only the people it did not reach selected, so "Gönder" simply retries them.
     setSelected(summary.failed);
-    if (conversationIds.length > 1) setError(`${summary.failed.length} kişiye gönderilemedi. Tekrar dene.`);
+    if (conversationIds.length > 1) setError(tx('chat:send.someFailed', '{{count}} kişiye gönderilemedi. Tekrar dene.', { count: summary.failed.length }));
   }, [asset, auth, onAuthChange, onSent, onSessionExpired]);
 
   const addPerson = async (user: UserSummary) => {
@@ -81,12 +82,12 @@ export function SnapFlow({ auth, request, recipients, onClose, onSent, onAuthCha
       setExtra((current) => [recipient, ...current.filter((item) => item.id !== recipient.id)]);
       setSelected((current) => [...new Set([...current, recipient.id])]);
     } catch (err) {
-      setError(friendlyError(err, 'Kişi eklenemedi. Tekrar dene.'));
+      setError(friendlyError(err, tx('chat:send.addFailed', 'Kişi eklenemedi. Tekrar dene.')));
     }
   };
 
   // Snap is always a photo, taken and sent the same way you already know: tap to capture, no video option.
-  if (!asset) return <SignalCamera onCapture={setAsset} onClose={onClose} photoOnly submitLabel="İleri" />;
+  if (!asset) return <SignalCamera onCapture={setAsset} onClose={onClose} photoOnly submitLabel={tx('chat:send.next', 'İleri')} />;
 
   return (
     <>

@@ -29,12 +29,14 @@ import { BlinkrButton } from './ui/BlinkrButton';
 import { bottomBarClearance } from './ui/BlinkrBottomBar';
 import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
 import { SkeletonList } from './ui/BlinkrSkeleton';
+import { tx } from '../i18n/tx';
+import { displayLocale } from '../i18n/locale';
 
 // 50 per page keeps the request count low, and the server refuses page numbers above 1000 (an abuse
 // guard), so 50 x 1000 = 50,000 posts stay reachable; 20 per page would strand posts past 20,000.
 const PAGE_SIZE = 50;
 const MAX_PAGE = 1000;
-const formatCount = (value: number) => value.toLocaleString('tr-TR');
+const formatCount = (value: number) => value.toLocaleString(displayLocale());
 
 type Props = {
   auth: AuthResponse;
@@ -93,7 +95,7 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
       setSaved(await listSavedPlaces(auth.userId));
     } catch (err) {
       setSaved((current) => current ?? []);
-      setSavedError(friendlyError(err, 'Kaydedilen yerler okunamadı.'));
+      setSavedError(friendlyError(err, tx('profile:me.savedFailed', 'Kaydedilen yerler okunamadı.')));
     }
   }, [auth.userId]);
 
@@ -119,7 +121,7 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
       setPostsError(null);
     } catch (err) {
       if (controller.signal.aborted) return;
-      setPostsError(friendlyError(err, 'Sinyallerin yüklenemedi. Tekrar dene.'));
+      setPostsError(friendlyError(err, tx('profile:me.postsFailed', 'Sinyallerin yüklenemedi. Tekrar dene.')));
     } finally {
       if (inFlight.current === controller) {
         inFlight.current = null;
@@ -172,22 +174,22 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
   const header = (
     <View style={styles.headerBlock}>
       <View style={[styles.topBar, { paddingTop: insets.top + spacing.md }]}>
-        <Text accessibilityRole="header" style={styles.screenTitle}>Profil</Text>
-        <AnimatedPressable accessibilityLabel="Ayarlar" accessibilityRole="button" onPress={() => setSettingsOpen(true)} pressScale={0.92} style={styles.settingsButton}>
+        <Text accessibilityRole="header" style={styles.screenTitle}>{tx('profile:me.title', 'Profil')}</Text>
+        <AnimatedPressable accessibilityLabel={tx('settings:title', 'Ayarlar')} accessibilityRole="button" onPress={() => setSettingsOpen(true)} pressScale={0.92} style={styles.settingsButton}>
           <Settings color={colors.text} size={22} />
         </AnimatedPressable>
       </View>
 
       <View style={styles.identity}>
         <View style={styles.identityTop}>
-          <AnimatedPressable accessibilityLabel="Avatarı değiştir" accessibilityRole="button" onPress={() => setAvatarOpen(true)} pressScale={0.97} style={styles.avatarButton}>
+          <AnimatedPressable accessibilityLabel={tx('profile:me.changeAvatar', 'Avatarı değiştir')} accessibilityRole="button" onPress={() => setAvatarOpen(true)} pressScale={0.97} style={styles.avatarButton}>
             <Avatar avatarKey={auth.avatarKey} seed={auth.userId} size={72} />
             <View style={styles.avatarEdit}><Pencil color={colors.ink} size={12} strokeWidth={2.6} /></View>
           </AnimatedPressable>
           <View style={styles.stats}>
             <View style={styles.stat}>
-              <Text accessibilityLabel={total === null ? 'Sinyal sayısı yükleniyor' : `${formatCount(total)} sinyal`} style={styles.statValue}>{total === null ? '–' : formatCount(total)}</Text>
-              <Text style={styles.statLabel}>Sinyal</Text>
+              <Text accessibilityLabel={total === null ? tx('profile:me.countLoading', 'Sinyal sayısı yükleniyor') : tx('profile:me.countA11y', '{{count}} sinyal', { count: formatCount(total) })} style={styles.statValue}>{total === null ? '–' : formatCount(total)}</Text>
+              <Text style={styles.statLabel}>{tx('profile:me.signals', 'Sinyal')}</Text>
             </View>
             <AnimatedPressable accessibilityLabel={followerCount === null ? t('stats.followers') : `${formatCount(followerCount)} ${t('stats.followers')}`} accessibilityRole="button" onPress={() => setFollowList('followers')} pressScale={0.95} style={styles.stat}>
               <Text style={styles.statValue}>{followerCount === null ? '–' : formatCount(followerCount)}</Text>
@@ -206,19 +208,19 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
         {bio
           ? <Text style={styles.bio}>{bio}</Text>
           : (
-            <AnimatedPressable accessibilityLabel="Kendini kısaca tanıt" accessibilityRole="button" onPress={() => setEditOpen(true)} pressScale={0.99}>
-              <Text style={styles.bioEmpty}>Kendini kısaca tanıt…</Text>
+            <AnimatedPressable accessibilityLabel={tx('profile:me.bioPrompt', 'Kendini kısaca tanıt')} accessibilityRole="button" onPress={() => setEditOpen(true)} pressScale={0.99}>
+              <Text style={styles.bioEmpty}>{tx('profile:me.bioPromptEllipsis', 'Kendini kısaca tanıt…')}</Text>
             </AnimatedPressable>
           )}
         {followRequests > 0 ? (
           <BlinkrButton label={t('lists.requestsRow', { count: followRequests })} onPress={() => setFollowList('requests')} variant="secondary" />
         ) : null}
         <View style={styles.buttonRow}>
-          <BlinkrButton label="Profili düzenle" onPress={() => setEditOpen(true)} style={styles.flex} variant="secondary" />
+          <BlinkrButton label={tx('profile:me.edit', 'Profili düzenle')} onPress={() => setEditOpen(true)} style={styles.flex} variant="secondary" />
           <BlinkrButton
-            accessibilityLabel={incoming > 0 ? `Arkadaşlar, ${incoming} yeni istek` : 'Arkadaşlar'}
+            accessibilityLabel={incoming > 0 ? tx('profile:me.friendsA11y', 'Arkadaşlar, {{count}} yeni istek', { count: incoming }) : tx('profile:friends.title', 'Arkadaşlar')}
             icon={<Users color={colors.text} size={16} />}
-            label={incoming > 0 ? `Arkadaşlar · ${badgeText(incoming)}` : 'Arkadaşlar'}
+            label={incoming > 0 ? tx('profile:me.friendsBadge', 'Arkadaşlar · {{count}}', { count: badgeText(incoming) }) : tx('profile:friends.title', 'Arkadaşlar')}
             onPress={() => setFriendsOpen(true)}
             style={styles.flex}
             variant="secondary"
@@ -228,7 +230,7 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
 
       <View style={styles.group}>
         <View style={styles.groupHeader}>
-          <Text accessibilityRole="header" style={styles.groupTitle}>Kaydettiğin yerler</Text>
+          <Text accessibilityRole="header" style={styles.groupTitle}>{tx('profile:me.saved', 'Kaydettiğin yerler')}</Text>
           <Text style={styles.groupSub}>{t('saved.synced')}</Text>
         </View>
 
@@ -237,14 +239,14 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
         ) : savedError ? (
           <View style={styles.inline}>
             <Text accessibilityRole="alert" style={styles.error}>{savedError}</Text>
-            <BlinkrButton label="Tekrar dene" onPress={() => void loadSaved()} variant="secondary" />
+            <BlinkrButton label={tx('common:actions.retry', 'Tekrar dene')} onPress={() => void loadSaved()} variant="secondary" />
           </View>
         ) : saved.length === 0 ? (
           <BlinkrEmptyState
-            description="Haritada bir yerin detayını açıp yer imi simgesine dokunarak kaydet."
+            description={tx('profile:me.savedEmptyHint', 'Haritada bir yerin detayını açıp yer imi simgesine dokunarak kaydet.')}
             icon={<Bookmark color={colors.textSecondary} size={24} />}
             style={styles.empty}
-            title="Henüz kayıtlı yerin yok"
+            title={tx('profile:me.savedEmpty', 'Henüz kayıtlı yerin yok')}
           />
         ) : (
           <View>
@@ -253,7 +255,7 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
               const status = live[place.id];
               return (
                 <AnimatedPressable
-                  accessibilityLabel={`${place.name}, haritada aç`}
+                  accessibilityLabel={tx('profile:me.openPlaceA11y', '{{name}}, haritada aç', { name: place.name })}
                   accessibilityRole="button"
                   key={place.id}
                   onPress={() => onOpenPlace(toPlace(place))}
@@ -282,16 +284,16 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
 
       <View style={styles.note}>
         <ShieldCheck color={colors.textSecondary} size={18} />
-        <Text style={styles.noteText}>Kesin cihaz konumun diğer kullanıcılara gösterilmez. Anonim paylaşımlarını yalnızca sen görürsün.</Text>
+        <Text style={styles.noteText}>{tx('profile:me.privacyNote', 'Kesin cihaz konumun diğer kullanıcılara gösterilmez. Anonim paylaşımlarını yalnızca sen görürsün.')}</Text>
       </View>
 
-      <AnimatedPressable accessibilityLabel="Oturumu kapat" accessibilityRole="button" onPress={onLogout} pressScale={0.98} style={styles.logout}>
+      <AnimatedPressable accessibilityLabel={tx('common:actions.logout', 'Oturumu kapat')} accessibilityRole="button" onPress={onLogout} pressScale={0.98} style={styles.logout}>
         <LogOut color={colors.danger} size={18} />
-        <Text style={styles.logoutText}>Oturumu kapat</Text>
+        <Text style={styles.logoutText}>{tx('common:actions.logout', 'Oturumu kapat')}</Text>
       </AnimatedPressable>
 
       <View style={styles.postsHeading}>
-        <Text accessibilityRole="header" style={styles.postsTitle}>Sinyallerim</Text>
+        <Text accessibilityRole="header" style={styles.postsTitle}>{tx('profile:me.mySignals', 'Sinyallerim')}</Text>
         {total !== null ? <Text style={styles.postsCount}>{formatCount(total)}</Text> : null}
       </View>
       <View style={styles.viewSwitch}>
@@ -304,31 +306,31 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
     ? (
       <View style={styles.inline}>
         <Text accessibilityRole="alert" style={styles.error}>{postsError}</Text>
-        <BlinkrButton label="Tekrar dene" onPress={() => void loadPosts(false)} variant="secondary" />
+        <BlinkrButton label={tx('common:actions.retry', 'Tekrar dene')} onPress={() => void loadPosts(false)} variant="secondary" />
       </View>
     )
-    : loadingMore ? <ActivityIndicator accessibilityLabel="Daha fazla yükleniyor" color={colors.primary} style={styles.loading} />
+    : loadingMore ? <ActivityIndicator accessibilityLabel={tx('profile:me.loadingMore', 'Daha fazla yükleniyor')} color={colors.primary} style={styles.loading} />
     : capped ? <Text style={styles.endText}>En yeni {formatCount(posts.length)} sinyal gösteriliyor</Text>
-    : !hasMore && posts.length > 0 ? <Text style={styles.endText}>Hepsi bu kadar</Text>
+    : !hasMore && posts.length > 0 ? <Text style={styles.endText}>{tx('profile:me.allShown', 'Hepsi bu kadar')}</Text>
     : null;
 
   return (
     <View style={styles.screen}>
       <FlatList
         ListEmptyComponent={
-          postsLoading ? <ActivityIndicator accessibilityLabel="Sinyallerin yükleniyor" color={colors.primary} style={styles.loading} />
+          postsLoading ? <ActivityIndicator accessibilityLabel={tx('profile:me.postsLoading', 'Sinyallerin yükleniyor')} color={colors.primary} style={styles.loading} />
             : postsError ? (
               <View style={styles.inline}>
                 <Text accessibilityRole="alert" style={styles.error}>{postsError}</Text>
-                <BlinkrButton label="Tekrar dene" onPress={() => { setPostsLoading(true); void loadPosts(true); }} variant="secondary" />
+                <BlinkrButton label={tx('common:actions.retry', 'Tekrar dene')} onPress={() => { setPostsLoading(true); void loadPosts(true); }} variant="secondary" />
               </View>
             ) : (
               <BlinkrEmptyState
-                action={onCreateSignal ? { label: 'İlk sinyalini bırak', onPress: onCreateSignal, icon: <Camera color={colors.ink} size={20} /> } : undefined}
-                description="Paylaştığın sinyaller burada görünür."
+                action={onCreateSignal ? { label: tx('profile:me.firstSignal', 'İlk sinyalini bırak'), onPress: onCreateSignal, icon: <Camera color={colors.ink} size={20} /> } : undefined}
+                description={tx('profile:me.postsEmptyHint', 'Paylaştığın sinyaller burada görünür.')}
                 icon={<Radio color={colors.textSecondary} size={24} />}
                 style={styles.empty}
-                title="Henüz sinyal paylaşmadın"
+                title={tx('profile:me.postsEmpty', 'Henüz sinyal paylaşmadın')}
               />
             )
         }

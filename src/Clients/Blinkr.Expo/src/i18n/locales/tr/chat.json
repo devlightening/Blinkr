@@ -33,6 +33,84 @@
     "copy": "Kopyala",
     "copied": "Kopyalandı",
     "report": "Bildir",
-    "reportNote": "Sohbet mesajı"
+    "reportNote": "Sohbet mesajı",
+    "openProfile": "{{name}}, profili aç",
+    "loading": "Mesajlar yükleniyor",
+    "emptyHint": "{{name}} ile ilk mesajı sen yaz.",
+    "empty": "Henüz mesaj yok",
+    "sendSnap": "Snap gönder",
+    "write": "Mesaj yaz",
+    "placeholder": "Mesaj",
+    "send": "Gönder"
+  },
+  "list": {
+    "fallbackName": "Kullanıcı",
+    "loadFailed": "Sohbetler yüklenemedi. Tekrar dene.",
+    "startFailed": "Konuşma başlatılamadı. Tekrar dene.",
+    "snapSentMany": "Snap {{count}} kişiye gönderildi",
+    "snapSent": "Snap gönderildi",
+    "newMessage": "Yeni mesaj",
+    "openFailed": "Sohbetler açılamadı",
+    "emptyHint": "Bir kullanıcı bul ve konuşmaya başla.",
+    "empty": "Henüz mesajın yok",
+    "snapToA11y": "{{name}} kişisine Snap gönder",
+    "title": "Sohbetler"
+  },
+  "snap": {
+    "expired": "Süresi doldu",
+    "opened": "Açıldı",
+    "sent": "Gönderildi",
+    "new": "Yeni Snap",
+    "newConversation": "Yeni konuşma",
+    "newChat": "Yeni sohbet",
+    "video": "Video",
+    "snap": "Snap",
+    "tapToView": "Görmek için dokun",
+    "pickPeople": "Kişi seç",
+    "sendTo": "Gönder · {{name}}",
+    "sendToMany": "Gönder · {{count}} kişi",
+    "openSnap": ". Snapı aç",
+    "openChat": ". Sohbeti aç"
+  },
+  "search": {
+    "friends": "Arkadaşların",
+    "messageA11y": "{{name}} ile mesajlaş",
+    "none": "Bu isimde bir kullanıcı bulunamadı."
+  },
+  "send": {
+    "title": "Snap gönder",
+    "timerA11y": "Süre {{timer}}, değiştir",
+    "preview": "Snap önizleme",
+    "caption": "Snap yazısı",
+    "captionPlaceholder": "Yazı ekle",
+    "to": "Kime?",
+    "addPersonA11y": "Yeni kişi ekle",
+    "addPerson": "Yeni kişi",
+    "noOne": "Henüz kimseyle sohbetin yok. “Yeni kişi” ile birini bul.",
+    "selectedA11y": "{{name}}, seçili",
+    "failed": "Snap gönderilemedi. Tekrar dene.",
+    "someFailed": "{{count}} kişiye gönderilemedi. Tekrar dene.",
+    "addFailed": "Kişi eklenemedi. Tekrar dene.",
+    "next": "İleri"
+  },
+  "day": {
+    "today": "Bugün",
+    "yesterday": "Dün"
+  },
+  "receipt": {
+    "sent": "Gönderildi",
+    "seen": "Görüldü"
+  },
+  "viewer": {
+    "openFailed": "Bu Snap açılamadı. Tekrar dene.",
+    "loadFailed": "Snap yüklenemedi. Bağlantını kontrol edip tekrar dene.",
+    "close": "Snapı kapat",
+    "loading": "Snap yükleniyor",
+    "captionA11y": "Snap yazısı: {{caption}}",
+    "replyA11y": "Snap ile yanıtla",
+    "reply": "Yanıtla"
+  },
+  "story": {
+    "reply": "↩ Hikayene yanıt: {{text}}"
   }
 }

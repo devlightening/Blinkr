@@ -39,7 +39,15 @@
     "visible": "Phone numbers and street addresses will be visible to everyone. Remove them if you don't need them."
   },
   "report": {
-    "selfHarmHelp": "If someone's life is in danger, call {{number}} now. This report will be reviewed first."
+    "selfHarmHelp": "If someone's life is in danger, call {{number}} now. This report will be reviewed first.",
+    "failed": "Couldn't send the report. Try again.",
+    "doneTitle": "Report received",
+    "doneUser": "Thanks. Your report was recorded. You can also block this person to cut all contact.",
+    "done": "Thanks. Your report was recorded.",
+    "why": "Why are you reporting?",
+    "noteA11y": "Report note",
+    "notePlaceholder": "Tell us briefly",
+    "send": "Send report"
   },
   "freshness": {
     "live": "Live",
@@ -76,6 +84,112 @@
     "termsMiddle": " and the ",
     "communityLink": "Community guidelines",
     "termsAfter": ". Objectionable content and abuse are not tolerated.",
-    "closeLegal": "Close the text"
-  }
+    "closeLegal": "Close the text",
+    "eyebrow": "Near you, right now",
+    "title": "Know before you go.",
+    "subtitle": "See the live state of places around you on the map.",
+    "newAccount": "New account",
+    "signIn": "Sign in",
+    "username": "Username",
+    "usernamePlaceholder": "your_name",
+    "email": "Email",
+    "emailPlaceholder": "you@example.com",
+    "password": "Password",
+    "passwordPlaceholder": "Your password",
+    "hidePassword": "Hide password",
+    "showPassword": "Show password",
+    "join": "Join Blinkr",
+    "openMap": "Open the map",
+    "locationNote": "Your location is only used when you choose to share."
+  },
+  "actions": {
+    "retry": "Try again",
+    "back": "Go back",
+    "searching": "Searching",
+    "openSettings": "Open settings",
+    "share": "Share",
+    "logout": "Sign out",
+    "cancel": "Cancel",
+    "report": "Report",
+    "save": "Save",
+    "close": "Close",
+    "ok": "OK",
+    "backShort": "Back",
+    "openProfile": "Open profile"
+  },
+  "people": {
+    "notFound": "No user found",
+    "notFoundHint": "Check the spelling or try another username.",
+    "searchFailed": "Couldn't search users. Try again.",
+    "searchUsername": "Search username",
+    "username": "Username"
+  },
+  "live": "Live",
+  "approxArea": "Approximate area",
+  "member": "Community member",
+  "months": {
+    "0": "January",
+    "1": "February",
+    "2": "March",
+    "3": "April",
+    "4": "May",
+    "5": "June",
+    "6": "July",
+    "7": "August",
+    "8": "September",
+    "9": "October",
+    "10": "November",
+    "11": "December"
+  },
+  "category": {
+    "BAR": "Bar",
+    "BAKERY": "Bakery",
+    "CAFE": "Café",
+    "EDUCATION": "School",
+    "ENTERTAINMENT": "Entertainment",
+    "FAST_FOOD": "Fast food",
+    "FUEL": "Fuel",
+    "HEALTH": "Health",
+    "OTHER": "Other",
+    "PARK": "Park",
+    "PHARMACY": "Pharmacy",
+    "PLAYGROUND": "Playground",
+    "PUBLIC": "Public place",
+    "PLACE_OF_WORSHIP": "Place of worship",
+    "MOSQUE": "Mosque",
+    "RESTAURANT": "Restaurant",
+    "SHOP": "Shop",
+    "SPORT": "Sports",
+    "SUPERMARKET": "Supermarket",
+    "TOURISM": "Sight",
+    "TRANSPORT": "Transport",
+    "place": "Place"
+  },
+  "age": {
+    "now": "Just now",
+    "minutes": "{{n}} min ago",
+    "hours": "{{n}} h ago",
+    "days": "{{n}} d ago"
+  },
+  "loading": "Loading",
+  "onboarding": {
+    "skip": "Skip intro",
+    "page": "Page {{n}} of {{total}}",
+    "start": "Start",
+    "next": "Next",
+    "p1title": "Know before you go",
+    "p1body": "See live on the map whether a place is busy, has a queue or is open right now. Decide accordingly.",
+    "p2title": "Drop a signal yourself",
+    "p2body": "Share a short signal where you are in a few seconds. Signals are short-lived; old information leaves the map.",
+    "p3title": "Your location stays yours",
+    "p3body": "Your exact location is never shown. You can share anonymously; only you see your anonymous signals.",
+    "skipShort": "Skip"
+  },
+  "tabs": {
+    "profileDot": "{{label}}, friend request waiting",
+    "chatDot": "{{label}}, unread messages",
+    "createHint": "Opens the camera. Hold for a text-only signal.",
+    "create": "Share a new signal"
+  },
+  "anonymous": "Anonymous"
 }

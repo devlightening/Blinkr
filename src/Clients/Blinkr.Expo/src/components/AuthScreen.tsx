@@ -24,6 +24,7 @@ import { friendlyError } from '../productPresentation';
 import { AnimatedPressable } from './AnimatedPressable';
 import { colors, motion, radii } from '../theme';
 import type { AuthResponse } from '../types';
+import { tx } from '../i18n/tx';
 
 type Props = {
   onAuthenticated: (auth: AuthResponse) => void;
@@ -79,9 +80,9 @@ export function AuthScreen({ onAuthenticated }: Props) {
               </View>
 
             <View style={styles.intro}>
-              <Text style={styles.eyebrow}>Yakınında, şimdi</Text>
-              <Text style={styles.title}>Gitmeden önce bil.</Text>
-              <Text style={styles.subtitle}>Çevrendeki yerlerin canlı durumunu haritadan keşfet.</Text>
+              <Text style={styles.eyebrow}>{tx('common:auth.eyebrow', 'Yakınında, şimdi')}</Text>
+              <Text style={styles.title}>{tx('common:auth.title', 'Gitmeden önce bil.')}</Text>
+              <Text style={styles.subtitle}>{tx('common:auth.subtitle', 'Çevrendeki yerlerin canlı durumunu haritadan keşfet.')}</Text>
             </View>
           </Animated.View>
 
@@ -93,7 +94,7 @@ export function AuthScreen({ onAuthenticated }: Props) {
                 style={[styles.segmentItem, mode === 'register' && styles.segmentItemActive]}
               >
                 <Text style={[styles.segmentText, mode === 'register' && styles.segmentTextActive]}>
-                  Yeni hesap
+                  {tx('common:auth.newAccount', 'Yeni hesap')}
                 </Text>
               </AnimatedPressable>
               <AnimatedPressable
@@ -102,19 +103,19 @@ export function AuthScreen({ onAuthenticated }: Props) {
                 style={[styles.segmentItem, mode === 'login' && styles.segmentItemActive]}
               >
                 <Text style={[styles.segmentText, mode === 'login' && styles.segmentTextActive]}>
-                  Giriş yap
+                  {tx('common:auth.signIn', 'Giriş yap')}
                 </Text>
               </AnimatedPressable>
             </View>
 
             {mode === 'register' && (
               <View style={styles.field}>
-                <Text style={styles.label}>Kullanıcı adı</Text>
+                <Text style={styles.label}>{tx('common:auth.username', 'Kullanıcı adı')}</Text>
                 <TextInput
                   autoCapitalize="none"
                   autoCorrect={false}
                   onChangeText={setUserName}
-                  placeholder="ornek_kullanici"
+                  placeholder={tx('common:auth.usernamePlaceholder', 'ornek_kullanici')}
                   placeholderTextColor={colors.mutedSoft}
                   style={styles.input}
                   value={userName}
@@ -143,13 +144,13 @@ export function AuthScreen({ onAuthenticated }: Props) {
             )}
 
             <View style={styles.field}>
-              <Text style={styles.label}>E-posta</Text>
+              <Text style={styles.label}>{tx('common:auth.email', 'E-posta')}</Text>
               <TextInput
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="email-address"
                 onChangeText={setEmail}
-                placeholder="sen@ornek.com"
+                placeholder={tx('common:auth.emailPlaceholder', 'sen@ornek.com')}
                 placeholderTextColor={colors.mutedSoft}
                 style={styles.input}
                 value={email}
@@ -157,18 +158,18 @@ export function AuthScreen({ onAuthenticated }: Props) {
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Şifre</Text>
+              <Text style={styles.label}>{tx('common:auth.password', 'Şifre')}</Text>
               <View style={styles.passwordField}>
                 <TextInput
                   onChangeText={setPassword}
-                  placeholder="Şifren"
+                  placeholder={tx('common:auth.passwordPlaceholder', 'Şifren')}
                   placeholderTextColor={colors.mutedSoft}
                   secureTextEntry={!showPassword}
                   style={styles.passwordInput}
                   value={password}
                 />
                 <AnimatedPressable
-                  accessibilityLabel={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
+                  accessibilityLabel={showPassword ? tx('common:auth.hidePassword', 'Şifreyi gizle') : tx('common:auth.showPassword', 'Şifreyi göster')}
                   hitSlop={10}
                   onPress={() => setShowPassword((value) => !value)}
                   pressScale={0.85}
@@ -205,7 +206,7 @@ export function AuthScreen({ onAuthenticated }: Props) {
                 <ActivityIndicator color={colors.ink} />
               ) : (
                 <>
-                  <Text style={styles.primaryButtonText}>{mode === 'register' ? 'Blinkr’a katıl' : 'Haritayı aç'}</Text>
+                  <Text style={styles.primaryButtonText}>{mode === 'register' ? tx('common:auth.join', 'Blinkr’a katıl') : tx('common:auth.openMap', 'Haritayı aç')}</Text>
                   <ArrowRight color={colors.ink} size={20} strokeWidth={2.5} />
                 </>
               )}
@@ -213,7 +214,7 @@ export function AuthScreen({ onAuthenticated }: Props) {
 
             <View style={styles.privacyRow}>
               <ShieldCheck color={colors.green} size={18} />
-              <Text style={styles.privacyText}>Konumun yalnızca sen paylaşmayı seçtiğinde kullanılır.</Text>
+              <Text style={styles.privacyText}>{tx('common:auth.locationNote', 'Konumun yalnızca sen paylaşmayı seçtiğinde kullanılır.')}</Text>
             </View>
           </Animated.View>
         </ScrollView>

@@ -9,6 +9,7 @@ import { signalValueLabel } from '../productPresentation';
 import { colors, radii, signalColors, spacing, typography } from '../theme';
 import type { AuthoredPost } from '../types';
 import { SignalSymbol } from './SignalSymbol';
+import { tx } from '../i18n/tx';
 
 /** One published signal as a compact row: what, how it was tagged, where, and whether it is still live. */
 export function PostRow({ post }: { post: AuthoredPost }) {
@@ -29,7 +30,7 @@ export function PostRow({ post }: { post: AuthoredPost }) {
         </View>
         <View style={styles.postMeta}>
           <Text style={[styles.chip, { backgroundColor: `${tone}24`, color: tone }]}>{signalLabels[post.signalType] ?? 'Sinyal'}{value ? ` · ${value}` : ''}</Text>
-          {anonymous ? <View style={styles.chipRow}><EyeOff color={colors.textSecondary} size={12} /><Text style={styles.chipMuted}>Anonim</Text></View> : null}
+          {anonymous ? <View style={styles.chipRow}><EyeOff color={colors.textSecondary} size={12} /><Text style={styles.chipMuted}>{tx('common:anonymous', 'Anonim')}</Text></View> : null}
           {post.mediaUrls?.length ? <View style={styles.chipRow}><ImageIcon color={colors.textSecondary} size={12} /><Text style={styles.chipMuted}>{post.mediaUrls.length}</Text></View> : null}
           {post.locationName ? <View style={styles.chipRow}><MapPin color={colors.textSecondary} size={12} /><Text numberOfLines={1} style={[styles.chipMuted, styles.place]}>{post.locationName}</Text></View> : null}
           {freshness === 'live'

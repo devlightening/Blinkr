@@ -14,6 +14,7 @@ import type { AuthResponse, SnapOpenResult } from '../../types';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
 import { BlinkrButton } from '../ui/BlinkrButton';
+import { tx } from '../../i18n/tx';
 
 type Props = {
   auth: AuthResponse;
@@ -78,7 +79,7 @@ export function SnapViewer({ auth, conversationId, messageId, senderName, sender
         setPhase('loading');
       } catch (err) {
         if (!alive) return;
-        setError(friendlyError(err, 'Bu Snap açılamadı. Tekrar dene.'));
+        setError(friendlyError(err, tx('chat:viewer.openFailed', 'Bu Snap açılamadı. Tekrar dene.')));
         setPhase('error');
       }
     })();
@@ -109,7 +110,7 @@ export function SnapViewer({ auth, conversationId, messageId, senderName, sender
 
   const fail = useCallback(() => {
     if (started.current) return;
-    setError('Snap yüklenemedi. Bağlantını kontrol edip tekrar dene.');
+    setError(tx('chat:viewer.loadFailed', 'Snap yüklenemedi. Bağlantını kontrol edip tekrar dene.'));
     setPhase('error');
   }, []);
 
@@ -119,11 +120,11 @@ export function SnapViewer({ auth, conversationId, messageId, senderName, sender
   return (
     <View accessibilityViewIsModal style={styles.screen}>
       {source && info && !isVideo ? (
-        <Image accessibilityLabel="Snap" onError={fail} onLoad={() => startTimer(info.durationSeconds)} resizeMode="contain" source={source} style={StyleSheet.absoluteFill} />
+        <Image accessibilityLabel={tx('chat:snap.snap', 'Snap')} onError={fail} onLoad={() => startTimer(info.durationSeconds)} resizeMode="contain" source={source} style={StyleSheet.absoluteFill} />
       ) : null}
       {source && info && isVideo ? <SnapVideo onEnd={close} onReady={() => startTimer(0)} source={source} /> : null}
 
-      <Pressable accessibilityLabel="Snapı kapat" accessibilityRole="button" onPress={close} style={StyleSheet.absoluteFill} />
+      <Pressable accessibilityLabel={tx('chat:viewer.close', 'Snapı kapat')} accessibilityRole="button" onPress={close} style={StyleSheet.absoluteFill} />
 
       <View pointerEvents="box-none" style={[styles.top, { paddingTop: insets.top + spacing.sm }]}>
         {timed ? (
@@ -135,9 +136,9 @@ export function SnapViewer({ auth, conversationId, messageId, senderName, sender
           <Avatar avatarKey={senderAvatarKey} seed={senderId} size={34} />
           <View style={styles.headerCopy}>
             <Text numberOfLines={1} style={styles.sender}>{senderName}</Text>
-            {info ? <Text style={styles.meta}>{isVideo ? 'Video' : 'Snap'}{timed ? ` · ${timerLabel(info.durationSeconds)}` : ''}</Text> : null}
+            {info ? <Text style={styles.meta}>{isVideo ? 'Video' : tx('chat:snap.snap', 'Snap')}{timed ? ` · ${timerLabel(info.durationSeconds)}` : ''}</Text> : null}
           </View>
-          <AnimatedPressable accessibilityLabel="Kapat" accessibilityRole="button" hitSlop={8} onPress={close} pressScale={0.95} style={styles.close}>
+          <AnimatedPressable accessibilityLabel={tx('common:actions.close', 'Kapat')} accessibilityRole="button" hitSlop={8} onPress={close} pressScale={0.95} style={styles.close}>
             <X color={colors.text} size={22} />
           </AnimatedPressable>
         </View>
@@ -145,24 +146,24 @@ export function SnapViewer({ auth, conversationId, messageId, senderName, sender
 
       {phase === 'opening' || phase === 'loading' ? (
         <View pointerEvents="none" style={styles.center}>
-          <ActivityIndicator accessibilityLabel="Snap yükleniyor" color={colors.text} />
+          <ActivityIndicator accessibilityLabel={tx('chat:viewer.loading', 'Snap yükleniyor')} color={colors.text} />
         </View>
       ) : null}
 
       {phase === 'error' ? (
         <View style={styles.center}>
           <Text accessibilityLiveRegion="polite" accessibilityRole="alert" style={styles.errorTitle}>{error}</Text>
-          <BlinkrButton label="Kapat" onPress={close} style={styles.errorButton} variant="secondary" />
+          <BlinkrButton label={tx('common:actions.close', 'Kapat')} onPress={close} style={styles.errorButton} variant="secondary" />
         </View>
       ) : null}
 
       {phase === 'showing' ? (
         <View pointerEvents="box-none" style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.sm }]}>
-          {info?.caption ? <Text accessibilityLabel={`Snap yazısı: ${info.caption}`} style={styles.caption}>{info.caption}</Text> : null}
+          {info?.caption ? <Text accessibilityLabel={tx('chat:viewer.captionA11y', 'Snap yazısı: {{caption}}', { caption: info.caption })} style={styles.caption}>{info.caption}</Text> : null}
           {onReply ? (
-            <AnimatedPressable accessibilityLabel="Snap ile yanıtla" accessibilityRole="button" onPress={() => { close(); onReply(); }} pressScale={0.97} style={styles.reply}>
+            <AnimatedPressable accessibilityLabel={tx('chat:viewer.replyA11y', 'Snap ile yanıtla')} accessibilityRole="button" onPress={() => { close(); onReply(); }} pressScale={0.97} style={styles.reply}>
               <Camera color={colors.text} size={20} />
-              <Text style={styles.replyText}>Yanıtla</Text>
+              <Text style={styles.replyText}>{tx('chat:viewer.reply', 'Yanıtla')}</Text>
             </AnimatedPressable>
           ) : null}
         </View>

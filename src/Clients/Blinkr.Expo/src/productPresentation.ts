@@ -1,9 +1,11 @@
 import { freshnessTier } from './freshness';
 import { SIGNAL_CATALOG } from './signalCatalog';
 import type { ComposerArea, SignalType } from './types';
+import i18n from 'i18next';
+import { tx } from './i18n/tx';
 
 export const trustLabel = (trust?: string | null) => trust === 'VERIFIED_LIVE'
-  ? 'Konum doğrulandı' : trust === 'NEARBY_PLACE_POST' ? 'Yakındaki yer paylaşımı' : 'Konum doğrulanamadı';
+  ? tx('signal:trust.verified', 'Konum doğrulandı') : trust === 'NEARBY_PLACE_POST' ? tx('signal:trust.nearby', 'Yakındaki yer paylaşımı') : tx('signal:trust.unverified', 'Konum doğrulanamadı');
 export const canPublishAt = (area: ComposerArea | null) => Boolean(area && (!area.place || area.proximity?.allowed));
 // Source of truth moved to signalCatalog.ts (sinyal-mvp-plan P1.6); re-exported here as before.
 export const signalOptions: Partial<Record<SignalType, Array<{ value: string; label: string }>>> = Object.fromEntries(
@@ -11,7 +13,7 @@ export const signalOptions: Partial<Record<SignalType, Array<{ value: string; la
 );
 export const signalValueLabel = (type?: SignalType | null, value?: string | null) =>
   signalOptions[type ?? 'GeneralObservation']?.find(item => item.value.toUpperCase() === value?.toUpperCase())?.label
-    ?? ({ EMPTY: 'Sakin', LONG: 'Uzun sıra' } as Record<string, string>)[value?.toUpperCase() ?? ''] ?? value ?? '';
+    ?? ({ EMPTY: tx('signal:catalog.Calm', 'Sakin'), LONG: tx('signal:catalog.QueueLong', 'Uzun sıra') } as Record<string, string>)[value?.toUpperCase() ?? ''] ?? value ?? '';
 // One freshness rule for the whole app (plan-devam A8).
 export { freshnessOpacity } from './freshness';
 /**
@@ -47,7 +49,9 @@ export const recheckSignal = (
   const option = signalOptions[state.signalType]?.find((item) => item.value.toUpperCase() === state.signalValue!.toUpperCase());
   return option ? { type: state.signalType, value: option.value } : null;
 };
-export const friendlyError = (error: unknown, fallback = 'Şu anda bağlantı kurulamıyor. Lütfen tekrar dene.') => {
+export const friendlyError = (error: unknown, fallback = tx('errors:http.server', 'Şu anda bağlantı kurulamıyor. Lütfen tekrar dene.')) => {
   const message = error instanceof Error ? error.message : '';
-  return !message || /HTTP|network|timeout|timed out|exception|fetch|backend|stack|grpc|sunucu/i.test(message) || message.length > 200 ? fallback : message;
+  // Server messages are written in Turkish; in English the (already translated) fallback is shown instead (plan-devam G1).
+  const foreign = i18n.isInitialized && i18n.language === 'en' && /[çğıöşüÇĞİÖŞÜ]/.test(message);
+  return !message || foreign || /HTTP|network|timeout|timed out|exception|fetch|backend|stack|grpc|sunucu/i.test(message) || message.length > 200 ? fallback : message;
 };

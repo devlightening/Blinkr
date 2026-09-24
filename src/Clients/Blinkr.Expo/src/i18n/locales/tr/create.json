@@ -63,7 +63,10 @@
     "label": "Açıklama",
     "placeholder": "Karar vermeyi kolaylaştıracak güncel ve somut bir bilgi yaz.",
     "tooShort": "Açıklama en az 5 karakter olmalı.",
-    "missing": "Bir tür seç, fotoğraf ekle ya da birkaç kelime yaz."
+    "missing": "Bir tür seç, fotoğraf ekle ya da birkaç kelime yaz.",
+    "plain": "Düz",
+    "solid": "Zeminli",
+    "highlight": "Vurgulu"
   },
   "media": {
     "camera": "Kamera",
@@ -101,6 +104,84 @@
     "queued": "Bağlantı yok. Sinyalin cihazda bekliyor, bağlantı gelince kendiliğinden gönderilecek."
   },
   "camera": {
-    "textOnly": "Yazılı sinyal"
+    "textOnly": "Yazılı sinyal",
+    "flashOn": "Flaş açık",
+    "flashAuto": "Flaş otomatik",
+    "flashOff": "Flaş kapalı",
+    "photoFailed": "Fotoğraf çekilemedi. Tekrar dene.",
+    "micNeeded": "Video için mikrofon izni gerekiyor.",
+    "videoFailed": "Video kaydedilemedi. Tekrar dene.",
+    "libraryNeeded": "Fotoğraf arşivi izni gerekiyor.",
+    "pickFailed": "Medya seçilemedi. Tekrar dene.",
+    "preparing": "Kamera hazırlanıyor",
+    "close": "Kamerayı kapat",
+    "allow": "Kameraya izin ver",
+    "permissionWhy": "Sinyaline fotoğraf veya video eklemek için kameraya erişmemiz gerekiyor. İstersen kamerasız da paylaşabilirsin.",
+    "permissionTitle": "Kamera izni gerekiyor",
+    "recording": "Kayıt {{time}}",
+    "flip": "Kamerayı çevir",
+    "zoomA11y": "Yakınlaştırma {{zoom}}, sıfırla",
+    "videoNoLens": "Video, seçtiğin efekt olmadan kaydedilir.",
+    "photoMode": "Fotoğraf modu",
+    "videoMode": "Video modu",
+    "photo": "Fotoğraf",
+    "video": "Video",
+    "gallery": "Galeriden seç",
+    "shoot": "Fotoğraf çek",
+    "stop": "Kaydı durdur",
+    "start": "Kaydı başlat",
+    "holdHint": "Basılı tutarsan video kaydeder (en fazla 15 sn).",
+    "progressA11y": "kayıt ilerlemesi {{percent}}",
+    "textOnlyA11y": "Sadece yazılı sinyal"
+  },
+  "lens": {
+    "none": "Normal",
+    "sunset": "Gün batımı",
+    "mint": "Nane",
+    "neon": "Neon",
+    "ice": "Buz",
+    "retro": "Retro",
+    "cinema": "Sinema",
+    "night": "Gece",
+    "prev": "Önceki efekt",
+    "next": "Sonraki efekt",
+    "current": "Efekt: {{name}}"
+  },
+  "sticker": {
+    "crowded": "Kalabalık",
+    "queue": "Sıra var",
+    "calm": "Sakin",
+    "seat": "Yer var",
+    "open": "Açık",
+    "closed": "Kapalı",
+    "offer": "Fırsat",
+    "event": "Etkinlik",
+    "roadwork": "Yol çalışması",
+    "weather": "Güzel hava",
+    "parking": "Park yok"
+  },
+  "editor": {
+    "renderFailed": "Fotoğraf hazırlanamadı. Efektleri kaldırıp tekrar dene.",
+    "retake": "Yeniden çek",
+    "title": "Efekt ve çıkartma",
+    "addText": "Yazı ekle",
+    "photo": "Çekilen fotoğraf",
+    "textInput": "Fotoğrafa yazı",
+    "write": "Yaz…",
+    "textStyle": "Yazı stili: {{style}}",
+    "color": "Renk {{color}}",
+    "placeText": "Yazıyı ekle",
+    "done": "Bitti",
+    "use": "Kullan",
+    "addSticker": "{{name}} çıkartması ekle",
+    "stickerA11y": "{{name}} çıkartması",
+    "removeSticker": "{{name}} çıkartmasını kaldır"
+  },
+  "picker": {
+    "failed": "Yerler aranamadı. Tekrar dene.",
+    "back": "Yer seçimine dön",
+    "input": "Yer adı veya kategori",
+    "rowA11y": "{{name}}, {{distance}}, seç",
+    "none": "Bu arama için yakınında eşleşen yer bulunamadı."
   }
 }

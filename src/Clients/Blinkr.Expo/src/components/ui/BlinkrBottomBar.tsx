@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, shadow, shadowSoft, sizes, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { useKeyboardVisible } from './useKeyboardVisible';
+import { tx } from '../../i18n/tx';
 
 export type BlinkrTab = 'chat' | 'map' | 'nearby' | 'profile';
 
@@ -36,7 +37,7 @@ function TabItem({ tab, active, unread, onPress }: { tab: BlinkrTab; active: boo
   const color = active ? colors.primary : colors.textSecondary;
   return (
     <AnimatedPressable
-      accessibilityLabel={unread ? `${label}, ${tab === 'profile' ? 'bekleyen arkadaş isteği var' : 'okunmamış mesaj var'}` : label}
+      accessibilityLabel={unread ? (tab === 'profile' ? tx('common:tabs.profileDot', '{{label}}, bekleyen arkadaş isteği var', { label }) : tx('common:tabs.chatDot', '{{label}}, okunmamış mesaj var', { label })) : label}
       accessibilityRole="tab"
       aria-selected={active}
       onPress={onPress}
@@ -68,8 +69,8 @@ export function BlinkrBottomBar({ active, onTab, onShare, chatUnread = false, pr
         <TabItem active={active === 'nearby'} onPress={() => onTab('nearby')} tab="nearby" />
         <View style={styles.cameraSlot}>
           <AnimatedPressable
-            accessibilityHint="Kamera açılır. Basılı tutarsan yalnız yazılı sinyal."
-            accessibilityLabel="Yeni sinyal paylaş"
+            accessibilityHint={tx('common:tabs.createHint', 'Kamera açılır. Basılı tutarsan yalnız yazılı sinyal.')}
+            accessibilityLabel={tx('common:tabs.create', 'Yeni sinyal paylaş')}
             accessibilityRole="button"
             aria-disabled={shareDisabled}
             disabled={shareDisabled}

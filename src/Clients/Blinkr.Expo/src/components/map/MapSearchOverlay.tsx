@@ -23,6 +23,7 @@ import { PlaceSymbol } from '../PlaceSymbol';
 import { BlinkrChip } from '../ui/BlinkrChip';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
 import { SegmentedControl } from '../ui/BlinkrSegmentedControl';
+import { tx } from '../../i18n/tx';
 
 type Origin = { latitude: number; longitude: number };
 type SearchMode = 'places' | 'people';
@@ -35,7 +36,7 @@ type Props = {
   onSelectPlace: (place: BlinkrPlace) => void;
   /** An address or district that is not a catalogue Place: the map just moves there. */
   onSelectLocation: (target: Origin & { label: string }) => void;
-  /** 04 §1.1/P3.13: "Kişiler" is the other half of this screen's Yerler|Kişiler tabs. */
+  /** 04 §1.1/P3.13: tx('map:search.people', 'Kişiler') is the other half of this screen's Yerler|Kişiler tabs. */
   onSelectPerson: (user: UserSummary) => void;
 };
 
@@ -44,7 +45,7 @@ const DEBOUNCE_MS = 250;
 const SEARCH_RADIUS_METERS = 30_000;
 /** When the map is looking somewhere else than the person is, both places are searched. */
 const SECOND_ORIGIN_MIN_METERS = 25_000;
-const TIER_TITLES = ['Yakınında', 'Şehirde', 'Diğer şehirler'];
+const TIER_TITLES = [tx('map:search.tierNear', 'Yakınında'), tx('map:search.tierCity', 'Şehirde'), tx('map:search.tierOther', 'Diğer şehirler')];
 const MIN_PEOPLE_QUERY_LENGTH = 2;
 
 function Highlighted({ text, query }: { text: string; query: string }) {
@@ -61,13 +62,13 @@ function ResultRow({ place, distance, query, onPress }: { place: BlinkrPlace; di
   const live = isLiveResult(place);
   const subtitle = [formatCategory(place.category), Number.isFinite(distance) ? formatDistance(distance) : '', place.displayAddress].filter(Boolean).join(' · ');
   return (
-    <AnimatedPressable accessibilityLabel={`${place.name}, ${subtitle}. Haritada göster`} accessibilityRole="button" onPress={onPress} pressScale={0.99} style={styles.row}>
+    <AnimatedPressable accessibilityLabel={tx('map:search.rowA11y', '{{name}}, {{subtitle}}. Haritada göster', { name: place.name, subtitle })} accessibilityRole="button" onPress={onPress} pressScale={0.99} style={styles.row}>
       <View style={styles.tile}><PlaceSymbol category={place.category} color={colors.textSecondary} size={18} /></View>
       <View style={styles.rowCopy}>
         <Highlighted query={query} text={place.name} />
         <Text numberOfLines={1} style={styles.sub}>{subtitle}</Text>
       </View>
-      {live ? <Text style={styles.live}>Canlı</Text> : null}
+      {live ? <Text style={styles.live}>{tx('common:live', 'Canlı')}</Text> : null}
     </AnimatedPressable>
   );
 }
@@ -85,7 +86,7 @@ function SimpleRow({ icon, title, subtitle, onPress, label }: { icon: React.Reac
 }
 
 /**
- * Full-screen "Nereye gidiyorsun?": type a place, a kind of place ("eczane") or a neighbourhood and go straight
+ * Full-screen tx('map:search.placeholder', 'Nereye gidiyorsun?'): type a place, a kind of place ("eczane") or a neighbourhood and go straight
  * there. Before typing it offers recent searches, saved places and one-tap categories. Results are ranked by how
  * well the name matches, then by distance from the map centre, and show what is live right now.
  */
@@ -163,7 +164,7 @@ export function MapSearchOverlay({ auth, origin, onClose, onSelectPlace, onSelec
         const next = await searchUsers(auth, trimmed, controller.signal);
         if (!controller.signal.aborted) setPeople(orderPeople(next.filter((user) => user.id !== userId)));
       } catch (err) {
-        if (!controller.signal.aborted) setPeopleError(friendlyError(err, 'Kullanıcılar aranamadı. Tekrar dene.'));
+        if (!controller.signal.aborted) setPeopleError(friendlyError(err, tx('common:people.searchFailed', 'Kullanıcılar aranamadı. Tekrar dene.')));
       } finally {
         if (!controller.signal.aborted) setPeopleLoading(false);
       }
@@ -199,7 +200,7 @@ export function MapSearchOverlay({ auth, origin, onClose, onSelectPlace, onSelec
       setStatus('ready');
     } catch (err) {
       if (!current()) return;
-      setError(friendlyError(err, 'Arama şu anda yapılamadı. Tekrar dene.'));
+      setError(friendlyError(err, tx('map:search.failed', 'Arama şu anda yapılamadı. Tekrar dene.')));
       setStatus('error');
     }
   }, []);
@@ -230,33 +231,33 @@ export function MapSearchOverlay({ auth, origin, onClose, onSelectPlace, onSelec
   return (
     <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
       <View style={styles.bar}>
-        <AnimatedPressable accessibilityLabel="Aramayı kapat" accessibilityRole="button" onPress={onClose} pressScale={0.95} style={styles.back}>
+        <AnimatedPressable accessibilityLabel={tx('map:search.close', 'Aramayı kapat')} accessibilityRole="button" onPress={onClose} pressScale={0.95} style={styles.back}>
           <ArrowLeft color={colors.text} size={22} />
         </AnimatedPressable>
         <View style={styles.field}>
           <Search color={colors.textSecondary} size={18} />
           <TextInput
-            accessibilityLabel={mode === 'places' ? 'Yer ara' : 'Kullanıcı ara'}
+            accessibilityLabel={mode === 'places' ? tx('map:search.searchPlaces', 'Yer ara') : tx('map:search.searchPeople', 'Kullanıcı ara')}
             autoCapitalize="none"
             autoCorrect={false}
             autoFocus
             maxLength={80}
             onChangeText={setQuery}
-            placeholder={mode === 'places' ? 'Nereye gidiyorsun?' : 'Kullanıcı adı ara'}
+            placeholder={mode === 'places' ? tx('map:search.placeholder', 'Nereye gidiyorsun?') : tx('common:people.searchUsername', 'Kullanıcı adı ara')}
             placeholderTextColor={colors.textSecondary}
             returnKeyType="search"
             style={styles.input}
             value={query}
           />
           {typed ? (
-            <AnimatedPressable accessibilityLabel="Aramayı temizle" accessibilityRole="button" hitSlop={8} onPress={() => setQuery('')} pressScale={0.9}>
+            <AnimatedPressable accessibilityLabel={tx('map:search.clear', 'Aramayı temizle')} accessibilityRole="button" hitSlop={8} onPress={() => setQuery('')} pressScale={0.9}>
               <X color={colors.textSecondary} size={18} />
             </AnimatedPressable>
           ) : null}
         </View>
       </View>
       <View style={styles.tabsRow}>
-        <SegmentedControl accessibilityLabel="Yerler veya kişiler" onChange={setMode} options={[{ value: 'places', label: 'Yerler' }, { value: 'people', label: 'Kişiler' }]} value={mode} />
+        <SegmentedControl accessibilityLabel={tx('map:search.modeA11y', 'Yerler veya kişiler')} onChange={setMode} options={[{ value: 'places', label: tx('map:search.places', 'Yerler') }, { value: 'people', label: tx('map:search.people', 'Kişiler') }]} value={mode} />
       </View>
 
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -266,28 +267,28 @@ export function MapSearchOverlay({ auth, origin, onClose, onSelectPlace, onSelec
               description={peopleError}
               icon={<WifiOff color={colors.textSecondary} size={26} />}
               style={styles.empty}
-              title="Arama açılamadı"
+              title={tx('map:search.openFailed', 'Arama açılamadı')}
             />
           ) : (
             <>
-              {!typed && friends.length > 0 ? <Text style={styles.section}>Arkadaşların</Text> : null}
+              {!typed && friends.length > 0 ? <Text style={styles.section}>{tx('map:search.friends', 'Arkadaşların')}</Text> : null}
               {(typed ? people : friends).map((user) => (
                 <SimpleRow
                   icon={<Avatar avatarKey={user.avatarKey} seed={user.id} size={40} />}
                   key={user.id}
-                  label={`${user.userName} profilini aç`}
+                  label={tx('map:search.openProfile', '{{name}} profilini aç', { name: user.userName })}
                   onPress={() => onSelectPerson(user)}
                   subtitle={typed ? relationLabel(user.relation) : undefined}
                   title={user.userName}
                 />
               ))}
-              {peopleLoading && people.length === 0 ? <ActivityIndicator accessibilityLabel="Aranıyor" color={colors.primary} style={styles.loading} /> : null}
+              {peopleLoading && people.length === 0 ? <ActivityIndicator accessibilityLabel={tx('common:actions.searching', 'Aranıyor')} color={colors.primary} style={styles.loading} /> : null}
               {!peopleLoading && typed && query.trim().length >= MIN_PEOPLE_QUERY_LENGTH && people.length === 0 ? (
                 <BlinkrEmptyState
-                  description="Yazımı kontrol et ya da başka bir kullanıcı adı dene."
+                  description={tx('common:people.notFoundHint', 'Yazımı kontrol et ya da başka bir kullanıcı adı dene.')}
                   icon={<UserRound color={colors.textSecondary} size={26} />}
                   style={styles.empty}
-                  title="Kullanıcı bulunamadı"
+                  title={tx('common:people.notFound', 'Kullanıcı bulunamadı')}
                 />
               ) : null}
               {typed && query.trim().length < MIN_PEOPLE_QUERY_LENGTH ? <Text style={styles.hint}>Aramak için en az {MIN_PEOPLE_QUERY_LENGTH} harf yaz.</Text> : null}
@@ -296,7 +297,7 @@ export function MapSearchOverlay({ auth, origin, onClose, onSelectPlace, onSelec
         ) : !searching ? (
           <>
             {typed ? <Text style={styles.hint}>Aramak için en az {MIN_QUERY_LENGTH} harf yaz.</Text> : null}
-            <Text style={styles.section}>Yakınında ara</Text>
+            <Text style={styles.section}>{tx('map:search.nearby', 'Yakınında ara')}</Text>
             <View style={styles.chips}>
               {CATEGORY_SHORTCUTS.map((item) => (
                 <BlinkrChip key={item.id} label={item.label} onPress={() => setQuery(item.query)} selected={false} />
@@ -306,38 +307,38 @@ export function MapSearchOverlay({ auth, origin, onClose, onSelectPlace, onSelec
             {recents.length > 0 ? (
               <>
                 <View style={styles.sectionRow}>
-                  <Text style={styles.section}>Son aramalar</Text>
-                  <AnimatedPressable accessibilityLabel="Son aramaları temizle" accessibilityRole="button" hitSlop={8} onPress={() => { setRecents([]); void clearRecentSearches(userId); }} pressScale={0.95} style={styles.clear}>
+                  <Text style={styles.section}>{tx('map:search.recent', 'Son aramalar')}</Text>
+                  <AnimatedPressable accessibilityLabel={tx('map:search.clearRecent', 'Son aramaları temizle')} accessibilityRole="button" hitSlop={8} onPress={() => { setRecents([]); void clearRecentSearches(userId); }} pressScale={0.95} style={styles.clear}>
                     <Trash2 color={colors.textSecondary} size={14} />
-                    <Text style={styles.clearText}>Temizle</Text>
+                    <Text style={styles.clearText}>{tx('map:search.clearShort', 'Temizle')}</Text>
                   </AnimatedPressable>
                 </View>
                 {recents.map((item) => (
-                  <SimpleRow icon={<Clock3 color={colors.textSecondary} size={18} />} key={item.id} label={`${item.name}, son arama. Haritada göster`} onPress={() => choose(recentToPlace(item))} subtitle={formatCategory(item.category)} title={item.name} />
+                  <SimpleRow icon={<Clock3 color={colors.textSecondary} size={18} />} key={item.id} label={tx('map:search.recentA11y', '{{name}}, son arama. Haritada göster', { name: item.name })} onPress={() => choose(recentToPlace(item))} subtitle={formatCategory(item.category)} title={item.name} />
                 ))}
               </>
             ) : null}
 
             {saved.length > 0 ? (
               <>
-                <Text style={styles.section}>Kaydettiğin yerler</Text>
+                <Text style={styles.section}>{tx('map:search.saved', 'Kaydettiğin yerler')}</Text>
                 {saved.map((item) => (
-                  <SimpleRow icon={<Bookmark color={colors.textSecondary} size={18} />} key={item.id} label={`${item.name}, kayıtlı yer. Haritada göster`} onPress={() => choose(toPlace(item))} subtitle={formatCategory(item.category)} title={item.name} />
+                  <SimpleRow icon={<Bookmark color={colors.textSecondary} size={18} />} key={item.id} label={tx('map:search.savedA11y', '{{name}}, kayıtlı yer. Haritada göster', { name: item.name })} onPress={() => choose(toPlace(item))} subtitle={formatCategory(item.category)} title={item.name} />
                 ))}
               </>
             ) : null}
           </>
         ) : status === 'error' ? (
           <BlinkrEmptyState
-            action={{ label: 'Tekrar dene', onPress: () => { void runSearch(query); } }}
+            action={{ label: tx('common:actions.retry', 'Tekrar dene'), onPress: () => { void runSearch(query); } }}
             description={error ?? undefined}
             icon={<WifiOff color={colors.textSecondary} size={26} />}
             style={styles.empty}
-            title="Arama açılamadı"
+            title={tx('map:search.openFailed', 'Arama açılamadı')}
           />
         ) : (
           <>
-            {status === 'loading' && results.length === 0 ? <ActivityIndicator accessibilityLabel="Aranıyor" color={colors.primary} style={styles.loading} /> : null}
+            {status === 'loading' && results.length === 0 ? <ActivityIndicator accessibilityLabel={tx('common:actions.searching', 'Aranıyor')} color={colors.primary} style={styles.loading} /> : null}
             {results.map(({ place: item, distanceMeters: meters }, index) => {
               const tier = distanceTier(meters);
               const startsTier = index === 0 || distanceTier(results[index - 1].distanceMeters) !== tier;
@@ -353,18 +354,18 @@ export function MapSearchOverlay({ auth, origin, onClose, onSelectPlace, onSelec
             {place ? (
               <SimpleRow
                 icon={<MapPin color={colors.primary} size={18} />}
-                label={`${place.label} konumuna git`}
+                label={tx('map:search.goToA11y', '{{name}} konumuna git', { name: place.label })}
                 onPress={() => onSelectLocation(place)}
-                subtitle="Adres veya bölge · haritayı oraya taşı"
+                subtitle={tx('map:search.addressHint', 'Adres veya bölge · haritayı oraya taşı')}
                 title={place.label}
               />
             ) : null}
             {status === 'ready' && results.length === 0 && !place ? (
               <BlinkrEmptyState
-                description="Yazımı kontrol et ya da daha kısa bir ad dene. Tüm Türkiye'de aradık."
+                description={tx('map:search.noResultsHint', 'Yazımı kontrol et ya da daha kısa bir ad dene. Tüm Türkiye\'de aradık.')}
                 icon={<Search color={colors.textSecondary} size={26} />}
                 style={styles.empty}
-                title="Sonuç bulunamadı"
+                title={tx('map:search.noResults', 'Sonuç bulunamadı')}
               />
             ) : null}
           </>

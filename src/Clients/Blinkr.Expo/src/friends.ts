@@ -1,4 +1,5 @@
 import type { Relation, UserSummary } from './types';
+import { tx } from './i18n/tx';
 
 /**
  * Pure logic of friends and the public profile: the bio limit, what a relation lets the viewer do, and how people
@@ -20,10 +21,10 @@ export type FriendAction = 'add' | 'cancel' | 'accept' | 'decline' | 'remove' | 
 /** The main button on a person: what tapping it does for this relation. Nothing for yourself. */
 export const primaryAction = (relation: Relation | undefined): { action: FriendAction; label: string } | null => {
   switch (relation ?? 'none') {
-    case 'none': return { action: 'add', label: 'Arkadaş ekle' };
-    case 'outgoing': return { action: 'cancel', label: 'İsteği geri al' };
-    case 'incoming': return { action: 'accept', label: 'Kabul et' };
-    case 'blocked': return { action: 'unblock', label: 'Engeli kaldır' };
+    case 'none': return { action: 'add', label: tx('profile:friends.addFriend', 'Arkadaş ekle') };
+    case 'outgoing': return { action: 'cancel', label: tx('profile:friends.withdrawRequest', 'İsteği geri al') };
+    case 'incoming': return { action: 'accept', label: tx('profile:friends.accept', 'Kabul et') };
+    case 'blocked': return { action: 'unblock', label: tx('profile:friends.unblock', 'Engeli kaldır') };
     default: return null;
   }
 };
@@ -31,10 +32,10 @@ export const primaryAction = (relation: Relation | undefined): { action: FriendA
 /** A small status word for rows and profiles ("" when there is nothing worth saying). */
 export const relationLabel = (relation: Relation | undefined) => {
   switch (relation) {
-    case 'friends': return 'Arkadaş';
-    case 'outgoing': return 'İstek gönderildi';
-    case 'incoming': return 'Seni ekledi';
-    case 'blocked': return 'Engelli';
+    case 'friends': return tx('profile:relation.friends', 'Arkadaş');
+    case 'outgoing': return tx('profile:relation.outgoing', 'İstek gönderildi');
+    case 'incoming': return tx('profile:relation.incoming', 'Seni ekledi');
+    case 'blocked': return tx('profile:relation.blocked', 'Engelli');
     default: return '';
   }
 };
@@ -55,14 +56,14 @@ const RANK: Record<Relation, number> = { friends: 0, incoming: 1, outgoing: 2, n
 export const orderPeople = <T extends Pick<UserSummary, 'userName' | 'relation'>>(people: T[]): T[] =>
   [...people].sort((a, b) => RANK[a.relation ?? 'none'] - RANK[b.relation ?? 'none'] || a.userName.localeCompare(b.userName, 'tr'));
 
-const MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+const MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']; // i18n-fallback: Turkish source, the UI reads common:months.N
 
 /** "Eylül 2026'dan beri"; empty when the date is unusable. */
 export const formatJoined = (iso: string | null | undefined) => {
   const time = iso ? Date.parse(iso) : Number.NaN;
   if (!Number.isFinite(time)) return '';
   const date = new Date(time);
-  return `${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()} tarihinden beri`;
+  return tx('profile:joined', '{{month}} {{year}} tarihinden beri', { month: tx(`common:months.${date.getUTCMonth()}`, MONTHS[date.getUTCMonth()]), year: date.getUTCFullYear() });
 };
 
 /** "1 istek" / "12 istek"; the badge caps at 99+. */
@@ -73,16 +74,16 @@ export type ReportReasonId = 'spam' | 'harassment' | 'hate' | 'nudity' | 'violen
 export const REPORT_NOTE_MAX = 300;
 
 const REASON_LABELS: Record<ReportReasonId, string> = {
-  spam: 'Spam ya da reklam',
-  harassment: 'Taciz ya da rahatsız edici davranış',
-  hate: 'Nefret söylemi',
-  nudity: 'Çıplaklık ya da cinsel içerik',
-  violence: 'Şiddet',
-  privacy: 'Mahremiyet ihlali (izinsiz görüntü ya da bilgi)',
-  self_harm: 'Kendine zarar verme',
-  inappropriate: 'Uygunsuz içerik',
-  wrong_info: 'Yanlış ya da eski bilgi',
-  other: 'Başka bir neden',
+  spam: tx('profile:report.spam', 'Spam ya da reklam'),
+  harassment: tx('profile:report.harassment', 'Taciz ya da rahatsız edici davranış'),
+  hate: tx('profile:report.hate', 'Nefret söylemi'),
+  nudity: tx('profile:report.nudity', 'Çıplaklık ya da cinsel içerik'),
+  violence: tx('profile:report.violence', 'Şiddet'),
+  privacy: tx('profile:report.privacy', 'Mahremiyet ihlali (izinsiz görüntü ya da bilgi)'),
+  self_harm: tx('profile:report.selfHarm', 'Kendine zarar verme'),
+  inappropriate: tx('profile:report.inappropriate', 'Uygunsuz içerik'),
+  wrong_info: tx('profile:report.wrongInfo', 'Yanlış ya da eski bilgi'),
+  other: tx('profile:report.other', 'Başka bir neden'),
 };
 
 /**

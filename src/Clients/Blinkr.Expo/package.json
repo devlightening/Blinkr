@@ -58,7 +58,7 @@
     "test:ui": "node scripts/ui-test.cjs",
     "test:product": "tsc --ignoreConfig --ignoreDeprecations 6.0 --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --outDir .tmp/product-tests scripts/product-presentation.test.ts scripts/media-content-type.test.ts src/mediaContentType.ts && node .tmp/product-tests/scripts/product-presentation.test.js && node .tmp/product-tests/scripts/media-content-type.test.js",
     "test:theme": "tsc --ignoreConfig --ignoreDeprecations 6.0 --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --outDir .tmp/theme-tests scripts/theme-contrast.test.ts src/theme.ts && node .tmp/theme-tests/scripts/theme-contrast.test.js",
-    "test:i18n": "tsc --ignoreConfig --ignoreDeprecations 6.0 --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --resolveJsonModule --outDir .tmp/i18n-tests scripts/i18n-keys.test.ts && node .tmp/i18n-tests/scripts/i18n-keys.test.js"
+    "test:i18n": "node scripts/i18n-scan.cjs --max 0 && tsc --ignoreConfig --ignoreDeprecations 6.0 --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --resolveJsonModule --outDir .tmp/i18n-tests scripts/i18n-keys.test.ts && node .tmp/i18n-tests/scripts/i18n-keys.test.js"
   },
   "private": true
 }

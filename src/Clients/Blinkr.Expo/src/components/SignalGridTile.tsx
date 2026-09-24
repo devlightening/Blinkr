@@ -8,6 +8,7 @@ import { gridTile } from '../profileGrid';
 import { colors, radii, signalColors, typography } from '../theme';
 import type { AuthoredPost } from '../types';
 import { SignalSymbol } from './SignalSymbol';
+import { tx } from '../i18n/tx';
 
 /** One square of the profile grid (P6.3): the photo, or a tinted square with the type; expired ones are dimmed. */
 export function SignalGridTile({ post, size }: { post: AuthoredPost; size: number }) {
@@ -15,7 +16,7 @@ export function SignalGridTile({ post, size }: { post: AuthoredPost; size: numbe
   const tone = signalColors[post.signalType] ?? colors.mint;
   const value = signalValueLabel(post.signalType, post.signalValue);
   const url = tile.photoUrl ? toAbsoluteUrl(tile.photoUrl) : null;
-  const label = `${signalLabels[post.signalType] ?? 'Sinyal'}${value ? `, ${value}` : ''}${tile.anonymous ? ', anonim' : ''}${tile.expired ? ', sona erdi' : ''}`;
+  const label = `${signalLabels[post.signalType] ?? tx('profile:grid.signal', 'Sinyal')}${value ? `, ${value}` : ''}${tile.anonymous ? tx('profile:grid.anon', ', anonim') : ''}${tile.expired ? tx('profile:grid.expired', ', sona erdi') : ''}`;
   return (
     <View accessibilityLabel={label} style={[styles.tile, { height: size, width: size }, tile.expired && styles.expired]} testID={`grid-tile-${post.id}`}>
       {url ? (

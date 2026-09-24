@@ -4,12 +4,13 @@ import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { MapLayer } from '../../mapSelection';
 import { colors, radii, shadowSoft, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
+import { tx } from '../../i18n/tx';
 
 const layers = [
-  { key: 'all', label: 'Tümü', Icon: Layers3 },
-  { key: 'live', label: 'Canlı', Icon: Radio },
-  { key: 'places', label: 'Yerler', Icon: Coffee },
-  { key: 'signals', label: 'Sinyaller', Icon: MessageCircle },
+  { key: 'all', label: tx('map:layer.all', 'Tümü'), Icon: Layers3 },
+  { key: 'live', label: tx('map:layer.live', 'Canlı'), Icon: Radio },
+  { key: 'places', label: tx('map:layer.places', 'Yerler'), Icon: Coffee },
+  { key: 'signals', label: tx('map:layer.signals', 'Sinyaller'), Icon: MessageCircle },
 ] as const;
 
 /** Tümü | Canlı | Yerler | Sinyaller - the selected layer is the lime pill, the rest are quiet. */

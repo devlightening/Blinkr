@@ -1,4 +1,5 @@
 import * as Localization from 'expo-localization';
+import * as SecureStore from 'expo-secure-store';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
@@ -46,6 +47,19 @@ const resources = {
   en: { common: enCommon, map: enMap, signal: enSignal, create: enCreate, feed: enFeed, profile: enProfile, chat: enChat, settings: enSettings, errors: enErrors },
 };
 
+/** The person's choice in Ayarlar > Dil (plan-devam G3): 'system' follows the device. Read synchronously at boot. */
+export const LANGUAGE_PREFERENCE_KEY = 'blinkr.language.preference.v1';
+export type LanguagePreference = 'system' | AppLanguage;
+export const isLanguagePreference = (value: unknown): value is LanguagePreference => value === 'system' || value === 'tr' || value === 'en';
+export const readLanguagePreference = (): LanguagePreference => {
+  try {
+    const stored = SecureStore.getItem(LANGUAGE_PREFERENCE_KEY);
+    return isLanguagePreference(stored) ? stored : 'system';
+  } catch {
+    return 'system';
+  }
+};
+
 let initialized = false;
 
 /** Idempotent: safe to call more than once (e.g. from a test or a fast refresh) without re-initialising i18next. */
@@ -53,9 +67,12 @@ export const initI18n = () => {
   if (initialized) return i18n;
   initialized = true;
   const deviceLanguage = Localization.getLocales()[0]?.languageCode ?? null;
+  const preference = readLanguagePreference();
   void i18n.use(initReactI18next).init({
     resources,
-    lng: supportedLanguage(deviceLanguage),
+    // Resources are bundled, so init finishes synchronously: labels built at module load already see the language.
+    initAsync: false,
+    lng: preference === 'system' ? supportedLanguage(deviceLanguage) : preference,
     fallbackLng: DEFAULT_LANGUAGE,
     ns: ['common', 'map', 'signal', 'create', 'feed', 'profile', 'chat', 'settings', 'errors'],
     defaultNS: 'common',

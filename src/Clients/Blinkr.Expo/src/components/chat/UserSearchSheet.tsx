@@ -10,6 +10,7 @@ import { AnimatedPressable } from '../AnimatedPressable';
 import { colors, motion, radii, typography, sizes, spacing } from '../../theme';
 import type { AuthResponse, UserSummary } from '../../types';
 import { Avatar } from '../Avatar';
+import { tx } from '../../i18n/tx';
 
 const MIN_QUERY_LENGTH = 2;
 
@@ -42,7 +43,7 @@ export function UserSearchSheet({ auth, onBack, onSelect }: {
         // You cannot start a conversation with yourself, so you are never offered as a result.
         if (!controller.signal.aborted) setResults(orderPeople(next.filter((user) => user.id !== auth.userId)));
       } catch (err) {
-        if (!controller.signal.aborted) setError(friendlyError(err, 'Kullanıcılar aranamadı. Tekrar dene.'));
+        if (!controller.signal.aborted) setError(friendlyError(err, tx('common:people.searchFailed', 'Kullanıcılar aranamadı. Tekrar dene.')));
       } finally { if (!controller.signal.aborted) setLoading(false); }
     }, 300);
     return () => { clearTimeout(timer); controller.abort(); };
@@ -52,33 +53,33 @@ export function UserSearchSheet({ auth, onBack, onSelect }: {
 
   return <View style={styles.flex}>
     <View style={styles.bar}>
-      <AnimatedPressable accessibilityLabel="Geri dön" accessibilityRole="button" onPress={onBack} pressScale={0.95} style={styles.back}>
+      <AnimatedPressable accessibilityLabel={tx('common:actions.back', 'Geri dön')} accessibilityRole="button" onPress={onBack} pressScale={0.95} style={styles.back}>
         <ArrowLeft color={colors.text} size={22} />
       </AnimatedPressable>
-      <Text accessibilityRole="header" style={styles.heading}>Yeni mesaj</Text>
+      <Text accessibilityRole="header" style={styles.heading}>{tx('chat:list.newMessage', 'Yeni mesaj')}</Text>
     </View>
     <View style={styles.search}>
       <Search size={18} color={colors.textSecondary} />
       <TextInput
-        accessibilityLabel="Kullanıcı adı"
+        accessibilityLabel={tx('common:people.username', 'Kullanıcı adı')}
         autoCapitalize="none"
         autoCorrect={false}
         autoFocus
         maxLength={40}
         onChangeText={setQuery}
-        placeholder="Kullanıcı adı ara"
+        placeholder={tx('common:people.searchUsername', 'Kullanıcı adı ara')}
         placeholderTextColor={colors.textSecondary}
         style={styles.input}
         value={query}
       />
     </View>
-    {loading && <ActivityIndicator accessibilityLabel="Aranıyor" style={styles.progress} color={colors.primary} />}
+    {loading && <ActivityIndicator accessibilityLabel={tx('common:actions.searching', 'Aranıyor')} style={styles.progress} color={colors.primary} />}
     {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      {!searched && friends.length > 0 ? <Text style={styles.section}>Arkadaşların</Text> : null}
+      {!searched && friends.length > 0 ? <Text style={styles.section}>{tx('chat:search.friends', 'Arkadaşların')}</Text> : null}
       {(searched ? results : friends).map((user) => (
         <Animated.View entering={FadeIn.duration(motion.base)} key={user.id}>
-          <AnimatedPressable accessibilityLabel={`${user.userName} ile mesajlaş`} accessibilityRole="button" onPress={() => onSelect(user)} pressScale={0.97} style={styles.row}>
+          <AnimatedPressable accessibilityLabel={tx('chat:search.messageA11y', '{{name}} ile mesajlaş', { name: user.userName })} accessibilityRole="button" onPress={() => onSelect(user)} pressScale={0.97} style={styles.row}>
             <Avatar avatarKey={user.avatarKey} seed={user.id} size={44} />
             <Text numberOfLines={1} style={styles.name}>{user.userName}</Text>
             {searched && relationLabel(user.relation) ? <Text style={styles.relation}>{relationLabel(user.relation)}</Text> : null}
@@ -88,7 +89,7 @@ export function UserSearchSheet({ auth, onBack, onSelect }: {
       {!loading && !error && searched && !results.length && (
         <View style={styles.empty}>
           <UserRound color={colors.textSecondary} size={26} />
-          <Text style={styles.emptyText}>Bu isimde bir kullanıcı bulunamadı.</Text>
+          <Text style={styles.emptyText}>{tx('chat:search.none', 'Bu isimde bir kullanıcı bulunamadı.')}</Text>
         </View>
       )}
       {!searched && (

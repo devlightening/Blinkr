@@ -10,6 +10,7 @@ import type { SignalShare } from './chatExtras';
 import type { AppNotification } from './notifications';
 import type { PostDetailDto } from './signalCard';
 import { i18n } from './i18n';
+import { tx } from './i18n/tx';
 
 type NearbyPlacesResponse = Array<BlinkrPlace & { distanceMeters?: number }> & {
   coverageState?: string | null;
@@ -53,7 +54,7 @@ let refreshInFlight: Promise<AuthResponse> | null = null;
 
 const readError = async (response: Response) => {
   const raw = await response.text();
-  if (response.status >= 500) return 'Şu anda bağlantı kurulamıyor. Lütfen tekrar dene.';
+  if (response.status >= 500) return tx('errors:http.server', 'Şu anda bağlantı kurulamıyor. Lütfen tekrar dene.');
 
   if (raw) {
     try {
@@ -79,16 +80,16 @@ const readError = async (response: Response) => {
       if (message) return message.length > 240 ? `${message.slice(0, 237)}...` : message;
     } catch {
       if (response.status >= 500 || raw.includes('Grpc.Core') || raw.includes('Exception:')) {
-        return 'Sinyal servisine şu anda ulaşılamıyor. Backend servislerini kontrol edip tekrar dene.';
+        return tx('errors:http.unreachable', 'Sinyal servisine şu anda ulaşılamıyor. Backend servislerini kontrol edip tekrar dene.');
       }
       return raw.length > 240 ? `${raw.slice(0, 237)}...` : raw;
     }
   }
 
-  if (response.status === 401) return 'Oturumun sona erdi. Lütfen yeniden giriş yap.';
-  if (response.status === 403) return 'Bu işlemi yapmak için yetkin bulunmuyor.';
-  if (response.status === 404) return 'İstenen kayıt bulunamadı.';
-  return 'İşlem tamamlanamadı. Lütfen tekrar dene.';
+  if (response.status === 401) return tx('errors:http.401', 'Oturumun sona erdi. Lütfen yeniden giriş yap.');
+  if (response.status === 403) return tx('errors:http.403', 'Bu işlemi yapmak için yetkin bulunmuyor.');
+  if (response.status === 404) return tx('errors:http.404', 'İstenen kayıt bulunamadı.');
+  return tx('errors:http.generic', 'İşlem tamamlanamadı. Lütfen tekrar dene.');
 };
 
 export const toAbsoluteUrl = (url?: string | null) => {
@@ -117,7 +118,7 @@ export const clearAuth = async () => {
 };
 
 const refreshSession = async (auth: AuthResponse) => {
-  if (!auth.refreshToken) throw new Error('Oturum yenileme bilgisi bulunamadı.');
+  if (!auth.refreshToken) throw new Error(tx('errors:http.noRefresh', 'Oturum yenileme bilgisi bulunamadı.'));
   if (!refreshInFlight) {
     refreshInFlight = fetch(`${API_BASE_URL}/api/auth/refresh`, {
       method: 'POST',
@@ -178,7 +179,7 @@ const request = async (path: string, options: RequestOptions = {}, retrying = fa
         errorCode: err instanceof Error ? err.name : 'Unknown',
       });
     }
-    if (timedOut) throw new Error('Bağlantı zaman aşımına uğradı. Tekrar dene.');
+    if (timedOut) throw new Error(tx('errors:http.timeout', 'Bağlantı zaman aşımına uğradı. Tekrar dene.'));
     throw err;
   } finally {
     clearTimeout(timer);
@@ -650,7 +651,7 @@ const readLocalMedia = async (asset: LocalMedia, mediaType: MediaKind) => {
     blob = await response.blob();
   } catch (err) {
     if (isDev) console.log('[Blinkr Media]', { failedStage: 'local-read', errorCode: err instanceof Error ? err.name : 'Unknown' });
-    throw controller.signal.aborted ? new Error('Medya dosyası okunamadı (zaman aşımı). Tekrar dene.') : err;
+    throw controller.signal.aborted ? new Error(tx('errors:http.mediaTimeout', 'Medya dosyası okunamadı (zaman aşımı). Tekrar dene.')) : err;
   } finally {
     clearTimeout(timer);
   }
