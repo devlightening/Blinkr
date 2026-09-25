@@ -1264,7 +1264,8 @@ async function main() {
     await page.goto(url + '?scene=card');
     await expect(page.getByTestId('signal-card-card-1').getByTestId('card-media')).toBeVisible();
     const media = await page.getByTestId('signal-card-card-1').getByTestId('card-media').boundingBox();
-    if (Math.abs(media.width / media.height - 0.8) > 0.02) throw new Error('landscape photo should sit in a 4:5 frame, got ' + (media.width / media.height).toFixed(2));
+    // A landscape photo keeps its landscape ratio (up to 1.91:1), like Instagram; it is not shrunk into a tall frame.
+    if (!(media.width / media.height > 1.1 && media.width / media.height <= 1.92)) throw new Error('landscape photo should keep its ratio, got ' + (media.width / media.height).toFixed(2));
     await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'signal-card.png') });
     await expect(page.getByTestId('signal-card-card-1').getByTestId('card-like')).toContainText('12');
     await page.getByTestId('signal-card-card-1').getByTestId('card-like').click();
