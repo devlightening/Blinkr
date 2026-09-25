@@ -167,7 +167,22 @@ try {
     Assert-Prerequisite -Command "docker" -FriendlyName "Docker"
     Assert-DockerReady
     if (-not (Test-Path (Join-Path $repoRoot "docker-compose.yml"))) { throw "docker-compose.yml is missing." }
-    if (-not (Test-Path (Join-Path $repoRoot ".env"))) { throw ".env is missing; docker compose requires local dev variables." }
+    if (-not (Test-Path (Join-Path $repoRoot ".env"))) { throw ".env is missing; copy .env.example to .env and fill it in." }
+    # The Postgres password lives only in .env (not in git). The services get it the standard libpq way: PGPASSWORD for
+    # the processes started here, and %APPDATA%\postgresql\pgpass.conf so Visual Studio and dotnet-ef work too.
+    $pgUser = $null; $pgPassword = $null
+    foreach ($line in Get-Content (Join-Path $repoRoot ".env")) {
+        if ($line -match '^\s*POSTGRES_USER\s*=\s*(.+?)\s*$') { $pgUser = $Matches[1] }
+        if ($line -match '^\s*POSTGRES_PASSWORD\s*=\s*(.+?)\s*$') { $pgPassword = $Matches[1] }
+    }
+    if (-not $pgUser -or -not $pgPassword) { throw ".env must define POSTGRES_USER and POSTGRES_PASSWORD." }
+    $env:PGPASSWORD = $pgPassword
+    $pgPassDir = Join-Path $env:APPDATA "postgresql"
+    New-Item -ItemType Directory -Force -Path $pgPassDir | Out-Null
+    $pgPassFile = Join-Path $pgPassDir "pgpass.conf"
+    $entry = "localhost:5432:*:${pgUser}:" + ($pgPassword -replace '\\', '\\' -replace ':', '\:')
+    $kept = @(); if (Test-Path $pgPassFile) { $kept = @(Get-Content $pgPassFile | Where-Object { $_ -notlike "localhost:5432:`*:${pgUser}:*" }) }
+    Set-Content -Path $pgPassFile -Value (@($kept) + $entry) -Encoding ascii
     Write-Host "  OK  prerequisites" -ForegroundColor Green
 
     Write-Host "`n[2/6] Starting Docker infrastructure..." -ForegroundColor Cyan

@@ -369,3 +369,7 @@ graphify-out/
 
 # Private snap media written by NotificationsService (never commit user media)
 **/App_Data/
+
+# Local secrets (copy .env.example to .env)
+.env
+docker/.env.dev
