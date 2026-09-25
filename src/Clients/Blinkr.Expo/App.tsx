@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, BackHandler, Linking, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import Animated, { FadeIn, ReduceMotion, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, Easing } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, Easing } from 'react-native-reanimated';
 
 import { clearAuth, getMyProfile, getSignalDetail, listConversations, loadAuth, saveAuth } from './src/api';
 import { parsePostLink } from './src/deepLinks';
@@ -23,6 +23,7 @@ import { startRealtime, stopRealtime } from './src/realtime';
 import { OnboardingScreen } from './src/components/OnboardingScreen';
 import { PendingDeletionScreen } from './src/components/account/PendingDeletionScreen';
 import { ProfileScreen } from './src/components/ProfileScreen';
+import { TabPager } from './src/components/TabPager';
 import { ThemeProvider } from './src/components/ThemeProvider';
 import { BlinkrBottomBar, type BlinkrTab } from './src/components/ui/BlinkrBottomBar';
 import { hasSeenOnboarding, markOnboardingSeen } from './src/onboardingStore';
@@ -32,8 +33,6 @@ import { setSavedPlacesSession } from './src/savedPlaces';
 
 // While Sohbet is not on screen the tab-bar dot is refreshed at this gentle interval, foreground only.
 const UNREAD_POLL_MS = 30_000;
-// V2-1: a tab layer arrives with a short fade (Instagram), no motion when the device asks for less.
-const tabEnter = FadeIn.duration(180).reduceMotion(ReduceMotion.System);
 // Friend requests are slower news than messages.
 const REQUESTS_POLL_MS = 60_000;
 
@@ -278,8 +277,11 @@ export default function App() {
                     onOverlayOpenChange={setMapOverlayOpen}
                   />
                 </View>
-                {activeTab === 'chat' && (
-                  <Animated.View entering={tabEnter} style={styles.tabLayer}>
+                {/* Swipe between tabs like Instagram; the map page is the map underneath (TabPager). */}
+                <TabPager
+                  active={activeTab}
+                  onChange={setActiveTab}
+                  renderPage={(tab) => tab === 'chat' ? (
                     <ChatListScreen
                       auth={auth}
                       onAuthChange={acceptAuth}
@@ -289,18 +291,13 @@ export default function App() {
                       onOpenWithHandled={clearChatTarget}
                       openWith={chatTarget}
                     />
-                  </Animated.View>
-                )}
-                {activeTab === 'nearby' && (
-                  <Animated.View entering={tabEnter} style={styles.tabLayer}>
+                  ) : tab === 'nearby' ? (
                     <DiscoverScreen auth={auth} hashtagRequest={hashtagRequest} onHashtagHandled={() => setHashtagRequest(null)} onAuthChange={acceptAuth} onCreateSignal={() => openShare('camera')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOpenSignal={openNearbySignal} onOverlayOpenChange={setDiscoverOverlayOpen} />
-                  </Animated.View>
-                )}
-                {activeTab === 'profile' && (
-                  <Animated.View entering={tabEnter} style={styles.tabLayer}>
+                  ) : tab === 'profile' ? (
                     <ProfileScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={() => openShare('camera')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOverlayOpenChange={setProfileOverlayOpen} onRequestsChange={onRequestsChange} />
-                  </Animated.View>
-                )}
+                  ) : null}
+                  swipeEnabled={!((activeTab === 'chat' && chatConversationOpen) || (activeTab === 'profile' && profileOverlayOpen) || (activeTab === 'nearby' && discoverOverlayOpen))}
+                />
                 <BlinkrBottomBar
                   active={activeTab}
                   chatUnread={chatUnread}
@@ -321,7 +318,6 @@ export default function App() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  tabLayer: { ...StyleSheet.absoluteFill, backgroundColor: colors.background, zIndex: 10 },
   loading: {
     alignItems: 'center',
     backgroundColor: colors.background,
