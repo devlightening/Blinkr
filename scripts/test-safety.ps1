@@ -141,6 +141,13 @@ $canOnAda = Invoke-Api -Method POST -Path "/api/posts/$adaPost/comments" -Token 
 Check "everybody else's signals and comments are untouched" ($other.Status -eq 200 -and $canOnAda.Status -eq 200) "HTTP $($other.Status)/$($canOnAda.Status)"
 $anonReact = Invoke-Api -Method POST -Path "/api/posts/$adaAnon/reactions" -Token $bek.Token -Body @{ reaction = [char]::ConvertFromUtf32(0x1F525) }
 Check "an anonymous signal does not give its author away through a refusal" ($anonReact.Status -eq 200) "HTTP $($anonReact.Status) $($anonReact.Raw)"
+$bekComment = [string]$other.Json.commentId
+for ($i = 0; $i -lt 30; $i++) { if ((Invoke-Api -Method GET -Path "/api/posts/$canPost/comments" -Token $can.Token).Raw.Contains($bekComment)) { break }; Start-Sleep -Milliseconds 500 }
+$seenByCan = (Invoke-Api -Method GET -Path "/api/posts/$canPost/comments" -Token $can.Token).Raw
+$seenByBek = Invoke-Api -Method GET -Path "/api/posts/$canPost/comments" -Token $bek.Token
+$seenByAda = Invoke-Api -Method GET -Path "/api/posts/$canPost/comments" -Token $ada.Token
+Check "a third person sees both comments" ($seenByCan.Contains($adaComment) -and $seenByCan.Contains($bekComment)) "$seenByCan"
+Check "across a block neither sees the other one's comment" ($seenByBek.Status -eq 200 -and -not $seenByBek.Raw.Contains($adaComment) -and $seenByBek.Raw.Contains($bekComment) -and $seenByAda.Status -eq 200 -and -not $seenByAda.Raw.Contains($bekComment) -and $seenByAda.Raw.Contains($adaComment)) "bek HTTP $($seenByBek.Status) ada HTTP $($seenByAda.Status)"
 
 # --- unblock
 $unblock = Invoke-Api -Method DELETE -Path "/api/blocks/$($bek.Id)" -Token $ada.Token
@@ -149,6 +156,8 @@ $afterMsg = Invoke-Api -Method POST -Path "/api/chat/conversations/$cid/messages
 Check "after unblocking they can talk again" ($afterMsg.Status -eq 200) "HTTP $($afterMsg.Status) $($afterMsg.Raw)"
 $afterComment = Invoke-Api -Method POST -Path "/api/posts/$adaPost/comments" -Token $bek.Token -Body @{ commentText = "tekrar merhaba" }
 Check "and comment on the other one's signals again" ($afterComment.Status -eq 200) "HTTP $($afterComment.Status) $($afterComment.Raw)"
+$backAgain = (Invoke-Api -Method GET -Path "/api/posts/$canPost/comments" -Token $bek.Token).Raw
+Check "and see each other's comments again" ($backAgain.Contains($adaComment)) "$backAgain"
 $afterFriends = Invoke-Api -Method GET -Path "/api/friends" -Token $ada.Token
 Check "the friendship is not restored by unblocking" (@($afterFriends.Json).Count -eq 0) "$($afterFriends.Raw)"
 $afterAdd = Invoke-Api -Method POST -Path "/api/friends/requests" -Body @{ userId = $bek.Id } -Token $ada.Token

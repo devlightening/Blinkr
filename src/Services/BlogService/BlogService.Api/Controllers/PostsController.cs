@@ -339,7 +339,8 @@ public class PostsController : ControllerBase
         Guid postId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
-        [FromQuery] string sort = "newest")
+        [FromQuery] string sort = "newest",
+        [FromServices] BlogService.Api.Services.SocialGraphClient? graphClient = null)
     {
         if (page < 1) page = 1;
         if (page > 1000) page = 1000;
@@ -348,7 +349,17 @@ public class PostsController : ControllerBase
         var result = await _mediator.Send(new GetPostCommentsQuery(postId, User.GetUserId(), page, pageSize, sort));
         if (result is null) return NotFound(new { code = "NOT_FOUND" });
         Response.Headers.CacheControl = "private, no-store";
-        return Ok(result);
+
+        // Blocks, both ways: a signed-in reader never sees comments or replies by someone on either side of a block.
+        // An anonymous signal's author carries no id here, so this cannot unmask them. Unreadable blocks close the list
+        // (like the Kesfet feeds) instead of guessing.
+        var me = User.GetUserId();
+        var others = result.Items.SelectMany(c => c.Replies.Prepend(c)).Select(c => c.AuthorId).Where(a => a is { } id && id != me).ToList();
+        if (me is null || others.Count == 0 || graphClient is null) return Ok(result);
+        var graph = await graphClient.GetAsync(HttpContext.RequestAborted);
+        if (graph is null) return StatusCode(StatusCodes.Status503ServiceUnavailable, new { code = "COMMENTS_UNAVAILABLE" });
+        bool Visible(BlogService.Application.DTOs.PostCommentDtos.PostCommentViewDto c) => c.AuthorId is not { } id || !graph.Hidden.Contains(id);
+        return Ok(result with { Items = result.Items.Where(Visible).Select(c => c with { Replies = c.Replies.Where(Visible).ToList() }).ToList() });
     }
 
     [HttpGet]
