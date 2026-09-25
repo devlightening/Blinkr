@@ -16,7 +16,7 @@ import { colors, radii, signalColors, signalInks, signalTints, spacing, typograp
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
 import { PlaceSymbol } from '../PlaceSymbol';
-import { SignalSymbol } from '../SignalSymbol';
+import { signalEmoji } from '../../signalEmoji';
 import { FreshnessRing } from '../ui/BlinkrFreshnessRing';
 import { TypeBadge } from '../ui/BlinkrTypeBadge';
 import { HealthNotice } from './HealthNotice';
@@ -126,11 +126,15 @@ export function SignalCard({
       ) : (
         // A text-only signal: a soft tinted panel with the type, big value and what they said (plan 04 §2.1).
         <View style={[styles.textCard, { backgroundColor: `${signalTints[type] ?? colors.primary}33` }]} testID="card-text">
-          <View style={[styles.textIcon, { backgroundColor: signalTints[type] ?? colors.primary }]}>
-            <SignalSymbol color={signalInks[type] ?? colors.text} size={26} type={type} />
+          <View style={styles.textHead}>
+            <View style={[styles.textIcon, { backgroundColor: signalTints[type] ?? colors.primary }]}>
+              <Text allowFontScaling={false} style={styles.textEmoji}>{signalEmoji(type, card.signalValue)}</Text>
+            </View>
+            <View style={styles.textHeadCopy}>
+              <Text style={[styles.textType, { color: tone }]}>{typeLabel}</Text>
+              {valueLabel ? <Text numberOfLines={2} style={styles.textValue}>{valueLabel}</Text> : null}
+            </View>
           </View>
-          <Text style={[styles.textType, { color: tone }]}>{typeLabel}</Text>
-          {valueLabel ? <Text style={styles.textValue}>{valueLabel}</Text> : null}
           {card.text ? <RichText mentions={card.mentions} onHashtag={onHashtag} onMention={onMention} style={styles.textBody} text={card.text} /> : null}
         </View>
       )}
@@ -237,7 +241,10 @@ const styles = StyleSheet.create({
   iconButton: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
   badgeOnMedia: { backgroundColor: colors.surface, borderRadius: radii.pill },
   textCard: { borderRadius: radii.lg, gap: spacing.xs, padding: spacing.lg },
-  textIcon: { alignItems: 'center', borderRadius: radii.pill, height: 48, justifyContent: 'center', marginBottom: spacing.xs, width: 48 },
+  textHead: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginBottom: spacing.xs },
+  textHeadCopy: { flex: 1 },
+  textIcon: { alignItems: 'center', borderRadius: radii.pill, height: 56, justifyContent: 'center', width: 56 },
+  textEmoji: { fontSize: 30, lineHeight: 36 },
   textType: { ...typography.label },
   textValue: { ...typography.headline, color: colors.text },
   textBody: { ...typography.body, color: colors.text },

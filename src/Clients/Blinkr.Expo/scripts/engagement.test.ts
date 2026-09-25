@@ -66,3 +66,17 @@ run('server codes map to translated errors', () => {
   check(engagementErrorKey('COMMENT_TOO_LONG') === 'errors:engagement.commentTooLong', 'long');
   check(engagementErrorKey('WHATEVER') === 'errors:generic' && engagementErrorKey(undefined) === 'errors:generic', 'fallback');
 });
+run('a confirmed comment stays while the read model catches up, then leaves the grace to the server', () => {
+  const sent = insertComment([c('a')], optimisticComment({ localId: 'local-9', text: 'yeni', authorName: 'me', authorId: 'me', isPostAuthor: false, nowIso: 'x' }));
+  const confirmed = confirmComment(sent, 'local-9', 'srv-9', 1_000);
+  // The server's list lags behind the write: the comment must not vanish.
+  const polled = mergeCommentPages(confirmed, page([c('a')]), 1_000 + 5_000);
+  check(polled.some((x) => x.commentId === 'srv-9'), 'kept while the list lags');
+  check(countComments(polled) === 2, 'and counted');
+  // Once the server has it, it comes from the server (once).
+  const caughtUp = mergeCommentPages(polled, page([c('srv-9'), c('a')]), 1_000 + 8_000);
+  check(caughtUp.filter((x) => x.commentId === 'srv-9').length === 1, 'no duplicate');
+  // A comment the server never shows (deleted meanwhile) does not linger forever.
+  const late = mergeCommentPages(confirmed, page([c('a')]), 1_000 + 60_000);
+  check(!late.some((x) => x.commentId === 'srv-9'), 'grace ends');
+});

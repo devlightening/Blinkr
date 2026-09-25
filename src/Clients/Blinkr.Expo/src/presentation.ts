@@ -8,9 +8,15 @@ import { tx } from './i18n/tx';
  * in SignalComposer), which used to print the type name twice - once as a badge, once as a "title"
  * directly under it (sinyal-mvp-plan AUDIT #4: "Gözlem" title next to a "Gözlem" badge).
  */
+/**
+ * Titles the server writes itself when the person left the title empty (CreatePostCommandHandler): 'Crowd: Calm' for a
+ * quick signal, 'Taze içerik' otherwise. They repeat the type and value in raw English, so they are never shown.
+ */
+const SERVER_PLACEHOLDER_TITLE = /^(GeneralObservation|Crowd|Queue|TemporaryStatus|Offer|Event|NewOpening): [A-Za-z0-9]*$|^Taze içerik$/;
+
 export const meaningfulTitle = (title: string | null | undefined, typeLabel: string | null | undefined) => {
   const trimmed = title?.trim();
-  if (!trimmed) return null;
+  if (!trimmed || SERVER_PLACEHOLDER_TITLE.test(trimmed)) return null;
   return trimmed.toLocaleLowerCase('tr-TR') === (typeLabel ?? '').trim().toLocaleLowerCase('tr-TR') ? null : trimmed;
 };
 

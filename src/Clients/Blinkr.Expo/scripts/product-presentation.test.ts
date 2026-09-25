@@ -33,6 +33,8 @@ check(recheckSignal({ ...live, signalValue: null }, now) === null && recheckSign
 check(meaningfulTitle('Gözlem', 'Gözlem') === null, 'exact match dropped');
 check(meaningfulTitle('  gözlem  ', 'Gözlem') === null, 'case/whitespace-insensitive match dropped');
 check(meaningfulTitle('Bekleme süresi 10 dakika', 'Gözlem') === 'Bekleme süresi 10 dakika', 'a real title is kept');
+check(meaningfulTitle('Crowd: Calm', 'Doluluk') === null && meaningfulTitle('Queue: 5To15', 'Bekleme') === null && meaningfulTitle('Taze içerik', 'Gözlem') === null, 'titles the server writes for an empty title are not shown');
+check(meaningfulTitle('Crowd: çok kalabalık bugün', 'Doluluk') === 'Crowd: çok kalabalık bugün', 'own text that starts like a placeholder is kept');
 check(meaningfulTitle('', 'Gözlem') === null && meaningfulTitle(null, 'Gözlem') === null && meaningfulTitle(undefined, 'Gözlem') === null, 'blank title is null, not a placeholder string');
 check(meaningfulTitle('Bir şey', null) === 'Bir şey', 'no type label to compare against still keeps a real title');
 // FreshnessRing's progress: 1 at the moment of posting, 0 once expired, and honest (1, not a guess) without a TTL.

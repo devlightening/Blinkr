@@ -42,6 +42,8 @@ import { PersonalDataNotice } from '../ui/PersonalDataNotice';
 type Refresh = { onAuthRefresh?: (auth: AuthResponse) => void; onSessionExpired?: () => void };
 
 type Props = {
+  /** The number of comments as shown, so the card above can say the same (it only knew the count when it opened). */
+  onCountChange?: (count: number) => void;
   auth: AuthResponse | null;
   postId: string;
   /** The signal itself (card), shown above the actions. */
@@ -75,13 +77,18 @@ const errorMessage = (t: (key: string) => string, err: unknown, fallbackKey: str
  * sheet (swaps content like the report panel - no second sheet). Likes and comments are optimistic and roll
  * back on failure; while open, page 1 is refreshed every few seconds (REST polling, DECISIONS D-005).
  */
-export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refresh = {}, onReport, onOpenLikers, fill = false, title, hideActions = false, onMention, onHashtag }: Props) {
+export function SignalThreadPanel({ onCountChange, auth, postId, header, onBack, onClose, refresh = {}, onReport, onOpenLikers, fill = false, title, hideActions = false, onMention, onHashtag }: Props) {
   const { t, i18n } = useTranslation(['signal', 'errors', 'common']);
   const lang = i18n.language === 'en' ? 'en' : 'tr';
   const [like, setLike] = useState<ReactionState>({ mine: null, counts: {} });
   const [postAuthorId, setPostAuthorId] = useState<string | null>(null);
   const [comments, setComments] = useState<CommentView[]>([]);
   const [total, setTotal] = useState(0);
+  // Tell the card above only real counts (after the first answer), never the 0 we start with.
+  const countKnown = useRef(false);
+  const onCountRef = useRef(onCountChange);
+  onCountRef.current = onCountChange;
+  useEffect(() => { if (countKnown.current) onCountRef.current?.(total); }, [total]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [sort, setSort] = useState<CommentSort>('newest');
@@ -112,8 +119,9 @@ export function SignalThreadPanel({ auth, postId, header, onBack, onClose, refre
       if (signal?.aborted) return;
       if (!likeBusy.current) setLike(reactionStateOf(engagement));
       setPostAuthorId(engagement.authorId ?? null);
-      setComments((current) => mergeCommentPages(current, first));
-      setTotal(first.commentCount);
+      // The count follows what is shown: my just-confirmed comment counts even before the server's list has it.
+      setComments((current) => { const merged = mergeCommentPages(current, first); setTotal(Math.max(first.commentCount, countComments(merged))); return merged; });
+      countKnown.current = true;
       setHasMore(first.hasMore);
       setPage(1);
       setError(null);

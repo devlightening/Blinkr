@@ -33,7 +33,13 @@ export type CommentView = {
   mentions?: Array<{ userId: string; userName: string }>;
   /** Local only: sent, waiting for the server to confirm. */
   pending?: boolean;
+  /** Local only: when the server confirmed it (ms). The read model lags a few seconds behind the write, so until the
+   * list from the server contains it, a refresh keeps it instead of making it vanish and come back. */
+  confirmedAtMs?: number;
 };
+
+/** How long a confirmed comment is kept while the server's list has not caught up with it. */
+export const CONFIRMED_GRACE_MS = 30_000;
 
 export type CommentPage = {
   postId: string;
@@ -73,14 +79,16 @@ export const formatCount = (value: number, language: 'tr' | 'en' = 'tr') => {
 };
 
 /** Page 1 replaces what is shown (fresh poll); later pages append, dropping any comment already shown. */
-export const mergeCommentPages = (current: CommentView[], incoming: CommentPage): CommentView[] => {
+export const mergeCommentPages = (current: CommentView[], incoming: CommentPage, nowMs = Date.now()): CommentView[] => {
   if (incoming.page <= 1) {
-    // Keep local pending comments the server has not confirmed yet, so a poll never "eats" what I just wrote.
+    // Keep what I just wrote until the server's list shows it: still sending, or confirmed so recently that the read
+    // model may not have it yet - so a poll never "eats" my comment.
     const confirmedIds = new Set(incoming.items.flatMap((c) => [c.commentId, ...(c.replies ?? []).map((r) => r.commentId)]));
-    const pendingTop = current.filter((c) => c.pending && !confirmedIds.has(c.commentId));
+    const keep = (c: CommentView) => !confirmedIds.has(c.commentId) && (c.pending || (c.confirmedAtMs !== undefined && nowMs - c.confirmedAtMs < CONFIRMED_GRACE_MS));
+    const pendingTop = current.filter(keep);
     const withPendingReplies = incoming.items.map((c) => {
       const local = current.find((x) => x.commentId === c.commentId);
-      const pendingReplies = (local?.replies ?? []).filter((r) => r.pending && !confirmedIds.has(r.commentId));
+      const pendingReplies = (local?.replies ?? []).filter(keep);
       return pendingReplies.length ? { ...c, replies: [...(c.replies ?? []), ...pendingReplies] } : c;
     });
     return [...pendingTop, ...withPendingReplies];
@@ -118,10 +126,10 @@ export const insertComment = (items: CommentView[], comment: CommentView): Comme
 };
 
 /** Swaps a pending local comment for the server's id once it is accepted. */
-export const confirmComment = (items: CommentView[], localId: string, serverId: string): CommentView[] =>
+export const confirmComment = (items: CommentView[], localId: string, serverId: string, nowMs = Date.now()): CommentView[] =>
   items.map((c) => {
-    if (c.commentId === localId) return { ...c, commentId: serverId, pending: false, canDelete: true };
-    const replies = c.replies?.map((r) => (r.commentId === localId ? { ...r, commentId: serverId, pending: false, canDelete: true } : r));
+    if (c.commentId === localId) return { ...c, commentId: serverId, pending: false, canDelete: true, confirmedAtMs: nowMs };
+    const replies = c.replies?.map((r) => (r.commentId === localId ? { ...r, commentId: serverId, pending: false, canDelete: true, confirmedAtMs: nowMs } : r));
     return replies ? { ...c, replies } : c;
   });
 

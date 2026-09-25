@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { ChevronLeft, ChevronRight, Flag, Maximize2, Trash2, UserX, X } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Flag, MapPin, Maximize2, Trash2, UserX, X } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, BackHandler, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
@@ -288,6 +288,8 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
     try { await deleteSignal(auth, card.postId, refresh); onDeleted(card.postId); close(); } catch { setNotice(t('signal:card.actionFailed')); }
   };
 
+  // A single coordinate signal shows where it is in the header (hidden inside the card, so it is not said twice).
+  const headerLocation = !place && cards.length === 1 && current?.placeName ? current : null;
   const distanceTo = (card: CardSignal) => {
     const lat = card.latitude ?? place?.latitude; const lon = card.longitude ?? place?.longitude;
     if (!deviceOrigin || lat === null || lat === undefined || lon === null || lon === undefined) return null;
@@ -319,7 +321,7 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
                 topComment={full ? null : topComments[item.postId] ?? null}
                 verify={verifyState(item, distanceTo(item))}
                 verifyBusy={verifyBusy}
-                hidePlace={Boolean(place)}
+                hidePlace={Boolean(place) || Boolean(headerLocation)}
           inThread={full}
                 width={width}
               />
@@ -339,6 +341,7 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
         hideActions
         onBack={collapse}
         onClose={close}
+        onCountChange={(count) => update(card.postId, (c) => ({ ...c, commentCount: count }))}
         onHashtag={onOpenHashtag ? (tag) => { close(); onOpenHashtag(tag); } : undefined}
         onMention={(m) => onOpenAuthor({ id: m.userId, userName: m.userName })}
         postId={card.postId}
@@ -378,6 +381,15 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
                   </View>
                   {onOpenPlace ? <ChevronRight color={colors.textSecondary} size={18} /> : null}
                 </AnimatedPressable>
+              ) : headerLocation ? (
+                // A coordinate signal: where it is heads the card (like a place's strip), so the header is never empty.
+                <View style={styles.placeStrip} testID="card-location-strip">
+                  <View style={styles.placeTile}><MapPin color={colors.text} size={18} /></View>
+                  <View style={styles.flex}>
+                    <Text numberOfLines={1} style={styles.stripName}>{headerLocation.placeName}</Text>
+                    <Text numberOfLines={1} style={styles.stripMeta}>{[t('common:approxArea'), formatDistance(distanceTo(headerLocation))].filter(Boolean).join(' · ')}</Text>
+                  </View>
+                </View>
               ) : <View style={styles.flex} />}
               {cards.length > 1 ? (
                 <View style={styles.pager} testID="card-pager">
