@@ -15,6 +15,11 @@
 
 ## Kararlar
 
+### D-031 — Refresh token erişim token'ı olarak kabul edilmez (2026-09-25)
+- Bağlam: BLK-TOKENS-01 (servisler arası token kuralları testi) gerçek bir açık buldu: refresh token aynı anahtarla imzalı, aynı issuer/audience'lı bir JWT ve dört servis de onu erişim token'ı olarak kabul ediyordu. Sızan bir refresh token 7 gün boyunca API erişimi veriyordu; "diğer cihazlardan çıkış" da onu durduramıyordu (JWT süresi dolana kadar geçerliydi).
+- Karar: Her servisin JwtBearer `OnTokenValidated` olayı `token_use=refresh` taşıyan token'ı reddeder (`BlinkrJwtOptions.IsAccessToken`; claim'siz eski erişim token'ları süresi dolana kadar geçerli). Test kalıcı: doğru token kabul, yanlış audience/issuer, süresi dolmuş, yanlış anahtar, `alg: none`, değiştirilmiş payload ve refresh token 401.
+- Etki: CLAUDE.md §14, SECURITY.md.
+
 ### D-030 — Güvenlik S3: hız sınırları kişi başına, giriş koruması, şifre en az 8 (2026-09-25)
 - Bağlam: V2 kapanışında iki kök hata bulundu: (1) Blog'un genel sınırı (100 istek/dk) ve Redis kovası bağlantı IP'sine göre sayıyordu; Gateway arkasında herkesin IP'si aynı olduğundan üretimde tüm kullanıcılar tek kovayı paylaşacaktı (testlerde 429'ların nedeni). Redis ara katmanı kimlik doğrulamadan önce çalıştığından kullanıcı hiç bilinmiyordu. (2) Kayıtta şifre uzunluğu kuralı yoktu; yanlış girişte düz İngilizce "Invalid credentials." dönüyordu.
 - Karar:

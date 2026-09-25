@@ -194,6 +194,12 @@ public static class ServiceCollectionExtensions
 
                 options.Events = new JwtBearerEvents
                 {
+                    // A refresh token is not an access token (BLK-TOKENS-01).
+                    OnTokenValidated = ctx =>
+                    {
+                        if (!Shared.Auth.BlinkrJwtOptions.IsAccessToken(ctx.Principal)) ctx.Fail("Refresh tokens cannot be used as access tokens.");
+                        return Task.CompletedTask;
+                    },
                     // V2-5: WebSockets cannot carry an Authorization header from a browser or React Native, so the hub
                     // (and only the hub) reads the token from ?access_token=.
                     OnMessageReceived = ctx =>

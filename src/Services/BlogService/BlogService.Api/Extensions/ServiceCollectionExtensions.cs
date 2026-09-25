@@ -479,6 +479,12 @@ public static class ServiceCollectionExtensions
 
                 o.Events = new JwtBearerEvents
                 {
+                    // A refresh token is not an access token (BLK-TOKENS-01).
+                    OnTokenValidated = ctx =>
+                    {
+                        if (!Shared.Auth.BlinkrJwtOptions.IsAccessToken(ctx.Principal)) ctx.Fail("Refresh tokens cannot be used as access tokens.");
+                        return Task.CompletedTask;
+                    },
                     OnAuthenticationFailed = ctx =>
                     {
                         Serilog.Log.Warning("JWT authentication failed: {ExceptionType}", ctx.Exception.GetType().Name);

@@ -63,6 +63,15 @@ public sealed record BlinkrJwtOptions
         };
     }
 
+    /// <summary>
+    /// Security (BLK-TOKENS-01): refresh tokens are JWTs signed with the same key but marked <c>token_use=refresh</c>; they
+    /// only work on /api/auth/refresh. Every service rejects them as access tokens (they used to be accepted for their
+    /// whole 7-day life, and signing out other devices could not stop them). Tokens without the claim are older access
+    /// tokens and stay valid until they expire.
+    /// </summary>
+    public static bool IsAccessToken(System.Security.Claims.ClaimsPrincipal? principal) =>
+        principal?.FindFirst("token_use")?.Value is null or "access";
+
     private static int ReadPositiveInt(IConfigurationSection section, string name, int defaultValue)
     {
         return int.TryParse(section[name], out var value) && value > 0 ? value : defaultValue;

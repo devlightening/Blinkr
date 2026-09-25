@@ -735,7 +735,7 @@ IdentityService, HS256 access token uretir. Canonical degerler:
 - Clock skew: 60 saniye
 - Canonical user id claim ve role claim `Shared/Auth` sozlesmesiyle servislerde ayni olmali.
 
-Identity, Blog, Place ve Notifications ayni issuer, audience ve signing key modelini kullanmalidir. Signing key kaynak koda veya bu belgeye yazilmaz; environment/config secret olarak kalir.
+Identity, Blog, Place ve Notifications ayni issuer, audience ve signing key modelini kullanmalidir. Refresh token da ayni anahtarla imzali bir JWT'dir (`token_use=refresh`); her servis `OnTokenValidated` ile onu erisim token'i olarak reddeder (`BlinkrJwtOptions.IsAccessToken`). `scripts/test-token-consistency.ps1` (BLK-TOKENS-01) dort servisi yanlis audience/issuer/suresi dolmus/yanlis anahtar/`alg: none`/degistirilmis payload/refresh token ile dener. Signing key kaynak koda veya bu belgeye yazilmaz; environment/config secret olarak kalir.
 
 Mobil:
 
