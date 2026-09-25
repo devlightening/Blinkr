@@ -76,6 +76,11 @@ const rest = (path, token, body) => fetch(`${gateway}${path}`, {
   await rest(`/api/posts/${input.postId}/comments`, input.tokenA, { commentText: 'Ayrildiktan sonra' });
   results.heardAfterLeave = (await afterLeave) !== null;
 
+  // 8. S3: at most 60 join attempts a minute per connection (each costs a call to BlogService), then even a real one waits.
+  const unknown = (i) => '00000000-0000-4000-8000-' + String(i).padStart(12, '0');
+  for (let i = 0; i < 58; i++) await b.invoke('JoinPost', unknown(i));
+  results.joinAfterBurst = await b.invoke('JoinPost', input.postId);
+
   await a.stop();
   await b.stop();
   console.log(JSON.stringify(results));

@@ -701,7 +701,7 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 
 ### Realtime (V2-5, D-028)
 
-- `wss://<gateway>/hubs/realtime?access_token=<jwt>` (SignalR JSON). Sunucu -> istemci: `message.created|message.updated|message.read` ve `typing` (`{ conversationId, userId }`; typing yalniz karsi tarafa), `comment.added|comment.deleted|comment.changed` (`{ postId, commentId }`), `reaction.changed` (`{ postId }`), `notification.created` (`{ id, type }`). Istemci -> sunucu: `JoinPost(postId)` (`bool`; BlogService gorunurluk kontrolu, okunamayan sinyal sessizce reddedilir), `LeavePost(postId)`. Token yoksa baglanti 401.
+- `wss://<gateway>/hubs/realtime?access_token=<jwt>` (SignalR JSON). Sunucu -> istemci: `message.created|message.updated|message.read` ve `typing` (`{ conversationId, userId }`; typing yalniz karsi tarafa), `comment.added|comment.deleted|comment.changed` (`{ postId, commentId }`), `reaction.changed` (`{ postId }`), `notification.created` (`{ id, type }`). Istemci -> sunucu: `JoinPost(postId)` (`bool`; BlogService gorunurluk kontrolu, okunamayan sinyal sessizce reddedilir; baglanti basina en fazla 20 oda, dakikada 60 deneme), `LeavePost(postId)`. Token yoksa baglanti 401.
 
 ### Safety
 
@@ -959,7 +959,7 @@ Ancak `uygulandi` ile `uretimde tam dogrulandi` ayni sey degildir. `docs/BLK-PRO
 - Backup, restore, disaster recovery ve data retention politikasi yazilmalidir.
 - Moderasyon kuyrugu, otomatik gizleme, yaptirimlar ve denetim izi var (BLK-MODERATION-01), fakat arayuzu yalniz CLI (`scripts/moderation.ps1`); gorsel moderasyon saglayicisi yok (API anahtari gerekir), itiraz icin gercek bir destek adresi yok, 24 saat icinde mudahale sureci operasyonel olarak kurulmali.
 - Hesap silme var (plan-devam F3, D-021): Ayarlar > Hesap > Hesabi sil (iki adim + sifre), 30 gun bekleme (giriste `PendingDeletionScreen` "Silmeyi geri al"), sonra `AccountPurgeService` `UserDeletedIntegrationEvent` yayinlar; Blog (`Consumers/UserDeletedConsumer`: sinyaller PostDeleted ile, yorum/begeni kaldirma, goruntulenme, medya dosyalari) ve Notifications (mesajlar bosaltilir, snap/hikaye dosyalari, tepkiler, bildirimler, jetonlar) siler, Identity kisisel veriyi bosaltir. Acik: EventStore olay gecmisinde eski sinyal olaylari kaliyor (tombstone + scavenge isletim gorevi). Destek/itiraz adresi hala `{{DESTEK_EPOSTA}}` yer tutucusu (`legalContent.ts`); yayindan once doldurulmali.
-- Hiz siniri (D-030): giris/kayit IP basina + hesap basina 10 hatali giriste 15 dk kilit (`TOO_MANY_ATTEMPTS`), gonderi/yorum/tepki kisi basina (Blog Redis kovasi, kimlik dogrulamadan sonra; Gateway IP'si degil kisi sayilir), sohbet/snap 60/dk (`TOO_MANY_MESSAGES`). Identity/Notifications sayaclari bellek ici (tek ornek); hub baglanti siniri yok.
+- Hiz siniri (D-030): giris/kayit IP basina + hesap basina 10 hatali giriste 15 dk kilit (`TOO_MANY_ATTEMPTS`), gonderi/yorum/tepki kisi basina (Blog Redis kovasi, kimlik dogrulamadan sonra; Gateway IP'si degil kisi sayilir), sohbet/snap 60/dk (`TOO_MANY_MESSAGES`). Identity/Notifications sayaclari bellek ici (tek ornek). Realtime hub: baglanti basina en fazla 20 oda ve dakikada 60 `JoinPost` denemesi.
 - Push bildirimi yok: bekleyen arkadaslik istegi ve kaydedilen yerin canli durumu yalniz uygulama acikken gorunur.
 - Kayitli yerler hesapla senkron (sinyal-mvp-plan P6.8, BLK-SAVED-01); koleksiyonlar ve sinyal kaydetme henuz yok.
 - OSM complex relation geometrilerinin tam destegi sinirlidir; nokta fallback devam eder.

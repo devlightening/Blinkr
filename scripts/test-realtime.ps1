@@ -85,6 +85,7 @@ Check "a new comment arrives live in the room" ($null -ne $r.commentMs) "ms=$($r
 Check "the notification arrives live" ($null -ne $r.notificationMs) "ms=$($r.notificationMs)"
 Check "a reaction arrives live in the room" ($null -ne $r.reactionMs) "ms=$($r.reactionMs)"
 Check "after LeavePost the room is quiet" ($r.heardAfterLeave -eq $false)
+Check "after 60 join attempts in a minute even a real room is refused (S3)" ($r.joinAfterBurst -eq $false)
 
 if ($script:failures.Count -gt 0) { Write-Host "BLK-REALTIME-01 FAIL ($($script:failures.Count))" -ForegroundColor Red; exit 1 }
 Write-Host "BLK-REALTIME-01 PASS"

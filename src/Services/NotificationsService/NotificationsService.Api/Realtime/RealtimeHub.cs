@@ -31,10 +31,22 @@ public sealed class RealtimeHub : Hub
         await base.OnConnectedAsync();
     }
 
+    /// <summary>S3: a connection holds at most this many signal rooms at once...</summary>
+    public const int MaxRoomsPerConnection = 20;
+    /// <summary>...and may ask to join at most this many times a minute (each ask costs a call to BlogService).</summary>
+    public const int MaxJoinsPerMinute = 60;
+
     /// <summary>Joins a signal's comment room; answers whether it was allowed.</summary>
     public async Task<bool> JoinPost(string postId)
     {
         if (!Guid.TryParse(postId, out var id)) return false;
+        var rooms = (HashSet<Guid>)(Context.Items.TryGetValue("rooms", out var r) && r is HashSet<Guid> set ? set : Context.Items["rooms"] = new HashSet<Guid>());
+        if (rooms.Contains(id)) return true;
+        var now = DateTime.UtcNow;
+        var joins = (Queue<DateTime>)(Context.Items.TryGetValue("joins", out var j) && j is Queue<DateTime> q ? q : Context.Items["joins"] = new Queue<DateTime>());
+        while (joins.Count > 0 && joins.Peek() < now.AddMinutes(-1)) joins.Dequeue();
+        if (rooms.Count >= MaxRoomsPerConnection || joins.Count >= MaxJoinsPerMinute) return false;
+        joins.Enqueue(now);
         var http = Context.GetHttpContext();
         var token = http?.Request.Query["access_token"].ToString();
         if (string.IsNullOrWhiteSpace(token))
@@ -56,11 +68,16 @@ public sealed class RealtimeHub : Hub
             return false;
         }
         await Groups.AddToGroupAsync(Context.ConnectionId, RealtimeEvents.PostGroup(id));
+        rooms.Add(id);
         return true;
     }
 
-    public Task LeavePost(string postId) =>
-        Guid.TryParse(postId, out var id) ? Groups.RemoveFromGroupAsync(Context.ConnectionId, RealtimeEvents.PostGroup(id)) : Task.CompletedTask;
+    public Task LeavePost(string postId)
+    {
+        if (!Guid.TryParse(postId, out var id)) return Task.CompletedTask;
+        if (Context.Items.TryGetValue("rooms", out var r) && r is HashSet<Guid> rooms) rooms.Remove(id);
+        return Groups.RemoveFromGroupAsync(Context.ConnectionId, RealtimeEvents.PostGroup(id));
+    }
 
     private Guid TryUser()
     {
