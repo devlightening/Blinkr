@@ -10,7 +10,8 @@ run('media is never cropped: own ratio between 9:16 and 4:5, contained outside i
   check(mediaFrame(1080, 1350).aspectRatio === 0.8 && mediaFrame(1080, 1350).fit === 'cover', '4:5 exact');
   check(mediaFrame(1080, 1920).fit === 'cover' && Math.abs(mediaFrame(1080, 1920).aspectRatio - TALLEST) < 1e-9, '9:16 exact');
   check(mediaFrame(3, 4).fit === 'cover' && mediaFrame(3, 4).aspectRatio === 0.75, '3:4 keeps its ratio');
-  check(mediaFrame(1920, 1080).fit === 'contain' && mediaFrame(1920, 1080).aspectRatio === WIDEST, 'landscape is contained in 4:5');
+  check(mediaFrame(1920, 1080).fit === 'cover' && Math.abs(mediaFrame(1920, 1080).aspectRatio - 16 / 9) < 1e-9, 'landscape 16:9 keeps its ratio');
+  check(mediaFrame(3000, 1000).fit === 'contain' && mediaFrame(3000, 1000).aspectRatio === WIDEST, 'a panorama is contained in 1.91:1');
   check(mediaFrame(500, 2000).fit === 'contain' && mediaFrame(500, 2000).aspectRatio === TALLEST, 'very tall is contained in 9:16');
   check(mediaFrame(null, null).fit === 'contain', 'unknown size is contained, never cropped');
 });

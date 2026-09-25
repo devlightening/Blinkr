@@ -157,7 +157,8 @@
     "Available": "On now",
     "OfferEnded": "Over",
     "NewOpening": "New opening",
-    "QueueLong": "Long queue"
+    "QueueLong": "Long queue",
+    "Opened": "Opened"
   },
   "trust": {
     "verified": "Location verified",

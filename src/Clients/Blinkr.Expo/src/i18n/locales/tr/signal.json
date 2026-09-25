@@ -157,7 +157,8 @@
     "Available": "Devam ediyor",
     "OfferEnded": "Sona erdi",
     "NewOpening": "Yeni açılış",
-    "QueueLong": "Uzun sıra"
+    "QueueLong": "Uzun sıra",
+    "Opened": "Açıldı"
   },
   "trust": {
     "verified": "Konum doğrulandı",

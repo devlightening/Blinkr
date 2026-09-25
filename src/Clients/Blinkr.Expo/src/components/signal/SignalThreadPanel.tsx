@@ -59,6 +59,8 @@ type Props = {
   fill?: boolean;
   /** Top bar title; "Yorumlar" by default. */
   title?: string;
+  /** One line about the post ("author: text"), shown above the box while writing, once the post has scrolled away. */
+  contextLine?: string;
   /** The header already shows like/comment actions (the full-page signal card). */
   hideActions?: boolean;
   /** V2-4: a resolved @name or a #tag in a comment was tapped. */
@@ -77,7 +79,7 @@ const errorMessage = (t: (key: string) => string, err: unknown, fallbackKey: str
  * sheet (swaps content like the report panel - no second sheet). Likes and comments are optimistic and roll
  * back on failure; while open, page 1 is refreshed every few seconds (REST polling, DECISIONS D-005).
  */
-export function SignalThreadPanel({ onCountChange, auth, postId, header, onBack, onClose, refresh = {}, onReport, onOpenLikers, fill = false, title, hideActions = false, onMention, onHashtag }: Props) {
+export function SignalThreadPanel({ contextLine, onCountChange, auth, postId, header, onBack, onClose, refresh = {}, onReport, onOpenLikers, fill = false, title, hideActions = false, onMention, onHashtag }: Props) {
   const { t, i18n } = useTranslation(['signal', 'errors', 'common']);
   const lang = i18n.language === 'en' ? 'en' : 'tr';
   const [like, setLike] = useState<ReactionState>({ mine: null, counts: {} });
@@ -107,6 +109,11 @@ export function SignalThreadPanel({ onCountChange, auth, postId, header, onBack,
   const [, setOverrideTick] = useState(0);
   const likeBusy = useRef(false);
   const inputRef = useRef<TextInput>(null);
+  // Twitter-like writing: focusing the box slides the post up so the comments are in view; a line keeps its context.
+  const scrollRef = useRef<ScrollView>(null);
+  const headerHeight = useRef(0);
+  const [writing, setWriting] = useState(false);
+  const showComments = () => { if (fill && headerHeight.current > 0) scrollRef.current?.scrollTo({ y: Math.max(0, headerHeight.current - spacing.sm), animated: true }); };
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
 
@@ -266,6 +273,8 @@ export function SignalThreadPanel({ onCountChange, auth, postId, header, onBack,
     setTotal((n) => n + 1);
     setDraft('');
     setReplyTo(null);
+    // The new comment is at the top of the list: bring the list into view.
+    if (sort === 'newest') setTimeout(showComments, 50);
     try {
       const serverId = await addPostComment(auth, postId, trimmed, parent, refreshRef.current);
       setComments((current) => confirmComment(current, localId, serverId));
@@ -400,8 +409,8 @@ export function SignalThreadPanel({ onCountChange, auth, postId, header, onBack,
         </AnimatedPressable>
       </View>
 
-      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={[styles.scroll, fill && styles.fill]} testID="thread-scroll">
-        {header}
+      <ScrollView keyboardShouldPersistTaps="handled" ref={scrollRef} showsVerticalScrollIndicator={false} style={[styles.scroll, fill && styles.fill]} testID="thread-scroll">
+        <View onLayout={(e) => { headerHeight.current = e.nativeEvent.layout.height; }}>{header}</View>
 
         {hideActions ? null : <View style={styles.actionRow}>
           <ReactionButton
@@ -473,6 +482,9 @@ export function SignalThreadPanel({ onCountChange, auth, postId, header, onBack,
 
       {auth ? (
         <View style={styles.composer}>
+          {writing && fill && contextLine && !replyTo ? (
+            <Text numberOfLines={1} style={styles.contextLine} testID="thread-context">{'↳ '}{contextLine}</Text>
+          ) : null}
           {replyTo ? (
             <View style={styles.replyBar}>
               <Text numberOfLines={1} style={styles.commentAge}>{t('signal:comments.replyingTo', { name: authorLabel(replyTo) })}</Text>
@@ -492,6 +504,8 @@ export function SignalThreadPanel({ onCountChange, auth, postId, header, onBack,
               accessibilityLabel={t('signal:comments.placeholder')}
               maxLength={COMMENT_MAX + 50}
               multiline
+              onBlur={() => setWriting(false)}
+              onFocus={() => { setWriting(true); setTimeout(showComments, 120); }}
               onChangeText={(value) => { setDraft(value); setCursor(value.length); }}
               onSelectionChange={(e) => setCursor(e.nativeEvent.selection.end)}
               placeholder={replyTo ? t('signal:comments.replyPlaceholder', { name: authorLabel(replyTo) }) : t('signal:comments.placeholder')}
@@ -562,6 +576,7 @@ const styles = StyleSheet.create({
   repliesToggle: { alignItems: 'center', flexDirection: 'row', gap: 4, marginLeft: 42, minHeight: 36 },
   loadMore: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
   composer: { borderTopColor: colors.border, borderTopWidth: 1, gap: 4, marginTop: spacing.sm, paddingTop: spacing.sm },
+  contextLine: { ...typography.caption, color: colors.textSecondary, paddingHorizontal: spacing.xs },
   replyBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   inputRow: { alignItems: 'flex-end', flexDirection: 'row', gap: spacing.sm },
   input: { ...typography.body, backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, color: colors.text, flex: 1, maxHeight: 110, minHeight: 44, paddingHorizontal: spacing.md, paddingVertical: 10 },

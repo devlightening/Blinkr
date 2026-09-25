@@ -47,7 +47,11 @@ export const SIGNAL_CATALOG: Record<SignalType, SignalCatalogEntry> = {
     label: tx('signal:catalog.Offer', 'Fırsat'), tone: signalColors.Offer,
     options: [{ value: 'Available', label: tx('signal:catalog.Available', 'Devam ediyor') }, { value: 'Ended', label: tx('signal:catalog.OfferEnded', 'Sona erdi') }],
   },
-  NewOpening: { label: tx('signal:catalog.NewOpening', 'Yeni açılış'), tone: signalColors.NewOpening },
+  // The server needs a value for every type but a plain observation; a new opening has exactly one.
+  NewOpening: {
+    label: tx('signal:catalog.NewOpening', 'Yeni açılış'), tone: signalColors.NewOpening,
+    options: [{ value: 'Opened', label: tx('signal:catalog.Opened', 'Açıldı') }],
+  },
 };
 
 /** Mirror of the server's default lifetime per type (display only - see the note above). */

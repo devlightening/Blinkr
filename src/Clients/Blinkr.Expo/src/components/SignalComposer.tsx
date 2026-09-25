@@ -183,7 +183,9 @@ export function SignalComposer({
   const sensitivity = placeSensitivity(area?.place?.category);
   const mediaBlocked = !mediaAllowedAt(area?.place?.category);
   const locationUncertain = area?.source !== 'map' && accuracyUncertain(area?.observationAccuracyMeters ?? area?.accuracyMeters);
-  const canPublish = Boolean(area && hasPayload && !(mediaBlocked && media.length > 0) && !isRealtimePlaceBlocked && !isSubmitting);
+  // A type with levels needs one picked (the server refuses it otherwise, and the share would fail later).
+  const needsValue = Boolean(SIGNAL_CATALOG[signalType]?.options?.length) && !signalValue;
+  const canPublish = Boolean(area && hasPayload && !needsValue && !(mediaBlocked && media.length > 0) && !isRealtimePlaceBlocked && !isSubmitting);
   const anonymous = identityDisclosure === 'AnonymousMap';
   const { primary: primaryPlaces, extended: extendedPlaces } = useMemo(() => splitNearbyPlaces(nearbyPlaces), [nearbyPlaces]);
   const visibleNearbyPlaces = showExtendedPlaces ? [...primaryPlaces, ...extendedPlaces].slice(0, 10) : primaryPlaces;

@@ -202,16 +202,18 @@ export const withDetail = (card: CardSignal, dto: PostDetailDto): CardSignal => 
 };
 
 /** 4:5 is the widest and 9:16 the tallest frame (width / height). */
-export const WIDEST = 4 / 5;
+/** Landscape up to 1.91:1 shows at its own ratio (Instagram); only a wider one is fitted. */
+export const WIDEST = 1.91;
 export const TALLEST = 9 / 16;
 
 /**
- * How a photo sits in the card without ever cropping it (plan-devam C4): a picture between 9:16 and 4:5 is shown at
- * its own ratio; a wider one sits whole ("contain") in a 4:5 frame with a blurred copy behind it; a taller one is
- * held to 9:16 the same way. Unknown size: a 4:5 frame, contained.
+ * How a photo sits in the card without ever cropping it (plan-devam C4): a picture between 9:16 and 1.91:1 is shown
+ * at its own ratio (a landscape photo or video no longer shrinks to a strip inside a tall frame); a wider one sits
+ * whole ("contain") in a 1.91:1 frame with a blurred copy behind it; a taller one is held to 9:16 the same way.
+ * Unknown size: a 4:5 frame, contained.
  */
 export const mediaFrame = (width?: number | null, height?: number | null): { aspectRatio: number; fit: 'cover' | 'contain' } => {
-  if (!width || !height || width <= 0 || height <= 0) return { aspectRatio: WIDEST, fit: 'contain' };
+  if (!width || !height || width <= 0 || height <= 0) return { aspectRatio: 4 / 5, fit: 'contain' };
   const ratio = width / height;
   if (ratio > WIDEST) return { aspectRatio: WIDEST, fit: 'contain' };
   if (ratio < TALLEST) return { aspectRatio: TALLEST, fit: 'contain' };

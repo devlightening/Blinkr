@@ -342,6 +342,7 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
         onBack={collapse}
         onClose={close}
         onCountChange={(count) => update(card.postId, (c) => ({ ...c, commentCount: count }))}
+        contextLine={[card.anonymous ? null : card.authorName, card.text].filter(Boolean).join(': ') || undefined}
         onHashtag={onOpenHashtag ? (tag) => { close(); onOpenHashtag(tag); } : undefined}
         onMention={(m) => onOpenAuthor({ id: m.userId, userName: m.userName })}
         postId={card.postId}
