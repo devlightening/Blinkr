@@ -68,8 +68,11 @@ public class DiscoverController : ControllerBase
             Builders<PostDocument>.Filter.NearSphere(p => p.Location, GeoJson.Point(GeoJson.Geographic(lon, lat)), maxDistance: radiusMeters));
         var docs = await _posts.Find(filter).Limit(CandidateLimit).ToListAsync(ct);
 
+        // Blocks come from IdentityService; without them a blocked person could see the one who blocked them, so the
+        // feed closes instead of guessing (like chat: CHAT_UNAVAILABLE).
         var graph = await _graph.GetAsync(ct);
-        var hidden = graph?.Hidden ?? new HashSet<Guid>();
+        if (graph is null) return StatusCode(StatusCodes.Status503ServiceUnavailable, new { code = "FEED_UNAVAILABLE" });
+        var hidden = graph.Hidden;
         var visible = docs.Where(d => (d.IdentityDisclosure == "AnonymousMap" || !hidden.Contains(d.AuthorId)) && !IsHiddenTestPost(d)).ToList();
         var byId = visible.ToDictionary(d => d.Id);
         var ordered = DiscoverRanking.Order(visible.Select(d => new DiscoverRanking.Candidate(
@@ -127,7 +130,9 @@ public class DiscoverController : ControllerBase
             Builders<PostDocument>.Filter.Ne(p => p.IdentityDisclosure, "AnonymousMap"),
             Builders<PostDocument>.Filter.Gt(p => p.CreatedAtUtc, now - HashtagWindow));
         var docs = await _posts.Find(filter).SortByDescending(p => p.CreatedAtUtc).Skip((page - 1) * pageSize).Limit(pageSize + 1).ToListAsync(ct);
-        var hidden = (await _graph.GetAsync(ct))?.Hidden ?? new HashSet<Guid>();
+        var graph = await _graph.GetAsync(ct);
+        if (graph is null) return StatusCode(StatusCodes.Status503ServiceUnavailable, new { code = "FEED_UNAVAILABLE" });
+        var hidden = graph.Hidden;
         var me = User.GetUserId();
         var items = docs.Take(pageSize).Where(d => !hidden.Contains(d.AuthorId) && !IsHiddenTestPost(d)).Select(d => ToItem(d, me, now, null)).ToList();
         Response.Headers.CacheControl = "private, no-store";

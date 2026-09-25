@@ -649,7 +649,7 @@ Mobil istemci Gateway uzerinden asagidaki ana route'lari kullanir.
 
 ### Discover (Kesfet)
 
-- `GET /api/discover/nearby`, `GET /api/discover/following`
+- `GET /api/discover/nearby`, `GET /api/discover/following` (engeller IdentityService'ten gelir; ona ulasilamazsa her Kesfet akisi 503 `FEED_UNAVAILABLE` doner, engelli kisi gosterilerek tahmin yurutulmez)
 - `GET /api/discover/hashtag/{tag}?page` (V2-4: son 7 gun, herkese acik, anonim sinyal yok, etiket katlanir: `#AkşamKahvesi` = `aksamkahvesi`; 1 harf 400 `INVALID_HASHTAG`), `GET /api/discover/hashtags/search?q=` (`[{ tag, postCount }]`, son 30 gun)
 
 ### Places
