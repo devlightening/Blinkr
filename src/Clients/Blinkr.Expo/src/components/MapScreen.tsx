@@ -106,6 +106,7 @@ const LOCATION_TIMEOUT_MS = 8_000;
 export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowList, shareRequested = null, onShareHandled, focusPlace = null, onFocusHandled, focusSignal = null, onFocusSignalHandled, onOverlayOpenChange, onMessageUser, onOpenHashtag }: Props) {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
+  const [mapReady, setMapReady] = useState(false);
   const activeRequest = useRef<AbortController | null>(null);
   const detailRequest = useRef<AbortController | null>(null);
   const nearbyRequest = useRef<AbortController | null>(null);
@@ -920,7 +921,10 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
         // iOS (Apple Maps) cannot take a custom style; its muted map lets Blinkr's own pins carry the colour.
         mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
         initialRegion={focusPlace ? { latitude: focusPlace.latitude, longitude: focusPlace.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 } : ISTANBUL_REGION}
-        mapPadding={{ top: chromeTop, right: 14, bottom: bottomBarClearance(insets.bottom), left: 14 }}
+        // Android: setting padding before Google Maps is ready crashes natively ("setMapPadding ... null object
+        // reference" - seen on an emulator whose Maps module loads slowly), so it waits for onMapReady.
+        mapPadding={mapReady ? { top: chromeTop, right: 14, bottom: bottomBarClearance(insets.bottom), left: 14 } : undefined}
+        onMapReady={() => setMapReady(true)}
         onRegionChangeComplete={handleRegionChangeComplete}
         pitchEnabled={false}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
