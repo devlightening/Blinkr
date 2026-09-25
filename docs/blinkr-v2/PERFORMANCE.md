@@ -10,8 +10,8 @@
 | Hikaye segment geçişi | < 100 ms (ön yüklenmişse) | cihaz |
 | API p95 harita/akış | < 300 ms | 31 / 51 ms (yerel) |
 | API p95 sohbet | < 300 ms | 110 ms (yerel) |
-| Gerçek zaman mesaj gecikmesi | < 500 ms | V2-5 |
-| JS paket | < 6 MB (Hermes bytecode) | export ile izlenir |
+| Gerçek zaman mesaj gecikmesi | < 500 ms | < 1 sn doğrulandı (BLK-REALTIME-01, Gateway üzerinden) |
+| JS paket | < 6 MB (Hermes bytecode) | **4,52 MB** Android / 4,51 MB iOS (2026-09-25; önce 6,26 MB — lucide ikonları tek tek içe aktarılıyor, `babel-plugin-lucide-icons.js`) |
 
 ## Mobil teknikler
 - **Animasyon UI thread'de:** reanimated shared value + worklet; `useAnimatedStyle` bağımlılık dizisiyle.
