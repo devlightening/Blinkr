@@ -119,7 +119,8 @@ function Start-OwnedService {
 
     $stdout = Join-Path $logRoot "$($Service.Name).stdout.log"
     $stderr = Join-Path $logRoot "$($Service.Name).stderr.log"
-    $arguments = @("run", "--project", "`"$projectPath`"", "--urls", "`"$($Service.Urls)`"") -join " "
+    # Built beforehand, one at a time (see [4/6]): parallel dotnet run builds raced on the shared DLLs.
+    $arguments = @("run", "--no-build", "--project", "`"$projectPath`"", "--urls", "`"$($Service.Urls)`"") -join " "
     $process = Start-Process -FilePath "dotnet" -ArgumentList $arguments -WorkingDirectory $repoRoot -RedirectStandardOutput $stdout -RedirectStandardError $stderr -WindowStyle Hidden -PassThru
 
     Write-Host ("  ..  {0} starting on :{1} (PID {2})" -f $Service.Name, $Service.Port, $process.Id)
@@ -199,6 +200,13 @@ try {
 
     Write-Host "`n[4/6] Starting application services..." -ForegroundColor Cyan
     $env:ASPNETCORE_ENVIRONMENT = "Development"
+    # Build every service that is not already running, one after another. Four parallel `dotnet run` builds fought over
+    # Shared/Shared.Events DLLs ("being used by another process") and a service randomly failed to start.
+    foreach ($service in ($services | Where-Object { $null -eq (Get-ListeningConnection -Port $_.Port) })) {
+        Write-Host ("  ..  building {0}" -f $service.Name)
+        & dotnet build (Join-Path $repoRoot $service.Project) -v q -nologo | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "$($service.Name) did not build; run: dotnet build $($service.Project)" }
+    }
     $state = Read-State
     foreach ($service in $services) {
         $state = Start-OwnedService -Service $service -CurrentState $state
