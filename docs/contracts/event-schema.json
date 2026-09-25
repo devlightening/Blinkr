@@ -1,0 +1,531 @@
+{
+  "check": "BLK-CONTRACTS-01: dotnet run --project src/Tools/Blinkr.Tools.EventContracts",
+  "types": {
+    "BlogService.Domain.Events.MentionRef, BlogService.Domain": {
+      "kind": "shape",
+      "properties": {
+        "UserId": "System.Guid",
+        "UserName": "System.String"
+      },
+      "required": [
+        "UserId",
+        "UserName"
+      ]
+    },
+    "BlogService.Domain.Events.PostCommentAddedEvent, BlogService.Domain": {
+      "kind": "domain",
+      "properties": {
+        "AuthorHidden": "System.Boolean",
+        "AuthorId": "System.Guid",
+        "AuthorName": "System.String?",
+        "CommentId": "System.Guid",
+        "CommentText": "System.String",
+        "Mentions": "System.Collections.Generic.IReadOnlyList\u003CBlogService.Domain.Events.MentionRef\u003E?",
+        "OccurredOn": "System.DateTime",
+        "ParentCommentId": "System.Guid?",
+        "PostId": "System.Guid",
+        "PostOwnerId": "System.Guid?"
+      },
+      "required": [
+        "AuthorId",
+        "CommentId",
+        "CommentText",
+        "OccurredOn",
+        "PostId"
+      ]
+    },
+    "BlogService.Domain.Events.PostCommentLikedEvent, BlogService.Domain": {
+      "kind": "domain",
+      "properties": {
+        "CommentId": "System.Guid",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid",
+        "UserId": "System.Guid"
+      },
+      "required": [
+        "CommentId",
+        "OccurredOn",
+        "PostId",
+        "UserId"
+      ]
+    },
+    "BlogService.Domain.Events.PostCommentRemovedEvent, BlogService.Domain": {
+      "kind": "domain",
+      "properties": {
+        "CommentId": "System.Guid",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid",
+        "RemovedByUserId": "System.Guid"
+      },
+      "required": [
+        "CommentId",
+        "OccurredOn",
+        "PostId",
+        "RemovedByUserId"
+      ]
+    },
+    "BlogService.Domain.Events.PostCommentUnlikedEvent, BlogService.Domain": {
+      "kind": "domain",
+      "properties": {
+        "CommentId": "System.Guid",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid",
+        "UserId": "System.Guid"
+      },
+      "required": [
+        "CommentId",
+        "OccurredOn",
+        "PostId",
+        "UserId"
+      ]
+    },
+    "BlogService.Domain.Events.PostContentUpdatedEvent, BlogService.Domain": {
+      "kind": "domain",
+      "properties": {
+        "NewContent": "System.String",
+        "NewTitle": "System.String",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid"
+      },
+      "required": [
+        "NewContent",
+        "NewTitle",
+        "OccurredOn",
+        "PostId"
+      ]
+    },
+    "BlogService.Domain.Events.PostCreatedEvent, BlogService.Domain": {
+      "kind": "domain",
+      "properties": {
+        "AccuracyMeters": "System.Double?",
+        "AudienceType": "System.String",
+        "AuthorGender": "System.String?",
+        "AuthorId": "System.Guid",
+        "AuthorName": "System.String?",
+        "Content": "System.String",
+        "ExpiresAt": "System.DateTime?",
+        "FromGallery": "System.Boolean",
+        "IdentityDisclosure": "System.String",
+        "Latitude": "System.Double?",
+        "LocationName": "System.String?",
+        "LocationPrecision": "System.String",
+        "Longitude": "System.Double?",
+        "Media": "System.Collections.Generic.ICollection\u003CBlogService.Domain.Events.PostMediaInfo\u003E?",
+        "Mentions": "System.Collections.Generic.IReadOnlyList\u003CBlogService.Domain.Events.MentionRef\u003E?",
+        "OccurredOn": "System.DateTime",
+        "PlaceId": "System.Guid?",
+        "PostId": "System.Guid",
+        "PublicationTrust": "System.String?",
+        "SignalType": "System.String",
+        "SignalValue": "System.String?",
+        "SourceType": "System.String",
+        "Title": "System.String"
+      },
+      "required": [
+        "AuthorId",
+        "Content",
+        "OccurredOn",
+        "PostId",
+        "Title"
+      ]
+    },
+    "BlogService.Domain.Events.PostDeletedEvent, BlogService.Domain": {
+      "kind": "domain",
+      "properties": {
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid"
+      },
+      "required": [
+        "OccurredOn",
+        "PostId"
+      ]
+    },
+    "BlogService.Domain.Events.PostLikedEvent, BlogService.Domain": {
+      "kind": "domain",
+      "properties": {
+        "LikerName": "System.String?",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid",
+        "PostOwnerId": "System.Guid?",
+        "Reaction": "System.String?",
+        "Replaces": "System.Boolean",
+        "UserId": "System.Guid"
+      },
+      "required": [
+        "OccurredOn",
+        "PostId",
+        "UserId"
+      ]
+    },
+    "BlogService.Domain.Events.PostLocationAddedEvent, BlogService.Domain": {
+      "kind": "domain",
+      "properties": {
+        "Latitude": "System.Double",
+        "LocationName": "System.String?",
+        "Longitude": "System.Double",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid"
+      },
+      "required": [
+        "Latitude",
+        "Longitude",
+        "OccurredOn",
+        "PostId"
+      ]
+    },
+    "BlogService.Domain.Events.PostLocationRemovedEvent, BlogService.Domain": {
+      "kind": "domain",
+      "properties": {
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid"
+      },
+      "required": [
+        "OccurredOn",
+        "PostId"
+      ]
+    },
+    "BlogService.Domain.Events.PostLocationUpdatedEvent, BlogService.Domain": {
+      "kind": "domain",
+      "properties": {
+        "Latitude": "System.Double",
+        "LocationName": "System.String?",
+        "Longitude": "System.Double",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid"
+      },
+      "required": [
+        "Latitude",
+        "Longitude",
+        "OccurredOn",
+        "PostId"
+      ]
+    },
+    "BlogService.Domain.Events.PostMediaAddedEvent, BlogService.Domain": {
+      "kind": "domain",
+      "properties": {
+        "MediaId": "System.Guid",
+        "MediaType": "System.String",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid",
+        "Url": "System.String"
+      },
+      "required": [
+        "MediaId",
+        "MediaType",
+        "OccurredOn",
+        "PostId",
+        "Url"
+      ]
+    },
+    "BlogService.Domain.Events.PostMediaInfo, BlogService.Domain": {
+      "kind": "shape",
+      "properties": {
+        "ContentType": "System.String?",
+        "DurationSeconds": "System.Double?",
+        "Height": "System.Int32?",
+        "MediaId": "System.Guid?",
+        "MediaType": "System.String",
+        "SizeBytes": "System.Int64?",
+        "ThumbnailUrl": "System.String?",
+        "Url": "System.String",
+        "Width": "System.Int32?"
+      },
+      "required": [
+        "MediaType",
+        "Url"
+      ]
+    },
+    "BlogService.Domain.Events.PostUnlikedEvent, BlogService.Domain": {
+      "kind": "domain",
+      "properties": {
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid",
+        "UserId": "System.Guid"
+      },
+      "required": [
+        "OccurredOn",
+        "PostId",
+        "UserId"
+      ]
+    },
+    "Shared.Events.Abstractions.IIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "Id": "System.Guid",
+        "OccurredOn": "System.DateTime"
+      }
+    },
+    "Shared.Events.Abstractions.IPostCreatedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "AccuracyMeters": "System.Double?",
+        "AudienceType": "System.String?",
+        "AuthorGender": "System.String?",
+        "AuthorId": "System.Guid",
+        "AuthorName": "System.String?",
+        "Content": "System.String",
+        "ExpiresAt": "System.DateTime?",
+        "FromGallery": "System.Boolean",
+        "Id": "System.Guid",
+        "IdentityDisclosure": "System.String?",
+        "Latitude": "System.Double?",
+        "LocationName": "System.String?",
+        "LocationPrecision": "System.String?",
+        "Longitude": "System.Double?",
+        "Media": "System.Collections.Generic.ICollection\u003CShared.Events.Abstractions.PostMediaInfo\u003E?",
+        "Mentions": "System.Collections.Generic.List\u003CShared.Events.Events.Blog.MentionedUser\u003E?",
+        "OccurredOn": "System.DateTime",
+        "PlaceId": "System.Guid?",
+        "PostId": "System.Guid",
+        "PublicationTrust": "System.String?",
+        "SignalType": "System.String?",
+        "SignalValue": "System.String?",
+        "SourceType": "System.String?",
+        "Title": "System.String"
+      }
+    },
+    "Shared.Events.Abstractions.IPostLocationAddedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "Id": "System.Guid",
+        "Lat": "System.Double",
+        "Lon": "System.Double",
+        "Name": "System.String?",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid"
+      }
+    },
+    "Shared.Events.Abstractions.IPostLocationRemovedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "Id": "System.Guid",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid"
+      }
+    },
+    "Shared.Events.Abstractions.IPostLocationUpdatedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "Id": "System.Guid",
+        "Lat": "System.Double",
+        "Lon": "System.Double",
+        "Name": "System.String?",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid"
+      }
+    },
+    "Shared.Events.Abstractions.PostMediaInfo, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "ContentType": "System.String?",
+        "DurationSeconds": "System.Double?",
+        "Height": "System.Int32?",
+        "MediaId": "System.Guid?",
+        "MediaType": "System.String?",
+        "SizeBytes": "System.Int64?",
+        "ThumbnailUrl": "System.String?",
+        "Url": "System.String?",
+        "Width": "System.Int32?"
+      }
+    },
+    "Shared.Events.Events.Blog.MentionedUser, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "UserId": "System.Guid",
+        "UserName": "System.String"
+      }
+    },
+    "Shared.Events.Events.Blog.PostCommentAddedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "AuthorHidden": "System.Boolean",
+        "AuthorId": "System.Guid",
+        "CommentAuthorId": "System.Guid",
+        "CommentAuthorName": "System.String",
+        "CommentId": "System.Guid",
+        "CommentText": "System.String",
+        "Id": "System.Guid",
+        "Mentions": "System.Collections.Generic.List\u003CShared.Events.Events.Blog.MentionedUser\u003E?",
+        "OccurredAtUtc": "System.DateTime",
+        "OccurredOn": "System.DateTime",
+        "ParentCommentId": "System.Guid?",
+        "PostId": "System.Guid",
+        "PostOwnerId": "System.Guid"
+      }
+    },
+    "Shared.Events.Events.Blog.PostCommentLikedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "CommentId": "System.Guid",
+        "Id": "System.Guid",
+        "OccurredAtUtc": "System.DateTime",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid",
+        "UserId": "System.Guid"
+      }
+    },
+    "Shared.Events.Events.Blog.PostCommentRemovedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "CommentId": "System.Guid",
+        "Id": "System.Guid",
+        "OccurredAtUtc": "System.DateTime",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid",
+        "RemovedByUserId": "System.Guid"
+      }
+    },
+    "Shared.Events.Events.Blog.PostCommentUnlikedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "CommentId": "System.Guid",
+        "Id": "System.Guid",
+        "OccurredAtUtc": "System.DateTime",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid",
+        "UserId": "System.Guid"
+      }
+    },
+    "Shared.Events.Events.Blog.PostContentUpdatedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "Id": "System.Guid",
+        "NewContent": "System.String?",
+        "NewTitle": "System.String?",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid"
+      }
+    },
+    "Shared.Events.Events.Blog.PostCreatedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "AccuracyMeters": "System.Double?",
+        "AudienceType": "System.String?",
+        "AuthorGender": "System.String?",
+        "AuthorId": "System.Guid",
+        "AuthorName": "System.String?",
+        "Content": "System.String?",
+        "ExpiresAt": "System.DateTime?",
+        "FromGallery": "System.Boolean",
+        "Id": "System.Guid",
+        "IdentityDisclosure": "System.String?",
+        "Latitude": "System.Double?",
+        "LocationName": "System.String?",
+        "LocationPrecision": "System.String?",
+        "Longitude": "System.Double?",
+        "Media": "System.Collections.Generic.ICollection\u003CShared.Events.Events.Blog.PostMediaDto\u003E?",
+        "Mentions": "System.Collections.Generic.List\u003CShared.Events.Events.Blog.MentionedUser\u003E?",
+        "OccurredOn": "System.DateTime",
+        "PlaceId": "System.Guid?",
+        "PostId": "System.Guid",
+        "PublicationTrust": "System.String?",
+        "SignalType": "System.String?",
+        "SignalValue": "System.String?",
+        "SourceType": "System.String?",
+        "Title": "System.String?"
+      }
+    },
+    "Shared.Events.Events.Blog.PostDeletedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "Id": "System.Guid",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid"
+      }
+    },
+    "Shared.Events.Events.Blog.PostLikedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "Id": "System.Guid",
+        "LikerUserId": "System.Guid",
+        "LikerUserName": "System.String",
+        "OccurredAtUtc": "System.DateTime",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid",
+        "PostOwnerId": "System.Guid",
+        "Reaction": "System.String?",
+        "Replaces": "System.Boolean",
+        "UserId": "System.Guid"
+      }
+    },
+    "Shared.Events.Events.Blog.PostMediaDto, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "ContentType": "System.String?",
+        "DurationSeconds": "System.Double?",
+        "Height": "System.Int32?",
+        "MediaId": "System.Guid?",
+        "MediaType": "System.String?",
+        "SizeBytes": "System.Int64?",
+        "ThumbnailUrl": "System.String?",
+        "Url": "System.String?",
+        "Width": "System.Int32?"
+      }
+    },
+    "Shared.Events.Events.Blog.PostUnlikedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "Id": "System.Guid",
+        "LikerUserId": "System.Guid",
+        "OccurredAtUtc": "System.DateTime",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid",
+        "PostOwnerId": "System.Guid"
+      }
+    },
+    "Shared.Events.Events.Identity.FollowRequestAcceptedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "AccepterId": "System.Guid",
+        "AccepterName": "System.String",
+        "FollowerId": "System.Guid",
+        "Id": "System.Guid",
+        "OccurredAtUtc": "System.DateTime",
+        "OccurredOn": "System.DateTime"
+      }
+    },
+    "Shared.Events.Events.Identity.PostModerationChangedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "Action": "System.String",
+        "Id": "System.Guid",
+        "OccurredAtUtc": "System.DateTime",
+        "OccurredOn": "System.DateTime",
+        "PostId": "System.Guid",
+        "State": "System.String"
+      }
+    },
+    "Shared.Events.Events.Identity.UserDeletedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "DeletedAtUtc": "System.DateTime",
+        "Id": "System.Guid",
+        "OccurredOn": "System.DateTime",
+        "UserId": "System.Guid"
+      }
+    },
+    "Shared.Events.Events.Identity.UserFollowedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "FolloweeId": "System.Guid",
+        "FollowerId": "System.Guid",
+        "FollowerName": "System.String",
+        "Id": "System.Guid",
+        "OccurredAtUtc": "System.DateTime",
+        "OccurredOn": "System.DateTime",
+        "Requested": "System.Boolean"
+      }
+    },
+    "Shared.Events.Events.Identity.UserSanctionedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "Action": "System.String",
+        "Id": "System.Guid",
+        "OccurredAtUtc": "System.DateTime",
+        "OccurredOn": "System.DateTime",
+        "UntilUtc": "System.DateTime?",
+        "UserId": "System.Guid"
+      }
+    }
+  }
+}

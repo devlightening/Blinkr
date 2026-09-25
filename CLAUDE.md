@@ -1000,7 +1000,7 @@ sinyal-mvp-plan'in fazlarindan bagimsiz olarak korunmalidir (bir sosyal ozellik 
 
 - CI'da dotnet build/test, Expo typecheck/test, contract/integration testleri calistir.
 - NuGet/npm security auditlerini kontrollu sekilde kapat.
-- API/event schema compatibility testleri ekle.
+- API/event schema compatibility testleri ekle. (2026-09-25: `src/Tools/Blinkr.Tools.EventContracts` (BLK-CONTRACTS-01, CI) integration ve domain event sozlesmelerini `docs/contracts/event-schema.json` ile karsilastirir: tip/alan silme, yeniden adlandirma ve tip degisikligi (T -> T? haric) basarisiz; domain event'e zorunlu yeni parametre basarisiz (EventStoreDbRepository cozemedigi tipi replay'de sessizce atlar). Uyumlu ekleme `-- --update` ile baseline'a yazilir.)
 - Importer ve geospatial query performans testleri ekle.
 - Signed iOS/Android development ve release buildlerini dogrula.
 

@@ -26,6 +26,8 @@ jobs:
           dotnet-version: "10.0.x"
       - name: Build
         run: dotnet build Blinkr.sln -c Release
+      - name: Event contracts (BLK-CONTRACTS-01)
+        run: dotnet run --project src/Tools/Blinkr.Tools.EventContracts -c Release
       - name: Vulnerable packages
         run: |
           dotnet list Blinkr.sln package --vulnerable --include-transitive 2>&1 | tee vulnerable.txt
