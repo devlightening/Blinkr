@@ -39,7 +39,8 @@
     "emptyHashtagBody": "Son 7 günde bu etiketle herkese açık bir sinyal paylaşılmadı.",
     "more": "devamı",
     "allComments_one": "{{count}} yorumu gör",
-    "allComments_other": "{{count}} yorumun tümünü gör"
+    "allComments_other": "{{count}} yorumun tümünü gör",
+    "locationTitle": "Konumun bulunamadı"
   },
   "stories": {
     "yours": "Hikayen",

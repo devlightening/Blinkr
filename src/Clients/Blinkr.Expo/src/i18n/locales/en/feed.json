@@ -39,7 +39,8 @@
     "emptyHashtagBody": "No public signal used this tag in the last 7 days.",
     "more": "more",
     "allComments_one": "View {{count}} comment",
-    "allComments_other": "View all {{count}} comments"
+    "allComments_other": "View all {{count}} comments",
+    "locationTitle": "We could not find your location"
   },
   "stories": {
     "yours": "Your story",

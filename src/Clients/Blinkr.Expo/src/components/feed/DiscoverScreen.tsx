@@ -295,13 +295,15 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
       );
     }
     if (feed.error && feed.items.length === 0) {
+      // Say what really failed: a missing location is not a network problem.
+      const locationProblem = feed.error === t('discover.locationTimeout');
       return (
         <View style={styles.center}>
           <BlinkrEmptyState
             action={{ label: t('discover.retry'), onPress: () => { if (which === 'nearby' && !origin) void locate(false); else void load(which, 1, origin); } }}
             description={feed.error}
-            icon={<WifiOff color={colors.textSecondary} size={32} />}
-            title={t('discover.loadFailed')}
+            icon={locationProblem ? <MapPin color={colors.textSecondary} size={32} /> : <WifiOff color={colors.textSecondary} size={32} />}
+            title={locationProblem ? t('discover.locationTitle') : t('discover.loadFailed')}
           />
         </View>
       );
