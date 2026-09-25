@@ -431,3 +431,11 @@ export const cancelAccountDeletion = async () => { (window as unknown as { __del
 let dataRequest: { id: string; createdAtUtc: string; status: string } | null = null;
 export const getLatestDataRequest = async () => ({ latest: dataRequest });
 export const requestDataCopy = async () => { dataRequest = dataRequest ?? { id: 'dr-1', createdAtUtc: new Date().toISOString(), status: 'received' }; return { ...dataRequest, repeated: false }; };
+
+// Ayarlar > Şifreyi değiştir: ?pwwrong = the current password is wrong; otherwise it changes and ends 2 other sessions.
+export const passwordChanges: Array<{ current: string; next: string }> = [];
+export const changePassword = async (_auth: unknown, current: string, next: string) => {
+  if (flag('pwwrong')) throw new ApiCodeError('WRONG_PASSWORD', 400);
+  passwordChanges.push({ current, next });
+  return { changed: true, sessionsEnded: 2 };
+};

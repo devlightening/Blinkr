@@ -1,7 +1,10 @@
 import Constants from 'expo-constants';
-import { ArrowLeft, BookOpen, ChevronRight, Code2, Download, FileText, Info, LogOut, Lock, MonitorSmartphone, ShieldCheck, Trash2, UserX, Users } from 'lucide-react-native';
+import { ArrowLeft, BookOpen, Camera as CameraIcon, ChevronRight, Code2, Download, FileText, History, Image as ImageIcon, Info, KeyRound, LogOut, Lock, MapPin, MonitorSmartphone, ShieldCheck, Trash2, UserX, Users } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, BackHandler, Linking, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Camera } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,7 +17,9 @@ import { Avatar } from './Avatar';
 import { DevComponentPreview } from './DevComponentPreview';
 import { LegalDocView } from './LegalDocView';
 import { DataRequestView } from './account/DataRequestView';
+import { ChangePasswordView } from './account/ChangePasswordView';
 import { DeleteAccountView } from './account/DeleteAccountView';
+import { clearRecentSearches } from '../recentSearches';
 import { SessionsView } from './account/SessionsView';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
@@ -38,7 +43,18 @@ type Props = {
   onPrivacyChange?: (isPrivate: boolean) => void;
 };
 
-type Page = 'main' | 'blocked' | 'dev' | 'data' | 'delete' | 'sessions' | 'community' | 'terms' | 'privacy';
+type Page = 'main' | 'blocked' | 'dev' | 'data' | 'delete' | 'sessions' | 'password' | 'community' | 'terms' | 'privacy';
+
+/** What the phone says about a permission; null when it cannot be read (e.g. the browser preview). */
+type PermissionState = 'granted' | 'denied' | 'undetermined' | null;
+const readPermission = async (read: () => Promise<{ granted: boolean; canAskAgain?: boolean; status?: string }>): Promise<PermissionState> => {
+  try {
+    const answer = await read();
+    return answer.granted ? 'granted' : answer.status === 'denied' || answer.canAskAgain === false ? 'denied' : 'undetermined';
+  } catch {
+    return null;
+  }
+};
 
 const appVersion = () => Constants.expoConfig?.version ?? '1.0.0';
 
@@ -92,6 +108,27 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
 
   useEffect(() => { void loadBlocked(); return () => load.current?.abort(); }, [loadBlocked]);
 
+  // Permissions as the phone reports them, read again when the person comes back from the system settings.
+  const [permissions, setPermissions] = useState<{ location: PermissionState; camera: PermissionState; photos: PermissionState }>({ location: null, camera: null, photos: null });
+  const readPermissions = useCallback(async () => {
+    const [location, camera, photos] = await Promise.all([
+      readPermission(() => Location.getForegroundPermissionsAsync()),
+      readPermission(() => Camera.getCameraPermissionsAsync()),
+      readPermission(() => ImagePicker.getMediaLibraryPermissionsAsync()),
+    ]);
+    setPermissions({ location, camera, photos });
+  }, []);
+  useEffect(() => {
+    void readPermissions();
+    const sub = AppState.addEventListener('change', (state) => { if (state === 'active') void readPermissions(); });
+    return () => sub.remove();
+  }, [readPermissions]);
+  const permissionLabel = (state: PermissionState) => state === 'granted' ? tx('settings:permissions.granted', 'Açık')
+    : state === 'denied' ? tx('settings:permissions.denied', 'Kapalı')
+    : state === 'undetermined' ? tx('settings:permissions.undetermined', 'Sorulmadı') : undefined;
+  const openSystemSettings = () => { void Linking.openSettings().catch(() => {}); };
+  const [searchesCleared, setSearchesCleared] = useState(false);
+
   useEffect(() => {
     const back = BackHandler.addEventListener('hardwareBackPress', () => { if (page !== 'main') setPage('main'); else onBack(); return true; });
     return () => back.remove();
@@ -141,6 +178,7 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
           <View style={styles.group}>
             <Row icon={<Text style={styles.glyph}>@</Text>} title={tx('settings:account.username', 'Kullanıcı adı')} value={auth.userName} />
             <Row icon={<Text style={styles.glyph}>✉</Text>} title={tx('settings:account.email', 'E-posta')} value={auth.email} />
+            <Row icon={<KeyRound color={colors.text} size={18} />} onPress={() => setPage('password')} title={tx('settings:password.title', 'Şifreyi değiştir')} />
             <Row icon={<MonitorSmartphone color={colors.text} size={18} />} onPress={() => setPage('sessions')} title={t('pages.sessions')} />
             <Row icon={<Download color={colors.text} size={18} />} onPress={() => setPage('data')} title={t('pages.data')} />
             <Row icon={<Trash2 color={colors.danger} size={18} />} onPress={() => setPage('delete')} title={t('pages.delete')} />
@@ -179,6 +217,20 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
               <Text style={styles.noteText}>{tx('settings:privacy.snaps', 'Snap’ler bir kez izlenip kaybolur; fotoğraflardaki konum bilgisi silinir.')}</Text>
               <Text style={styles.noteText}>{tx('settings:privacy.friends', 'Arkadaşlık yalnızca birbirini bulmak ve mesajlaşmak içindir; konum paylaşmaz.')}</Text>
             </View>
+          </View>
+
+          {/* Permissions: what the phone allows Blinkr, and a way to change it (only the system can). */}
+          <Text style={styles.section}>{tx('settings:sections.permissions', 'İzinler')}</Text>
+          <View style={styles.group}>
+            <Row icon={<MapPin color={colors.text} size={18} />} onPress={openSystemSettings} title={tx('settings:permissions.location', 'Konum')} value={permissionLabel(permissions.location)} />
+            <Row icon={<CameraIcon color={colors.text} size={18} />} onPress={openSystemSettings} title={tx('settings:permissions.camera', 'Kamera')} value={permissionLabel(permissions.camera)} />
+            <Row icon={<ImageIcon color={colors.text} size={18} />} onPress={openSystemSettings} title={tx('settings:permissions.photos', 'Fotoğraflar')} value={permissionLabel(permissions.photos)} />
+          </View>
+          <Text style={styles.noteText}>{tx('settings:permissions.hint', 'Konum yalnızca sinyal paylaşırken ve yakındakileri görürken kullanılır; kesin konumun kimseye gösterilmez.')}</Text>
+
+          <Text style={styles.section}>{tx('settings:sections.data', 'Cihazdaki veriler')}</Text>
+          <View style={styles.group}>
+            <Row icon={<History color={colors.text} size={18} />} onPress={searchesCleared ? undefined : () => { void clearRecentSearches(auth.userId).then(() => setSearchesCleared(true)); }} title={tx('settings:data.clearSearches', 'Arama geçmişini temizle')} value={searchesCleared ? tx('settings:data.cleared', 'Temizlendi') : undefined} />
           </View>
 
           {/* plan-devam B3: Sistem / Açık / Koyu. Choosing one reloads the app so every surface, the map included, repaints. */}
@@ -238,10 +290,11 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
             <Text style={styles.logoutText}>{tx('common:actions.logout', 'Oturumu kapat')}</Text>
           </AnimatedPressable>
         </ScrollView>
-      ) : page === 'data' || page === 'delete' || page === 'sessions' || page === 'community' || page === 'terms' || page === 'privacy' ? (
+      ) : page === 'data' || page === 'delete' || page === 'sessions' || page === 'password' || page === 'community' || page === 'terms' || page === 'privacy' ? (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]} showsVerticalScrollIndicator={false}>
           {page === 'data' ? <DataRequestView auth={auth} refresh={refresh} /> : null}
           {page === 'sessions' ? <SessionsView auth={auth} refresh={refresh} /> : null}
+          {page === 'password' ? <ChangePasswordView auth={auth} onDone={() => setPage('main')} refresh={refresh} /> : null}
           {page === 'delete' ? <DeleteAccountView auth={auth} onDeleted={onLogout} refresh={refresh} /> : null}
           {page === 'community' || page === 'terms' || page === 'privacy' ? <LegalDocView id={page} /> : null}
         </ScrollView>

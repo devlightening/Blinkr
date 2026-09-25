@@ -117,7 +117,8 @@
     "close": "Kapat",
     "ok": "Tamam",
     "backShort": "Geri",
-    "openProfile": "Profili aç"
+    "openProfile": "Profili aç",
+    "done": "Tamam"
   },
   "people": {
     "notFound": "Kullanıcı bulunamadı",

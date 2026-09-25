@@ -258,6 +258,10 @@ export const getSessions = (auth: AuthResponse, refresh: AccountRefresh = {}) =>
 export const revokeOtherSessions = (auth: AuthResponse, refresh: AccountRefresh = {}) =>
   requestJson<{ revoked: number }>('/api/users/me/sessions/revoke-others', { auth, method: 'POST', body: { refreshToken: auth.refreshToken }, onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
 
+/** Change my password (current one checked on the server); every other session ends, this one stays. Throws ApiCodeError. */
+export const changePassword = (auth: AuthResponse, currentPassword: string, newPassword: string, refresh: AccountRefresh = {}) =>
+  requestCoded<{ changed: boolean; sessionsEnded: number }>('/api/users/me/password', { auth, method: 'POST', body: { currentPassword, newPassword, refreshToken: auth.refreshToken }, onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
+
 export const getLatestDataRequest = (auth: AuthResponse, refresh: AccountRefresh = {}) =>
   requestJson<{ latest: DataRequestInfo | null }>('/api/users/me/data-requests', { auth, onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
 

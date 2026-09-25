@@ -578,6 +578,35 @@ async function main() {
     await expect(page.getByText(/OpenStreetMap katkıcıları/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Engellenen kişiler, 1' })).toBeVisible();
     await page.waitForTimeout(250); await page.screenshot({ path: path.join(out, 'settings.png') });
+    // Permissions are the phone's real answers, and each row opens the system settings.
+    await expect(page.getByRole('button', { name: 'Konum, Açık' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Kamera, Açık' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Fotoğraflar, Sorulmadı' })).toBeVisible();
+    await page.getByRole('button', { name: 'Arama geçmişini temizle' }).click();
+    await expect(page.getByText('Temizlendi')).toBeVisible();
+    // Change password: local rules first, then the server; success says other devices were signed out.
+    await page.getByRole('button', { name: 'Şifreyi değiştir' }).click();
+    await expect(page.getByTestId('change-password')).toBeVisible();
+    await page.getByTestId('password-current').fill('eskiSifre1');
+    await page.getByTestId('password-new').fill('kisa');
+    await expect(page.getByText('Yeni şifre en az 8 karakter olmalı.')).toBeVisible();
+    await page.getByTestId('password-new').fill('yeniSifre123');
+    await page.getByTestId('password-again').fill('yeniSifre124');
+    await expect(page.getByText('Yeni şifreler aynı değil.')).toBeVisible();
+    await page.getByTestId('password-again').fill('yeniSifre123');
+    await page.getByTestId('change-password').getByRole('button', { name: 'Şifreyi değiştir' }).click();
+    await expect(page.getByTestId('password-changed')).toBeVisible();
+    await expect(page.getByText(/Diğer cihazlardaki 2 oturum kapatıldı/)).toBeVisible();
+    await page.getByRole('button', { name: 'Tamam' }).click();
+    await expect(page.getByRole('heading', { name: 'Ayarlar' })).toBeVisible();
+    await page.goto(url + '?scene=settings&pwwrong');
+    await page.getByRole('button', { name: 'Şifreyi değiştir' }).click();
+    await page.getByTestId('password-current').fill('yanlis123');
+    await page.getByTestId('password-new').fill('yeniSifre123');
+    await page.getByTestId('password-again').fill('yeniSifre123');
+    await page.getByTestId('change-password').getByRole('button', { name: 'Şifreyi değiştir' }).click();
+    await expect(page.getByText('Mevcut şifre doğru değil.')).toBeVisible();
+    await page.goto(url + '?scene=settings');
     await page.getByRole('button', { name: 'Engellenen kişiler, 1' }).click();
     await expect(page.getByRole('heading', { name: 'Engellenen kişiler' })).toBeVisible();
     await expect(page.getByText('mert', { exact: true })).toBeVisible();

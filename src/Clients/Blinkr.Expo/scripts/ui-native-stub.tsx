@@ -11,6 +11,9 @@ export const selectionAsync = async () => {};
 export const setStringAsync = async (value: string) => { (window as unknown as { __clipboard?: string }).__clipboard = value; return true; };
 export const requestCameraPermissionsAsync = async () => ({ status: 'denied' });
 export const requestMediaLibraryPermissionsAsync = requestCameraPermissionsAsync;
+// Ayarlar > İzinler reads these: camera on, photos never asked.
+export const getMediaLibraryPermissionsAsync = async () => ({ granted: false, canAskAgain: true, status: 'undetermined' });
+export const Camera = { getCameraPermissionsAsync: async () => ({ granted: true, canAskAgain: true, status: 'granted' }) };
 export const launchCameraAsync = async () => ({ canceled: true, assets: [] });
 export const launchImageLibraryAsync = launchCameraAsync;
 export const getItemAsync = async (key: string) => localStorage.getItem(key);

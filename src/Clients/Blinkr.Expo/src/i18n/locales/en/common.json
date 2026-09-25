@@ -117,7 +117,8 @@
     "close": "Close",
     "ok": "OK",
     "backShort": "Back",
-    "openProfile": "Open profile"
+    "openProfile": "Open profile",
+    "done": "Done"
   },
   "people": {
     "notFound": "No user found",

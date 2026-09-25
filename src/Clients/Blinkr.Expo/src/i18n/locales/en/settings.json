@@ -33,7 +33,8 @@
     "community": "Community guidelines",
     "terms": "Terms of use",
     "privacy": "Privacy policy",
-    "sessions": "Sessions"
+    "sessions": "Sessions",
+    "password": "Change password"
   },
   "legal": {
     "updated": "Last updated: {{date}}"
@@ -58,7 +59,9 @@
     "ask": "Request my data",
     "received": "Request received ({{date}}).",
     "next": "The copy will be sent to your email when it is ready. Questions:",
-    "failed": "The request couldn't be sent. Try again."
+    "failed": "The request couldn't be sent. Try again.",
+    "clearSearches": "Clear search history",
+    "cleared": "Cleared"
   },
   "pending": {
     "title": "Your account is about to be deleted",
@@ -82,7 +85,9 @@
     "safety": "Safety",
     "privacy": "Privacy",
     "developer": "Developer",
-    "about": "About"
+    "about": "About",
+    "permissions": "Permissions",
+    "data": "On this device"
   },
   "account": {
     "username": "Username",
@@ -111,5 +116,32 @@
     "cancel": "Cancel",
     "revoked_one": "{{count}} session signed out.",
     "revoked_other": "{{count}} sessions signed out."
+  },
+  "password": {
+    "title": "Change password",
+    "hint": "At least 8 characters. Changing it signs you out on other devices; you stay signed in here.",
+    "current": "Current password",
+    "new": "New password",
+    "again": "New password (again)",
+    "save": "Change password",
+    "tooShort": "The new password needs at least 8 characters.",
+    "tooLong": "The new password can be at most 128 characters.",
+    "mismatch": "The new passwords do not match.",
+    "wrong": "The current password is not right.",
+    "unchanged": "The new password must differ from the old one.",
+    "tooMany": "Too many tries. Try again a little later.",
+    "failed": "The password could not be changed. Try again.",
+    "done": "Your password changed",
+    "doneOthers": "{{count}} sessions on other devices were signed out; you are still signed in here.",
+    "doneAlone": "You are still signed in here."
+  },
+  "permissions": {
+    "location": "Location",
+    "camera": "Camera",
+    "photos": "Photos",
+    "granted": "On",
+    "denied": "Off",
+    "undetermined": "Not asked",
+    "hint": "Location is used only while you share a signal or look at what is nearby; your exact position is never shown to anyone."
   }
 }

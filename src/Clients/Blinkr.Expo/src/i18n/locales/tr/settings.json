@@ -33,7 +33,8 @@
     "community": "Topluluk kuralları",
     "terms": "Kullanım şartları",
     "privacy": "Gizlilik politikası",
-    "sessions": "Oturumlar"
+    "sessions": "Oturumlar",
+    "password": "Şifreyi değiştir"
   },
   "legal": {
     "updated": "Son güncelleme: {{date}}"
@@ -58,7 +59,9 @@
     "ask": "Verilerimi iste",
     "received": "Talebin alındı ({{date}}).",
     "next": "Kopyan hazırlanınca e-posta adresine gönderilecek. Sorular için:",
-    "failed": "Talep gönderilemedi. Tekrar dene."
+    "failed": "Talep gönderilemedi. Tekrar dene.",
+    "clearSearches": "Arama geçmişini temizle",
+    "cleared": "Temizlendi"
   },
   "pending": {
     "title": "Hesabın silinmek üzere",
@@ -82,7 +85,9 @@
     "safety": "Güvenlik",
     "privacy": "Gizlilik",
     "developer": "Geliştirici",
-    "about": "Hakkında"
+    "about": "Hakkında",
+    "permissions": "İzinler",
+    "data": "Cihazdaki veriler"
   },
   "account": {
     "username": "Kullanıcı adı",
@@ -111,5 +116,32 @@
     "cancel": "Vazgeç",
     "revoked_one": "{{count}} oturum kapatıldı.",
     "revoked_other": "{{count}} oturum kapatıldı."
+  },
+  "password": {
+    "title": "Şifreyi değiştir",
+    "hint": "En az 8 karakter. Değiştirince diğer cihazlardaki oturumların kapanır; bu cihazda açık kalır.",
+    "current": "Mevcut şifre",
+    "new": "Yeni şifre",
+    "again": "Yeni şifre (tekrar)",
+    "save": "Şifreyi değiştir",
+    "tooShort": "Yeni şifre en az 8 karakter olmalı.",
+    "tooLong": "Yeni şifre en fazla 128 karakter olabilir.",
+    "mismatch": "Yeni şifreler aynı değil.",
+    "wrong": "Mevcut şifre doğru değil.",
+    "unchanged": "Yeni şifre eskisiyle aynı olamaz.",
+    "tooMany": "Çok fazla deneme yaptın. Biraz sonra tekrar dene.",
+    "failed": "Şifre değiştirilemedi. Tekrar dene.",
+    "done": "Şifren değişti",
+    "doneOthers": "Diğer cihazlardaki {{count}} oturum kapatıldı; bu cihazda oturumun açık.",
+    "doneAlone": "Bu cihazda oturumun açık."
+  },
+  "permissions": {
+    "location": "Konum",
+    "camera": "Kamera",
+    "photos": "Fotoğraflar",
+    "granted": "Açık",
+    "denied": "Kapalı",
+    "undetermined": "Sorulmadı",
+    "hint": "Konum yalnızca sinyal paylaşırken ve yakındakileri görürken kullanılır; kesin konumun kimseye gösterilmez."
   }
 }

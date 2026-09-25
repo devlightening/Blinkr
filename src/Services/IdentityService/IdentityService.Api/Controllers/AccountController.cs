@@ -2,6 +2,9 @@ using IdentityService.Domain.Entities;
 using IdentityService.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Caching.Memory;
+using IdentityService.Api.Account;
 using Microsoft.EntityFrameworkCore;
 using Shared.Moderation;
 using System.Security.Claims;
@@ -9,6 +12,7 @@ using System.Security.Claims;
 namespace IdentityService.Api.Controllers
 {
     public record DeleteAccountRequest(string? Password, int? GraceSeconds = null);
+    public record ChangePasswordRequest(string? CurrentPassword, string? NewPassword, string? RefreshToken);
 
     /// <summary>
     /// My account's lifecycle (plan-devam F3/F4): asking for deletion (two-step in the app, password here), cancelling it
@@ -23,12 +27,53 @@ namespace IdentityService.Api.Controllers
         private readonly AppDbContext _db;
         private readonly IConfiguration _config;
         private readonly ILogger<AccountController> _logger;
+        private readonly IMemoryCache _cache;
 
-        public AccountController(AppDbContext db, IConfiguration config, ILogger<AccountController> logger)
+        public AccountController(AppDbContext db, IConfiguration config, ILogger<AccountController> logger, IMemoryCache cache)
         {
             _db = db;
             _config = config;
             _logger = logger;
+            _cache = cache;
+        }
+
+        /// <summary>
+        /// POST /api/users/me/password { currentPassword, newPassword, refreshToken } - change my password. The current one
+        /// must be right (10 wrong tries lock it for 15 minutes, like sign-in, so a stolen session cannot guess it); the
+        /// new one follows the sign-up rules (8-128) and must differ. Every other session ends: anyone who knew the old
+        /// password is signed out, this device (the refresh token given) stays signed in.
+        /// </summary>
+        [HttpPost("api/users/me/password")]
+        [EnableRateLimiting(AuthThrottle.Policy)]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+        {
+            var user = await CurrentAsync();
+            if (user is null) return Unauthorized(new { error = "Unauthorized" });
+            var lockKey = $"password-change:{user.Id}";
+            if (AuthThrottle.IsLocked(_cache, lockKey))
+                return StatusCode(StatusCodes.Status429TooManyRequests, new { error = AuthThrottle.ErrorCode, code = AuthThrottle.ErrorCode, message = "Çok fazla deneme yaptın. Biraz sonra tekrar dene." });
+            if (string.IsNullOrEmpty(request?.CurrentPassword) || !BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+            {
+                AuthThrottle.RecordFailure(_cache, lockKey);
+                return BadRequest(new { error = "WRONG_PASSWORD", code = "WRONG_PASSWORD", message = "Mevcut şifre doğru değil." });
+            }
+            AuthThrottle.RecordSuccess(_cache, lockKey);
+            var next = request.NewPassword ?? string.Empty;
+            if (next.Length < IdentityService.Infrastructure.Services.UserService.MinPasswordLength)
+                return BadRequest(new { error = "PASSWORD_TOO_SHORT", code = "PASSWORD_TOO_SHORT", message = "Şifre en az 8 karakter olmalı." });
+            if (next.Length > IdentityService.Infrastructure.Services.UserService.MaxPasswordLength)
+                return BadRequest(new { error = "PASSWORD_TOO_LONG", code = "PASSWORD_TOO_LONG", message = "Şifre en fazla 128 karakter olabilir." });
+            if (BCrypt.Net.BCrypt.Verify(next, user.PasswordHash))
+                return BadRequest(new { error = "PASSWORD_UNCHANGED", code = "PASSWORD_UNCHANGED", message = "Yeni şifre eskisiyle aynı olamaz." });
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(next);
+            var keep = string.IsNullOrWhiteSpace(request.RefreshToken) ? null : IdentityService.Infrastructure.Services.UserService.HashToken(request.RefreshToken);
+            var now = DateTime.UtcNow;
+            var others = await _db.RefreshTokens.Where(t => t.UserId == user.Id && t.RevokedAtUtc == null && t.TokenHash != keep).ToListAsync();
+            foreach (var token in others) token.RevokedAtUtc = now;
+            await _db.SaveChangesAsync();
+            _logger.LogInformation("Password changed | UserId={UserId} SessionsEnded={Count}", user.Id, others.Count);
+            return Ok(new { changed = true, sessionsEnded = others.Count });
         }
 
         /// <summary>
