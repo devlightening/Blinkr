@@ -9,7 +9,8 @@
 | Akış kaydırma | 60 fps, JS thread < 16 ms/kare | cihaz |
 | Hikaye segment geçişi | < 100 ms (ön yüklenmişse) | cihaz |
 | API p95 harita/akış | < 300 ms | 31 / 51 ms (yerel) |
-| API p95 sohbet | < 300 ms | 110 ms (yerel) |
+| API p95 sohbet | < 300 ms | 110 ms (yerel); sohbet listesi 20 ms (2026-09-25) |
+| API p95 V2 uçları | < 300 ms | Keşfet 77, etiket akışı 22, etiket arama 24, gönderi 21, yorumlar 18, bildirimler 19 ms (yerel, 60 istek) |
 | Gerçek zaman mesaj gecikmesi | < 500 ms | < 1 sn doğrulandı (BLK-REALTIME-01, Gateway üzerinden) |
 | JS paket | < 6 MB (Hermes bytecode) | **4,52 MB** Android / 4,51 MB iOS (2026-09-25; önce 6,26 MB — lucide ikonları tek tek içe aktarılıyor, `babel-plugin-lucide-icons.js`) |
 

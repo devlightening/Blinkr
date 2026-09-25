@@ -91,7 +91,9 @@ public static class ServiceCollectionExtensions
         // Production default stays 100 requests/minute per device or IP. It can be raised through
         // configuration (RateLimiting:GlobalPermitLimit) for controlled runs such as load or seed tests;
         // callers must not be able to raise it themselves.
-        var globalPermitLimit = Math.Max(1, config.GetValue<int?>("RateLimiting:GlobalPermitLimit") ?? 100);
+        // Per person since D-030 (it was per Gateway IP). Map panning plus polling can pass 100 a minute in normal use, so
+        // the default is 300 per person per minute; abuse is still cut off.
+        var globalPermitLimit = Math.Max(1, config.GetValue<int?>("RateLimiting:GlobalPermitLimit") ?? 300);
 
         services.AddRateLimiter(options =>
         {
@@ -106,7 +108,7 @@ public static class ServiceCollectionExtensions
                     partitionKey: key,
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
-                        PermitLimit = globalPermitLimit, // 100 req / window unless configured
+                        PermitLimit = globalPermitLimit, // 300 req / window per person unless configured
                         Window = TimeSpan.FromMinutes(1),
                         QueueLimit = 0,
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst
