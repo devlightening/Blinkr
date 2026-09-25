@@ -132,7 +132,8 @@
     "start": "Start recording",
     "holdHint": "Hold to record a video (up to 15 s).",
     "progressA11y": "recording progress {{percent}}",
-    "textOnlyA11y": "Text-only signal"
+    "textOnlyA11y": "Text-only signal",
+    "shareWithout": "Share without the camera"
   },
   "lens": {
     "none": "Normal",

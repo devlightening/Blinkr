@@ -132,7 +132,8 @@
     "start": "Kaydı başlat",
     "holdHint": "Basılı tutarsan video kaydeder (en fazla 15 sn).",
     "progressA11y": "kayıt ilerlemesi {{percent}}",
-    "textOnlyA11y": "Sadece yazılı sinyal"
+    "textOnlyA11y": "Sadece yazılı sinyal",
+    "shareWithout": "Kamerasız paylaş"
   },
   "lens": {
     "none": "Normal",

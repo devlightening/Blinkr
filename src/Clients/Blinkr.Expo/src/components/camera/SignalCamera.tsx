@@ -17,6 +17,7 @@ import { friendlyError } from '../../productPresentation';
 import { media, mediaColors as colors, radii, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
+import { BlinkrButton } from '../ui/BlinkrButton';
 import { FilterOverlay } from './FilterOverlay';
 import { LensIndicator } from './LensIndicator';
 import { useLensSwipe } from './LensSwipe';
@@ -235,6 +236,8 @@ export function SignalCamera({ onClose, onCapture, submitLabel, photoOnly = fals
           icon={<CameraOff color={colors.textSecondary} size={34} />}
           title={tx('create:camera.permissionTitle', 'Kamera izni gerekiyor')}
         />
+        {/* The text promises a way to share without the camera: here it is. */}
+        {onTextOnly ? <BlinkrButton label={tx('create:camera.shareWithout', 'Kamerasız paylaş')} onPress={onTextOnly} style={styles.withoutCamera} variant="ghost" /> : null}
       </View>
     );
   }
@@ -402,6 +405,7 @@ const RING = 76;
 const RING_R = (RING - 4) / 2;
 const RING_C = 2 * Math.PI * RING_R;
 const styles = StyleSheet.create({
+  withoutCamera: { marginTop: spacing.sm },
   screen: { backgroundColor: media.black, flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center' },
   closeAbsolute: { left: spacing.md, position: 'absolute' },
