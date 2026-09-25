@@ -150,7 +150,7 @@ public class PostsController : ControllerBase
 
     [HttpPost("{postId:guid}/comments")]
     [Authorize(Policy = "api.write")]
-    public async Task<IActionResult> AddComment(Guid postId, [FromBody] AddCommentDto dto, [FromServices] BlogService.Api.Services.MentionResolver mentionResolver)
+    public async Task<IActionResult> AddComment(Guid postId, [FromBody] AddCommentDto dto, [FromServices] BlogService.Api.Services.MentionResolver mentionResolver, [FromServices] BlogService.Api.Services.InteractionGuard guard)
     {
         var authorId = User.GetUserId() ?? throw new UnauthorizedAccessException();
         var authorName = User.FindFirst("preferred_username")?.Value
@@ -165,6 +165,7 @@ public class PostsController : ControllerBase
         var review = ContentTextFilter.Review(text);
         if (review.Verdict == TextVerdict.Blocked) return UnprocessableEntity(new { error = ContentTextFilter.BlockedCode, code = ContentTextFilter.BlockedCode, message = "Bu içerik topluluk kurallarına uymuyor." });
         text = review.Text;
+        if (Gate(await guard.CheckAsync(authorId, postId, dto.ParentCommentId, HttpContext.RequestAborted)) is { } refused) return refused;
         var mentions = await mentionResolver.ResolveAsync(authorId, HttpContext.RequestAborted, text);
         if (mentions.TooMany) return BadRequest(new { error = "TOO_MANY_MENTIONS", code = "TOO_MANY_MENTIONS", message = "Bir yorumda en fazla 10 kişiyi etiketleyebilirsin." });
 
@@ -208,9 +209,10 @@ public class PostsController : ControllerBase
     /// <summary>POST /api/posts/{postId}/likes toggles; answers { liked } (the state after the toggle).</summary>
     [HttpPost("{postId:guid}/likes")]
     [Authorize(Policy = "api.write")]
-    public async Task<IActionResult> AddLike(Guid postId)
+    public async Task<IActionResult> AddLike(Guid postId, [FromServices] BlogService.Api.Services.InteractionGuard guard)
     {
-        _ = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated");
+        var me = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated");
+        if (Gate(await guard.CheckAsync(me, postId, null, HttpContext.RequestAborted)) is { } refused) return refused;
         try
         {
             var likerName = User.FindFirst("preferred_username")?.Value ?? User.FindFirst("name")?.Value ?? User.Identity?.Name;
@@ -237,10 +239,11 @@ public class PostsController : ControllerBase
     /// </summary>
     [HttpPost("{postId:guid}/reactions")]
     [Authorize(Policy = "api.write")]
-    public async Task<IActionResult> SetReaction(Guid postId, [FromBody] SetReactionDto dto)
+    public async Task<IActionResult> SetReaction(Guid postId, [FromBody] SetReactionDto dto, [FromServices] BlogService.Api.Services.InteractionGuard guard)
     {
-        _ = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated");
+        var me = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated");
         if (dto.Reaction is not null && !Shared.Events.Text.ReactionCatalog.IsValid(dto.Reaction)) return BadRequest(new { code = "INVALID_REACTION" });
+        if (Gate(await guard.CheckAsync(me, postId, null, HttpContext.RequestAborted)) is { } refused) return refused;
         try
         {
             var likerName = User.FindFirst("preferred_username")?.Value ?? User.FindFirst("name")?.Value ?? User.Identity?.Name;
@@ -255,9 +258,10 @@ public class PostsController : ControllerBase
     /// <summary>POST /api/posts/{postId}/comments/{commentId}/like (V2-4, D-027): toggle; answers { liked, likeCount }.</summary>
     [HttpPost("{postId:guid}/comments/{commentId:guid}/like")]
     [Authorize(Policy = "api.write")]
-    public async Task<IActionResult> ToggleCommentLike(Guid postId, Guid commentId)
+    public async Task<IActionResult> ToggleCommentLike(Guid postId, Guid commentId, [FromServices] BlogService.Api.Services.InteractionGuard guard)
     {
-        _ = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated");
+        var me = User.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated");
+        if (Gate(await guard.CheckAsync(me, postId, commentId, HttpContext.RequestAborted)) is { } refused) return refused;
         try
         {
             var (liked, likeCount) = await _mediator.Send(new TogglePostCommentLikeCommand(postId, commentId));
@@ -266,6 +270,14 @@ public class PostsController : ControllerBase
         catch (KeyNotFoundException) { return NotFound(new { code = "NOT_FOUND" }); }
         catch (InvalidOperationException) { return NotFound(new { code = "NOT_FOUND" }); }
     }
+
+    /// <summary>Blocks on comments/reactions: the same 404 a blocked profile gives; 503 when blocks cannot be read.</summary>
+    private IActionResult? Gate(BlogService.Api.Services.InteractionCheck check) => check switch
+    {
+        BlogService.Api.Services.InteractionCheck.Blocked => NotFound(new { code = "NOT_FOUND" }),
+        BlogService.Api.Services.InteractionCheck.Unavailable => StatusCode(StatusCodes.Status503ServiceUnavailable, new { code = "INTERACTION_UNAVAILABLE" }),
+        _ => null,
+    };
 
     // --- READ ENDPOINTS ---
 

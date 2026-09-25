@@ -14,7 +14,7 @@ function Invoke-Api {
     $args = @{ UseBasicParsing = $true; Uri = "$GatewayBaseUrl$Path"; Method = $Method; TimeoutSec = 60 }
     if ($Token) { $args.Headers = @{ Authorization = "Bearer $Token" } }
     if ($null -ne $RawBody) { $args.Body = $RawBody; $args.ContentType = $ContentType }
-    elseif ($null -ne $Body) { $args.Body = ($Body | ConvertTo-Json -Compress); $args.ContentType = "application/json" }
+    elseif ($null -ne $Body) { $args.Body = [Text.Encoding]::UTF8.GetBytes(($Body | ConvertTo-Json -Compress)); $args.ContentType = "application/json; charset=utf-8" }
     $status = 0; $raw = ""
     try { $response = Invoke-WebRequest @args; $status = [int]$response.StatusCode; $raw = [string]$response.Content }
     catch {
@@ -115,11 +115,40 @@ $withCan = Invoke-Api -Method POST -Path "/api/chat/conversations" -Token $ada.T
 $canMsg = Invoke-Api -Method POST -Path "/api/chat/conversations/$($withCan.Json.id)/messages" -Token $ada.Token -Body @{ text = "merhaba can" }
 Check "chat with everybody else is untouched" ($withCan.Status -eq 200 -and $canMsg.Status -eq 200) "conv $($withCan.Status) msg $($canMsg.Status)"
 
+# --- comments and reactions: the block reaches the signals too (the same 404 as a blocked profile)
+function New-Signal([string]$Token, [string]$Disclosure) {
+    $lat = 37.0 + (Get-Random -Minimum 100000 -Maximum 999999) / 10000000; $lon = 36.2 + (Get-Random -Minimum 100000 -Maximum 999999) / 10000000
+    $p = Invoke-Api -Method POST -Path "/api/posts" -Token $Token -Body @{ title = ""; content = "Engel smoke"; latitude = $lat; longitude = $lon; accuracyMeters = 20; locationName = "Sokak"; signalType = "GeneralObservation"; audienceType = "Public"; identityDisclosure = $Disclosure; locationPrecision = "ApproximateArea" }
+    $id = [string]$p.Json.postId
+    for ($i = 0; $i -lt 30; $i++) { if ((Invoke-Api -Method GET -Path "/api/posts/$id" -Token $can.Token).Status -eq 200) { break }; Start-Sleep -Milliseconds 500 }
+    $id
+}
+$adaPost = New-Signal $ada.Token "LimitedProfile"
+$adaAnon = New-Signal $ada.Token "AnonymousMap"
+$canPost = New-Signal $can.Token "LimitedProfile"
+$adaComment = [string](Invoke-Api -Method POST -Path "/api/posts/$canPost/comments" -Token $ada.Token -Body @{ commentText = "Ada'nin yorumu" }).Json.commentId
+for ($i = 0; $i -lt 30; $i++) { if ((Invoke-Api -Method GET -Path "/api/posts/$canPost/comments" -Token $can.Token).Raw.Contains($adaComment)) { break }; Start-Sleep -Milliseconds 500 }
+$bc = Invoke-Api -Method POST -Path "/api/posts/$adaPost/comments" -Token $bek.Token -Body @{ commentText = "yine ben" }
+$br = Invoke-Api -Method POST -Path "/api/posts/$adaPost/reactions" -Token $bek.Token -Body @{ reaction = [char]::ConvertFromUtf32(0x1F525) }
+$bl = Invoke-Api -Method POST -Path "/api/posts/$adaPost/likes" -Token $bek.Token
+Check "a blocked person cannot comment on, react to or like the blocker's signal" ($bc.Status -eq 404 -and $br.Status -eq 404 -and $bl.Status -eq 404) "HTTP $($bc.Status)/$($br.Status)/$($bl.Status)"
+Check "the refusal looks like a missing signal, not a block" ($bc.Json.code -eq "NOT_FOUND" -and $bc.Raw -notmatch "block|engel") "$($bc.Raw)"
+$reply = Invoke-Api -Method POST -Path "/api/posts/$canPost/comments" -Token $bek.Token -Body @{ commentText = "cevap"; parentCommentId = $adaComment }
+$clike = Invoke-Api -Method POST -Path "/api/posts/$canPost/comments/$adaComment/like" -Token $bek.Token
+Check "nor reply to or like the blocker's comment under someone else's signal" ($reply.Status -eq 404 -and $clike.Status -eq 404) "HTTP $($reply.Status)/$($clike.Status)"
+$other = Invoke-Api -Method POST -Path "/api/posts/$canPost/comments" -Token $bek.Token -Body @{ commentText = "Can'a yorum" }
+$canOnAda = Invoke-Api -Method POST -Path "/api/posts/$adaPost/comments" -Token $can.Token -Body @{ commentText = "Ada'ya yorum" }
+Check "everybody else's signals and comments are untouched" ($other.Status -eq 200 -and $canOnAda.Status -eq 200) "HTTP $($other.Status)/$($canOnAda.Status)"
+$anonReact = Invoke-Api -Method POST -Path "/api/posts/$adaAnon/reactions" -Token $bek.Token -Body @{ reaction = [char]::ConvertFromUtf32(0x1F525) }
+Check "an anonymous signal does not give its author away through a refusal" ($anonReact.Status -eq 200) "HTTP $($anonReact.Status) $($anonReact.Raw)"
+
 # --- unblock
 $unblock = Invoke-Api -Method DELETE -Path "/api/blocks/$($bek.Id)" -Token $ada.Token
 Check "unblocking answers relation none" ($unblock.Status -eq 200 -and $unblock.Json.relation -eq "none") "HTTP $($unblock.Status) $($unblock.Raw)"
 $afterMsg = Invoke-Api -Method POST -Path "/api/chat/conversations/$cid/messages" -Token $bek.Token -Body @{ text = "yine buradayim" }
 Check "after unblocking they can talk again" ($afterMsg.Status -eq 200) "HTTP $($afterMsg.Status) $($afterMsg.Raw)"
+$afterComment = Invoke-Api -Method POST -Path "/api/posts/$adaPost/comments" -Token $bek.Token -Body @{ commentText = "tekrar merhaba" }
+Check "and comment on the other one's signals again" ($afterComment.Status -eq 200) "HTTP $($afterComment.Status) $($afterComment.Raw)"
 $afterFriends = Invoke-Api -Method GET -Path "/api/friends" -Token $ada.Token
 Check "the friendship is not restored by unblocking" (@($afterFriends.Json).Count -eq 0) "$($afterFriends.Raw)"
 $afterAdd = Invoke-Api -Method POST -Path "/api/friends/requests" -Body @{ userId = $bek.Id } -Token $ada.Token

@@ -368,6 +368,7 @@ public static class ServiceCollectionExtensions
             client.BaseAddress = new Uri((config["Services:IdentityBaseUrl"] ?? "http://localhost:5188").TrimEnd('/') + "/");
             client.Timeout = TimeSpan.FromSeconds(3);
         });
+        services.AddScoped<BlogService.Api.Services.InteractionGuard>();
         services.AddHttpClient<BlogService.Api.Services.MentionResolver>(client =>
         {
             client.BaseAddress = new Uri((config["Services:IdentityBaseUrl"] ?? "http://localhost:5188").TrimEnd('/') + "/");
