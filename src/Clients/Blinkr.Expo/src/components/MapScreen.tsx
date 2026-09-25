@@ -312,7 +312,9 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
     try {
       const map = await getUnifiedMapBounds(getBounds(targetRegion), controller.signal, includeCatalogPlaces);
       if (activeRequest.current !== controller || mapRequestSeq.current !== requestId) return;
-      setPlaces(map.places);
+      // Places missing (PlaceService down) keep the ones already on the map instead of wiping them (CLAUDE.md §11).
+      if (map.placesUnavailable) setError(tx('map:placesUnavailable', 'Yerler şu an yenilenemedi; son bilinen durum gösteriliyor.'));
+      else setPlaces(map.places);
       setSignals(map.signals);
       setMapDirty(distanceMeters(currentRegion.current, targetRegion) > 40 || Math.abs(currentRegion.current.longitudeDelta - targetRegion.longitudeDelta) > 0.002);
       return map;

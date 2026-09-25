@@ -141,10 +141,13 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedd
 
       const response = await getUnifiedMapBounds(boundsAround(origin), mine.signal, false);
       if (!current()) return;
+      // Places missing (PlaceService down): a list without them would look like "nothing is happening", so keep the
+      // last good list; with none yet, show the signals and say the places are missing.
+      if (response.placesUnavailable && hasResult.current) { setNotice(tx('map:nearby.placesKept', 'Yerler şu an yenilenemedi. Son liste gösteriliyor.')); setPhase('ready'); return; }
       const next = buildNearbyActivity(response, origin);
       setItems(next);
       setUpdatedAt(Date.now());
-      setNotice(null);
+      setNotice(response.placesUnavailable ? tx('map:nearby.placesMissing', 'Yerler şu an yüklenemedi; yalnız sinyaller gösteriliyor.') : null);
       setError(null);
       hasResult.current = true;
       setPhase('ready');
@@ -155,7 +158,7 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedd
       const message = timedOut ? tx('map:nearby.noFix', 'Konumun şu an alınamadı. Açık bir alana geçip tekrar dene.') : friendlyError(err, tx('map:nearby.loadFailed', 'Yakındakiler yüklenemedi. Tekrar dene.'));
       console.log('[Blinkr Nearby]', { status: 'failed', reason: timedOut ? 'location-timeout' : 'request', totalMs: Date.now() - startedAt });
       // Stale-while-revalidate: a failed refresh keeps the last good list and says so.
-      if (hasResult.current) { setNotice(message); setPhase('ready'); } else { setError(message); setPhase('error'); }
+      if (hasResult.current) { setNotice(`${message} ${tx('map:nearby.keptList', 'Son liste gösteriliyor.')}`); setPhase('ready'); } else { setError(message); setPhase('error'); }
     } finally {
       if (mounted.current && generation.current === id) setRefreshing(false);
     }
@@ -256,7 +259,7 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedd
           ))}
         </ScrollView>
       ) : null}
-      {notice ? <Text accessibilityLiveRegion="polite" style={styles.notice}>{notice} Son liste gösteriliyor.</Text> : null}
+      {notice ? <Text accessibilityLiveRegion="polite" style={styles.notice}>{notice}</Text> : null}
       {visible.length === 0 ? (
         <View style={styles.centerFill}>
           <BlinkrEmptyState

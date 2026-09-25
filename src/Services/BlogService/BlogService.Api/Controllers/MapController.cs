@@ -77,7 +77,10 @@ public sealed class MapController : ControllerBase
             .Take(limit)
             .Select(ToSignalItem)
             .ToArray();
-        var places = placesTask.Result
+        // PlaceService did not answer: say so, so the app keeps the places it already shows (CLAUDE.md §11:
+        // a failed refresh must not wipe the markers with an empty list).
+        if (placesTask.Result is null) Response.Headers[PlacesStatusHeader] = "unavailable";
+        var places = (placesTask.Result ?? Array.Empty<PlaceMapItem>())
             .Where(p => includeCatalogPlaces || p.ActivityCount > 0)
             .Take(limit)
             .ToArray();
@@ -108,7 +111,12 @@ public sealed class MapController : ControllerBase
         return Ok(await _postQueryService.GetNearbyAsync(query, cancellationToken));
     }
 
-    private async Task<IReadOnlyList<PlaceMapItem>> GetPlacesAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, bool includeCatalogPlaces, CancellationToken ct)
+    public const string PlacesStatusHeader = "X-Blinkr-Places";
+    /// <summary>Named client for PlaceService /bounds: 3 s timeout (measured p95 67 ms), not the 100 s default.</summary>
+    public const string PlaceClientName = "place-map";
+
+    /// <returns>null when PlaceService could not answer.</returns>
+    private async Task<IReadOnlyList<PlaceMapItem>?> GetPlacesAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, bool includeCatalogPlaces, CancellationToken ct)
     {
         if (!includeCatalogPlaces)
             return await FetchPlacesAsync(minLat, minLon, maxLat, maxLon, limit, activeOnly: true, ct);
@@ -118,6 +126,7 @@ public sealed class MapController : ControllerBase
         var activeTask = FetchPlacesAsync(minLat, minLon, maxLat, maxLon, limit, activeOnly: true, ct);
         var catalogTask = FetchPlacesAsync(minLat, minLon, maxLat, maxLon, limit, activeOnly: false, ct);
         await Task.WhenAll(activeTask, catalogTask);
+        if (activeTask.Result is null || catalogTask.Result is null) return null;
         return activeTask.Result
             .Concat(catalogTask.Result)
             .DistinctBy(place => place.Id)
@@ -125,10 +134,10 @@ public sealed class MapController : ControllerBase
             .ToArray();
     }
 
-    private async Task<IReadOnlyList<PlaceMapItem>> FetchPlacesAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, bool activeOnly, CancellationToken ct)
+    private async Task<IReadOnlyList<PlaceMapItem>?> FetchPlacesAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, bool activeOnly, CancellationToken ct)
     {
         var baseUrl = _configuration["PlaceService:BaseUrl"] ?? "http://localhost:5225";
-        var client = _httpClientFactory.CreateClient();
+        var client = _httpClientFactory.CreateClient(PlaceClientName);
         client.BaseAddress = new Uri(baseUrl);
         var url = string.Create(CultureInfo.InvariantCulture,
             $"/api/places/bounds?minLat={minLat:R}&minLon={minLon:R}&maxLat={maxLat:R}&maxLon={maxLon:R}&limit={limit}&activeOnly={activeOnly}");
@@ -139,8 +148,8 @@ public sealed class MapController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "PlaceService map composition failed.");
-            return Array.Empty<PlaceMapItem>();
+            _logger.LogWarning("PlaceService map composition failed: {Error}", ex.GetType().Name);
+            return null;
         }
     }
 

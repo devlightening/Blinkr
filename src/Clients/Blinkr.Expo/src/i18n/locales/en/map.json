@@ -62,7 +62,10 @@
     "emptyHint": "No signal was shared within 1.5 km in the last 3 hours. You could be the first.",
     "filterEmptyHint": "No fresh signal matches this filter. Try another one.",
     "empty": "No fresh signals around you",
-    "filterEmpty": "Nothing for this filter"
+    "filterEmpty": "Nothing for this filter",
+    "placesKept": "Places could not be refreshed. Showing the last list.",
+    "placesMissing": "Places could not be loaded right now; showing signals only.",
+    "keptList": "Showing the last list."
   },
   "errors": {
     "noFixPlease": "Couldn't get your current location. Please try again.",
@@ -105,5 +108,6 @@
   "a11y": {
     "cluster": "{{count}} signals and places, zoom in",
     "showList": "Show as list"
-  }
+  },
+  "placesUnavailable": "Places could not be refreshed right now; showing the last known state."
 }

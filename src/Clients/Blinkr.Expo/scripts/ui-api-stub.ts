@@ -217,6 +217,8 @@ const activePlace = (id: string, name: string, category: string, meters: number,
 export const getUnifiedMapBounds = async () => {
   if (flag('nearbyfail')) throw new Error('Network request failed');
   if (flag('nearbyempty')) return { places: [], signals: [] };
+  // ?placesdown = the server could not reach PlaceService: only signals, flagged.
+  if (flag('placesdown')) return { places: [], signals: [{ postId: 's1', title: 'Yol çalışması', textPreview: 'İki şeritten biri kapalı', latitude: north(330), longitude: 36.2478, signalType: 'GeneralObservation', createdAtUtc: ago(8), expiresAt: ahead(120) }], placesUnavailable: true };
   return {
     places: [
       activePlace('p1', 'Kent Meydanı', 'PUBLIC', 220, 'Crowd', 'Busy', 4, 'FRESH', 3),

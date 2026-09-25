@@ -294,11 +294,16 @@ export const getUnifiedMapBounds = async (bounds: Bounds, signal?: AbortSignal, 
     limit: '180',
   });
   if (includeCatalogPlaces) params.set('includeCatalogPlaces', 'true');
-  const payload = await requestJson<UnifiedMapResponse>(`/api/map/bounds?${params}`, { signal });
-  console.log('[Blinkr Map]', `Places: ${payload.places?.length ?? 0}`, `Signals: ${payload.signals?.length ?? 0}`);
+  const response = await request(`/api/map/bounds?${params}`, { signal });
+  if (!response.ok) throw await httpError(response);
+  const payload = await response.json() as UnifiedMapResponse;
+  // The server could not reach PlaceService: `places` is empty because it is missing, not because there are none.
+  const placesUnavailable = response.headers.get('x-blinkr-places') === 'unavailable';
+  console.log('[Blinkr Map]', `Places: ${payload.places?.length ?? 0}`, `Signals: ${payload.signals?.length ?? 0}`, placesUnavailable ? 'placesUnavailable' : '');
   return {
     places: payload.places ?? [],
     signals: payload.signals ?? [],
+    placesUnavailable,
   };
 };
 

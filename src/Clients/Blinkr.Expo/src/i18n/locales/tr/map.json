@@ -62,7 +62,10 @@
     "emptyHint": "Son 3 saatte 1,5 km içinde paylaşılmış bir sinyal görünmüyor. İlk paylaşan sen olabilirsin.",
     "filterEmptyHint": "Bu filtreye uyan taze sinyal yok. Başka bir filtre dene.",
     "empty": "Çevrende taze sinyal yok",
-    "filterEmpty": "Bu filtrede sonuç yok"
+    "filterEmpty": "Bu filtrede sonuç yok",
+    "placesKept": "Yerler şu an yenilenemedi. Son liste gösteriliyor.",
+    "placesMissing": "Yerler şu an yüklenemedi; yalnız sinyaller gösteriliyor.",
+    "keptList": "Son liste gösteriliyor."
   },
   "errors": {
     "noFixPlease": "Güncel konum alınamadı. Lütfen tekrar dene.",
@@ -105,5 +108,6 @@
   "a11y": {
     "cluster": "{{count}} sinyal ve yer, yakınlaştır",
     "showList": "Liste olarak göster"
-  }
+  },
+  "placesUnavailable": "Yerler şu an yenilenemedi; son bilinen durum gösteriliyor."
 }

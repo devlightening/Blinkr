@@ -385,6 +385,9 @@ public static class ServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(3);
         });
 
+        // Map composition (MapController): PlaceService /bounds p95 is ~67 ms; fail fast instead of the 100 s default.
+        services.AddHttpClient(BlogService.Api.Controllers.MapController.PlaceClientName, client => client.Timeout = TimeSpan.FromSeconds(3));
+
         services.Configure<BlogService.Api.Services.MediaOptions>(
             config.GetSection("Media"));
         services.Configure<BlogService.Application.Services.PlaceProximityOptions>(

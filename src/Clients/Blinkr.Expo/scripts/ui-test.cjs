@@ -1043,6 +1043,11 @@ async function main() {
     await expect(page.getByText('Çevrende taze sinyal yok')).toBeVisible();
     await page.getByRole('button', { name: 'Sinyal paylaş', exact: true }).click();
     await expect(page.getByLabel('opened')).toHaveText('camera');
+    // PlaceService down: the signals still show, the places are not claimed to be absent.
+    await page.goto(url + '?scene=nearby&placesdown');
+    await expect(page.getByLabel(/Yol çalışması, .*Haritada aç/)).toBeVisible();
+    await expect(page.getByText('Yerler şu an yüklenemedi; yalnız sinyaller gösteriliyor.')).toBeVisible();
+    await expect(page.getByLabel(/Kent Meydanı, .*Haritada aç/)).toHaveCount(0);
     await page.goto(url + '?scene=nearby&nearbyfail');
     await expect(page.getByText('Yakındakiler açılamadı')).toBeVisible();
     await expect(page.getByText('Network request failed')).toHaveCount(0);
