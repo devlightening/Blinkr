@@ -29,6 +29,19 @@ SignalR hub (`/hubs/realtime`), olaylar yalnız "değişti" der, uygulama REST't
 ## Sıradaki
 V2 planı tamam. Kalanlar yalnız cihaz doğrulamaları (aşağıda). Sonra: iki fiziksel cihazla çekirdek döngü kabulü (kök CLAUDE.md §19.3), Push bildirimi (APNs/FCM anahtarı gerekir: kullanıcı kararı), çok örnekli SignalR için Redis backplane.
 
+## V2 sonrası (2026-09-25 gece)
+| Commit | İçerik |
+|---|---|
+| c49bcc2 | Şifre en az 8 karakter, giriş hataları kodla ve uygulama dilinde (`INVALID_CREDENTIALS`) |
+| 44fb0ca | S3 hız sınırları: kişi başına (önceden Gateway IP'si yüzünden herkes tek kovadaydı), giriş kilidi, sohbet 60/dk (D-030) |
+| 4182e95 | S7: KubernetesClient 17.0.14, NuGet açığı 0 |
+| 13638b4 | S6: oturum listesi, diğer cihazlardan çıkış, refresh token yeniden kullanım tespiti |
+| 9ece0a2 | Hata kuyrukları aracı (`scripts/error-queues.ps1`), status'ta görünür; gece biriken 3 mesaj tekrar oynatıldı |
+| d0be4f7 | GitHub Actions CI (build, açık paket, Expo testleri, export) — ilk koşu yeşil |
+| d05b9a3 | Her serviste `/health/live` ve `/health/ready` |
+
+Not: disk doluydu (0 GB); Docker build önbelleği, npm ve NuGet HTTP önbellekleri temizlendi (~7,5 GB boş). Docker'ın WSL diski kendiliğinden küçülmez.
+
 ## Backend notları
 - Backend `start-blinkr-dev.ps1` ile; worker Docker'da (kodu değişince script imajı yeniden kurar).
 - Kabul betiklerini arka arkaya çok kez koşmak kayıt/paylaşım hız sınırına (429) takılır; tek koşu PASS.
