@@ -8,7 +8,7 @@ import {
 import { categoryTone, colors, palette, signalInks, signalTints, typography } from '../theme';
 import type { BlinkrPlace, CoordinateSignal } from '../types';
 import { PlaceSymbol } from './PlaceSymbol';
-import { SignalSymbol } from './SignalSymbol';
+import { signalEmoji } from '../signalEmoji';
 
 /*
  * Pure visuals of the map markers. They contain no react-native-maps import so they can also be
@@ -21,7 +21,7 @@ import { SignalSymbol } from './SignalSymbol';
  *  - Place = teardrop pin whose sharp tip is the exact location. With live, server-verified activity it is filled
  *    with the live signal type's tint and shows the place's category icon in the type's ink. A catalogue Place
  *    without activity is smaller and quiet (surface fill, soft outline), so the map stays readable.
- *  - Signal = round speech bubble with a tail. A ring around it drains as the signal ages, so freshness is
+ *  - Signal = round speech bubble with a tail and the signal's emote (signalEmoji.ts: a calm crowd and a packed one differ). A ring around it drains as the signal ages, so freshness is
  *    visible without opening it.
  *  - Cluster = surface disc with an accent ring inside a halo that grows with the count.
  */
@@ -85,7 +85,7 @@ function PlacePin({ place, selected }: { place: BlinkrPlace; selected: boolean }
       <HeadGlyph geometry={g} scale={scale} size={22}><PlaceSymbol category={place.category} color={glyph} size={22 * scale} /></HeadGlyph>
       {live && stateType ? (
         <View style={[styles.badge, { backgroundColor: SURFACE, borderColor: PIN_OUTLINE, height: 22 * scale, left: (g.headX + g.pad + 13) * scale, top: (g.pad - 2) * scale, width: 22 * scale }]}>
-          <SignalSymbol color={glyph} size={13 * scale} type={stateType} />
+          <Text allowFontScaling={false} style={{ fontSize: 12 * scale, lineHeight: 15 * scale }}>{signalEmoji(stateType, state?.signalValue)}</Text>
         </View>
       ) : null}
     </View>
@@ -116,7 +116,7 @@ function SignalBubble({ signal, selected, now }: { signal: CoordinateSignal; sel
         <G opacity={0.16} transform="translate(0, 2)"><Path d={SIGNAL_BUBBLE_PATH} fill={palette.ink900} /></G>
         <Path d={SIGNAL_BUBBLE_PATH} fill={tint} stroke={PIN_OUTLINE} strokeLinejoin="round" strokeWidth={2.5} />
       </Frame>
-      <HeadGlyph geometry={g} scale={scale} size={24}><SignalSymbol color={ink} size={24 * scale} type={signal.signalType} /></HeadGlyph>
+      <HeadGlyph geometry={g} scale={scale} size={26}><Text allowFontScaling={false} style={{ fontSize: 21 * scale, lineHeight: 26 * scale }}>{signalEmoji(signal.signalType, signal.signalValue)}</Text></HeadGlyph>
     </View>
   );
 }

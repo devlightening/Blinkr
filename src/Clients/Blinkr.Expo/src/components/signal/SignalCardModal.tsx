@@ -204,7 +204,9 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
   const cardStyle = useAnimatedStyle(() => {
     const e = expand.value;
     const inset = 1 - e;
-    const cardH = Math.min(contentH.value, maxHeight);
+    // Until the content has been measured (or if a device never reports it) the card still shows at a sensible height
+    // instead of staying 0 tall and invisible.
+    const cardH = contentH.value > 0 ? Math.min(contentH.value, maxHeight) : Math.min(maxHeight, 460);
     return {
       left: CARD_MARGIN * inset,
       right: CARD_MARGIN * inset,

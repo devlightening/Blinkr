@@ -917,6 +917,8 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
     <View style={styles.screen}>
       <MapView
         customMapStyle={Platform.OS === 'android' ? (getThemeMode() === 'dark' ? mapDarkStyle : mapLightStyle) : undefined}
+        // iOS (Apple Maps) cannot take a custom style; its muted map lets Blinkr's own pins carry the colour.
+        mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
         initialRegion={focusPlace ? { latitude: focusPlace.latitude, longitude: focusPlace.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 } : ISTANBUL_REGION}
         mapPadding={{ top: chromeTop, right: 14, bottom: bottomBarClearance(insets.bottom), left: 14 }}
         onRegionChangeComplete={handleRegionChangeComplete}
@@ -926,7 +928,8 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
         rotateEnabled={false}
         showsCompass={false}
         showsMyLocationButton={false}
-        showsPointsOfInterests
+        // Apple Maps POIs are not Blinkr data and do nothing when tapped (CLAUDE.md §11; Android hides them in its style).
+        showsPointsOfInterests={false}
         showsScale={false}
         showsUserLocation={locationReadiness === 'ready'}
         style={StyleSheet.absoluteFill}
