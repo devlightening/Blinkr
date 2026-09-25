@@ -26,6 +26,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\error-queues.ps1 -Purge post-
 Replay related queues in event order (e.g. liked before unliked). Consumers are idempotent, so a message that already
 went through is skipped. `read-error-queue.ps1` is the old helper and removes the message it reads; prefer `-Peek`.
 
+Read model against EventStore (admin token; read-only unless `repair=true`, run again after a republish):
+
+```text
+POST /api/admin/read-models/reconcile?limit=300
+POST /api/admin/read-models/reconcile?postId=<id>&repair=true
+```
+
 Stop application processes started by the dev script:
 
 ```powershell

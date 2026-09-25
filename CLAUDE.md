@@ -983,7 +983,7 @@ sinyal-mvp-plan'in fazlarindan bagimsiz olarak korunmalidir (bir sosyal ozellik 
 ### P1 Uretim guvenilirligi
 
 - Event publisher checkpoint ve consumer inbox semantigini failure injection ile test et.
-- Reconciliation araci/isi ile EventStore ve Mongo projection farklarini bul ve onar.
+- Reconciliation araci/isi ile EventStore ve Mongo projection farklarini bul ve onar. (2026-09-25: `POST /api/admin/read-models/reconcile?repair=false&limit=300[&postId]`, yalniz Admin; eksik/silinmis-ama-gorunur sinyal, begeni/tepki, yorum ve yorum begenisi farklarini EventStore aggregate'ine gore bulur, `repair=true` ile olayi yeniden yayinlar ya da alani aggregate'ten yazar; eksik sinyal icin ikinci/ucuncu gecis begeni ve yorumlari tamamlar. BLK-RECONCILE-01.)
 - DLQ/error queue gorunurlugu, alarm ve tekrar oynatma proseduru ekle.
 - Health/readiness/liveness ayrimini gercek bagimliliklara gore netlestir. (2026-09-25: her servis `/health/live` (bagimliliksiz) ve Identity/Blog/Place/Notifications `/health/ready` (yalniz kullandigi bagimliliklar) verir; Identity'nin kullanmadigi Redis kontrolu kaldirildi; hata kuyruklari `scripts/error-queues.ps1` ve status ciktisinda.)
 - Timeout, retry ve circuit breaker'lari katman bazinda olcerek ayarla.

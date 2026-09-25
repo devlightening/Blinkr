@@ -400,7 +400,9 @@ public static class ServiceCollectionExtensions
         var enableSubscription = config.GetValue("EventStore:EnableSubscription", true);
         if (enableSubscription)
         {
-            services.AddHostedService<BlogService.Api.EventStoreToRabbitMqPublisher>();
+            // One instance: the hosted publisher, and the same mapping for reconciliation (ReconcileController).
+            services.AddSingleton<BlogService.Api.EventStoreToRabbitMqPublisher>();
+            services.AddHostedService(sp => sp.GetRequiredService<BlogService.Api.EventStoreToRabbitMqPublisher>());
             Serilog.Log.Information("🔔 EventStore subscription ENABLED");
         }
         else
@@ -503,6 +505,13 @@ public static class ServiceCollectionExtensions
             options.AddPolicy("AdminOnly", policy =>
                 policy.RequireAuthenticatedUser()
                       .RequireRole("Admin"));
+
+            // Read-model maintenance (AdminReadModelsController, ReconcileController). It was referenced but never
+            // defined, so those endpoints failed with 500. The role claim may arrive as "role" or ClaimTypes.Role.
+            options.AddPolicy("api.admin", policy => policy
+                .RequireAuthenticatedUser()
+                .RequireAssertion(ctx => ctx.User.Claims.Any(c =>
+                    (c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role) && c.Value == "Admin")));
 
             options.DefaultPolicy = new AuthorizationPolicyBuilder()
                 .RequireAuthenticatedUser()

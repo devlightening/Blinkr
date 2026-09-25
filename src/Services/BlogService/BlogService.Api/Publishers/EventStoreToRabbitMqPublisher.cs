@@ -179,6 +179,18 @@ public sealed class EventStoreToRabbitMqPublisher : BackgroundService
         await WriteStatusAsync("running", position, null, ct);
     }
 
+    /// <summary>
+    /// Reconciliation (CLAUDE.md §21 P1): publish one stored domain event again under a new message id, with the exact
+    /// mapping the live publisher uses. Consumers are idempotent, so a repeat never double counts. Answers false for an
+    /// event type this publisher does not map.
+    /// </summary>
+    public async Task<bool> RepublishAsync(object domainEvent, CancellationToken ct)
+    {
+        if (!DomainTypesByName.ContainsKey(domainEvent.GetType().Name)) return false;
+        await PublishIntegrationEventAsync(domainEvent, Guid.NewGuid(), ct);
+        return true;
+    }
+
     private async Task PublishIntegrationEventAsync(object domainEvent, Guid eventId, CancellationToken ct)
     {
         switch (domainEvent)
