@@ -1,5 +1,5 @@
 import { meaningfulTitle, signalLabels } from './presentation';
-import type { BlinkrPlace, CoordinateSignal, RecentSignal, SignalType } from './types';
+import type { AuthoredPost, BlinkrPlace, CoordinateSignal, RecentSignal, SignalType } from './types';
 
 /**
  * The Sinyal Kartı's data and rules (plan-devam Faz C). Pure, so the card component stays thin and these rules are
@@ -116,6 +116,37 @@ export const fromCoordinateSignal = (signal: CoordinateSignal): CardSignal => ({
   placeCategory: null,
   latitude: signal.latitude,
   longitude: signal.longitude,
+  likeCount: 0,
+  commentCount: 0,
+  liked: false,
+  viewCount: null,
+  complete: false,
+});
+
+/**
+ * One of my own signals (profile grid, archive) as a card. It is mine, so the author is me even when it was posted
+ * anonymously (only I ever receive those); position and counts arrive with the detail (complete: false).
+ */
+export const fromAuthoredPost = (post: AuthoredPost, me: { userId: string; userName: string }): CardSignal => ({
+  postId: post.id,
+  authorId: me.userId,
+  authorName: me.userName,
+  anonymous: post.identityDisclosure === 'AnonymousMap',
+  isMine: true,
+  createdAtUtc: post.createdAtUtc ?? null,
+  expiresAtUtc: post.expiresAt ?? null,
+  signalType: post.signalType,
+  signalValue: post.signalValue ?? null,
+  text: cardText(post.title, post.content, post.signalType),
+  media: (post.media && post.media.length > 0
+    ? post.media.map((m) => ({ url: m.url, thumbnailUrl: m.thumbnailUrl ?? null, type: mediaType(m.type) }))
+    : (post.mediaUrls ?? []).filter(Boolean).map((url) => ({ url, thumbnailUrl: url, type: 'Image' as const }))),
+  verified: false,
+  placeId: post.placeId ?? null,
+  placeName: post.locationName ?? null,
+  placeCategory: null,
+  latitude: null,
+  longitude: null,
   likeCount: 0,
   commentCount: 0,
   liked: false,

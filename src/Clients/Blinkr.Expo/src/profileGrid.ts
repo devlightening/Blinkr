@@ -33,3 +33,21 @@ export const gridTile = (post: Pick<AuthoredPost, 'mediaUrls' | 'expiresAt' | 'i
 };
 
 export type ProfileView = 'grid' | 'list';
+
+/**
+ * Profile without an endless list: the profile shows the newest PROFILE_RECENT signals; everything else lives in the
+ * archive, read in pages of ARCHIVE_PAGE_SIZE with explicit newer/older buttons (never loaded by scrolling). The server
+ * refuses page numbers above 1000, so the archive stops there and says so.
+ */
+export const PROFILE_RECENT = 12;
+export const ARCHIVE_PAGE_SIZE = 30;
+export const ARCHIVE_MAX_PAGE = 1000;
+
+export type ArchivePaging = { page: number; pages: number; hasNewer: boolean; hasOlder: boolean; capped: boolean };
+
+export const archivePaging = (total: number, page: number, pageSize = ARCHIVE_PAGE_SIZE): ArchivePaging => {
+  const allPages = Math.max(1, Math.ceil(Math.max(0, total) / pageSize));
+  const pages = Math.min(allPages, ARCHIVE_MAX_PAGE);
+  const current = Math.min(Math.max(1, Math.floor(page) || 1), pages);
+  return { page: current, pages, hasNewer: current > 1, hasOlder: current < pages, capped: allPages > ARCHIVE_MAX_PAGE };
+};

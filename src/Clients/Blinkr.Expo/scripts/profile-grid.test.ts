@@ -1,4 +1,4 @@
-import { GRID_COLUMNS, GRID_GAP, gridTile, gridTileSize } from '../src/profileGrid';
+import { GRID_COLUMNS, GRID_GAP, gridTile, gridTileSize, archivePaging, ARCHIVE_PAGE_SIZE, PROFILE_RECENT } from '../src/profileGrid';
 
 function check(value: unknown, message: string) { if (!value) throw new Error(message); }
 const run = (name: string, fn: () => void) => { fn(); console.log('PASS', name); };
@@ -22,3 +22,15 @@ run('tile state: photo, expired, anonymous', () => {
   const photos = gridTile({ mediaUrls: ['a', 'b'], media: [{ url: 'a', type: 'Image' }, { url: 'b', type: 'Video', thumbnailUrl: 'bt' }], expiresAt: null, identityDisclosure: 'LimitedProfile' }, now);
   check(!photos.video && photos.photoUrl === 'a' && photos.extraPhotos === 1, 'photo first');
 });
+
+// Profile without an endless list: explicit archive pages.
+{
+  const first = archivePaging(20030, 1);
+  check(first.page === 1 && first.pages === Math.ceil(20030 / ARCHIVE_PAGE_SIZE) && !first.hasNewer && first.hasOlder, 'first archive page');
+  const last = archivePaging(20030, 99999);
+  check(last.page === last.pages && last.hasNewer && !last.hasOlder, 'a page past the end clamps to the last');
+  check(archivePaging(0, 3).pages === 1 && !archivePaging(0, 3).hasOlder, 'no signals: one empty page');
+  check(archivePaging(ARCHIVE_PAGE_SIZE * 2000, 1).capped && archivePaging(ARCHIVE_PAGE_SIZE * 2000, 1).pages === 1000, 'the server page cap is said, not hidden');
+  check(PROFILE_RECENT % 3 === 0, 'the profile grid ends on a full row');
+  console.log('PASS archive paging');
+}

@@ -1,4 +1,4 @@
-import { cardText, fromCoordinateSignal, fromRecentSignal, mediaFrame, stepIndex, TALLEST, timeLeft, verifyState, withDetail, WIDEST, zoomOf } from '../src/signalCard';
+import { cardText, fromAuthoredPost, fromCoordinateSignal, fromRecentSignal, mediaFrame, stepIndex, TALLEST, timeLeft, verifyState, withDetail, WIDEST, zoomOf } from '../src/signalCard';
 import type { BlinkrPlace } from '../src/types';
 
 function check(value: unknown, message: string) { if (!value) throw new Error(message); }
@@ -49,3 +49,11 @@ run('detail completes the card; anonymous never reveals the author', () => {
   const anon = withDetail(card, { id: 'a', authorId: '00000000-0000-0000-0000-000000000000', authorName: 'Topluluk üyesi', identityDisclosure: 'AnonymousMap' });
   check(anon.anonymous && anon.authorId === null && anon.authorName === null, 'anonymous hidden');
 });
+// Profile: my own signal opens as a card that knows it is mine, even when it was anonymous.
+{
+  const mine = fromAuthoredPost({ id: 'p1', title: '', content: 'Masa var', createdAtUtc: '2026-09-25T10:00:00Z', signalType: 'Crowd', signalValue: 'Calm', identityDisclosure: 'AnonymousMap', mediaUrls: ['/m/1.jpg'], media: [{ url: '/m/v.mp4', thumbnailUrl: '/m/v.jpg', type: 'Video' }] }, { userId: 'u1', userName: 'alper' });
+  check(mine.isMine && mine.authorId === 'u1' && mine.anonymous, 'own anonymous signal stays mine');
+  check(mine.media.length === 1 && mine.media[0].type === 'Video' && mine.media[0].thumbnailUrl === '/m/v.jpg', 'typed media wins over bare urls');
+  check(!mine.complete && mine.text === 'Masa var', 'detail completes it later');
+  console.log('PASS own signals open as cards');
+}

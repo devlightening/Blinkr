@@ -111,7 +111,14 @@
     "postsEmptyHint": "Paylaştığın sinyaller burada görünür.",
     "postsEmpty": "Henüz sinyal paylaşmadın",
     "title": "Profil",
-    "mySignals": "Sinyallerim"
+    "mySignals": "Sinyallerim",
+    "allSignals": "Tüm sinyaller · {{count}}",
+    "liveLine": "Canlı · {{headline}}",
+    "tabs": "Profil bölümleri",
+    "tabSignals": "Sinyaller",
+    "tabSignalsCount": "Sinyaller · {{count}}",
+    "tabPlaces": "Yerler",
+    "tabPlacesCount": "Yerler · {{count}}"
   },
   "relation": {
     "friends": "Arkadaş",
@@ -181,5 +188,14 @@
     "about": "Hakkında",
     "placeholder": "Kendini kısaca tanıt. Kahve, yürüyüş, hangi semt…",
     "help": "Herkes görebilir. Konumun ve e-postan paylaşılmaz."
+  },
+  "archive": {
+    "title": "Sinyal arşivi",
+    "total": "{{count}} sinyal",
+    "newer": "Daha yeni",
+    "older": "Daha eski",
+    "page": "{{page}} / {{pages}}",
+    "failed": "Bu sayfa yüklenemedi. Tekrar dene.",
+    "capped": "Arşiv en yeni {{count}} sinyali gösterir."
   }
 }

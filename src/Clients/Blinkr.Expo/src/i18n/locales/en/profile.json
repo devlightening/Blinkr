@@ -111,7 +111,14 @@
     "postsEmptyHint": "The signals you share show up here.",
     "postsEmpty": "You haven't shared a signal yet",
     "title": "Profile",
-    "mySignals": "My signals"
+    "mySignals": "My signals",
+    "allSignals": "All signals · {{count}}",
+    "liveLine": "Live · {{headline}}",
+    "tabs": "Profile sections",
+    "tabSignals": "Signals",
+    "tabSignalsCount": "Signals · {{count}}",
+    "tabPlaces": "Places",
+    "tabPlacesCount": "Places · {{count}}"
   },
   "relation": {
     "friends": "Friend",
@@ -181,5 +188,14 @@
     "about": "About",
     "placeholder": "Say a few words. Coffee, walks, which part of town…",
     "help": "Everyone can see this. Your location and email are never shared."
+  },
+  "archive": {
+    "title": "Signal archive",
+    "total": "{{count}} signals",
+    "newer": "Newer",
+    "older": "Older",
+    "page": "{{page}} / {{pages}}",
+    "failed": "This page could not be loaded. Try again.",
+    "capped": "The archive shows your newest {{count}} signals."
   }
 }

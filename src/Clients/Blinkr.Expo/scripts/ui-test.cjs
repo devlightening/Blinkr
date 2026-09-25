@@ -107,33 +107,39 @@ async function main() {
 
     // Profile: real saved places (per user), no invented counters or badges.
     await page.goto(url + '?scene=profile');
-    await expect(page.getByText('Kaydettiğin yerler')).toBeVisible();
-    await expect(page.getByLabel(/haritada aç/)).toHaveCount(3);
     // Faz 6: Sinyal / Takipçi / Takip counts; the e-mail is only in Settings; a waiting follow request has its own entry.
     await expect(page.getByText('Takipçi', { exact: true })).toBeVisible();
     await expect(page.getByText('Takip', { exact: true })).toBeVisible();
     await expect(page.getByText('alper@example.test')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Takip istekleri · 1' })).toBeVisible();
     await expect(page.getByText(/rozet|puan|yorum/i)).toHaveCount(0);
-    // Own posts: the real total (Turkish thousands separator), newest first, paged as the list scrolls.
-    await expect(page.getByLabel('20.030 sinyal')).toBeVisible();
-    // P6.3: the grid is the default view (square tiles, dimmed when expired); the list view keeps the details.
-    await expect(page.getByTestId(/^grid-tile-/).first()).toBeVisible();
-    // V2-6: a video tile shows its thumbnail and a play marker; photos do not.
+    await expect(page.getByLabel('20.030 Sinyal')).toBeVisible();
+    // No endless list: the profile shows the newest 12 signals only (one request), the rest is in the archive.
+    await expect(page.getByTestId(/^grid-tile-/)).toHaveCount(12);
     await expect(page.getByTestId('grid-video-post-20028')).toBeVisible();
     await expect(page.getByTestId('grid-video-post-20030')).toHaveCount(0);
     await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'profile-grid.png') });
+    // A tile opens its Sinyal Kartı.
+    await page.getByTestId('grid-tile-post-20030').click();
+    await expect(page.getByTestId('signal-card-modal')).toBeVisible();
+    await page.getByTestId('card-backdrop').click({ position: { x: 20, y: 20 } });
+    await expect(page.getByTestId('signal-card-modal')).toHaveCount(0);
+    // The archive: explicit pages of 30, never loaded by scrolling.
+    await page.getByRole('button', { name: /Tüm sinyaller · 20\.030/ }).click();
+    await expect(page.getByTestId('signal-archive')).toBeVisible();
+    await expect(page.getByText('1 / 668').first()).toBeVisible();
+    await expect(page.getByTestId('signal-archive').getByTestId(/^grid-tile-/)).toHaveCount(30);
+    await page.getByRole('button', { name: 'Daha eski' }).first().click();
+    await expect(page.getByText('2 / 668').first()).toBeVisible();
+    await expect(page.getByTestId('grid-tile-post-20000')).toBeVisible();
     await page.getByRole('tab', { name: 'Liste' }).click();
-    await expect(page.getByText('Sinyal başlığı 20030')).toBeVisible();
-    await expect(page.getByText('Anonim').first()).toBeVisible();
-    // 50 rows per page: rows only appear after scrolling loads the next pages (the list is virtualised).
-    const lowestRow = async () => (await page.getByText(/^Sinyal başlığı \d+/).allTextContents()).map((v) => Number(v.match(/\d+/)[0])).reduce((a, b) => Math.min(a, b), Infinity);
-    const firstScreenLowest = await lowestRow();
-    if (firstScreenLowest < 19981) throw new Error('rows beyond the first page were loaded before scrolling: ' + firstScreenLowest);
-    await page.mouse.move(195, 500);
-    for (let i = 0; i < 10; i += 1) { await page.mouse.wheel(0, 1800); await page.waitForTimeout(150); }
-    const afterScrollLowest = await lowestRow();
-    if (!(afterScrollLowest < 19981)) throw new Error('scrolling did not load the next page: ' + afterScrollLowest);
+    await expect(page.getByText('Sinyal başlığı 20000')).toBeVisible();
+    await page.screenshot({ path: path.join(out, 'profile-archive.png') });
+    await page.getByRole('button', { name: 'Geri dön' }).click();
+    await expect(page.getByTestId('signal-archive')).toHaveCount(0);
+    // Saved places live in their own tab.
+    await page.getByRole('tab', { name: 'Yerler · 3' }).click();
+    await expect(page.getByLabel(/haritada aç/)).toHaveCount(3);
     await page.screenshot({ path: path.join(out, 'profile.png') });
     await page.goto(url + '?scene=profile&noposts');
     await expect(page.getByText('Henüz sinyal paylaşmadın')).toBeVisible();
@@ -142,7 +148,8 @@ async function main() {
     await expect(page.getByText('Sinyallerin yüklenemedi. Tekrar dene.')).toBeVisible();
     await expect(page.getByText('Network request failed')).toHaveCount(0);
     await page.goto(url + '?scene=profile&fewposts');
-    await expect(page.getByText('Hepsi bu kadar')).toBeVisible();
+    await expect(page.getByTestId(/^grid-tile-/)).toHaveCount(3);
+    await expect(page.getByRole('button', { name: /Tüm sinyaller/ })).toHaveCount(0);
 
     // Chat list: names, real unread badge, "Sen:" prefix for own last message; empty and failing states.
     await page.goto(url + '?scene=chat');
@@ -999,6 +1006,7 @@ async function main() {
     await expect(page.getByLabel(/^zeynep, /)).toBeVisible();
     // Saved places show how they are doing right now: only fresh verified activity, live places first, failures change nothing.
     await page.goto(url + '?scene=profile');
+    await page.getByRole('tab', { name: 'Yerler · 3' }).click();
     await expect(page.getByText(/^Canlı · Doluluk · Kalabalık/)).toBeVisible();
     await expect(page.getByText(/^Canlı · Bekleme · 15 dk üzeri/)).toBeVisible();
     await expect(page.getByText(/^Canlı · /)).toHaveCount(2);
@@ -1006,9 +1014,11 @@ async function main() {
     if (savedOrder[savedOrder.length - 1] !== 'Kent Müzesi') throw new Error('The place with only a stale state should come last: ' + savedOrder.join('|'));
     await page.waitForTimeout(250); await page.screenshot({ path: path.join(out, 'profile-live.png') });
     await page.goto(url + '?scene=profile&nolive');
+    await page.getByRole('tab', { name: 'Yerler · 3' }).click();
     await expect(page.getByLabel(/haritada aç/)).toHaveCount(3);
     await expect(page.getByText(/^Canlı · /)).toHaveCount(0);
     await page.goto(url + '?scene=profile&livefail');
+    await page.getByRole('tab', { name: 'Yerler · 3' }).click();
     await expect(page.getByLabel(/haritada aç/)).toHaveCount(3);
     await expect(page.getByText('Network request failed')).toHaveCount(0);
     // Yakında: fresh, close, capped list of what is happening around the device; five-item bottom bar.
