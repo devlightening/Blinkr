@@ -113,7 +113,7 @@ export function SignalThreadPanel({ contextLine, onCountChange, auth, postId, he
   const scrollRef = useRef<ScrollView>(null);
   const headerHeight = useRef(0);
   const [writing, setWriting] = useState(false);
-  const showComments = () => { if (fill && headerHeight.current > 0) scrollRef.current?.scrollTo({ y: Math.max(0, headerHeight.current - spacing.sm), animated: true }); };
+  const showComments = () => { if (header && headerHeight.current > 0) scrollRef.current?.scrollTo({ y: Math.max(0, headerHeight.current - spacing.sm), animated: true }); };
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
 
@@ -482,7 +482,7 @@ export function SignalThreadPanel({ contextLine, onCountChange, auth, postId, he
 
       {auth ? (
         <View style={styles.composer}>
-          {writing && fill && contextLine && !replyTo ? (
+          {writing && contextLine && !replyTo ? (
             <Text numberOfLines={1} style={styles.contextLine} testID="thread-context">{'↳ '}{contextLine}</Text>
           ) : null}
           {replyTo ? (

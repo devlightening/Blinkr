@@ -368,6 +368,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
         <Sheet onClose={() => setThread(null)}>
           <BlinkrSheetPanel maxHeightRatio={0.92}>
             <SignalThreadPanel
+              contextLine={[thread.anonymous ? null : thread.authorName, thread.content || thread.title].filter(Boolean).join(': ') || undefined}
               auth={auth}
               header={<FeedCard hideActions item={thread} myUserId={auth.userId} onHashtag={openHashtag} onLike={() => {}} onMention={(m) => { setThread(null); setPerson({ id: m.userId, userName: m.userName }); }} onOpenThread={() => {}} />}
               onClose={() => setThread(null)}
