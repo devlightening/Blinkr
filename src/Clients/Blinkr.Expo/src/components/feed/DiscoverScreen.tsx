@@ -266,29 +266,37 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
         options={[{ value: 'nearby', label: t('discover.tabNearby') }, { value: 'following', label: t('discover.tabFollowing') }, { value: 'places', label: t('discover.tabPlaces') }, { value: 'tags', label: '#', accessibilityLabel: t('hashtags.tab') }]}
         value={tab}
       />
-      {tab !== 'places' && tab !== 'tags' ? <StoryTray auth={auth} onAdd={() => setStoryCamera(true)} onOpen={(item, all) => setStoryView({ authors: all, start: item.authorId })} refresh={refresh.current} reloadKey={trayKey} /> : null}
-      {storyNotice ? <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{storyNotice}</Text> : null}
-      <Text style={styles.subtitle}>{tab === 'nearby' ? t('discover.subtitleNearby') : tab === 'following' ? t('discover.subtitleFollowing') : tab === 'tags' ? t('hashtags.subtitle') : t('discover.subtitlePlaces')}</Text>
+      {tab === 'places' || tab === 'tags' ? <Text style={styles.subtitle}>{tab === 'tags' ? t('hashtags.subtitle') : t('discover.subtitlePlaces')}</Text> : null}
     </View>
   );
+
+  // Instagram: the stories row sits at the top of the feed and scrolls away with it, so the posts get the screen.
+  const feedTop = (which: Which) => (which === 'hashtag' ? null : (
+    <View>
+      <StoryTray auth={auth} onAdd={() => setStoryCamera(true)} onOpen={(item, all) => setStoryView({ authors: all, start: item.authorId })} refresh={refresh.current} reloadKey={trayKey} />
+      {storyNotice ? <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{storyNotice}</Text> : null}
+      <Text style={styles.subtitle}>{which === 'nearby' ? t('discover.subtitleNearby') : t('discover.subtitleFollowing')}</Text>
+    </View>
+  ));
 
   const renderFeed = (which: Which) => {
     const feed = feeds[which];
     if (which === 'nearby' && (phase === 'needsPermission' || phase === 'blocked')) {
       return (
-        <View style={styles.center}>
+        <View style={styles.flex}>{feedTop(which)}<View style={styles.center}>
           <BlinkrEmptyState
             action={phase === 'blocked' ? { label: t('discover.openSettings'), onPress: () => { void Linking.openSettings(); } } : { label: t('discover.useLocation'), onPress: () => { void locate(true); } }}
             description={phase === 'blocked' ? t('discover.blockedBody') : t('discover.needLocationBody')}
             icon={<MapPin color={colors.textSecondary} size={34} />}
             title={t('discover.needLocationTitle')}
           />
-        </View>
+        </View></View>
       );
     }
     if ((which === 'nearby' && (phase === 'checking' || phase === 'locating')) || (feed.loading && feed.items.length === 0)) {
       return (
         <View style={styles.loadingBlock}>
+          {feedTop(which)}
           {phase === 'locating' ? <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{t('discover.locating')}</Text> : null}
           <SkeletonList rows={3} variant="card" />
         </View>
@@ -298,14 +306,14 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
       // Say what really failed: a missing location is not a network problem.
       const locationProblem = feed.error === t('discover.locationTimeout');
       return (
-        <View style={styles.center}>
+        <View style={styles.flex}>{feedTop(which)}<View style={styles.center}>
           <BlinkrEmptyState
             action={{ label: t('discover.retry'), onPress: () => { if (which === 'nearby' && !origin) void locate(false); else void load(which, 1, origin); } }}
             description={feed.error}
             icon={locationProblem ? <MapPin color={colors.textSecondary} size={32} /> : <WifiOff color={colors.textSecondary} size={32} />}
             title={locationProblem ? t('discover.locationTitle') : t('discover.loadFailed')}
           />
-        </View>
+        </View></View>
       );
     }
     return (
@@ -323,7 +331,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
           feed.loading ? <ActivityIndicator color={colors.primary} style={styles.footer} />
             : feed.items.length > 0 && !canLoadMore(feed.page) ? <Text style={styles.end}>{t('discover.end')}</Text> : null
         }
-        ListHeaderComponent={feed.notice ? <Text accessibilityLiveRegion="polite" style={styles.notice}>{feed.notice}</Text> : null}
+        ListHeaderComponent={<View>{feedTop(which)}{feed.notice ? <Text accessibilityLiveRegion="polite" style={styles.notice}>{feed.notice}</Text> : null}</View>}
         contentContainerStyle={[styles.list, { paddingBottom: bottomBarClearance(insets.bottom) + spacing.lg }]}
         data={feed.items}
         keyExtractor={(item) => item.id}
@@ -415,6 +423,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   screen: { backgroundColor: colors.background, flex: 1 },
   cameraLayer: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 60 },
   header: { gap: spacing.sm, paddingBottom: spacing.md, paddingHorizontal: spacing.lg },

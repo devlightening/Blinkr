@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, gradientDirection, gradients, radii, shadowFloat, sizes, spacing } from '../../theme';
+import { colors, gradientDirection, gradients, radii, sizes, spacing } from '../../theme';
 import { Avatar } from '../Avatar';
 import { GradientRing } from './GradientRing';
 import { AnimatedPressable } from '../AnimatedPressable';
@@ -76,9 +76,10 @@ export function BlinkrBottomBar({ active, onTab, onShare, chatUnread = false, pr
   const keyboardVisible = useKeyboardVisible();
   if (keyboardVisible || hidden) return null;
   return (
-    <View pointerEvents="box-none" style={[styles.wrap, { bottom: Math.max(insets.bottom, spacing.sm) }]}>
+    // Edge to edge at the very bottom (Instagram, Snapchat): the bar owns the safe area under it.
+    <View pointerEvents="box-none" style={styles.wrap}>
       {/* Sıra sinyal-mvp-plan 02_INFORMATION_ARCHITECTURE §1: Harita · Keşfet · (+) · Sohbet · Profil. */}
-      <View accessibilityRole="tablist" style={styles.bar}>
+      <View accessibilityRole="tablist" style={[styles.bar, { paddingBottom: insets.bottom, height: BAR_ROW + insets.bottom }]}>
         <TabItem active={active === 'map'} onPress={() => onTab('map')} tab="map" />
         <TabItem active={active === 'nearby'} onPress={() => onTab('nearby')} tab="nearby" />
         <View style={styles.cameraSlot}>
@@ -107,11 +108,14 @@ export function BlinkrBottomBar({ active, onTab, onShare, chatUnread = false, pr
 }
 
 /** Height a screen must reserve at its bottom so content is not hidden behind the bar. */
-export const bottomBarClearance = (bottomInset: number) => sizes.bottomBar + Math.max(bottomInset, spacing.sm) + spacing.md;
+export const bottomBarClearance = (bottomInset: number) => BAR_ROW + bottomInset + spacing.sm;
+
+/** The tappable row of the bar; the safe area below it is added on top. */
+const BAR_ROW = sizes.bottomBar + 4;
 
 const styles = StyleSheet.create({
-  wrap: { alignItems: 'center', left: spacing.md, position: 'absolute', right: spacing.md, zIndex: 20 },
-  bar: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', height: sizes.bottomBar + 8, maxWidth: 460, paddingHorizontal: spacing.xs, width: '100%', ...shadowFloat },
+  wrap: { bottom: 0, left: 0, position: 'absolute', right: 0, zIndex: 20 },
+  bar: { alignItems: 'center', backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', paddingHorizontal: spacing.sm, width: '100%' },
   item: { alignItems: 'center', flex: 1, justifyContent: 'center', minHeight: sizes.touch, paddingTop: 4 },
   iconTile: { alignItems: 'center', height: 32, justifyContent: 'center', width: 44 },
   activeDot: { borderRadius: 2, height: 4, marginTop: 4, width: 4 },

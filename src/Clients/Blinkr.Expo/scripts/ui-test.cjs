@@ -772,6 +772,14 @@ async function main() {
     await page.getByTestId('feed-card-n-1').getByTestId('card-media').dblclick();
     await expect(page.getByTestId('feed-card-n-1').getByRole('button', { name: 'Beğeniyi geri al' })).toBeVisible();
     await expect(page.getByTestId('feed-like-n-1')).toContainText('5');
+    // The reaction lands with its animation over the post.
+    await expect(page.getByTestId('feed-card-n-1').getByTestId('reaction-burst')).toBeVisible();
+    // A text post likes on a double tap too (and does not open the comments).
+    await page.getByTestId('feed-card-n-2').getByText('Park sakin.').dblclick();
+    await expect(page.getByTestId('feed-card-n-2').getByRole('button', { name: 'Beğeniyi geri al' })).toBeVisible();
+    await expect(page.getByTestId('feed-card-n-2').getByTestId('reaction-burst')).toBeVisible();
+    await page.waitForTimeout(400);
+    await expect(page.getByRole('heading', { name: 'Yorumlar' })).toHaveCount(0);
     await page.getByTestId('feed-card-n-1').getByTestId('card-media').dblclick();
     await expect(page.getByTestId('feed-card-n-1').getByRole('button', { name: 'Beğeniyi geri al' })).toBeVisible(); // a second double tap never unlikes
     await page.waitForTimeout(400); await page.screenshot({ path: path.join(out, 'discover-ig-card.png') });

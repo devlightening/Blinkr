@@ -1,5 +1,5 @@
 import { EyeOff, MapPin, MessageCircle, Radio, Send, ShieldAlert } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -7,7 +7,7 @@ import { canLikeFeedItem, feedDistanceLabel, type DiscoverItem } from '../../dis
 import { formatCount } from '../../engagement';
 import { freshnessLabelKey, freshnessTier } from '../../freshness';
 import { formatAge, signalLabels } from '../../presentation';
-import { reactionStateOf } from '../../reactions';
+import { HEART as HEART_EMOJI, reactionStateOf } from '../../reactions';
 import type { Mention } from '../../richText';
 import { cardText, type CardMedia } from '../../signalCard';
 import { signalValueLabel } from '../../productPresentation';
@@ -16,6 +16,7 @@ import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
 import { SignalSymbol } from '../SignalSymbol';
 import { MediaCarousel } from '../signal/MediaCarousel';
+import { ReactionBurst } from '../ui/ReactionBurst';
 import { ReactionButton } from '../ui/ReactionButton';
 import { RichText } from '../ui/RichText';
 import { tx } from '../../i18n/tx';
@@ -50,11 +51,33 @@ const CAPTION_LINES = 2;
  * first and "devamı"; "N yorumun tümünü gör". A text-only signal keeps its big text above the actions. Still a place
  * signal, never a free-form post.
  */
+/** Two taps within this many ms on a text post = a like (the same window as the photo carousel). */
+const TEXT_DOUBLE_TAP_MS = 280;
+
 export function FeedCard({ item, myUserId, onLike, onReact, onDoubleTap, onMention, onHashtag, onOpenThread, onOpenAuthor, onShowOnMap, onShare, hideActions = false, playing = false }: Props) {
   const { t, i18n } = useTranslation('feed');
   const lang = i18n.language === 'en' ? 'en' : 'tr';
   const [width, setWidth] = useState(0);
   const [expanded, setExpanded] = useState(false);
+  // The reaction animation over the post: double tap (❤️) or any emoji picked.
+  const [burst, setBurst] = useState({ emoji: HEART_EMOJI, n: 0 });
+  const pop = (emoji: string) => setBurst((b) => ({ emoji, n: b.n + 1 }));
+  const lastTextTap = useRef(0);
+  const textTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (textTimer.current) clearTimeout(textTimer.current); }, []);
+  const doubleTapLike = () => { if (!likeable || !onDoubleTap) return; pop(HEART_EMOJI); onDoubleTap(item); };
+  // Text posts: one tap opens the comments (after a short wait), two taps like - the same gesture as on a photo.
+  const onTextPress = () => {
+    const now = Date.now();
+    if (onDoubleTap && likeable && now - lastTextTap.current < TEXT_DOUBLE_TAP_MS) {
+      if (textTimer.current) clearTimeout(textTimer.current);
+      lastTextTap.current = 0;
+      doubleTapLike();
+      return;
+    }
+    lastTextTap.current = now;
+    textTimer.current = setTimeout(() => onOpenThread(item), onDoubleTap && likeable ? TEXT_DOUBLE_TAP_MS : 0);
+  };
   const tone = signalColors[item.signalType] ?? colors.mint;
   const value = signalValueLabel(item.signalType, item.signalValue);
   const text = cardText(item.title, item.content, item.signalType);
@@ -106,13 +129,15 @@ export function FeedCard({ item, myUserId, onLike, onReact, onDoubleTap, onMenti
           : <Text style={styles.meta}>{t(freshnessLabelKey(item.expired ? 'expired' : freshness, Boolean(item.verified)))}</Text>}
       </View>
 
+      <View style={styles.bodyHost}>
       {hasMedia ? (
         width > 0 ? (
           <View style={styles.mediaBleed}>
             <MediaCarousel
               accessibilityLabel={`${signalLabels[item.signalType] ?? ''}${value ? `, ${value}` : ''}`}
               items={media}
-              onDoubleTap={onDoubleTap && likeable ? () => onDoubleTap(item) : undefined}
+              heart={false}
+              onDoubleTap={onDoubleTap && likeable ? doubleTapLike : undefined}
               onOpen={() => onOpenThread(item)}
               playing={playing}
               rounded={false}
@@ -121,17 +146,19 @@ export function FeedCard({ item, myUserId, onLike, onReact, onDoubleTap, onMenti
           </View>
         ) : <View style={styles.mediaPlaceholder} />
       ) : (
-        <AnimatedPressable accessibilityLabel={`${signalLabels[item.signalType] ?? ''}${value ? `, ${value}` : ''}. ${t('discover.comments')}`} accessibilityRole="button" onPress={() => onOpenThread(item)} pressScale={0.99} style={styles.textBlock}>
+        <AnimatedPressable accessibilityLabel={`${signalLabels[item.signalType] ?? ''}${value ? `, ${value}` : ''}. ${t('discover.comments')}`} accessibilityRole="button" onPress={onTextPress} pressScale={0.99} style={styles.textBlock}>
           {badge}
           {text ? <RichText mentions={item.mentions} numberOfLines={4} onHashtag={onHashtag} onMention={onMention} style={styles.content} text={text} /> : null}
         </AnimatedPressable>
       )}
+      <ReactionBurst emoji={burst.emoji} trigger={burst.n} />
+      </View>
 
       {hideActions ? null : <View style={styles.actions}>
         <ReactionButton
           disabled={!likeable}
-          onPick={(reaction) => (onReact ? onReact(item, reaction) : onLike(item))}
-          onTap={() => onLike(item)}
+          onPick={(reaction) => { if (reaction) pop(reaction); if (onReact) onReact(item, reaction); else onLike(item); }}
+          onTap={() => { if (!reactionStateOf(item).mine) pop(HEART_EMOJI); onLike(item); }}
           size={22}
           state={reactionStateOf(item)}
           testID={`feed-like-${item.id}`}
@@ -173,6 +200,7 @@ export function FeedCard({ item, myUserId, onLike, onReact, onDoubleTap, onMenti
 }
 
 const styles = StyleSheet.create({
+  bodyHost: { position: 'relative' },
   card: { backgroundColor: colors.surface, borderRadius: radii.lg, gap: spacing.sm, overflow: 'hidden', padding: spacing.lg, ...shadowSoft },
   expired: { opacity: 0.6 },
   head: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },

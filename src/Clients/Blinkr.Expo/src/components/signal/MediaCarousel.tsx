@@ -15,6 +15,8 @@ type Props = {
   onOpen: (index: number) => void;
   /** Double tap: like (Instagram style). */
   onDoubleTap?: () => void;
+  /** The white heart on double tap; off when the host plays its own reaction animation. */
+  heart?: boolean;
   /** Drawn over the bottom-left corner (the TypeBadge). */
   overlayStart?: React.ReactNode;
   accessibilityLabel?: string;
@@ -36,7 +38,7 @@ function CardVideo({ uri, fit, active }: { uri: string; fit: 'cover' | 'contain'
  * item is drawn whole - a wider or taller picture sits "contain" on a blurred copy of itself, never cropped. Swipe
  * between items (the carousel wins over the card pager), tap to open full screen, double-tap to like with a heart.
  */
-export function MediaCarousel({ items, width, onOpen, onDoubleTap, overlayStart, accessibilityLabel, playing = true, rounded = true }: Props) {
+export function MediaCarousel({ heart: showHeart = true, items, width, onOpen, onDoubleTap, overlayStart, accessibilityLabel, playing = true, rounded = true }: Props) {
   const [index, setIndex] = useState(0);
   const lastTap = useRef(0);
   const singleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -50,7 +52,7 @@ export function MediaCarousel({ items, width, onOpen, onDoubleTap, overlayStart,
     if (onDoubleTap && now - lastTap.current < DOUBLE_TAP_MS) {
       if (singleTimer.current) clearTimeout(singleTimer.current);
       lastTap.current = 0;
-      heart.value = withSequence(
+      if (showHeart) heart.value = withSequence(
         withSpring(1, { ...springs.bouncy, reduceMotion: ReduceMotion.System }),
         withTiming(0, { duration: 420, reduceMotion: ReduceMotion.System }),
       );
