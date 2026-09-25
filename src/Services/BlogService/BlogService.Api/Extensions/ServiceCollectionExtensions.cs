@@ -386,8 +386,10 @@ public static class ServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(3);
         });
 
-        // Map composition (MapController): PlaceService /bounds p95 is ~67 ms; fail fast instead of the 100 s default.
-        services.AddHttpClient(BlogService.Api.Controllers.MapController.PlaceClientName, client => client.Timeout = TimeSpan.FromSeconds(3));
+        // Map composition (MapController): PlaceService /bounds p95 is ~67 ms warm, but the first call after a restart
+        // measured ~5 s (JIT, Mongo connection), so 8 s - still far below the 100 s default that let a hung PlaceService
+        // hold the map.
+        services.AddHttpClient(BlogService.Api.Controllers.MapController.PlaceClientName, client => client.Timeout = TimeSpan.FromSeconds(8));
 
         services.Configure<BlogService.Api.Services.MediaOptions>(
             config.GetSection("Media"));

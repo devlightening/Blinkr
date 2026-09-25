@@ -120,11 +120,14 @@ function New-Signal([string]$Token, [string]$Disclosure) {
     $lat = 37.0 + (Get-Random -Minimum 100000 -Maximum 999999) / 10000000; $lon = 36.2 + (Get-Random -Minimum 100000 -Maximum 999999) / 10000000
     $p = Invoke-Api -Method POST -Path "/api/posts" -Token $Token -Body @{ title = ""; content = "Engel smoke"; latitude = $lat; longitude = $lon; accuracyMeters = 20; locationName = "Sokak"; signalType = "GeneralObservation"; audienceType = "Public"; identityDisclosure = $Disclosure; locationPrecision = "ApproximateArea" }
     $id = [string]$p.Json.postId
+    $script:lastSignalAt = @($lat, $lon)
     for ($i = 0; $i -lt 30; $i++) { if ((Invoke-Api -Method GET -Path "/api/posts/$id" -Token $can.Token).Status -eq 200) { break }; Start-Sleep -Milliseconds 500 }
     $id
 }
 $adaPost = New-Signal $ada.Token "LimitedProfile"
+$adaAt = $script:lastSignalAt
 $adaAnon = New-Signal $ada.Token "AnonymousMap"
+$anonAt = $script:lastSignalAt
 $canPost = New-Signal $can.Token "LimitedProfile"
 $adaComment = [string](Invoke-Api -Method POST -Path "/api/posts/$canPost/comments" -Token $ada.Token -Body @{ commentText = "Ada'nin yorumu" }).Json.commentId
 for ($i = 0; $i -lt 30; $i++) { if ((Invoke-Api -Method GET -Path "/api/posts/$canPost/comments" -Token $can.Token).Raw.Contains($adaComment)) { break }; Start-Sleep -Milliseconds 500 }
@@ -141,6 +144,15 @@ $canOnAda = Invoke-Api -Method POST -Path "/api/posts/$adaPost/comments" -Token 
 Check "everybody else's signals and comments are untouched" ($other.Status -eq 200 -and $canOnAda.Status -eq 200) "HTTP $($other.Status)/$($canOnAda.Status)"
 $anonReact = Invoke-Api -Method POST -Path "/api/posts/$adaAnon/reactions" -Token $bek.Token -Body @{ reaction = [char]::ConvertFromUtf32(0x1F525) }
 Check "an anonymous signal does not give its author away through a refusal" ($anonReact.Status -eq 200) "HTTP $($anonReact.Status) $($anonReact.Raw)"
+function Map-Around($at, [string]$Token) {
+    $f = { param($v) ([string]::Format([Globalization.CultureInfo]::InvariantCulture, "{0:F5}", $v)) }
+    Invoke-Api -Method GET -Path ("/api/map/bounds?minLat=" + (& $f ($at[0] - 0.003)) + "&maxLat=" + (& $f ($at[0] + 0.003)) + "&minLon=" + (& $f ($at[1] - 0.003)) + "&maxLon=" + (& $f ($at[1] + 0.003))) -Token $Token
+}
+$mapBek = Map-Around $adaAt $bek.Token
+$mapCan = Map-Around $adaAt $can.Token
+Check "the map leaves out the blocker's signals for the blocked person, not for others" ($mapBek.Status -eq 200 -and -not $mapBek.Raw.Contains($adaPost) -and $mapCan.Raw.Contains($adaPost)) "bek HTTP $($mapBek.Status) can has it: $($mapCan.Raw.Contains($adaPost))"
+$anonMap = Map-Around $anonAt $bek.Token
+Check "an anonymous signal stays on the map (hiding it would unmask its author)" ($anonMap.Raw.Contains($adaAnon)) "$($anonMap.Status)"
 $bekComment = [string]$other.Json.commentId
 for ($i = 0; $i -lt 30; $i++) { if ((Invoke-Api -Method GET -Path "/api/posts/$canPost/comments" -Token $can.Token).Raw.Contains($bekComment)) { break }; Start-Sleep -Milliseconds 500 }
 $seenByCan = (Invoke-Api -Method GET -Path "/api/posts/$canPost/comments" -Token $can.Token).Raw

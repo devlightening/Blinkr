@@ -43,6 +43,7 @@ public sealed class MapController : ControllerBase
         [FromQuery] int sinceMinutes = 180,
         [FromQuery] int limit = 150,
         [FromQuery] bool includeCatalogPlaces = false,
+        [FromServices] BlogService.Api.Services.SocialGraphClient? graphClient = null,
         CancellationToken ct = default)
     {
         var effectiveMinLat = south ?? minLat;
@@ -67,13 +68,25 @@ public sealed class MapController : ControllerBase
             ct);
         var placesTask = GetPlacesAsync(effectiveMinLat.Value, effectiveMinLon.Value, effectiveMaxLat.Value, effectiveMaxLon.Value, Math.Min(limit, 80), includeCatalogPlaces, ct);
 
-        await Task.WhenAll(postsTask, placesTask);
+        // Blocks, both ways, for a signed-in viewer: asked in parallel with the map queries so it adds no wait. The map is
+        // public (signed-out people see it too), so this is courtesy rather than a security boundary: if IdentityService
+        // cannot answer, the map still shows (the core loop never waits on the social graph). Anonymous signals are never
+        // filtered by author - leaving one out would tell who posted it.
+        var graphTask = User.Identity?.IsAuthenticated == true && graphClient is not null
+            ? graphClient.GetAsync(ct)
+            : Task.FromResult<BlogService.Api.Services.SocialGraph?>(null);
+
+        await Task.WhenAll(postsTask, placesTask, graphTask);
+        var hidden = graphTask.Result?.Hidden;
+        // Filtered for one person: never shared by a cache.
+        if (hidden is not null) Response.Headers.CacheControl = "private, no-store";
 
         // Development only: smoke-test signals stay out of a real person's map (plan-devam Faz A1).
         var hideTests = TestAccounts.HideFrom(User, _configuration.GetValue<bool>(TestAccounts.HideSetting));
         var signals = postsTask.Result.Items
             .Where(post => post.PlaceId is null && post.Latitude.HasValue && post.Longitude.HasValue && post.IsLive)
             .Where(post => !hideTests || !TestAccounts.IsTestName(post.AuthorName))
+            .Where(post => hidden is null || post.IdentityDisclosure == "AnonymousMap" || !hidden.Contains(post.AuthorId))
             .Take(limit)
             .Select(ToSignalItem)
             .ToArray();
@@ -112,7 +125,7 @@ public sealed class MapController : ControllerBase
     }
 
     public const string PlacesStatusHeader = "X-Blinkr-Places";
-    /// <summary>Named client for PlaceService /bounds: 3 s timeout (measured p95 67 ms), not the 100 s default.</summary>
+    /// <summary>Named client for PlaceService /bounds: 8 s timeout (warm p95 67 ms, first call after a restart ~5 s), not the 100 s default.</summary>
     public const string PlaceClientName = "place-map";
 
     /// <returns>null when PlaceService could not answer.</returns>
