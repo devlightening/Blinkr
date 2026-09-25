@@ -29,6 +29,7 @@ import { isFor, pollIntervalMs } from '../../realtimePolicy';
 import { useRealtimeEvent, useRealtimeLive } from '../../useRealtime';
 
 const POLL_INTERVAL_MS = 8000;
+const BLOCKS_MAX_AGE_MS = 5 * 60_000;
 const AVATAR_SIZE = 48;
 const ROW_GAP = spacing.md;
 const NAME_BATCH_SIZE = 30;
@@ -41,6 +42,8 @@ const userNameCache = new Map<string, string>();
 const userAvatarCache = new Map<string, string | null>();
 
 type Props = {
+  /** False while the tab is only mounted next to the active one (swipe pager): no polling then. */
+  visible?: boolean;
   auth: AuthResponse;
   onAuthChange: (auth: AuthResponse) => void;
   onSessionExpired: () => void;
@@ -56,7 +59,7 @@ type Props = {
   onOpenWithHandled?: () => void;
 };
 
-export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadChange, onConversationOpenChange, snapRequested = false, onSnapHandled, openWith = null, onOpenWithHandled }: Props) {
+export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionExpired, onUnreadChange, onConversationOpenChange, snapRequested = false, onSnapHandled, openWith = null, onOpenWithHandled }: Props) {
   const insets = useSafeAreaInsets();
   const [allConversations, setConversations] = useState<Conversation[]>([]);
   // People I blocked stay out of my list; the server refuses their messages anyway.
@@ -73,6 +76,7 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
   const [notice, setNotice] = useState<string | null>(null);
   const [names, setNames] = useState<Record<string, string>>(() => Object.fromEntries(userNameCache));
   const pollInFlight = useRef(false);
+  const blocksReadAt = useRef(0);
   const hasSettled = useRef(false);
   // Ids already looked up by this screen instance. A failed lookup (e.g. a deleted user) is not
   // retried on every poll; it is tried again the next time the screen is opened.
@@ -107,9 +111,13 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
       const items = await listConversations(auth, onAuthChange, onSessionExpired);
       setConversations(items);
       setError(null);
-      listBlocks(auth, undefined, { onAuthRefresh: onAuthChange, onSessionExpired })
-        .then((rows) => setBlockedIds(new Set(rows.map((row) => row.id))))
-        .catch(() => { /* the list still works; sending is refused by the server anyway */ });
+      // Blocks rarely change: read them on a real refresh and at most every 5 minutes, not on every poll.
+      if (!background || Date.now() - blocksReadAt.current > BLOCKS_MAX_AGE_MS) {
+        blocksReadAt.current = Date.now();
+        listBlocks(auth, undefined, { onAuthRefresh: onAuthChange, onSessionExpired })
+          .then((rows) => setBlockedIds(new Set(rows.map((row) => row.id))))
+          .catch(() => { blocksReadAt.current = 0; /* the list still works; sending is refused by the server anyway */ });
+      }
       console.log('[Blinkr Chat]', { status: 'ready', resultCount: items.length });
       void resolveNames(items);
     } catch (err) {
@@ -133,13 +141,15 @@ export function ChatListScreen({ auth, onAuthChange, onSessionExpired, onUnreadC
   // open, and ticks are skipped while the app is not in the foreground.
   // V2-5 (D-028): with the realtime hub connected, the list follows its events and polls only as a safety net.
   const live = useRealtimeLive();
+  // Back on screen: catch up once, then poll while visible.
+  useEffect(() => { if (visible && hasSettled.current) refresh(true); }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (activeConversation) return;
+    if (activeConversation || !visible) return;
     const timer = setInterval(() => {
       if (AppState.currentState === 'active') refresh(true);
     }, pollIntervalMs(live, POLL_INTERVAL_MS));
     return () => clearInterval(timer);
-  }, [refresh, activeConversation, live]);
+  }, [refresh, activeConversation, live, visible]);
   const refreshOnEvent = () => { if (!activeConversation) refresh(true); };
   useRealtimeEvent('message.created', refreshOnEvent);
   useRealtimeEvent('message.updated', refreshOnEvent);

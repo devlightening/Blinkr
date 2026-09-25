@@ -283,6 +283,7 @@ export default function App() {
                   onChange={setActiveTab}
                   renderPage={(tab) => tab === 'chat' ? (
                     <ChatListScreen
+                      visible={activeTab === 'chat'}
                       auth={auth}
                       onAuthChange={acceptAuth}
                       onConversationOpenChange={setChatConversationOpen}
