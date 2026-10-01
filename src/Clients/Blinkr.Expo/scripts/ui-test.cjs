@@ -524,22 +524,22 @@ async function main() {
     await expect(page.getByText('Network request failed')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'melis isteğini kabul et' })).toBeVisible();
     // Instagram navigation: a profile is pushed over the screen it came from; swiping right pulls it away with the finger
-    // and lands exactly where the person was (the search they typed is still there); the back arrow does the same.
+    // (the drag starts on the photo, not on a grid tile) and lands exactly where the person was (the search they typed is still there); the back arrow does the same.
     await page.goto(url + '?scene=friends');
     await page.getByRole('tab', { name: 'Ekle', exact: true }).click();
     await page.getByLabel('Kullanıcı adı ara').fill('ze');
     await page.getByLabel('zeynep, profili aç').click();
     await expect(page.getByTestId('person-profile')).toBeVisible();
     await page.waitForTimeout(400);
-    await page.mouse.move(40, 420); await page.mouse.down();
-    for (let x = 40; x <= 340; x += 15) await page.mouse.move(x, 422);
+    await page.mouse.move(40, 230); await page.mouse.down();
+    for (let x = 40; x <= 340; x += 15) await page.mouse.move(x, 232);
     await page.mouse.up();
     await expect(page.getByTestId('person-profile')).toHaveCount(0);
     await expect(page.getByLabel('Kullanıcı adı ara')).toHaveValue('ze');
     await page.getByLabel('zeynep, profili aç').click();
     await page.waitForTimeout(400);
-    await page.mouse.move(40, 420); await page.mouse.down();
-    for (let x = 40; x <= 90; x += 5) { await page.mouse.move(x, 422); await page.waitForTimeout(40); }
+    await page.mouse.move(40, 230); await page.mouse.down();
+    for (let x = 40; x <= 90; x += 5) { await page.mouse.move(x, 232); await page.waitForTimeout(40); }
     await page.waitForTimeout(150); // held still: no flick
     await page.mouse.up();
     await page.waitForTimeout(500);

@@ -4,7 +4,7 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import { toAbsoluteUrl } from '../api';
 import { signalLabels } from '../presentation';
 import { signalValueLabel } from '../productPresentation';
-import { gridTile } from '../profileGrid';
+import { gridTile, gridTileHeight } from '../profileGrid';
 import { signalEmoji } from '../signalEmoji';
 import { colors, mediaColors, radii, signalColors, typography } from '../theme';
 import type { AuthoredPost } from '../types';
@@ -20,7 +20,7 @@ export function SignalGridTile({ post, size, onPress }: { post: AuthoredPost; si
   const url = tile.photoUrl ? toAbsoluteUrl(tile.photoUrl) : null;
   const label = `${signalLabels[post.signalType] ?? tx('profile:grid.signal', 'Sinyal')}${value ? `, ${value}` : ''}${tile.video ? tx('profile:grid.videoSuffix', ', video') : ''}${tile.anonymous ? tx('profile:grid.anon', ', anonim') : ''}${tile.expired ? tx('profile:grid.expired', ', sona erdi') : ''}`;
   return (
-    <AnimatedPressable accessibilityLabel={label} accessibilityRole={onPress ? 'button' : undefined} disabled={!onPress} onPress={onPress} pressScale={0.97} style={[styles.tile, { height: size, width: size }, tile.expired && styles.expired]} testID={`grid-tile-${post.id}`}>
+    <AnimatedPressable accessibilityLabel={label} accessibilityRole={onPress ? 'button' : undefined} disabled={!onPress} onPress={onPress} pressScale={0.97} style={[styles.tile, { height: gridTileHeight(size), width: size }, tile.expired && styles.expired]} testID={`grid-tile-${post.id}`}>
       {url ? (
         <Image accessibilityIgnoresInvertColors resizeMode="cover" source={{ uri: url }} style={StyleSheet.absoluteFill} />
       ) : (
