@@ -303,8 +303,11 @@ export const listStoryTray = async () => [
   { authorId: 'u-ece', authorName: 'ece', isMine: false, storyCount: 1, latestAtUtc: new Date(feedNow - 90 * 60_000).toISOString(), allSeen: true },
 ];
 // The tray's people with their chosen avatars (zeynep chose one, ece kept the default).
+// Like the server: known people with their avatars (zeynep chose one), unknown ids left out.
 export const getUsersBatch = async (_auth: unknown, ids: string[]) =>
-  ids.map((id) => ({ id, userName: id.replace('u-', ''), avatarKey: id === 'u-zeynep' ? '253' : null }));
+  ids.map((id) => chatUsers.find((u) => u.id === id) ?? (id.startsWith('u-') ? { id, userName: id.replace('u-', '') } : null))
+    .filter((u): u is { id: string; userName: string } => u !== null)
+    .map((u) => ({ ...u, avatarKey: u.id === 'u-zeynep' ? '253' : (u as { avatarKey?: string | null }).avatarKey ?? null }));
 export const listUserStories = async (_auth: unknown, userId: string) =>
   userId === 'qa' ? myStories : userId === 'u-zeynep' ? [storyFor('z-1', 'u-zeynep', 'zeynep', seenStories.has('z-1')), storyFor('z-2', 'u-zeynep', 'zeynep', seenStories.has('z-2'))] : [storyFor('e-1', 'u-ece', 'ece', true)];
 export const markStorySeen = async (_auth: unknown, id: string) => { seenStories.add(id); };

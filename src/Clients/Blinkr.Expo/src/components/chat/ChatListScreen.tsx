@@ -4,7 +4,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { Camera, MessageCircle, SquarePen, WifiOff } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getUser, listBlocks, listConversations, startConversation } from '../../api';
+import { getUsersBatch, listBlocks, listConversations, startConversation } from '../../api';
 import { formatAge } from '../../presentation';
 import { friendlyError } from '../../productPresentation';
 import { AnimatedPressable } from '../AnimatedPressable';
@@ -90,16 +90,14 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
     if (!missing.length) return;
     missing.forEach((id) => requestedNames.current.add(id));
 
-    const results = await Promise.allSettled(missing.map((id) => getUser(auth, id, onAuthChange, onSessionExpired)));
-    let resolved = false;
-    results.forEach((result, index) => {
-      if (result.status === 'fulfilled' && result.value.userName) {
-        userNameCache.set(missing[index], result.value.userName);
-        userAvatarCache.set(missing[index], result.value.avatarKey ?? null);
-        resolved = true;
-      }
+    // One batch call for every row (doc §2.4: one request per row showed "Kullanıcı" first).
+    let people: Awaited<ReturnType<typeof getUsersBatch>> = [];
+    try { people = await getUsersBatch(auth, missing, undefined, { onAuthRefresh: onAuthChange, onSessionExpired }); } catch { return; }
+    people.forEach((person) => {
+      userNameCache.set(person.id, person.userName);
+      userAvatarCache.set(person.id, person.avatarKey ?? null);
     });
-    if (resolved) setNames(Object.fromEntries(userNameCache));
+    if (people.length > 0) setNames(Object.fromEntries(userNameCache));
   }, [auth, onAuthChange, onSessionExpired]);
 
   // Only background polls are skipped while another request is in flight; a user-initiated
