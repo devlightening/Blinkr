@@ -147,7 +147,7 @@ export function FollowListPanel({ auth, ownerId, ownerName, initialTab, showRequ
             ? requests.map((item) => (
               <View key={item.id} style={styles.row}>
                 <AnimatedPressable accessibilityRole="button" onPress={() => onOpenUser?.({ id: item.id, userName: item.userName, avatarKey: item.avatarKey })} pressScale={0.98} style={styles.person}>
-                  <Avatar avatarKey={item.avatarKey} seed={item.id} size={40} />
+                  <Avatar avatarKey={item.avatarKey} seed={item.id} userId={item.id} size={40} />
                   <Text numberOfLines={1} style={styles.name}>{item.userName}</Text>
                 </AnimatedPressable>
                 <BlinkrButton label={t('lists.accept')} onPress={() => { void answer(item.id, true); }} />
@@ -158,7 +158,7 @@ export function FollowListPanel({ auth, ownerId, ownerName, initialTab, showRequ
               <View key={item.id} style={styles.rowBlock}>
                 <View style={styles.row}>
                   <AnimatedPressable accessibilityRole="button" onPress={() => onOpenUser?.({ id: item.id, userName: item.userName, avatarKey: item.avatarKey })} pressScale={0.98} style={styles.person}>
-                    <Avatar avatarKey={item.avatarKey} seed={item.id} size={40} />
+                    <Avatar avatarKey={item.avatarKey} seed={item.id} userId={item.id} size={40} />
                     <View style={styles.personCopy}>
                       <Text numberOfLines={1} style={styles.name}>{item.userName}</Text>
                       {item.followsYou && item.follow !== 'self' ? <Text style={styles.sub}>{t('follow.followsYou')}</Text> : null}

@@ -53,7 +53,7 @@ export function MentionSuggestions({ auth, text, cursor, onPick }: Props) {
     <View accessibilityLabel={t('mentions.suggestions')} style={styles.list} testID="mention-suggestions">
       {people.map((user) => (
         <AnimatedPressable accessibilityLabel={t('mentions.pick', { name: user.userName })} accessibilityRole="button" key={user.id} onPress={() => onPick(user)} pressScale={0.98} style={styles.row}>
-          <Avatar avatarKey={user.avatarKey} seed={user.id} size={28} />
+          <Avatar avatarKey={user.avatarKey} seed={user.id} userId={user.id} size={28} />
           <Text numberOfLines={1} style={styles.name}>@{user.userName}</Text>
           {user.relation === 'friends' ? <Text style={styles.badge}>{t('mentions.friend')}</Text> : null}
         </AnimatedPressable>

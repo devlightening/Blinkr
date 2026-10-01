@@ -37,3 +37,18 @@ namespace IdentityService.Domain.Entities
         public static readonly TimeSpan DeclineCooldown = TimeSpan.FromDays(7);
     }
 }
+
+namespace IdentityService.Domain.Entities
+{
+    /// <summary>Profile photo and display name limits (D-032).</summary>
+    public static class ProfilePhotoRules
+    {
+        public const int MaxDisplayNameLength = 40;
+        /// <summary>The profile size (the app sends ~640 px).</summary>
+        public const int MaxLargeBytes = 2 * 1024 * 1024;
+        /// <summary>The list size (the app sends ~160 px): lists stay light to scroll.</summary>
+        public const int MaxSmallBytes = 300 * 1024;
+        /// <summary>New photos a person may set in a day.</summary>
+        public const int MaxChangesPerDay = 20;
+    }
+}

@@ -80,3 +80,7 @@ export const Outfit_700Bold = 'Outfit_700Bold';
 export const Outfit_800ExtraBold = 'Outfit_800ExtraBold';
 // expo-blur: the browser preview draws the overlay tint without the blur.
 export const BlurView = View;
+// D-032 profile photo: the browser preview never picks a photo (the pickers above cancel).
+export const CameraType = { front: 'front', back: 'back' };
+export const SaveFormat = { JPEG: 'jpeg', PNG: 'png' };
+export const ImageManipulator = { manipulate: () => { throw new Error('not in the browser preview'); } };

@@ -95,7 +95,7 @@ export function SnapSendStep({ asset, recipients, selected, onSelectedChange, fi
                   pressScale={0.99}
                   style={styles.recipient}
                 >
-                  <Avatar avatarKey={item.avatarKey} seed={item.userId} size={36} />
+                  <Avatar avatarKey={item.avatarKey} seed={item.userId} userId={item.userId} size={36} />
                   <Text numberOfLines={1} style={styles.recipientName}>{item.name}</Text>
                   <View style={[styles.check, on && styles.checkOn]}>{on ? <Check color={colors.ink} size={14} strokeWidth={3} /> : null}</View>
                 </AnimatedPressable>

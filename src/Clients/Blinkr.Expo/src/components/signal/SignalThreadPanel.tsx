@@ -319,7 +319,7 @@ export function SignalThreadPanel({ contextLine, onCountChange, auth, postId, he
     const confirming = confirmDelete === comment.commentId;
     return (
       <View key={comment.commentId} style={[styles.comment, isReply && styles.reply, comment.pending && styles.pending]} testID={`comment-${comment.commentId}`}>
-        <Avatar seed={comment.authorId ?? `anon-${postId}`} size={isReply ? 28 : 34} />
+        <Avatar seed={comment.authorId ?? `anon-${postId}`} userId={comment.authorId} size={isReply ? 28 : 34} />
         <View style={styles.commentBody}>
           <View style={styles.commentMeta}>
             <Text numberOfLines={1} style={styles.commentAuthor}>{authorLabel(comment)}</Text>

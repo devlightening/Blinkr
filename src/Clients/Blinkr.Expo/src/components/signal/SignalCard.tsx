@@ -89,7 +89,7 @@ export function SignalCard({
           <FreshnessRing color={tone} live={isFreshnessPulseDue(card.createdAtUtc)} progress={freshnessProgress(card.createdAtUtc, card.expiresAtUtc)} size={44}>
             {card.anonymous
               ? <View style={styles.anon}><EyeOff color={colors.textSecondary} size={16} /></View>
-              : <Avatar seed={card.authorId ?? card.postId} size={36} />}
+              : <Avatar seed={card.authorId ?? card.postId} userId={card.authorId} size={36} />}
           </FreshnessRing>
           <View style={styles.authorCopy}>
             <View style={styles.nameRow}>

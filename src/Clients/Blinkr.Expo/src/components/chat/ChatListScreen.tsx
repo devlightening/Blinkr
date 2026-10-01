@@ -319,7 +319,7 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
                   pressScale={0.99}
                   style={styles.rowMain}
                 >
-                  <Avatar avatarKey={userAvatarCache.get(item.otherUserId)} seed={item.otherUserId} size={AVATAR_SIZE} />
+                  <Avatar avatarKey={userAvatarCache.get(item.otherUserId)} seed={item.otherUserId} userId={item.otherUserId} size={AVATAR_SIZE} />
                   <View style={styles.rowBody}>
                     <Text numberOfLines={1} style={styles.name}>{name}</Text>
                     <View style={styles.statusLine}>

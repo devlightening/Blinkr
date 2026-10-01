@@ -117,7 +117,7 @@ export function FeedCard({ item, myUserId, onLike, onReact, onDoubleTap, onMenti
         >
           {item.anonymous
             ? <View style={styles.anonAvatar}><EyeOff color={colors.textSecondary} size={16} /></View>
-            : <Avatar seed={item.authorId ?? item.id} size={32} />}
+            : <Avatar seed={item.authorId ?? item.id} userId={item.authorId} size={32} />}
           <View style={styles.authorCopy}>
             <Text numberOfLines={1} style={styles.authorName}>{authorLabel}</Text>
             <Text numberOfLines={1} style={styles.meta}>

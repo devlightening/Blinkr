@@ -76,10 +76,13 @@ public sealed class AccountPurgeService : BackgroundService
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString("N"));
             user.AvatarKey = null;
             user.Bio = null;
+            user.DisplayName = null;
+            user.PhotoVersion = null;
             user.BirthYear = null;
             user.IsPrivate = true;
             user.DeletedAtUtc = now;
             await db.SaveChangesAsync(ct);
+            scope.ServiceProvider.GetRequiredService<IdentityService.Api.Profile.ProfilePhotoStore>().DeleteAll(id);
             _logger.LogInformation("Account erased | UserId={UserId}", id);
         }
     }

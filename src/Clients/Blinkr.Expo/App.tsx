@@ -9,6 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, Easing } from 'react-native-reanimated';
 
 import { clearAuth, getMyProfile, getSignalDetail, listConversations, loadAuth, saveAuth } from './src/api';
+import { setPeopleAuth } from './src/people';
 import { parsePostLink } from './src/deepLinks';
 import { AuthScreen } from './src/components/AuthScreen';
 import { initI18n } from './src/i18n';
@@ -62,6 +63,8 @@ export default function App() {
   const [fontsLoaded, fontError] = useFonts({ Outfit_600SemiBold, Outfit_700Bold, Outfit_800ExtraBold });
   const fontsSettled = fontsLoaded || Boolean(fontError);
   const [auth, setAuth] = useState<AuthResponse | null>(null);
+  // Avatars read photos with the current token (D-032); set during render so the first avatars already have it.
+  setPeopleAuth(auth);
   const [isRestoring, setIsRestoring] = useState(true);
   const [activeTab, setActiveTab] = useState<BlinkrTab>('map');
   const [shareRequested, setShareRequested] = useState<ShareMode | null>(null);

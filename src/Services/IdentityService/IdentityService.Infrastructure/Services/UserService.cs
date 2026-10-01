@@ -204,6 +204,8 @@ namespace IdentityService.Infrastructure.Services
                 Email = user.Email,
                 AvatarKey = user.AvatarKey,
                 Bio = user.Bio,
+                DisplayName = user.DisplayName,
+                PhotoVersion = user.PhotoVersion,
                 DeletionScheduledForUtc = user.DeletionScheduledForUtc,
             };
         }
@@ -298,6 +300,7 @@ namespace IdentityService.Infrastructure.Services
                 RefreshToken = refreshTokenValue,
                 ExpiresIn = (int)jwt.AccessTokenLifetime.TotalSeconds,
                 AvatarKey = user.AvatarKey,
+                PhotoVersion = user.PhotoVersion,
                 DeletionScheduledForUtc = user.DeletionScheduledForUtc,
             };
         }

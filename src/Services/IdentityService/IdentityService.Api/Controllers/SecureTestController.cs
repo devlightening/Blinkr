@@ -9,15 +9,17 @@ using Shared.Moderation;
 
 namespace IdentityService.Api.Controllers
 {
-    public record UserSummaryDto(Guid Id, string UserName, string? AvatarKey = null, string Relation = "none");
+    public record UserSummaryDto(Guid Id, string UserName, string? AvatarKey = null, string Relation = "none", string? DisplayName = null, string? PhotoVersion = null);
     /// <summary>
     /// Public profile. Follower/following counts are public (sinyal-mvp-plan pivot, kök CLAUDE.md §2.3); the friend list
     /// and friend count never are. <c>CanSeeContent</c> is false for a private account the viewer does not follow.
     /// </summary>
     public record PublicProfileDto(Guid Id, string UserName, string? AvatarKey, string? Bio, DateTime JoinedAtUtc, string Relation,
-        int FollowerCount = 0, int FollowingCount = 0, string Follow = "none", bool FollowsYou = false, bool IsPrivate = false, bool CanSeeContent = true);
+        int FollowerCount = 0, int FollowingCount = 0, string Follow = "none", bool FollowsYou = false, bool IsPrivate = false, bool CanSeeContent = true,
+        string? DisplayName = null, string? PhotoVersion = null);
     public record SetAvatarRequest(string? AvatarKey);
-    public record SetProfileRequest(string? Bio);
+    /// <summary>Null DisplayName leaves it as it is (older apps send only the bio); an empty one clears it.</summary>
+    public record SetProfileRequest(string? Bio, string? DisplayName = null);
 
     [ApiController]
     [Route("api/[controller]")]
@@ -83,12 +85,29 @@ namespace IdentityService.Api.Controllers
                 bio = review.Text;
             }
 
+            // Display name (D-032): same cleaning and text rules as the bio; null in the request = unchanged.
+            string? displayName = null;
+            if (request?.DisplayName is not null)
+            {
+                displayName = CleanBio(request.DisplayName);
+                if (displayName is not null && displayName.Length > ProfilePhotoRules.MaxDisplayNameLength)
+                    return BadRequest(new { error = "DISPLAY_NAME_TOO_LONG", message = $"Ad en fazla {ProfilePhotoRules.MaxDisplayNameLength} karakter olabilir." });
+                if (displayName is not null)
+                {
+                    var nameReview = ContentTextFilter.Review(displayName);
+                    if (nameReview.Verdict == TextVerdict.Blocked)
+                        return UnprocessableEntity(new { error = ContentTextFilter.BlockedCode, code = ContentTextFilter.BlockedCode, message = "Bu içerik topluluk kurallarına uymuyor." });
+                    displayName = nameReview.Text;
+                }
+            }
+
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user is null) return NotFound(new { error = "USER_NOT_FOUND" });
 
             user.Bio = bio;
+            if (request?.DisplayName is not null) user.DisplayName = displayName;
             await _db.SaveChangesAsync();
-            return Ok(new { bio });
+            return Ok(new { bio, displayName = user.DisplayName });
         }
 
         /// <summary>Trims, collapses line breaks and control characters; empty becomes null.</summary>
@@ -159,12 +178,12 @@ namespace IdentityService.Api.Controllers
                 .Where(u => !hideTests || (!u.UserName.StartsWith(TestAccounts.Prefix) && !System.Text.RegularExpressions.Regex.IsMatch(u.UserName, TestAccounts.LegacyPattern)))
                 .OrderBy(u => u.UserName)
                 .Take(20)
-                .Select(u => new { u.Id, u.UserName, u.AvatarKey })
+                .Select(u => new { u.Id, u.UserName, u.AvatarKey, u.DisplayName, u.PhotoVersion })
                 .ToListAsync();
 
             var me = ViewerId();
             var rows = await RowsAsync(me, found.Select(u => u.Id).ToList());
-            return Ok(found.Select(u => new UserSummaryDto(u.Id, u.UserName, u.AvatarKey, Relation.Of(me, u.Id, rows.GetValueOrDefault(u.Id)))));
+            return Ok(found.Select(u => new UserSummaryDto(u.Id, u.UserName, u.AvatarKey, Relation.Of(me, u.Id, rows.GetValueOrDefault(u.Id)), u.DisplayName, u.PhotoVersion)));
         }
 
         /// <summary>
@@ -182,17 +201,17 @@ namespace IdentityService.Api.Controllers
             var hidden = await BlockQueries.HiddenFromAsync(_db, me);
             var found = await _db.Users
                 .Where(u => u.DeletedAtUtc == null && wanted.Contains(u.Id))
-                .Select(u => new { u.Id, u.UserName, u.AvatarKey })
+                .Select(u => new { u.Id, u.UserName, u.AvatarKey, u.DisplayName, u.PhotoVersion })
                 .ToListAsync();
             Response.Headers.CacheControl = "private, no-store";
-            return Ok(found.Where(u => !hidden.Contains(u.Id)).Select(u => new UserSummaryDto(u.Id, u.UserName, u.AvatarKey)));
+            return Ok(found.Where(u => !hidden.Contains(u.Id)).Select(u => new UserSummaryDto(u.Id, u.UserName, u.AvatarKey, DisplayName: u.DisplayName, PhotoVersion: u.PhotoVersion)));
         }
 
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id)
         {
             var user = await _db.Users.Where(u => u.Id == id && u.DeletedAtUtc == null)
-                .Select(u => new { u.Id, u.UserName, u.AvatarKey, u.Bio, u.CreatedAt, u.IsPrivate })
+                .Select(u => new { u.Id, u.UserName, u.AvatarKey, u.Bio, u.CreatedAt, u.IsPrivate, u.DisplayName, u.PhotoVersion })
                 .FirstOrDefaultAsync();
 
             if (user is null) return NotFound();
@@ -207,7 +226,8 @@ namespace IdentityService.Api.Controllers
             // Public profile: no e-mail, no friend list, no friend count. Only what the person chose to show.
             return Ok(new PublicProfileDto(user.Id, user.UserName, user.AvatarKey, user.Bio, user.CreatedAt, Relation.Of(me, id, rows.GetValueOrDefault(id)),
                 await FollowQueries.FollowersAsync(_db, id), await FollowQueries.FollowingAsync(_db, id),
-                me == id ? "self" : FollowState.Of(myFollow), followsYou, user.IsPrivate, await FollowQueries.CanSeeAsync(_db, me, id)));
+                me == id ? "self" : FollowState.Of(myFollow), followsYou, user.IsPrivate, await FollowQueries.CanSeeAsync(_db, me, id),
+                user.DisplayName, user.PhotoVersion));
         }
 
         private Guid ViewerId() => Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : Guid.Empty;

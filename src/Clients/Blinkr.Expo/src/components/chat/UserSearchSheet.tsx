@@ -80,7 +80,7 @@ export function UserSearchSheet({ auth, onBack, onSelect }: {
       {(searched ? results : friends).map((user) => (
         <Animated.View entering={FadeIn.duration(motion.base)} key={user.id}>
           <AnimatedPressable accessibilityLabel={tx('chat:search.messageA11y', '{{name}} ile mesajlaş', { name: user.userName })} accessibilityRole="button" onPress={() => onSelect(user)} pressScale={0.97} style={styles.row}>
-            <Avatar avatarKey={user.avatarKey} seed={user.id} size={44} />
+            <Avatar avatarKey={user.avatarKey} seed={user.id} userId={user.id} size={44} />
             <Text numberOfLines={1} style={styles.name}>{user.userName}</Text>
             {searched && relationLabel(user.relation) ? <Text style={styles.relation}>{relationLabel(user.relation)}</Text> : null}
           </AnimatedPressable>

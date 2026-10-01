@@ -36,7 +36,7 @@ export function BlinkrHeader({ subtitle, right, safeArea = true, style }: Props)
 export function HeaderAvatar({ userId, userName, avatarKey, onPress, accessibilityLabel = tx('common:actions.openProfile', 'Profili aç') }: { userId: string; userName: string; avatarKey?: string | null; onPress?: () => void; accessibilityLabel?: string }) {
   return (
     <AnimatedPressable accessibilityLabel={`${accessibilityLabel}: ${userName}`} accessibilityRole="button" disabled={!onPress} onPress={onPress} pressScale={0.9} style={styles.avatar}>
-      <Avatar avatarKey={avatarKey} ringColor={colors.border} seed={userId} size={40} />
+      <Avatar avatarKey={avatarKey} ringColor={colors.border} seed={userId} userId={userId} size={40} />
     </AnimatedPressable>
   );
 }

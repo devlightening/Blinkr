@@ -348,7 +348,7 @@ async function main() {
     // Avatars: profile shows the default character, the picker changes colour/face/accessory and saves a catalogue key.
     await page.goto(url + '?scene=profile');
     await expect(page.getByLabel('avatar-key')).toHaveText('default');
-    await page.getByRole('button', { name: 'Avatarı değiştir' }).click();
+    await page.getByRole('button', { name: 'Profil fotoğrafını değiştir' }).click(); await page.getByTestId('photo-avatar').click();
     await expect(page.getByRole('heading', { name: 'Avatarını seç' })).toBeVisible();
     await page.getByRole('button', { name: 'Mor renk' }).click();
     await expect(page.getByRole('button', { name: 'Mor renk' })).toHaveAttribute('aria-selected', 'true');
@@ -358,8 +358,16 @@ async function main() {
     await page.getByRole('button', { name: 'Kaydet' }).click();
     await expect(page.getByLabel('avatar-key')).toHaveText('421');
     await expect(page.getByRole('heading', { name: 'Avatarını seç' })).toHaveCount(0);
+    // D-032: the edit sheet offers a photo (camera / gallery / avatar) and a display name shown above the bio.
+    await page.getByRole('button', { name: 'Profil fotoğrafını değiştir' }).click();
+    await expect(page.getByTestId('photo-camera')).toBeVisible();
+    await expect(page.getByTestId('photo-library')).toBeVisible();
+    await expect(page.getByTestId('photo-remove')).toHaveCount(0);
+    await page.getByTestId('display-name-input').fill('  Alper   Kaya ');
+    await page.getByRole('button', { name: 'Kaydet' }).click();
+    await expect(page.getByTestId('profile-display-name')).toHaveText('Alper Kaya');
     await page.goto(url + '?scene=profile&avatarfail');
-    await page.getByRole('button', { name: 'Avatarı değiştir' }).click();
+    await page.getByRole('button', { name: 'Profil fotoğrafını değiştir' }).click(); await page.getByTestId('photo-avatar').click();
     await page.getByRole('button', { name: 'Kaydet' }).click();
     await expect(page.getByText('Avatar kaydedilemedi. Tekrar dene.')).toBeVisible();
     await expect(page.getByText('Network request failed')).toHaveCount(0);

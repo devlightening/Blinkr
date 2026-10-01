@@ -9,6 +9,8 @@ export type AuthResponse = {
   expiresIn?: number;
   /** Chosen avatar (see avatars.ts); null/absent = the default for this user id. */
   avatarKey?: string | null;
+  /** D-032: optional profile photo; changes with every new photo. Null = the drawn avatar. */
+  photoVersion?: string | null;
   /** Set while the account waits to be deleted (plan-devam F3): the app shows "Silmeyi geri al" instead of the map. */
   deletionScheduledForUtc?: string | null;
 };
@@ -223,6 +225,8 @@ export type UserSummary = {
   id: string;
   userName: string;
   avatarKey?: string | null;
+  displayName?: string | null;
+  photoVersion?: string | null;
   /** Present on search results; absent on older servers (= none). */
   relation?: Relation;
 };
@@ -232,6 +236,8 @@ export type PublicProfile = {
   id: string;
   userName: string;
   avatarKey?: string | null;
+  displayName?: string | null;
+  photoVersion?: string | null;
   bio?: string | null;
   joinedAtUtc: string;
   relation: Relation;
@@ -248,6 +254,8 @@ export type PublicProfile = {
 /** My own profile numbers (from /api/users/me). */
 export type MyProfile = {
   bio?: string | null;
+  displayName?: string | null;
+  photoVersion?: string | null;
   friendCount: number;
   incomingRequestCount: number;
   followerCount?: number;

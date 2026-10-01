@@ -17,17 +17,21 @@ public record ModerationResult(bool Ok, string? Error = null, int Status = 200);
 public sealed class ModerationService
 {
     public static readonly string[] SignalActions = { "dismiss", "hide", "restore", "remove" };
-    public static readonly string[] UserActions = { "dismiss", Sanctions.Warn, Sanctions.Restrict24h, Sanctions.Suspend7d, Sanctions.Ban };
+    /// <summary>D-032: <c>remove_photo</c> takes down a reported profile photo; the person keeps the drawn avatar.</summary>
+    public const string RemovePhoto = "remove_photo";
+    public static readonly string[] UserActions = { "dismiss", Sanctions.Warn, Sanctions.Restrict24h, Sanctions.Suspend7d, Sanctions.Ban, RemovePhoto };
 
     private readonly AppDbContext _db;
     private readonly IPublishEndpoint _bus;
     private readonly ILogger<ModerationService> _logger;
+    private readonly IdentityService.Api.Profile.ProfilePhotoStore _photos;
 
-    public ModerationService(AppDbContext db, IPublishEndpoint bus, ILogger<ModerationService> logger)
+    public ModerationService(AppDbContext db, IPublishEndpoint bus, ILogger<ModerationService> logger, IdentityService.Api.Profile.ProfilePhotoStore photos)
     {
         _db = db;
         _bus = bus;
         _logger = logger;
+        _photos = photos;
     }
 
     /// <summary>A reporter's weight: accounts younger than a day count half (a burst of fresh accounts hides less).</summary>
@@ -88,6 +92,18 @@ public sealed class ModerationService
             };
             if (!await PublishAsync(new PostModerationChangedIntegrationEvent { PostId = postId, State = state, Action = action, OccurredAtUtc = now }, ct))
                 return new ModerationResult(false, "MODERATION_UNAVAILABLE", 503);
+        }
+        else if (type == ReportTargetType.User && action == RemovePhoto)
+        {
+            if (!Guid.TryParse(targetId, out var userId)) return new ModerationResult(false, "INVALID_TARGET", 400);
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+            if (user is null) return new ModerationResult(false, "USER_NOT_FOUND", 404);
+            if (user.PhotoVersion is { } version)
+            {
+                user.PhotoVersion = null;
+                await _db.SaveChangesAsync(ct);
+                _photos.Delete(userId, version);
+            }
         }
         else if (type == ReportTargetType.User && Sanctions.IsUserAction(action))
         {

@@ -410,6 +410,29 @@ export const getMyProfile = (auth: AuthResponse, signal?: AbortSignal, refresh: 
 export const setMyBio = (auth: AuthResponse, bio: string | null, refresh: Refresh = {}) =>
   requestJson<{ bio: string | null }>('/api/users/me/profile', { auth, body: { bio }, method: 'PUT', ...refresh });
 
+/** D-032: bio and display name together (an empty name clears it). */
+export const setMyProfile = (auth: AuthResponse, profile: { bio: string | null; displayName: string }, refresh: Refresh = {}) =>
+  requestJson<{ bio: string | null; displayName: string | null }>('/api/users/me/profile', { auth, body: profile, method: 'PUT', ...refresh });
+
+/** D-032: a new profile photo, as two JPEGs made on the phone (profile ~640 px, lists ~160 px). */
+export const setProfilePhoto = async (auth: AuthResponse, files: { largeUri: string; smallUri: string }, refresh: Refresh = {}) => {
+  const form = new FormData();
+  form.append('large', { uri: files.largeUri, name: 'large.jpg', type: 'image/jpeg' } as unknown as Blob);
+  form.append('small', { uri: files.smallUri, name: 'small.jpg', type: 'image/jpeg' } as unknown as Blob);
+  const response = await request('/api/users/me/photo', { auth, method: 'PUT', rawBody: form, timeoutMs: 60000, ...refresh });
+  if (!response.ok) throw new Error(await readError(response));
+  return (await response.json()) as { photoVersion: string };
+};
+export const removeProfilePhoto = async (auth: AuthResponse, refresh: Refresh = {}) => {
+  const response = await request('/api/users/me/photo', { auth, method: 'DELETE', ...refresh });
+  if (!response.ok) throw new Error(await readError(response));
+};
+/** The photo is read with the person's own token: the server applies the profile's block rule to it. */
+export const profilePhotoSource = (auth: AuthResponse, userId: string, version: string, large: boolean) => ({
+  uri: `${API_BASE_URL}/api/users/${userId}/photo?s=${large ? 'large' : 'small'}&v=${version}`,
+  headers: { Authorization: `Bearer ${auth.token}` },
+});
+
 export const getPublicProfile = (auth: AuthResponse, userId: string, signal?: AbortSignal, refresh: Refresh = {}) =>
   requestJson<PublicProfile>(`/api/users/${userId}`, { auth, signal, ...refresh });
 

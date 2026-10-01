@@ -15,6 +15,19 @@
 
 ## Kararlar
 
+### D-032 — Profil fotoğrafı, görünen ad ve tasarım önerilerindeki ürün kararları (2026-10-01)
+- Bağlam: `docs/BLINKR_TASARIM_VE_KULLANISLILIK_ONERILERI.md` §9 altı karar istiyordu. Kullanıcı hepsini Claude'a bıraktı ("tüm hepsine sen cevap ver") ve uygulamanın artık gerçek bir sosyal medya gibi hissettirmesini istedi.
+- Karar:
+  1. Profil fotoğrafı **isteğe bağlı**; çizilmiş avatar varsayılan ve yedek olarak kalır. CLAUDE.md §12.1'deki "kimsenin yüzü saklanmaz" kuralı bununla bilinçli olarak gevşetildi. Korumalar: harita pinlerinde ve anonim sinyallerde fotoğraf asla yoktur (istemci orada kişi kimliği bilmez: anonim sinyal yazar kimliği taşımaz); fotoğraf statik sunulmaz, her okuma kimlik doğrulamalı ve profil ile aynı engel kuralından geçer (iki yönlü engelde 404); adres rastgele sürüm taşır, tahmin edilemez ve yeni fotoğrafta değişir; EXIF/APP segmentleri (GPS dahil) saklanmadan silinir; gizli hesabın büyük boy fotoğrafı yalnız onaylı takipçiye, diğerlerine küçük boy; günde en fazla 20 değişiklik; hesap silinince dosyalar silinir.
+  2. Görsel moderasyon beta için **bildir + moderatör kaldırır**: kişi bildirimi fotoğrafı da kapsar, moderatör eylemi `remove_photo` (denetim izine yazılır). Otomatik görsel denetim ücretli sağlayıcı ister; yayın öncesi yeniden değerlendirilir (SECURITY S8).
+  3. Arkadaşlar haritada **yok** (MVP); Faz 13 kuralı değişmedi.
+  4. Seri (streak) ve en iyi arkadaş emojileri **yok** (anayasa: etkileşim için baskı mekaniği).
+  5. **Görünen ad** eklendi (isteğe bağlı, en fazla 40 karakter, biyografiyle aynı metin süzgeci); profilde @kullanıcıadı'nın üstünde.
+  6. Öne çıkanlar şimdilik yok; ihtiyacı ileride "sabitle" (P5) karşılayacak.
+- Uygulama: iki boy telefonda üretilir (640/160 px, `profilePhoto.ts`), sunucuda görüntü kütüphanesi yok. Uçlar: `PUT/DELETE /api/users/me/photo`, `GET /api/users/{id}/photo?s=small|large&v=`; `photoVersion` ve `displayName` kullanıcı özeti, toplu uç, profil, `me` ve giriş yanıtlarında. İstemcide `people.ts` kişi önbelleği: kimliği bilinen her `Avatar` kişiyi tek toplu istekle (`GET /api/users/batch`) öğrenir, fotoğrafı tek değişiklikle her yüzeye yayılır.
+- Test verisi: `scripts/seed-profile-photos.cjs` yalnız yapay zekâ ile üretilmiş, gerçekte var olmayan yüzler kullanır; gerçek kişilerin fotoğrafı ve çocuk yüzü kullanılmaz.
+- Etki: CLAUDE.md §12.1, §13; API-SPEC.
+
 ### D-031 — Refresh token erişim token'ı olarak kabul edilmez (2026-09-25)
 - Bağlam: BLK-TOKENS-01 (servisler arası token kuralları testi) gerçek bir açık buldu: refresh token aynı anahtarla imzalı, aynı issuer/audience'lı bir JWT ve dört servis de onu erişim token'ı olarak kabul ediyordu. Sızan bir refresh token 7 gün boyunca API erişimi veriyordu; "diğer cihazlardan çıkış" da onu durduramıyordu (JWT süresi dolana kadar geçerliydi).
 - Karar: Her servisin JwtBearer `OnTokenValidated` olayı `token_use=refresh` taşıyan token'ı reddeder (`BlinkrJwtOptions.IsAccessToken`; claim'siz eski erişim token'ları süresi dolana kadar geçerli). Test kalıcı: doğru token kabul, yanlış audience/issuer, süresi dolmuş, yanlış anahtar, `alg: none`, değiştirilmiş payload ve refresh token 401.

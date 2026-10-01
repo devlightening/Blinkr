@@ -73,6 +73,8 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
   const [refreshing, setRefreshing] = useState(false);
   const [postsError, setPostsError] = useState<string | null>(null);
   const [bio, setBio] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [photoVersion, setPhotoVersion] = useState<string | null | undefined>(auth.photoVersion);
   const [followerCount, setFollowerCount] = useState<number | null>(null);
   const [followingCount, setFollowingCount] = useState<number | null>(null);
   const [followRequests, setFollowRequests] = useState(0);
@@ -124,6 +126,8 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
     try {
       const mine = await getMyProfile(auth, undefined, { onAuthRefresh: onAuthChange, onSessionExpired: onLogout });
       setBio(mine.bio ?? null);
+      setDisplayName(mine.displayName ?? null);
+      setPhotoVersion(mine.photoVersion ?? null);
       setFollowerCount(mine.followerCount ?? 0);
       setFollowingCount(mine.followingCount ?? 0);
       setFollowRequests(mine.followRequestCount ?? 0);
@@ -258,8 +262,8 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
         </View>
 
         <View style={styles.identityTop}>
-          <AnimatedPressable accessibilityLabel={tx('profile:me.changeAvatar', 'Avatarı değiştir')} accessibilityRole="button" onPress={() => setAvatarOpen(true)} pressScale={0.97} style={styles.avatarButton}>
-            <Avatar avatarKey={auth.avatarKey} seed={auth.userId} size={AVATAR} />
+          <AnimatedPressable accessibilityLabel={tx('profile:photo.change', 'Profil fotoğrafını değiştir')} accessibilityRole="button" onPress={() => setEditOpen(true)} pressScale={0.97} style={styles.avatarButton}>
+            <Avatar avatarKey={auth.avatarKey} photoVersion={photoVersion} seed={auth.userId} userId={auth.userId} size={AVATAR} />
             <View style={styles.avatarEdit}><Pencil color={colors.ink} size={12} strokeWidth={2.6} /></View>
           </AnimatedPressable>
           <View style={styles.stats}>
@@ -270,6 +274,7 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
         </View>
 
         <View style={styles.about}>
+          {displayName ? <Text numberOfLines={1} style={styles.displayName} testID="profile-display-name">{displayName}</Text> : null}
           {bio
             ? <Text style={styles.bio}>{bio}</Text>
             : (
@@ -344,10 +349,13 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
         <EditProfileSheet
           auth={auth}
           bio={bio ?? ''}
+          displayName={displayName ?? ''}
           onAuthChange={onAuthChange}
           onChangeAvatar={() => { setEditOpen(false); setAvatarOpen(true); }}
           onClose={() => setEditOpen(false)}
-          onSaved={setBio}
+          onPhotoChange={(version) => { setPhotoVersion(version); onAuthChange({ ...auth, photoVersion: version }); }}
+          onSaved={(saved) => { setBio(saved.bio); setDisplayName(saved.displayName); }}
+          photoVersion={photoVersion ?? null}
           onSessionExpired={onLogout}
         />
       ) : null}
@@ -397,6 +405,7 @@ const styles = StyleSheet.create({
   statValue: { ...typography.title, color: colors.text, fontVariant: ['tabular-nums'] },
   statLabel: { ...typography.caption, color: colors.textSecondary },
   about: { gap: 2 },
+  displayName: { ...typography.heading, color: colors.text, marginBottom: 2 },
   bio: { ...typography.body, color: colors.text },
   bioEmpty: { ...typography.body, color: colors.textSecondary },
   buttonRow: { flexDirection: 'row', gap: spacing.sm },

@@ -274,7 +274,7 @@ export function MapSearchOverlay({ auth, origin, onClose, onSelectPlace, onSelec
               {!typed && friends.length > 0 ? <Text style={styles.section}>{tx('map:search.friends', 'Arkadaşların')}</Text> : null}
               {(typed ? people : friends).map((user) => (
                 <SimpleRow
-                  icon={<Avatar avatarKey={user.avatarKey} seed={user.id} size={40} />}
+                  icon={<Avatar avatarKey={user.avatarKey} seed={user.id} userId={user.id} size={40} />}
                   key={user.id}
                   label={tx('map:search.openProfile', '{{name}} profilini aç', { name: user.userName })}
                   onPress={() => onSelectPerson(user)}

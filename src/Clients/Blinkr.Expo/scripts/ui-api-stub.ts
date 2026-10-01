@@ -442,3 +442,12 @@ export const changePassword = async (_auth: unknown, current: string, next: stri
   passwordChanges.push({ current, next });
   return { changed: true, sessionsEnded: 2 };
 };
+// D-032: profile photo and display name. The stub has no photos (avatars draw the default).
+export const profilePhotoSource = (_auth: unknown, userId: string, version: string, large: boolean) => ({ uri: `stub://photo/${userId}/${version}/${large ? 'l' : 's'}`, headers: {} });
+export const setProfilePhoto = async () => ({ photoVersion: 'stubphoto' });
+export const removeProfilePhoto = async () => undefined;
+export const setMyProfile = async (_auth: unknown, profile: { bio: string | null; displayName: string }) => {
+  if (flag('biofail')) throw new Error('Network request failed');
+  myBio = profile.bio;
+  return { bio: profile.bio, displayName: profile.displayName || null };
+};

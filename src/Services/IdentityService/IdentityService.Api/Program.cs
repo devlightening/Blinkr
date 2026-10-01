@@ -70,6 +70,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // DI: Application <-> Infrastructure
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddSingleton<IdentityService.Api.Profile.ProfilePhotoStore>();
 builder.Services.AddAuthThrottle(builder.Configuration); // S3: sign-in / sign-up throttling
 builder.Services.AddScoped<IdentityService.Api.Moderation.ModerationService>();
 builder.Services.AddHostedService<IdentityService.Api.Account.AccountPurgeService>();

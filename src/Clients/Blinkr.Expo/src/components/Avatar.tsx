@@ -1,7 +1,10 @@
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { useState } from 'react';
+import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
+import { profilePhotoSource } from '../api';
 import { AVATAR_COLORS, resolveAvatar, type AvatarConfig } from '../avatars';
+import { getPeopleAuth, usePerson } from '../people';
 import { colors } from '../theme';
 
 const INK = colors.ink;
@@ -16,6 +19,14 @@ type Props = {
   size?: number;
   /** Ring around the avatar, e.g. lime for unread. */
   ringColor?: string;
+  /**
+   * D-032: the real user behind the avatar. With it the avatar shows the person's current choice and, when they set
+   * one, their profile photo. Leave it out for anything that is not a known person (anonymous signals, previews):
+   * then only the drawn default for the seed is shown.
+   */
+  userId?: string | null;
+  /** A just-changed photo version (my own profile right after an upload); otherwise the person's current one. */
+  photoVersion?: string | null;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -76,8 +87,14 @@ function Accessory({ accessory }: { accessory: number }) {
 }
 
 /** A drawn character: colour background, round head, one of six faces and one of six accessories. */
-export function Avatar({ avatarKey, seed, size = 44, ringColor, style }: Props) {
-  const config: AvatarConfig = resolveAvatar(avatarKey, seed);
+export function Avatar({ avatarKey, seed, size = 44, ringColor, style, userId, photoVersion }: Props) {
+  const person = usePerson(userId);
+  const [failed, setFailed] = useState<string | null>(null);
+  const config: AvatarConfig = resolveAvatar(person?.avatarKey !== undefined ? person.avatarKey : avatarKey, seed);
+  const photo = photoVersion !== undefined ? photoVersion : person?.photoVersion;
+  const auth = getPeopleAuth();
+  // Lists load the small photo; the profile-sized avatar loads the large one.
+  const source = userId && photo && auth && failed !== photo ? profilePhotoSource(auth, userId, photo, size >= 72) : null;
   return (
     <View
       accessibilityElementsHidden
@@ -92,6 +109,7 @@ export function Avatar({ avatarKey, seed, size = 44, ringColor, style }: Props) 
         <Mouth face={config.face} />
         <Accessory accessory={config.accessory} />
       </Svg>
+      {source ? <Image accessibilityIgnoresInvertColors onError={() => setFailed(photo ?? null)} source={source} style={StyleSheet.absoluteFill} testID="avatar-photo" /> : null}
     </View>
   );
 }

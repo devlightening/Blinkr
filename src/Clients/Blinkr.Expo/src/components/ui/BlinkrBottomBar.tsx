@@ -54,7 +54,7 @@ function TabItem({ tab, active, unread, me, onPress }: { tab: BlinkrTab; active:
         {tab === 'profile' && me ? (
           // Instagram: the profile tab is your own face; selected = the brand ring around it.
           <GradientRing gapColor={colors.surface} hidden={!active} size={30} thickness={2}>
-            <Avatar avatarKey={me.avatarKey} seed={me.userId} size={active ? 22 : 26} />
+            <Avatar avatarKey={me.avatarKey} seed={me.userId} userId={me.userId} size={active ? 22 : 26} />
           </GradientRing>
         ) : (
           <Icon color={color} size={25} strokeWidth={active ? 2.5 : 1.9} />

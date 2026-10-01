@@ -309,7 +309,7 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
         <ArrowLeft color={colors.text} size={22} />
       </AnimatedPressable>
       <AnimatedPressable accessibilityLabel={tx('chat:thread.openProfile', '{{name}}, profili aç', { name: otherUserName })} accessibilityRole="button" disabled={!onOpenProfile} onPress={() => onOpenProfile?.()} pressScale={0.98} style={styles.identity}>
-        <Avatar avatarKey={otherAvatarKey} seed={conversation.otherUserId} size={36} />
+        <Avatar avatarKey={otherAvatarKey} seed={conversation.otherUserId} userId={conversation.otherUserId} size={36} />
         <View style={styles.identityCopy}>
           <Text accessibilityRole="header" numberOfLines={1} style={styles.heading}>{otherUserName}</Text>
           {otherTyping ? <Text accessibilityLiveRegion="polite" style={styles.typing} testID="chat-typing">{t('thread.typing')}</Text> : null}

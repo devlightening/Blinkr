@@ -55,7 +55,7 @@ function PersonRow({ person, subtitle, onOpen, right }: { person: Person; subtit
   return (
     <View style={styles.row}>
       <AnimatedPressable accessibilityLabel={tx('profile:friends.openProfileA11y', '{{name}}, profili aç', { name: person.userName })} accessibilityRole="button" onPress={onOpen} pressScale={0.98} style={styles.rowMain}>
-        <Avatar avatarKey={person.avatarKey} seed={person.id} size={44} />
+        <Avatar avatarKey={person.avatarKey} seed={person.id} userId={person.id} size={44} />
         <View style={styles.rowCopy}>
           <Text numberOfLines={1} style={styles.rowName}>{person.userName}</Text>
           {subtitle ? <Text numberOfLines={1} style={styles.rowSub}>{subtitle}</Text> : null}

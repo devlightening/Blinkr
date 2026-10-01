@@ -294,6 +294,14 @@ namespace IdentityService.Infrastructure.Migrations
                     b.Property<int?>("BirthYear")
                         .HasColumnType("integer");
 
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("PhotoVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 

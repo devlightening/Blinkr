@@ -308,7 +308,7 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
           ) : null}
           {blocked?.map((user) => (
             <View key={user.id} style={styles.person}>
-              <Avatar avatarKey={user.avatarKey} seed={user.id} size={44} />
+              <Avatar avatarKey={user.avatarKey} seed={user.id} userId={user.id} size={44} />
               <Text numberOfLines={1} style={styles.personName}>{user.userName}</Text>
               <AnimatedPressable accessibilityLabel={tx('settings:blocked.unblockA11y', '{{name}} engelini kaldır', { name: user.userName })} accessibilityRole="button" aria-disabled={busy.has(user.id)} disabled={busy.has(user.id)} onPress={() => void unblock(user.id)} pressScale={0.95} style={styles.mini}>
                 <Text style={styles.miniText}>{tx('settings:blocked.unblock', 'Engeli kaldır')}</Text>

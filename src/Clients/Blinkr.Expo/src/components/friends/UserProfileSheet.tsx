@@ -143,8 +143,9 @@ export function UserProfileSheet({ auth, user, onAuthChange, onSessionExpired, o
         ) : (
         <ScrollView bounces={false} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.head}>
-            <Avatar avatarKey={avatarKey} seed={user.id} size={84} />
-            <Text accessibilityRole="header" numberOfLines={1} style={styles.name}>{name}</Text>
+            <Avatar avatarKey={avatarKey} seed={user.id} userId={user.id} size={84} />
+            {profile?.displayName ? <Text accessibilityRole="header" numberOfLines={1} style={styles.name}>{profile.displayName}</Text> : null}
+            <Text accessibilityRole={profile?.displayName ? undefined : "header"} numberOfLines={1} style={profile?.displayName ? styles.handle : styles.name}>{profile?.displayName ? `@${name}` : name}</Text>
             {status ? <Text style={[styles.status, relation === 'friends' && styles.statusFriends]}>{status}</Text> : null}
             {joined ? <Text style={styles.joined}>{joined}</Text> : null}
           </View>
@@ -282,6 +283,7 @@ const styles = StyleSheet.create({
   content: { gap: spacing.lg, paddingBottom: spacing.md },
   head: { alignItems: 'center', gap: spacing.xs },
   name: { ...typography.title, color: colors.text, marginTop: spacing.sm, maxWidth: '90%' },
+  handle: { ...typography.callout, color: colors.textSecondary, maxWidth: '90%' },
   status: { ...typography.label, backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, color: colors.textSecondary, overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 3 },
   statusFriends: { backgroundColor: colors.greenSoft, color: colors.primary },
   joined: { ...typography.caption, color: colors.textSecondary },

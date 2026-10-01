@@ -10,6 +10,10 @@
         public string Role { get; set; } = "User";
         /// <summary>Chosen avatar (see AvatarCatalog); null = the client draws a default from the user id.</summary>
         public string? AvatarKey { get; set; }
+        /// <summary>Optional name shown above @username on the profile (D-032); null = the username alone.</summary>
+        public string? DisplayName { get; set; }
+        /// <summary>Optional profile photo (D-032): a random token that names the stored files and changes with every new photo, so caches never show an old one. Null = the drawn avatar.</summary>
+        public string? PhotoVersion { get; set; }
         /// <summary>Short public line about the person; null = none.</summary>
         public string? Bio { get; set; }
         /// <summary>A private account approves each follower; non-followers see the profile header only (D-009).</summary>

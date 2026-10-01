@@ -187,7 +187,9 @@
     "failed": "Profil kaydedilemedi. Tekrar dene.",
     "about": "Hakkında",
     "placeholder": "Kendini kısaca tanıt. Kahve, yürüyüş, hangi semt…",
-    "help": "Herkes görebilir. Konumun ve e-postan paylaşılmaz."
+    "help": "Herkes görebilir. Konumun ve e-postan paylaşılmaz.",
+    "name": "Ad",
+    "namePlaceholder": "Adın (isteğe bağlı)"
   },
   "archive": {
     "title": "Sinyal arşivi",
@@ -197,5 +199,15 @@
     "page": "{{page}} / {{pages}}",
     "failed": "Bu sayfa yüklenemedi. Tekrar dene.",
     "capped": "Arşiv en yeni {{count}} sinyali gösterir."
+  },
+  "photo": {
+    "take": "Fotoğraf çek",
+    "pick": "Galeriden seç",
+    "avatar": "Avatar seç",
+    "remove": "Fotoğrafı kaldır",
+    "change": "Profil fotoğrafını değiştir",
+    "failed": "Fotoğraf yüklenemedi. Tekrar dene.",
+    "removeFailed": "Fotoğraf kaldırılamadı. Tekrar dene.",
+    "help": "Fotoğrafın profilinde, sohbette ve yorumlarda görünür. Haritada ve anonim paylaşımlarında asla görünmez."
   }
 }

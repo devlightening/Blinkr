@@ -99,7 +99,7 @@ export function ShareToChatSheet({ auth, share, onClose, refresh = {} }: Props) 
             const state = sent[friend.id];
             return (
               <View key={friend.id} style={styles.row}>
-                <Avatar avatarKey={friend.avatarKey} seed={friend.id} size={40} />
+                <Avatar avatarKey={friend.avatarKey} seed={friend.id} userId={friend.id} size={40} />
                 <Text numberOfLines={1} style={styles.name}>{friend.userName}</Text>
                 <AnimatedPressable
                   accessibilityLabel={`${friend.userName}: ${t('extras.share')}`}

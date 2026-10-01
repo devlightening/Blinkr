@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { getUsersBatch, listStoryTray } from '../../api';
+import { listStoryTray } from '../../api';
 import { trayRing, type StoryTrayItem } from '../../stories';
 import { colors, gradientDirection, gradients, radii, spacing, typography } from '../../theme';
 import type { AuthResponse } from '../../types';
@@ -33,20 +33,11 @@ const ITEM = 84;
 export function StoryTray({ auth, refresh = {}, reloadKey = 0, onOpen, onAdd }: Props) {
   const { t } = useTranslation('feed');
   const [items, setItems] = useState<StoryTrayItem[] | null>(null);
-  // The others' chosen avatars come from one batch call after the tray (the tray itself carries no avatar).
-  const [avatars, setAvatars] = useState<Record<string, string | null | undefined>>({});
 
   useEffect(() => {
     const controller = new AbortController();
     listStoryTray(auth, controller.signal, refresh)
-      .then((list) => {
-        if (controller.signal.aborted) return;
-        setItems(list);
-        const others = list.filter((item) => !item.isMine).map((item) => item.authorId);
-        getUsersBatch(auth, others, controller.signal, refresh)
-          .then((people) => { if (!controller.signal.aborted) setAvatars(Object.fromEntries(people.map((p) => [p.id, p.avatarKey]))); })
-          .catch(() => undefined);
-      })
+      .then((list) => { if (!controller.signal.aborted) setItems(list); })
       .catch(() => { if (!controller.signal.aborted) setItems((current) => current ?? []); });
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -85,7 +76,7 @@ export function StoryTray({ auth, refresh = {}, reloadKey = 0, onOpen, onAdd }: 
             {/* Instagram: brand-gradient ring for unseen, flat grey for watched, none + a gradient "+" for adding. */}
             <View>
               <GradientRing hidden={ring === 'add'} seen={ring === 'seen'} size={RING} testID={`story-ring-${ring}`} thickness={3}>
-                <Avatar avatarKey={item.isMine ? auth.avatarKey : avatars[item.authorId] ?? undefined} seed={item.authorId} size={RING - 12} />
+                <Avatar avatarKey={item.isMine ? auth.avatarKey : undefined} seed={item.authorId} userId={item.authorId} size={RING - 12} />
               </GradientRing>
               {item.isMine && ring === 'add' ? (
                 // No story yet: the whole item adds one, the "+" is only its picture.

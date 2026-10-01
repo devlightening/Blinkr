@@ -135,10 +135,10 @@ export function NotificationsScreen({ auth, onAuthChange, onLogout, onBack, onMe
                     <View style={styles.faces}>
                       {rowAvatars(n).length > 1 ? (
                         <View style={styles.stack} testID={`notification-faces-${n.id}`}>
-                          <Avatar seed={rowAvatars(n)[1]} size={30} style={styles.faceBack} />
-                          <Avatar seed={rowAvatars(n)[0]} size={30} style={styles.faceFront} />
+                          <Avatar seed={rowAvatars(n)[1]} userId={rowAvatars(n)[1]} size={30} style={styles.faceBack} />
+                          <Avatar seed={rowAvatars(n)[0]} size={30} userId={rowAvatars(n)[0]} style={styles.faceFront} />
                         </View>
-                      ) : <Avatar seed={rowAvatars(n)[0]} size={40} />}
+                      ) : <Avatar seed={rowAvatars(n)[0]} size={40} userId={rowAvatars(n)[0]} />}
                       <View style={styles.badge}>{iconFor(n.type)}</View>
                     </View>
                     <View style={styles.copy}>

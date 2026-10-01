@@ -35,6 +35,8 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<User>().Property(u => u.AvatarKey).HasMaxLength(IdentityService.Domain.AvatarCatalog.MaxKeyLength);
         modelBuilder.Entity<User>().Property(u => u.Bio).HasMaxLength(FriendshipRules.MaxBioLength);
+        modelBuilder.Entity<User>().Property(u => u.DisplayName).HasMaxLength(ProfilePhotoRules.MaxDisplayNameLength);
+        modelBuilder.Entity<User>().Property(u => u.PhotoVersion).HasMaxLength(32);
 
         modelBuilder.Entity<UserBlock>(entity =>
         {

@@ -293,7 +293,7 @@ export function StoryViewer({ auth, authors, startAuthorId, onClose, refresh = {
               ))}
             </View>
             <View style={styles.head}>
-              <Avatar avatarKey={mine ? auth.avatarKey : undefined} seed={author?.authorId ?? 'x'} size={32} />
+              <Avatar avatarKey={mine ? auth.avatarKey : undefined} seed={author?.authorId ?? 'x'} userId={author?.authorId} size={32} />
               <Text numberOfLines={1} style={styles.name}>{mine ? t('stories.yours') : author?.authorName}</Text>
               {story ? <Text style={styles.age}>{formatAge(story.createdAtUtc)}</Text> : null}
               <AnimatedPressable accessibilityLabel={t('stories.close')} accessibilityRole="button" hitSlop={10} onPress={close} pressScale={0.9} style={styles.close}>
@@ -313,7 +313,7 @@ export function StoryViewer({ auth, authors, startAuthorId, onClose, refresh = {
                   <ScrollView style={styles.viewerList}>
                     {viewers.length === 0 ? <Text style={styles.age}>{t('stories.noViewers')}</Text> : viewers.map((v) => (
                       <View key={v.userId} style={styles.viewerRow}>
-                        <Avatar seed={v.userId} size={28} />
+                        <Avatar seed={v.userId} userId={v.userId} size={28} />
                         <Text style={styles.name}>{v.userName}</Text>
                         {v.liked ? <View accessibilityLabel={t('stories.likedIt')} accessible testID={`viewer-liked-${v.userId}`}><Heart color={colors.danger} fill={colors.danger} size={16} /></View> : null}
                         <Text style={styles.viewerAge}>{formatAge(v.seenAtUtc)}</Text>

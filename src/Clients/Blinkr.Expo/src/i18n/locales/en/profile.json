@@ -187,7 +187,9 @@
     "failed": "Couldn't save your profile. Try again.",
     "about": "About",
     "placeholder": "Say a few words. Coffee, walks, which part of town…",
-    "help": "Everyone can see this. Your location and email are never shared."
+    "help": "Everyone can see this. Your location and email are never shared.",
+    "name": "Name",
+    "namePlaceholder": "Your name (optional)"
   },
   "archive": {
     "title": "Signal archive",
@@ -197,5 +199,15 @@
     "page": "{{page}} / {{pages}}",
     "failed": "This page could not be loaded. Try again.",
     "capped": "The archive shows your newest {{count}} signals."
+  },
+  "photo": {
+    "take": "Take photo",
+    "pick": "Choose from gallery",
+    "avatar": "Choose avatar",
+    "remove": "Remove photo",
+    "change": "Change profile photo",
+    "failed": "Couldn't upload the photo. Try again.",
+    "removeFailed": "Couldn't remove the photo. Try again.",
+    "help": "Your photo shows on your profile, in chats and comments. Never on the map or on anonymous posts."
   }
 }

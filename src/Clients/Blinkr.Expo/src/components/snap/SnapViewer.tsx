@@ -133,7 +133,7 @@ export function SnapViewer({ auth, conversationId, messageId, senderName, sender
           </View>
         ) : <View style={styles.trackSpacer} />}
         <View style={styles.header}>
-          <Avatar avatarKey={senderAvatarKey} seed={senderId} size={34} />
+          <Avatar avatarKey={senderAvatarKey} seed={senderId} userId={senderId} size={34} />
           <View style={styles.headerCopy}>
             <Text numberOfLines={1} style={styles.sender}>{senderName}</Text>
             {info ? <Text style={styles.meta}>{isVideo ? 'Video' : tx('chat:snap.snap', 'Snap')}{timed ? ` · ${timerLabel(info.durationSeconds)}` : ''}</Text> : null}
