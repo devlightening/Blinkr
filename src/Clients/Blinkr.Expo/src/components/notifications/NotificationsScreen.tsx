@@ -1,5 +1,5 @@
 import { AtSign, ArrowLeft, Bell, Heart, MessageCircle, ShieldAlert, UserCheck, UserPlus, WifiOff } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BackHandler, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +18,7 @@ import { BlinkrButton } from '../ui/BlinkrButton';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
 import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
 import { SkeletonList } from '../ui/BlinkrSkeleton';
+import { PushScreen, type PushScreenHandle } from '../ui/PushScreen';
 
 type Props = {
   auth: AuthResponse;
@@ -76,8 +77,11 @@ export function NotificationsScreen({ auth, onAuthChange, onLogout, onBack, onMe
     return () => controller.abort();
   }, [load]);
 
+  const pushPage = useRef<PushScreenHandle>(null);
+  // Back slides the page out like a swipe does, so the screen underneath is where the person left it.
+  const goBack = () => { if (pushPage.current) pushPage.current.back(); else onBack(); };
   useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { goBack(); return true; });
     return () => sub.remove();
   }, [onBack]);
 
@@ -101,9 +105,9 @@ export function NotificationsScreen({ auth, onAuthChange, onLogout, onBack, onMe
   const groups = items ? groupNotifications(items, new Date(), { newFirst: true }) : [];
 
   return (
-    <View style={styles.screen}>
+    <PushScreen handleHardwareBack={false} onBack={onBack} ref={pushPage} style={styles.layer}>
       <View style={[styles.bar, { paddingTop: insets.top + spacing.sm }]}>
-        <AnimatedPressable accessibilityLabel={t('notifications.close')} accessibilityRole="button" onPress={onBack} pressScale={0.95} style={styles.back}>
+        <AnimatedPressable accessibilityLabel={t('notifications.close')} accessibilityRole="button" onPress={goBack} pressScale={0.95} style={styles.back}>
           <ArrowLeft color={colors.text} size={22} />
         </AnimatedPressable>
         <Text accessibilityRole="header" style={styles.title}>{t('notifications.title')}</Text>
@@ -178,7 +182,7 @@ export function NotificationsScreen({ auth, onAuthChange, onLogout, onBack, onMe
           user={person}
         />
       ) : null}
-    </View>
+    </PushScreen>
   );
 }
 
@@ -187,7 +191,7 @@ const styles = StyleSheet.create({
   stack: { height: 40, width: 40 },
   faceBack: { left: 0, position: 'absolute', top: 0 },
   faceFront: { borderColor: colors.background, borderWidth: 2, bottom: 0, position: 'absolute', right: 0 },
-  screen: { backgroundColor: colors.background, bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 40 },
+  layer: { zIndex: 40 },
   bar: { alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.sm, paddingHorizontal: spacing.sm },
   back: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
   title: { ...typography.title, color: colors.text },

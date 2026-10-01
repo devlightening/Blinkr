@@ -31,6 +31,7 @@ import * as SecureStore from 'expo-secure-store';
 import { LANGUAGE_PREFERENCE_KEY, readLanguagePreference, type LanguagePreference } from '../i18n';
 import type { ThemePreference } from '../theme';
 import { tx } from '../i18n/tx';
+import { PushScreen, type PushScreenHandle } from './ui/PushScreen';
 
 type Props = {
   auth: AuthResponse;
@@ -129,8 +130,11 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
   const openSystemSettings = () => { void Linking.openSettings().catch(() => {}); };
   const [searchesCleared, setSearchesCleared] = useState(false);
 
+  const pushPage = useRef<PushScreenHandle>(null);
+  // Back slides the page out like a swipe does, so the screen underneath is where the person left it.
+  const goBack = () => { if (pushPage.current) pushPage.current.back(); else onBack(); };
   useEffect(() => {
-    const back = BackHandler.addEventListener('hardwareBackPress', () => { if (page !== 'main') setPage('main'); else onBack(); return true; });
+    const back = BackHandler.addEventListener('hardwareBackPress', () => { if (page !== 'main') setPage('main'); else goBack(); return true; });
     return () => back.remove();
   }, [page, onBack]);
 
@@ -164,9 +168,9 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
   if (page === 'dev') return <DevComponentPreview onBack={() => setPage('main')} />;
 
   return (
-    <View style={styles.screen}>
+    <PushScreen gestureEnabled={page === 'main'} handleHardwareBack={false} onBack={onBack} ref={pushPage} style={styles.layer}>
       <View style={[styles.bar, { paddingTop: insets.top + spacing.sm }]}>
-        <AnimatedPressable accessibilityLabel={tx('common:actions.back', 'Geri dön')} accessibilityRole="button" onPress={() => (page !== 'main' ? setPage('main') : onBack())} pressScale={0.95} style={styles.back}>
+        <AnimatedPressable accessibilityLabel={tx('common:actions.back', 'Geri dön')} accessibilityRole="button" onPress={() => (page !== 'main' ? setPage('main') : goBack())} pressScale={0.95} style={styles.back}>
           <ArrowLeft color={colors.text} size={22} />
         </AnimatedPressable>
         <Text accessibilityRole="header" numberOfLines={1} style={styles.title}>{page === 'blocked' ? tx('settings:blocked.title', 'Engellenen kişiler') : page === 'main' ? tx('settings:title', 'Ayarlar') : t(`pages.${page}`)}</Text>
@@ -317,12 +321,12 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
           ))}
         </ScrollView>
       )}
-    </View>
+    </PushScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { ...StyleSheet.absoluteFill, backgroundColor: colors.background, zIndex: 20 },
+  layer: { zIndex: 20 },
   bar: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.sm, paddingHorizontal: spacing.lg },
   back: { alignItems: 'center', height: sizes.touch, justifyContent: 'center', marginLeft: -spacing.sm, width: sizes.touch },
   title: { ...typography.title, color: colors.text, flex: 1 },

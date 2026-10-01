@@ -490,17 +490,23 @@ async function main() {
     await expect(page.getByRole('heading', { name: 'zeynep' })).toBeVisible();
     await expect(page.getByText('Sabah kahvesi, akşam yürüyüşü.')).toBeVisible();
     await expect(page.getByText('Mart 2026 tarihinden beri')).toBeVisible();
-    await expect(page.getByText("Kahve Durağı'nda gözlem")).toBeVisible();
+    await expect(page.getByTestId('person-profile')).toBeVisible(); // a full page now, not a sheet
+    await expect(page.getByTestId('person-grid')).toBeVisible();
     await expect(page.getByText('Arkadaşsınız')).toBeVisible();
     await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'person-profile.png') });
+    // Unfriend, block and report sit behind the ⋯ menu (Instagram).
+    await page.getByTestId('person-menu').click();
     await page.getByRole('button', { name: 'Arkadaşlıktan çıkar' }).click();
     await expect(page.getByRole('button', { name: 'Evet, çıkar' })).toBeVisible();
     await page.getByRole('button', { name: 'Vazgeç' }).click();
-    await expect(page.getByRole('button', { name: 'Arkadaşlıktan çıkar' })).toBeVisible();
+    await expect(page.getByTestId('person-menu-sheet')).toHaveCount(0);
+    await page.getByTestId('person-menu').click();
     await page.getByRole('button', { name: 'Arkadaşlıktan çıkar' }).click();
     await page.getByRole('button', { name: 'Evet, çıkar' }).click();
     await expect(page.getByRole('button', { name: 'Arkadaş ekle' })).toBeVisible();
+    await page.getByTestId('person-menu').click();
     await expect(page.getByRole('button', { name: 'Arkadaşlıktan çıkar' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Engelle' })).toBeVisible();
     await page.goto(url + '?scene=friends');
     await page.getByRole('button', { name: 'Geri dön' }).click();
     await expect(page.getByLabel('chosen')).toHaveText('back');
@@ -517,12 +523,36 @@ async function main() {
     await expect(page.getByText('İşlem tamamlanamadı. Tekrar dene.')).toBeVisible();
     await expect(page.getByText('Network request failed')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'melis isteğini kabul et' })).toBeVisible();
+    // Instagram navigation: a profile is pushed over the screen it came from; swiping right pulls it away with the finger
+    // and lands exactly where the person was (the search they typed is still there); the back arrow does the same.
+    await page.goto(url + '?scene=friends');
+    await page.getByRole('tab', { name: 'Ekle', exact: true }).click();
+    await page.getByLabel('Kullanıcı adı ara').fill('ze');
+    await page.getByLabel('zeynep, profili aç').click();
+    await expect(page.getByTestId('person-profile')).toBeVisible();
+    await page.waitForTimeout(400);
+    await page.mouse.move(40, 420); await page.mouse.down();
+    for (let x = 40; x <= 340; x += 15) await page.mouse.move(x, 422);
+    await page.mouse.up();
+    await expect(page.getByTestId('person-profile')).toHaveCount(0);
+    await expect(page.getByLabel('Kullanıcı adı ara')).toHaveValue('ze');
+    await page.getByLabel('zeynep, profili aç').click();
+    await page.waitForTimeout(400);
+    await page.mouse.move(40, 420); await page.mouse.down();
+    for (let x = 40; x <= 90; x += 5) { await page.mouse.move(x, 422); await page.waitForTimeout(40); }
+    await page.waitForTimeout(150); // held still: no flick
+    await page.mouse.up();
+    await page.waitForTimeout(500);
+    await expect(page.getByTestId('person-profile')).toBeVisible(); // a short drag springs back
+    await page.getByTestId('person-back').click();
+    await expect(page.getByTestId('person-profile')).toHaveCount(0);
+    await expect(page.getByLabel('Kullanıcı adı ara')).toHaveValue('ze');
     // A person's profile: strangers, someone waiting on me, failures and no public signals.
     await page.goto(url + '?scene=personProfile&who=u-arda');
     await page.getByRole('button', { name: 'Arkadaş ekle' }).click();
     await expect(page.getByRole('button', { name: 'İsteği geri al' })).toBeVisible();
     await expect(page.getByText('İstek gönderildi', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Mesaj gönder' }).click();
+    await page.getByRole('button', { name: 'Mesaj', exact: true }).click();
     await expect(page.getByLabel('chosen')).toHaveText('message:arda');
     await page.goto(url + '?scene=personProfile&who=u-melis');
     await expect(page.getByRole('button', { name: 'Kabul et' })).toBeVisible();
@@ -658,6 +688,7 @@ async function main() {
     await expect(page.getByText('Network request failed')).toHaveCount(0);
     // Reporting a person: a reason is required, wrong-information is for signals only, the report reaches the server, failures are friendly.
     await page.goto(url + '?scene=personProfile&who=u-can');
+    await page.getByTestId('person-menu').click(); // report sits behind ⋯ (Instagram)
     await page.getByRole('button', { name: 'Bildir', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Bildir' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Bildirimi gönder' })).toBeDisabled();
@@ -671,8 +702,9 @@ async function main() {
     const sent = await page.evaluate(() => window.__lastReport);
     if (!sent || sent.targetType !== 'user' || sent.targetId !== 'u-can' || sent.reason !== 'spam' || sent.note !== 'tekrar tekrar yaziyor') throw new Error('Report body wrong: ' + JSON.stringify(sent));
     await page.getByRole('button', { name: 'Tamam' }).click();
-    await expect(page.getByRole('button', { name: 'Bildir', exact: true })).toBeVisible();
+    await expect(page.getByTestId('person-menu')).toBeVisible();
     await page.goto(url + '?scene=personProfile&who=u-can&reportfail');
+    await page.getByTestId('person-menu').click();
     await page.getByRole('button', { name: 'Bildir', exact: true }).click();
     await page.getByRole('radio', { name: 'Taciz ya da rahatsız edici davranış' }).click();
     await page.getByRole('button', { name: 'Bildirimi gönder' }).click();
@@ -994,11 +1026,12 @@ async function main() {
     await page.getByRole('button', { name: 'Takibi bırak' }).click();
     await expect(page.getByRole('button', { name: 'Geri takip et' })).toBeVisible();
     await expect(page.getByRole('button', { name: /^3 Takipçi$/ })).toBeVisible();
-    // The follower list opens inside the same sheet and goes back to the profile.
+    // The follower list opens over the profile page and closes back to it.
     await page.getByRole('button', { name: /^3 Takipçi$/ }).click();
     await expect(page.getByRole('tab', { name: 'Takipçiler' })).toBeVisible();
     await expect(page.getByText('ece', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Kapat' }).first().click();
+    await expect(page.getByRole('tab', { name: 'Takipçiler' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Geri takip et' })).toBeVisible();
     // A private account: locked content, following sends a request.
     await page.goto(url + '?scene=personProfile&who=u-melis');
@@ -1019,23 +1052,26 @@ async function main() {
     await expect(page.getByRole('switch', { name: 'Gizli hesap' })).toBeChecked();
     // Blocking a person: two-step confirm, the blocked profile offers only "unblock", and unblocking restores the normal buttons.
     await page.goto(url + '?scene=personProfile&who=u-melis');
+    await page.getByTestId('person-menu').click();
     await page.getByRole('button', { name: 'Engelle', exact: true }).click();
     await expect(page.getByText(/Engellersen arkadaşlığınız biter/)).toBeVisible();
     await page.getByRole('button', { name: 'Vazgeç' }).click();
     await expect(page.getByText(/Engellersen arkadaşlığınız biter/)).toHaveCount(0);
+    await page.getByTestId('person-menu').click();
     await page.getByRole('button', { name: 'Engelle', exact: true }).click();
     await page.getByRole('button', { name: 'Evet, engelle' }).click();
     await expect(page.getByRole('button', { name: 'Engeli kaldır' })).toBeVisible();
     await expect(page.getByText('Engelli', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Mesaj gönder' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Mesaj', exact: true })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Sinyalleri' })).toHaveCount(0);
     await page.waitForTimeout(250); await page.screenshot({ path: path.join(out, 'person-blocked.png') });
     await page.getByRole('button', { name: 'Engeli kaldır' }).click();
     await expect(page.getByRole('button', { name: 'Arkadaş ekle' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Mesaj gönder' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Mesaj', exact: true })).toBeVisible();
     await page.goto(url + '?scene=personProfile&who=u-mert');
     await expect(page.getByRole('button', { name: 'Engeli kaldır' })).toBeVisible();
     await page.goto(url + '?scene=personProfile&who=u-arda&blockfail');
+    await page.getByTestId('person-menu').click();
     await page.getByRole('button', { name: 'Engelle', exact: true }).click();
     await page.getByRole('button', { name: 'Evet, engelle' }).click();
     await expect(page.getByText('İşlem tamamlanamadı. Tekrar dene.')).toBeVisible();
@@ -1044,6 +1080,7 @@ async function main() {
     await page.goto(url + '?scene=chat');
     await page.getByLabel(/^arda, Buraya geldin mi\?/).click();
     await page.getByLabel('arda, profili aç').click();
+    await page.getByTestId('person-menu').click();
     await page.getByRole('button', { name: 'Engelle', exact: true }).click();
     await page.getByRole('button', { name: 'Evet, engelle' }).click();
     await expect(page.getByRole('heading', { name: 'Sohbetler' })).toBeVisible();

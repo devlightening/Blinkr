@@ -150,7 +150,13 @@
     "confirmBlock": "Yes, block",
     "block": "Block",
     "signals": "Signals",
-    "noSignals": "No public signals yet."
+    "noSignals": "No public signals yet.",
+    "more": "More options",
+    "messageShort": "Message",
+    "requestIncoming": "{{name}} sent you a friend request",
+    "blockedNote": "You blocked this person. You can unblock them in Settings > Blocked people.",
+    "blockTitle": "Block {{name}}?",
+    "removeTitle": "Remove {{name}} from friends?"
   },
   "avatar": {
     "color0": "Green",

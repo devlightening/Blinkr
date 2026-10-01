@@ -150,7 +150,13 @@
     "confirmBlock": "Evet, engelle",
     "block": "Engelle",
     "signals": "Sinyalleri",
-    "noSignals": "Henüz herkese açık sinyali yok."
+    "noSignals": "Henüz herkese açık sinyali yok.",
+    "more": "Diğer seçenekler",
+    "messageShort": "Mesaj",
+    "requestIncoming": "{{name}} sana arkadaşlık isteği gönderdi",
+    "blockedNote": "Bu kişiyi engelledin. Engeli Ayarlar > Engellenen kişiler bölümünden kaldırabilirsin.",
+    "blockTitle": "{{name}} engellensin mi?",
+    "removeTitle": "{{name}} arkadaşlıktan çıkarılsın mı?"
   },
   "avatar": {
     "color0": "Yeşil",

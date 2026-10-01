@@ -17,6 +17,7 @@ import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
 import { SkeletonList } from '../ui/BlinkrSkeleton';
 import { UserProfileSheet } from './UserProfileSheet';
 import { tx } from '../../i18n/tx';
+import { PushScreen, type PushScreenHandle } from '../ui/PushScreen';
 
 const MIN_QUERY_LENGTH = 2;
 type Tab = 'friends' | 'requests' | 'add';
@@ -112,8 +113,11 @@ export function FriendsScreen({ auth, onAuthChange, onSessionExpired, onBack, on
 
   useEffect(() => { void loadAll(); return () => load.current?.abort(); }, [loadAll]);
 
+  const pushPage = useRef<PushScreenHandle>(null);
+  // Back slides the page out like a swipe does, so the screen underneath is where the person left it.
+  const goBack = () => { if (pushPage.current) pushPage.current.back(); else onBack(); };
   useEffect(() => {
-    const back = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    const back = BackHandler.addEventListener('hardwareBackPress', () => { goBack(); return true; });
     return () => back.remove();
   }, [onBack]);
 
@@ -272,9 +276,9 @@ export function FriendsScreen({ auth, onAuthChange, onSessionExpired, onBack, on
   );
 
   return (
-    <View style={styles.screen}>
+    <PushScreen handleHardwareBack={false} onBack={onBack} ref={pushPage} style={styles.layer}>
       <View style={[styles.bar, { paddingTop: insets.top + spacing.sm }]}>
-        <AnimatedPressable accessibilityLabel={tx('common:actions.back', 'Geri dön')} accessibilityRole="button" onPress={onBack} pressScale={0.95} style={styles.back}>
+        <AnimatedPressable accessibilityLabel={tx('common:actions.back', 'Geri dön')} accessibilityRole="button" onPress={goBack} pressScale={0.95} style={styles.back}>
           <ArrowLeft color={colors.text} size={22} />
         </AnimatedPressable>
         <Text accessibilityRole="header" style={styles.title}>{tx('profile:friends.title', 'Arkadaşlar')}</Text>
@@ -316,12 +320,12 @@ export function FriendsScreen({ auth, onAuthChange, onSessionExpired, onBack, on
           user={profileUser}
         />
       ) : null}
-    </View>
+    </PushScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { ...StyleSheet.absoluteFill, backgroundColor: colors.background, zIndex: 20 },
+  layer: { zIndex: 20 },
   bar: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   back: { alignItems: 'center', height: sizes.touch, justifyContent: 'center', marginLeft: -spacing.sm, width: sizes.touch },
   title: { ...typography.title, color: colors.text },

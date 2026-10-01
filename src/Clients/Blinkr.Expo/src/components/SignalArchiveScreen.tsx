@@ -15,6 +15,7 @@ import { PostRow } from './PostRow';
 import { SignalGridTile } from './SignalGridTile';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { SegmentedControl } from './ui/BlinkrSegmentedControl';
+import { PushScreen, type PushScreenHandle } from './ui/PushScreen';
 
 type Props = {
   auth: AuthResponse;
@@ -42,8 +43,11 @@ export function SignalArchiveScreen({ auth, onAuthChange, onLogout, onBack, onOp
   const request = useRef<AbortController | null>(null);
   const scroll = useRef<ScrollView>(null);
 
+  const pushPage = useRef<PushScreenHandle>(null);
+  // Back slides the page out like a swipe does, so the screen underneath is where the person left it.
+  const goBack = () => { if (pushPage.current) pushPage.current.back(); else onBack(); };
   useEffect(() => {
-    const back = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    const back = BackHandler.addEventListener('hardwareBackPress', () => { goBack(); return true; });
     return () => back.remove();
   }, [onBack]);
 
@@ -88,9 +92,9 @@ export function SignalArchiveScreen({ auth, onAuthChange, onLogout, onBack, onOp
   ) : null;
 
   return (
-    <View style={styles.screen} testID="signal-archive">
+    <PushScreen handleHardwareBack={false} onBack={onBack} ref={pushPage} style={styles.layer} testID="signal-archive">
       <View style={[styles.bar, { paddingTop: insets.top + spacing.sm }]}>
-        <AnimatedPressable accessibilityLabel={tx('common:actions.back', 'Geri dön')} accessibilityRole="button" onPress={onBack} pressScale={0.95} style={styles.back}>
+        <AnimatedPressable accessibilityLabel={tx('common:actions.back', 'Geri dön')} accessibilityRole="button" onPress={goBack} pressScale={0.95} style={styles.back}>
           <ArrowLeft color={colors.text} size={22} />
         </AnimatedPressable>
         <View style={styles.titleBlock}>
@@ -122,12 +126,12 @@ export function SignalArchiveScreen({ auth, onAuthChange, onLogout, onBack, onOp
         {items && items.length > 0 ? pager : null}
         {paging.capped && !paging.hasOlder ? <Text style={styles.empty}>{tx('profile:archive.capped', 'Arşiv en yeni {{count}} sinyali gösterir.', { count: count(paging.pages * ARCHIVE_PAGE_SIZE) })}</Text> : null}
       </ScrollView>
-    </View>
+    </PushScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { ...StyleSheet.absoluteFill, backgroundColor: colors.background, zIndex: 20 },
+  layer: { zIndex: 20 },
   bar: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.sm, paddingHorizontal: spacing.lg },
   back: { alignItems: 'center', height: sizes.touch, justifyContent: 'center', marginLeft: -spacing.sm, width: sizes.touch },
   titleBlock: { flex: 1 },

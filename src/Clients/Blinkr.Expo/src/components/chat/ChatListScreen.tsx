@@ -27,6 +27,7 @@ import { SnapViewer } from '../snap/SnapViewer';
 import { tx } from '../../i18n/tx';
 import { isFor, pollIntervalMs } from '../../realtimePolicy';
 import { useRealtimeEvent, useRealtimeLive } from '../../useRealtime';
+import { PushScreen, type PushScreenHandle } from '../ui/PushScreen';
 
 const POLL_INTERVAL_MS = 8000;
 const BLOCKS_MAX_AGE_MS = 5 * 60_000;
@@ -247,21 +248,8 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
     </>
   );
 
-  if (activeConversation) {
-    return <View style={styles.screen}><ConversationScreen
-      auth={auth}
-      conversation={activeConversation}
-      otherUserName={names[activeConversation.otherUserId] ?? FALLBACK_NAME}
-      otherAvatarKey={userAvatarCache.get(activeConversation.otherUserId)}
-      onAuthChange={onAuthChange}
-      onBack={() => { setActiveConversation(null); refresh(true); }}
-      onOpenProfile={() => setProfileUser({ id: activeConversation.otherUserId, userName: names[activeConversation.otherUserId] ?? FALLBACK_NAME, avatarKey: userAvatarCache.get(activeConversation.otherUserId) })}
-      onOpenSnap={(messageId) => setViewing({ conversation: activeConversation, messageId })}
-      onSendSnap={() => setFlow({ mode: 'reply', conversationId: activeConversation.id })}
-      onSessionExpired={onSessionExpired}
-    />{overlays}</View>;
-  }
 
+  const conversationPage = useRef<PushScreenHandle>(null);
   const total = conversations.length;
 
   return <View style={styles.screen}>
@@ -340,6 +328,24 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
       />
     )}
 
+    {/* The conversation is pushed over the list (Instagram): the list stays mounted, so swiping back or the back
+        arrow returns to the same scroll position. */}
+    {activeConversation ? (
+      <PushScreen handleHardwareBack={false} onBack={() => { setActiveConversation(null); refresh(true); }} ref={conversationPage} testID="conversation-page">
+        <ConversationScreen
+          auth={auth}
+          conversation={activeConversation}
+          otherUserName={names[activeConversation.otherUserId] ?? FALLBACK_NAME}
+          otherAvatarKey={userAvatarCache.get(activeConversation.otherUserId)}
+          onAuthChange={onAuthChange}
+          onBack={() => conversationPage.current?.back()}
+          onOpenProfile={() => setProfileUser({ id: activeConversation.otherUserId, userName: names[activeConversation.otherUserId] ?? FALLBACK_NAME, avatarKey: userAvatarCache.get(activeConversation.otherUserId) })}
+          onOpenSnap={(messageId) => setViewing({ conversation: activeConversation, messageId })}
+          onSendSnap={() => setFlow({ mode: 'reply', conversationId: activeConversation.id })}
+          onSessionExpired={onSessionExpired}
+        />
+      </PushScreen>
+    ) : null}
     {overlays}
     {notice ? <Text accessibilityLiveRegion="polite" style={styles.notice}>{notice}</Text> : null}
     {isSearchOpen && <Sheet onClose={() => setSearchOpen(false)}>
