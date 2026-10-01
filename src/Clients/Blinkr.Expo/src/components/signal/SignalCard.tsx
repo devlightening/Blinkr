@@ -121,6 +121,7 @@ export function SignalCard({
           onDoubleTap={onDoubleTapLike}
           onOpen={onOpenMedia}
           overlayStart={<TypeBadge onMedia signalType={type} tone={tone} typeLabel={typeLabel} valueLabel={valueLabel} />}
+          videoControls={inThread ? 'full' : 'minimal'}
           width={mediaWidth}
         />
       ) : (

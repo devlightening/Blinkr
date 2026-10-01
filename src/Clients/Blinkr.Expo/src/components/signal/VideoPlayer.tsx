@@ -42,7 +42,9 @@ function usePlayerEvent<K extends keyof VideoPlayerEvents>(player: ExpoVideoPlay
  * Scrubbing pauses while the finger moves and resumes where it was; speed cycles 1 → 1.25 → 1.5 → 2 → 0.5.
  */
 export function VideoPlayer({ uri, fit = 'contain', controls = 'minimal', autoPlay = true, startMuted = controls === 'minimal', loop = true, active = true, testID }: Props) {
-  const player = useVideoPlayer(uri, (p) => {
+  // An inactive player holds no source: every loaded video keeps a hardware decoder, and a feed of video cards
+  // ran out of them (Android "Decoder init failed"), so the video the person opened never started.
+  const player = useVideoPlayer(active ? uri : null, (p) => {
     p.loop = loop;
     p.muted = startMuted;
     p.timeUpdateEventInterval = 0.25;

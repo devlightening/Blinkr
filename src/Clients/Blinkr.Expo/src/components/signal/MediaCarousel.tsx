@@ -1,4 +1,4 @@
-import { Heart, Play } from 'lucide-react-native';
+import { Heart } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
@@ -24,13 +24,15 @@ type Props = {
   playing?: boolean;
   /** Frame corners; the feed draws media edge to edge. */
   rounded?: boolean;
+  /** `full`: play/pause, scrubbing, speed and sound right in the frame (the full page); a tap no longer opens the viewer for a video. */
+  videoControls?: 'minimal' | 'full';
 };
 
 const DOUBLE_TAP_MS = 260;
 
 /** Muted, looping video in the card with a sound toggle (V2-2); the full page and viewer have full controls. */
-function CardVideo({ uri, fit, active }: { uri: string; fit: 'cover' | 'contain'; active: boolean }) {
-  return <VideoPlayer active={active} controls="minimal" fit={fit} testID="card-video" uri={uri} />;
+function CardVideo({ uri, fit, active, controls }: { uri: string; fit: 'cover' | 'contain'; active: boolean; controls: 'minimal' | 'full' }) {
+  return <VideoPlayer active={active} controls={controls} fit={fit} startMuted testID="card-video" uri={uri} />;
 }
 
 /**
@@ -38,7 +40,7 @@ function CardVideo({ uri, fit, active }: { uri: string; fit: 'cover' | 'contain'
  * item is drawn whole - a wider or taller picture sits "contain" on a blurred copy of itself, never cropped. Swipe
  * between items (the carousel wins over the card pager), tap to open full screen, double-tap to like with a heart.
  */
-export function MediaCarousel({ heart: showHeart = true, items, width, onOpen, onDoubleTap, overlayStart, accessibilityLabel, playing = true, rounded = true }: Props) {
+export function MediaCarousel({ heart: showHeart = true, items, width, onOpen, onDoubleTap, overlayStart, accessibilityLabel, playing = true, rounded = true, videoControls = 'minimal' }: Props) {
   const [index, setIndex] = useState(0);
   const lastTap = useRef(0);
   const singleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -84,8 +86,7 @@ export function MediaCarousel({ heart: showHeart = true, items, width, onOpen, o
           return (
             <Pressable accessibilityRole="imagebutton" onPress={() => onTap(i)} style={{ height, width }}>
               {still ? <Image blurRadius={24} resizeMode="cover" source={{ uri: still }} style={StyleSheet.absoluteFill} /> : <View style={[StyleSheet.absoluteFill, styles.empty]} />}
-              {video ? <CardVideo active={playing && i === index} fit={fit} uri={video} /> : still ? <Image accessibilityIgnoresInvertColors resizeMode={fit} source={{ uri: still }} style={StyleSheet.absoluteFill} /> : null}
-              {video && !still ? <View style={styles.play}><Play color={overlay.textSoft} fill={overlay.textSoft} size={32} /></View> : null}
+              {video ? <CardVideo active={playing && i === index} controls={videoControls} fit={fit} uri={video} /> : still ? <Image accessibilityIgnoresInvertColors resizeMode={fit} source={{ uri: still }} style={StyleSheet.absoluteFill} /> : null}
             </Pressable>
           );
         }}
@@ -109,7 +110,6 @@ const styles = StyleSheet.create({
   frame: { backgroundColor: overlay.black, borderRadius: radii.lg, overflow: 'hidden' },
   square: { borderRadius: 0 },
   empty: { backgroundColor: colors.surfaceElevated },
-  play: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   heart: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   overlayStart: { bottom: spacing.md, left: spacing.md, position: 'absolute' },
   dots: { bottom: spacing.md, flexDirection: 'row', gap: 5, position: 'absolute', right: spacing.md },

@@ -40,6 +40,8 @@ type Props = {
   hideActions?: boolean;
   /** V2-6: only the most visible card plays its video. */
   playing?: boolean;
+  /** The comments sheet shows play/pause, scrubbing and sound on the video; the feed shows a quiet muted loop. */
+  videoControls?: 'minimal' | 'full';
 };
 
 /** The caption folds after this many lines until "devamı" is tapped. */
@@ -54,7 +56,7 @@ const CAPTION_LINES = 2;
 /** Two taps within this many ms on a text post = a like (the same window as the photo carousel). */
 const TEXT_DOUBLE_TAP_MS = 280;
 
-export function FeedCard({ item, myUserId, onLike, onReact, onDoubleTap, onMention, onHashtag, onOpenThread, onOpenAuthor, onShowOnMap, onShare, hideActions = false, playing = false }: Props) {
+export function FeedCard({ item, myUserId, onLike, onReact, onDoubleTap, onMention, onHashtag, onOpenThread, onOpenAuthor, onShowOnMap, onShare, hideActions = false, playing = false, videoControls = 'minimal' }: Props) {
   const { t, i18n } = useTranslation('feed');
   const lang = i18n.language === 'en' ? 'en' : 'tr';
   const [width, setWidth] = useState(0);
@@ -141,6 +143,7 @@ export function FeedCard({ item, myUserId, onLike, onReact, onDoubleTap, onMenti
               onOpen={() => onOpenThread(item)}
               playing={playing}
               rounded={false}
+              videoControls={videoControls}
               width={width}
             />
           </View>

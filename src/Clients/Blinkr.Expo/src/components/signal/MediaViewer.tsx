@@ -70,6 +70,7 @@ export function MediaViewer({ items, startIndex, onClose }: { items: CardMedia[]
 }
 
 const styles = StyleSheet.create({
-  screen: { ...StyleSheet.absoluteFill, backgroundColor: media.black, zIndex: 400 },
+  // elevation: on Android the card's shadow elevation (14) draws over a sibling with a higher zIndex but no elevation.
+  screen: { ...StyleSheet.absoluteFill, backgroundColor: media.black, elevation: 40, zIndex: 400 },
   close: { alignItems: 'center', backgroundColor: media.chip, borderRadius: radii.pill, height: 44, justifyContent: 'center', position: 'absolute', right: 16, width: 44 },
 });

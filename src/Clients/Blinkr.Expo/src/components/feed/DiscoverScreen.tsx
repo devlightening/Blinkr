@@ -283,7 +283,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
     const feed = feeds[which];
     if (which === 'nearby' && (phase === 'needsPermission' || phase === 'blocked')) {
       return (
-        <View style={styles.flex}>{feedTop(which)}<View style={styles.center}>
+        <View style={styles.flex}><View style={styles.stateTop}>{feedTop(which)}</View><View style={styles.center}>
           <BlinkrEmptyState
             action={phase === 'blocked' ? { label: t('discover.openSettings'), onPress: () => { void Linking.openSettings(); } } : { label: t('discover.useLocation'), onPress: () => { void locate(true); } }}
             description={phase === 'blocked' ? t('discover.blockedBody') : t('discover.needLocationBody')}
@@ -297,7 +297,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
       return (
         <View style={styles.loadingBlock}>
           {feedTop(which)}
-          {phase === 'locating' ? <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{t('discover.locating')}</Text> : null}
+          {which === 'nearby' && phase === 'locating' ? <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{t('discover.locating')}</Text> : null}
           <SkeletonList rows={3} variant="card" />
         </View>
       );
@@ -306,7 +306,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
       // Say what really failed: a missing location is not a network problem.
       const locationProblem = feed.error === t('discover.locationTimeout');
       return (
-        <View style={styles.flex}>{feedTop(which)}<View style={styles.center}>
+        <View style={styles.flex}><View style={styles.stateTop}>{feedTop(which)}</View><View style={styles.center}>
           <BlinkrEmptyState
             action={{ label: t('discover.retry'), onPress: () => { if (which === 'nearby' && !origin) void locate(false); else void load(which, 1, origin); } }}
             description={feed.error}
@@ -350,7 +350,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
             onDoubleTap={(target) => { if (!reactionStateOf(target).mine) void react(target, HEART); }}
             onHashtag={openHashtag}
             onLike={(target) => { void react(target, undefined); }}
-            playing={playingId === item.id}
+            playing={!thread && playingId === item.id}
             onMention={(m) => setPerson({ id: m.userId, userName: m.userName })}
             onOpenAuthor={(target) => { if (target.authorId) setPerson({ id: target.authorId, userName: target.authorName }); }}
             onReact={(target, reaction) => { void react(target, reaction); }}
@@ -378,7 +378,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
             <SignalThreadPanel
               contextLine={[thread.anonymous ? null : thread.authorName, thread.content || thread.title].filter(Boolean).join(': ') || undefined}
               auth={auth}
-              header={<FeedCard hideActions item={thread} myUserId={auth.userId} onHashtag={openHashtag} onLike={() => {}} onMention={(m) => { setThread(null); setPerson({ id: m.userId, userName: m.userName }); }} onOpenThread={() => {}} />}
+              header={<FeedCard hideActions item={thread} playing videoControls="full" myUserId={auth.userId} onHashtag={openHashtag} onLike={() => {}} onMention={(m) => { setThread(null); setPerson({ id: m.userId, userName: m.userName }); }} onOpenThread={() => {}} />}
               onClose={() => setThread(null)}
               onHashtag={openHashtag}
               onMention={(m) => { setThread(null); setPerson({ id: m.userId, userName: m.userName }); }}
@@ -435,7 +435,9 @@ const styles = StyleSheet.create({
   bellDot: { backgroundColor: colors.danger, borderColor: colors.background, borderRadius: 999, borderWidth: 2, height: 12, position: 'absolute', right: 9, top: 9, width: 12 },
   subtitle: { ...typography.caption, color: colors.textSecondary },
   center: { alignItems: 'center', flex: 1, justifyContent: 'center' },
-  loadingBlock: { gap: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  loadingBlock: { gap: spacing.md, paddingHorizontal: spacing.lg },
+  // Same inset as the list, so the stories row and subtitle do not jump between loading, error and the feed.
+  stateTop: { gap: spacing.md, paddingHorizontal: spacing.lg },
   list: { gap: spacing.md, paddingHorizontal: spacing.lg },
   empty: { marginTop: spacing.xxl },
   notice: { ...typography.caption, color: colors.textSecondary, paddingBottom: spacing.sm },

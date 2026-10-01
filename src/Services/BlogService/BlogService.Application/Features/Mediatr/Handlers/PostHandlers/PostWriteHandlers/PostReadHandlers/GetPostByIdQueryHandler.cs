@@ -26,8 +26,9 @@ public class GetPostByIdHandler : IRequestHandler<GetPostByIdQuery, PostResponse
         var postDocument = await (await _postsCollection.FindAsync(p => p.Id == request.PostId, cancellationToken: ct)).FirstOrDefaultAsync(ct);
 
         if (postDocument is null) return null;
-        if ((!string.IsNullOrWhiteSpace(postDocument.AudienceType) && postDocument.AudienceType != "Public") ||
-            (postDocument.ExpiresAt.HasValue && postDocument.ExpiresAt <= DateTime.UtcNow))
+        // An expired signal still opens (the Takip feed and profile archive list it, marked expired); the map and live
+        // place state filter expiry in their own queries, so an expired signal is never shown as fresh.
+        if (!string.IsNullOrWhiteSpace(postDocument.AudienceType) && postDocument.AudienceType != "Public")
         {
             return null;
         }
