@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { listStoryTray } from '../../api';
+import { getUsersBatch, listStoryTray } from '../../api';
 import { trayRing, type StoryTrayItem } from '../../stories';
 import { colors, gradientDirection, gradients, radii, spacing, typography } from '../../theme';
 import type { AuthResponse } from '../../types';
@@ -21,24 +21,49 @@ type Props = {
   onAdd: () => void;
 };
 
+/** Instagram-sized ring (a 68 pt ring read as a secondary feature). */
+const RING = 78;
+const ITEM = 84;
+
 /**
  * Story tray (sinyal-mvp-plan P7.6): my story first (or "+"), then the people I follow with a bright ring for unseen
- * stories and a quiet one for watched. When stories cannot be loaded the tray simply stays out of the way.
+ * stories and a quiet one for watched. While loading it holds its place with soft rings so the feed below does not
+ * jump; when stories cannot be loaded the tray simply stays out of the way.
  */
 export function StoryTray({ auth, refresh = {}, reloadKey = 0, onOpen, onAdd }: Props) {
   const { t } = useTranslation('feed');
   const [items, setItems] = useState<StoryTrayItem[] | null>(null);
+  // The others' chosen avatars come from one batch call after the tray (the tray itself carries no avatar).
+  const [avatars, setAvatars] = useState<Record<string, string | null | undefined>>({});
 
   useEffect(() => {
     const controller = new AbortController();
     listStoryTray(auth, controller.signal, refresh)
-      .then((list) => { if (!controller.signal.aborted) setItems(list); })
+      .then((list) => {
+        if (controller.signal.aborted) return;
+        setItems(list);
+        const others = list.filter((item) => !item.isMine).map((item) => item.authorId);
+        getUsersBatch(auth, others, controller.signal, refresh)
+          .then((people) => { if (!controller.signal.aborted) setAvatars(Object.fromEntries(people.map((p) => [p.id, p.avatarKey]))); })
+          .catch(() => undefined);
+      })
       .catch(() => { if (!controller.signal.aborted) setItems((current) => current ?? []); });
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.userId, auth.token, reloadKey]);
 
-  if (items === null) return null;
+  if (items === null) {
+    return (
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.row, styles.placeholderRow]} testID="story-tray-loading">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <View key={i} style={styles.item}>
+            <View style={styles.placeholderRing} />
+            <View style={styles.placeholderName} />
+          </View>
+        ))}
+      </View>
+    );
+  }
   const mine = items.find((item) => item.isMine) ?? { authorId: auth.userId, authorName: auth.userName, isMine: true, storyCount: 0, latestAtUtc: '', allSeen: true };
   const others = items.filter((item) => !item.isMine);
   const ordered = [mine, ...others];
@@ -54,20 +79,26 @@ export function StoryTray({ auth, refresh = {}, reloadKey = 0, onOpen, onAdd }: 
             accessibilityRole="button"
             key={item.authorId}
             onPress={() => (ring === 'add' ? onAdd() : onOpen(item, ordered.filter((x) => x.storyCount > 0)))}
-            onLongPress={item.isMine && ring !== 'add' ? onAdd : undefined}
             pressScale={0.94}
             style={styles.item}
           >
             {/* Instagram: brand-gradient ring for unseen, flat grey for watched, none + a gradient "+" for adding. */}
             <View>
-              <GradientRing hidden={ring === 'add'} seen={ring === 'seen'} size={68} testID={`story-ring-${ring}`} thickness={2.5}>
-                <Avatar avatarKey={item.isMine ? auth.avatarKey : undefined} seed={item.authorId} size={58} />
+              <GradientRing hidden={ring === 'add'} seen={ring === 'seen'} size={RING} testID={`story-ring-${ring}`} thickness={3}>
+                <Avatar avatarKey={item.isMine ? auth.avatarKey : avatars[item.authorId] ?? undefined} seed={item.authorId} size={RING - 12} />
               </GradientRing>
               {item.isMine && ring === 'add' ? (
+                // No story yet: the whole item adds one, the "+" is only its picture.
                 <View style={styles.plus}>
                   <LinearGradient colors={gradients.brand} end={gradientDirection.end} start={gradientDirection.start} style={styles.plusFill} />
-                  <View style={styles.plusIcon}><Plus color={colors.white} size={13} strokeWidth={3} /></View>
+                  <View style={styles.plusIcon}><Plus color={colors.white} size={14} strokeWidth={3} /></View>
                 </View>
+              ) : item.isMine ? (
+                // With a story: the picture watches it and the "+" adds another (it used to hide behind a long press).
+                <AnimatedPressable accessibilityLabel={t('stories.add')} accessibilityRole="button" hitSlop={8} onPress={onAdd} pressScale={0.9} style={styles.plus} testID="story-add">
+                  <LinearGradient colors={gradients.brand} end={gradientDirection.end} start={gradientDirection.start} style={styles.plusFill} />
+                  <View style={styles.plusIcon}><Plus color={colors.white} size={14} strokeWidth={3} /></View>
+                </AnimatedPressable>
               ) : null}
             </View>
             <Text numberOfLines={1} style={[styles.name, ring === 'unseen' && styles.nameUnseen]}>{item.isMine ? t('stories.yours') : item.authorName}</Text>
@@ -80,11 +111,14 @@ export function StoryTray({ auth, refresh = {}, reloadKey = 0, onOpen, onAdd }: 
 
 const styles = StyleSheet.create({
   scroll: { flexGrow: 0 },
-  row: { gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.xs },
-  item: { alignItems: 'center', gap: 5, width: 72 },
-  plus: { alignItems: 'center', borderColor: colors.background, borderRadius: radii.pill, borderWidth: 2.5, bottom: 0, height: 24, justifyContent: 'center', overflow: 'hidden', position: 'absolute', right: 0, width: 24 },
+  row: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.xs },
+  placeholderRow: { flexDirection: 'row', overflow: 'hidden' },
+  placeholderRing: { backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: RING, width: RING },
+  placeholderName: { backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 10, width: 48 },
+  item: { alignItems: 'center', gap: 6, width: ITEM },
+  plus: { alignItems: 'center', borderColor: colors.background, borderRadius: radii.pill, borderWidth: 2.5, bottom: 0, height: 26, justifyContent: 'center', overflow: 'hidden', position: 'absolute', right: 0, width: 26 },
   plusFill: { borderRadius: radii.pill, bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
   plusIcon: { zIndex: 1 },
-  name: { ...typography.caption, color: colors.textSecondary, maxWidth: 72 },
+  name: { ...typography.caption, color: colors.textSecondary, maxWidth: ITEM },
   nameUnseen: { color: colors.text },
 });

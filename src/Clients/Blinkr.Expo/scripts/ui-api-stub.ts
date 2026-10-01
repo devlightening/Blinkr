@@ -302,6 +302,9 @@ export const listStoryTray = async () => [
   { authorId: 'u-zeynep', authorName: 'zeynep', isMine: false, storyCount: 2, latestAtUtc: new Date(feedNow - 30 * 60_000).toISOString(), allSeen: seenStories.has('z-1') && seenStories.has('z-2') },
   { authorId: 'u-ece', authorName: 'ece', isMine: false, storyCount: 1, latestAtUtc: new Date(feedNow - 90 * 60_000).toISOString(), allSeen: true },
 ];
+// The tray's people with their chosen avatars (zeynep chose one, ece kept the default).
+export const getUsersBatch = async (_auth: unknown, ids: string[]) =>
+  ids.map((id) => ({ id, userName: id.replace('u-', ''), avatarKey: id === 'u-zeynep' ? '253' : null }));
 export const listUserStories = async (_auth: unknown, userId: string) =>
   userId === 'qa' ? myStories : userId === 'u-zeynep' ? [storyFor('z-1', 'u-zeynep', 'zeynep', seenStories.has('z-1')), storyFor('z-2', 'u-zeynep', 'zeynep', seenStories.has('z-2'))] : [storyFor('e-1', 'u-ece', 'ece', true)];
 export const markStorySeen = async (_auth: unknown, id: string) => { seenStories.add(id); };

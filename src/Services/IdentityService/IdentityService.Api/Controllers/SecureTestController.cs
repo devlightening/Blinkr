@@ -167,6 +167,27 @@ namespace IdentityService.Api.Controllers
             return Ok(found.Select(u => new UserSummaryDto(u.Id, u.UserName, u.AvatarKey, Relation.Of(me, u.Id, rows.GetValueOrDefault(u.Id)))));
         }
 
+        /// <summary>
+        /// GET /api/users/batch?ids=a,b,c - the name and avatar of up to 50 people in one call (the story tray and the chat
+        /// list asked one by one, so rows showed a placeholder name first). Unknown, deleted and blocked-either-way ids
+        /// are left out, as in search; nothing else about the person is returned.
+        /// </summary>
+        [HttpGet("batch")]
+        public async Task<IActionResult> Batch([FromQuery] string? ids)
+        {
+            var wanted = (ids ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => Guid.TryParse(s, out var id) ? id : Guid.Empty).Where(id => id != Guid.Empty).Distinct().Take(50).ToList();
+            if (wanted.Count == 0) return Ok(Array.Empty<UserSummaryDto>());
+            var me = ViewerId();
+            var hidden = await BlockQueries.HiddenFromAsync(_db, me);
+            var found = await _db.Users
+                .Where(u => u.DeletedAtUtc == null && wanted.Contains(u.Id))
+                .Select(u => new { u.Id, u.UserName, u.AvatarKey })
+                .ToListAsync();
+            Response.Headers.CacheControl = "private, no-store";
+            return Ok(found.Where(u => !hidden.Contains(u.Id)).Select(u => new UserSummaryDto(u.Id, u.UserName, u.AvatarKey)));
+        }
+
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id)
         {

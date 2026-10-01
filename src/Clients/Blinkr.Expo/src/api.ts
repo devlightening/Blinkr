@@ -371,6 +371,10 @@ export const createSignal = async (
 export const searchUsers = (auth: AuthResponse, query: string, signal?: AbortSignal) =>
   requestJson<UserSummary[]>(`/api/users/search?${new URLSearchParams({ q: query })}`, { auth, signal });
 
+/** Names and avatars of up to 50 people in one call (story tray, chat list); blocked or deleted people are left out. */
+export const getUsersBatch = (auth: AuthResponse, ids: string[], signal?: AbortSignal, refresh: { onAuthRefresh?: (auth: AuthResponse) => void; onSessionExpired?: () => void } = {}) =>
+  ids.length === 0 ? Promise.resolve([] as UserSummary[]) : requestJson<UserSummary[]>(`/api/users/batch?${new URLSearchParams({ ids: ids.slice(0, 50).join(',') })}`, { auth, signal, ...refresh });
+
 /** A person's published signals, newest first. Anonymous ones only ever come back to their own author. */
 export const getUserPosts = async (
   auth: AuthResponse,
