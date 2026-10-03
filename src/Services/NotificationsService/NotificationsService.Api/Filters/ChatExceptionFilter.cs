@@ -20,6 +20,7 @@ public sealed class ChatExceptionFilter : IExceptionFilter
             ChatValidationException => new BadRequestObjectResult(body),
             ChatForbiddenException => new ObjectResult(body) { StatusCode = StatusCodes.Status403Forbidden },
             ChatNotFoundException => new NotFoundObjectResult(body),
+            ChatLimitException => new ConflictObjectResult(body),
             ChatGoneException => new ObjectResult(body) { StatusCode = StatusCodes.Status410Gone },
             ChatUnavailableException => new ObjectResult(body) { StatusCode = StatusCodes.Status503ServiceUnavailable },
             _ => new ObjectResult(body) { StatusCode = StatusCodes.Status400BadRequest },

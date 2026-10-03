@@ -22,6 +22,12 @@ public record ReactToMessageCommand(Guid UserId, string ConversationId, string M
 
 public record MarkConversationReadCommand(Guid UserId, string ConversationId) : IRequest<Unit>;
 
+/// <summary>
+/// Doc S3/S5: my own pin and mute for a conversation. A null field is left as it is, so the client can change one
+/// without knowing the other. Only I see them; the other person is never told.
+/// </summary>
+public record UpdateConversationPreferencesCommand(Guid UserId, string ConversationId, bool? Pinned, bool? Muted) : IRequest<ConversationPreferencesDto>;
+
 public record SendSnapCommand(Guid UserId, string ConversationId, byte[] Content, string ContentType, int DurationSeconds, string? Caption) : IRequest<ChatMessageDto>;
 
 public record OpenSnapCommand(Guid UserId, string ConversationId, string MessageId) : IRequest<SnapOpenDto>;

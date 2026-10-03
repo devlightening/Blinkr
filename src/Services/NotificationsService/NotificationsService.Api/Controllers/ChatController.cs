@@ -139,6 +139,16 @@ public class ChatController : ControllerBase
         return NoContent();
     }
 
+    public record PreferencesRequest(bool? Pinned, bool? Muted);
+
+    /// <summary>
+    /// PUT /api/chat/conversations/{id}/preferences - { pinned?, muted? } for me only (doc S3/S5); null leaves a value
+    /// as it is. 409 PIN_LIMIT past three pins.
+    /// </summary>
+    [HttpPut("conversations/{id}/preferences")]
+    public async Task<IActionResult> UpdatePreferences(string id, [FromBody] PreferencesRequest req) =>
+        Ok(await _mediator.Send(new UpdateConversationPreferencesCommand(User.GetUserId(), id, req?.Pinned, req?.Muted)));
+
     [HttpPost("conversations/{id}/read")]
     public async Task<IActionResult> MarkRead(string id)
     {

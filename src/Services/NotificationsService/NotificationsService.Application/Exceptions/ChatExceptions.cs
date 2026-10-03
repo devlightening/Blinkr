@@ -33,6 +33,12 @@ public sealed class ChatUnavailableException : ChatException
     public ChatUnavailableException() : base("CHAT_UNAVAILABLE", "Şu anda mesaj gönderilemiyor. Biraz sonra tekrar dene.") { }
 }
 
+/// <summary>A per-person limit was reached (e.g. three pinned conversations): HTTP 409; it may succeed after undoing something.</summary>
+public sealed class ChatLimitException : ChatException
+{
+    public ChatLimitException(string code, string message) : base(code, message) { }
+}
+
 public sealed class ChatNotFoundException : ChatException
 {
     public ChatNotFoundException(string message) : base("CHAT_CONVERSATION_NOT_FOUND", message) { }

@@ -81,7 +81,17 @@
     "openChat": "Sohbeti aç",
     "markRead": "Okundu işaretle",
     "viewProfile": "Profili gör",
-    "messageA11y": "{{name}} ile mesajlaş"
+    "messageA11y": "{{name}} ile mesajlaş",
+    "pin": "Sabitle",
+    "unpin": "Sabitlemeyi kaldır",
+    "mute": "Sessize al",
+    "unmute": "Sesi aç",
+    "pinLimit": "En fazla {{count}} sohbet sabitlenebilir",
+    "mutedNotice": "Sessize alındı",
+    "unmutedNotice": "Sesi açıldı",
+    "preferenceFailed": "Ayar kaydedilemedi. Tekrar dene.",
+    "mutedA11y": "Sessizde",
+    "pinnedA11y": "Sabitlendi"
   },
   "snap": {
     "expired": "Süresi doldu",

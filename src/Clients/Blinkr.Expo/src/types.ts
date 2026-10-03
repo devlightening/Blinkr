@@ -287,7 +287,14 @@ export type Conversation = {
   lastMessageState?: SnapState | null;
   /** Id of the latest message; lets the list open a waiting snap without loading the conversation. */
   lastMessageId?: string | null;
+  /** Doc S3: pinned by me (at most three); only I see it. Absent on older servers (= not pinned). */
+  isPinned?: boolean;
+  pinnedAtUtc?: string | null;
+  /** Doc S5: muted by me: no unread dot on the tab bar, and (once push exists) no push for it. */
+  isMuted?: boolean;
 };
+
+export type ConversationPreferences = { conversationId: string; isPinned: boolean; pinnedAtUtc?: string | null; isMuted: boolean };
 
 export type SnapState = 'sent' | 'opened' | 'expired';
 

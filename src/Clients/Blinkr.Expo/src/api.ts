@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 
-import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, CreateSignalInput, MediaKind, UnifiedMapResponse, PlacePresence, SnapOpenResult, UserSummary, AuthoredPost, Friend, FriendRequests, MyProfile, PublicProfile, Relation, BlockedUser, FollowPage, FollowRequestItem, FollowUser } from './types';
+import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, ConversationPreferences, CreateSignalInput, MediaKind, UnifiedMapResponse, PlacePresence, SnapOpenResult, UserSummary, AuthoredPost, Friend, FriendRequests, MyProfile, PublicProfile, Relation, BlockedUser, FollowPage, FollowRequestItem, FollowUser } from './types';
 import { resolveUploadContentType, safeUploadFileName } from './mediaContentType';
 import { COMMENT_PAGE_SIZE, type CommentPage, type CommentSort } from './engagement';
 import { DISCOVER_PAGE_SIZE, DISCOVER_RADIUS_METERS, type DiscoverPage } from './discoverFeed';
@@ -642,6 +642,15 @@ export const listConversations = (
 ) =>
   requestJson<{ items: Conversation[] }>('/api/chat/conversations', { auth, onAuthRefresh, onSessionExpired })
     .then((payload) => payload.items);
+
+/** Doc S3/S5: my own pin / mute for a conversation; an omitted field stays as it is. 409 PIN_LIMIT past three pins. */
+export const updateConversationPreferences = (
+  auth: AuthResponse,
+  conversationId: string,
+  change: { pinned?: boolean; muted?: boolean },
+  refresh: Refresh = {},
+) =>
+  requestJson<ConversationPreferences>(`/api/chat/conversations/${conversationId}/preferences`, { auth, body: change, method: 'PUT', ...refresh });
 
 export const startConversation = (
   auth: AuthResponse,

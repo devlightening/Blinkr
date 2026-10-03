@@ -10,6 +10,24 @@ public interface IConversationRepository
     Task UpdateLastMessageAsync(string conversationId, Guid senderId, string preview, DateTime atUtc, string kind, string? messageId, CancellationToken ct);
 }
 
+/// <summary>Per-person conversation settings (pin, mute). See <see cref="ConversationPreference"/>.</summary>
+public interface IConversationPreferenceRepository
+{
+    Task<ConversationPreference?> GetAsync(Guid userId, string conversationId, CancellationToken ct);
+
+    /// <summary>This person's settings for the given conversations, keyed by conversation id; ones with nothing set are absent.</summary>
+    Task<IReadOnlyDictionary<string, ConversationPreference>> GetManyAsync(Guid userId, IReadOnlyCollection<string> conversationIds, CancellationToken ct);
+
+    /// <summary>How many conversations this person has pinned, not counting <paramref name="exceptConversationId"/>.</summary>
+    Task<int> CountPinnedAsync(Guid userId, string exceptConversationId, CancellationToken ct);
+
+    /// <summary>Stores the settings, or removes the row when nothing is set. Idempotent.</summary>
+    Task SaveAsync(ConversationPreference preference, CancellationToken ct);
+
+    /// <summary>Account deletion: forgets every setting of this person.</summary>
+    Task DeleteForUserAsync(Guid userId, CancellationToken ct);
+}
+
 public interface IChatMessageRepository
 {
     Task<ChatMessage> InsertAsync(ChatMessage message, CancellationToken ct);

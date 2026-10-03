@@ -85,6 +85,7 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<MongoNotificationRepository>(), sp.GetRequiredService<NotificationsService.Domain.Interfaces.IRealtimePublisher>()));
         services.AddScoped<IDeviceTokenRepository, MongoDeviceTokenRepository>();
         services.AddScoped<IConversationRepository, MongoConversationRepository>();
+        services.AddScoped<IConversationPreferenceRepository, MongoConversationPreferenceRepository>();
         services.AddScoped<IChatMessageRepository, MongoChatMessageRepository>();
 
         return services;

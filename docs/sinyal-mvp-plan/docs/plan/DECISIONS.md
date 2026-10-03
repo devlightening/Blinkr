@@ -15,6 +15,17 @@
 
 ## Kararlar
 
+### D-033 — Sohbet sabitleme ve sessize alma kişiye özel, ayrı koleksiyonda (2026-10-03)
+- Bağlam: Tasarım belgesi S3 (en fazla 3 sohbet sabitle) ve S5 (sessize al) sunucu alanı istiyordu. Sohbetin sahibi NotificationsService'tir (CLAUDE.md §6.5); yeni servis açılmaz.
+- Karar:
+  1. Ayarlar `Conversation` belgesine değil, ayrı `conversation_preferences` koleksiyonuna yazılır (kişi + konuşma başına tek satır, benzersiz indeks). Konuşma her mesajda yazılan ortak durumdur, sabitleme/sessiz kişinin özel seçimidir; ayrı tutulunca iki yazma yolu çakışmaz ve karşı tarafa hiçbir yanıtta sızamaz. Boş satır silinir.
+  2. Tek uç `PUT /api/chat/conversations/{id}/preferences` (`{ pinned?, muted? }`, null = değişmez; `PUT /api/users/me/profile` ile aynı kural). Dördüncü sabitleme 409 `PIN_LIMIT`; sunucu başka bir sohbeti sessizce çözmez, kişi hangisini çözeceğini seçer.
+  3. Sessize alınan sohbet listede rozetini (soluk) gösterir ama alt çubuk noktasını yakmaz. Push bildirimi (G1) geldiğinde `isMuted` olan sohbete push gönderilmez — bu, G1'in kabul koşuludur.
+  4. Satırı kaydırarak eylem (S5'in kaydırma kısmı) yapılmaz: Sohbet sekmesi yatay sekme sayfalayıcısının (`TabPager`) içinde; yatay satır sürüklemesi sayfa kaydırmasıyla çakışır. Eylemler uzun basma menüsündedir.
+- Bilinen sınır: iki eşzamanlı sabitleme isteği sayım ile yazma arasında yarışırsa 4 sabit olabilir (aynı kişinin iki cihazı); zararsız, kişi birini çözer.
+- Hesap silme: `UserDeletedConsumer` kişinin tüm ayar satırlarını siler.
+- Etki: CLAUDE.md §12.1, §13 Chat.
+
 ### D-032 — Profil fotoğrafı, görünen ad ve tasarım önerilerindeki ürün kararları (2026-10-01)
 - Bağlam: `docs/BLINKR_TASARIM_VE_KULLANISLILIK_ONERILERI.md` §9 altı karar istiyordu. Kullanıcı hepsini Claude'a bıraktı ("tüm hepsine sen cevap ver") ve uygulamanın artık gerçek bir sosyal medya gibi hissettirmesini istedi.
 - Karar:

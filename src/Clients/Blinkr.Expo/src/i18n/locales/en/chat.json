@@ -81,7 +81,17 @@
     "openChat": "Open chat",
     "markRead": "Mark as read",
     "viewProfile": "View profile",
-    "messageA11y": "Message {{name}}"
+    "messageA11y": "Message {{name}}",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "pinLimit": "You can pin up to {{count}} chats",
+    "mutedNotice": "Muted",
+    "unmutedNotice": "Unmuted",
+    "preferenceFailed": "Couldn't save the setting. Try again.",
+    "mutedA11y": "Muted",
+    "pinnedA11y": "Pinned"
   },
   "snap": {
     "expired": "Expired",

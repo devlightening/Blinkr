@@ -34,6 +34,28 @@ export const otherPeople = (results: UserSummary[], conversations: Conversation[
   return results.filter((person) => person.id !== myId && !talking.has(person.id) && person.relation !== 'blocked');
 };
 
+/** Doc S3: the server refuses a fourth pin (409 PIN_LIMIT); the client knows the same number to say so up front. */
+export const MAX_PINNED = 3;
+
+/**
+ * Doc S3: pinned conversations first, oldest pin on top (a new pin goes below the others, as on Snapchat); the rest keep
+ * the server's order (newest message first). Stable, never reorders within a group.
+ */
+export const orderConversations = (conversations: Conversation[]): Conversation[] => {
+  const pinned = conversations
+    .filter((conversation) => conversation.isPinned)
+    .map((conversation, index) => ({ conversation, index, at: Date.parse(conversation.pinnedAtUtc ?? '') }))
+    .sort((a, b) => (Number.isFinite(a.at) ? a.at : Infinity) - (Number.isFinite(b.at) ? b.at : Infinity) || a.index - b.index)
+    .map((entry) => entry.conversation);
+  return [...pinned, ...conversations.filter((conversation) => !conversation.isPinned)];
+};
+
+export const pinnedCount = (conversations: Conversation[]) => conversations.filter((conversation) => conversation.isPinned).length;
+
+/** Doc S5: a muted conversation still shows its badge in the list but never lights the tab-bar dot. */
+export const hasAttentionUnread = (conversations: Conversation[]) =>
+  conversations.some((conversation) => !conversation.isMuted && (conversation.unreadCount ?? 0) > 0);
+
 /** Doc S6: the unread count on a row; nothing for zero, "9+" past nine so the badge keeps its size. */
 export const unreadBadge = (count: number | null | undefined): string | null => {
   const n = Math.max(0, Math.floor(count ?? 0));

@@ -9,8 +9,14 @@ public record ConversationDto(
     int UnreadCount = 0,
     string? LastMessageKind = null,
     string? LastMessageState = null,
-    string? LastMessageId = null
+    string? LastMessageId = null,
+    bool IsPinned = false,
+    DateTime? PinnedAtUtc = null,
+    bool IsMuted = false
 );
+
+/// <summary>My own settings for one conversation after a change (doc S3/S5).</summary>
+public record ConversationPreferencesDto(string ConversationId, bool IsPinned, DateTime? PinnedAtUtc, bool IsMuted);
 
 public record ChatMessageDto(
     string Id,

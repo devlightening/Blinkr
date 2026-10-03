@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, BackHandler, FlatList, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { Ban, Camera, CheckCheck, Flag, MessageCircle, Search, SquarePen, UserPlus, UserRound, WifiOff, X } from 'lucide-react-native';
+import { Ban, Bell, BellOff, Camera, CheckCheck, Flag, MessageCircle, Pin, PinOff, Search, SquarePen, UserPlus, UserRound, WifiOff, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { blockUser, getUsersBatch, listBlocks, listConversations, listFriends, markConversationRead, searchUsers, sendReport, startConversation } from '../../api';
-import { PEOPLE_QUERY_MIN, canMarkRead, filterConversations, otherPeople, unreadBadge } from '../../chatList';
+import { blockUser, getUsersBatch, listBlocks, listConversations, listFriends, markConversationRead, searchUsers, sendReport, startConversation, updateConversationPreferences } from '../../api';
+import { MAX_PINNED, PEOPLE_QUERY_MIN, canMarkRead, filterConversations, hasAttentionUnread, orderConversations, otherPeople, pinnedCount, unreadBadge } from '../../chatList';
 import { success } from '../../haptics';
 import { formatAge } from '../../presentation';
 import { friendlyError } from '../../productPresentation';
@@ -76,9 +76,11 @@ type MenuView = 'actions' | 'confirmBlock' | 'report';
 /**
  * The chat list, laid out like Snapchat's (doc §3.2): my avatar, search, add friend and new chat on the top row with
  * "Sohbet" in the middle (S1); a search field that narrows the conversations by name and offers other people under
- * them (S2); a long press on a row opens its menu - open, snap, mark read, profile, block, report (S4); unread rows
- * carry a count badge and a bold name (S6); with no conversations yet, friends are offered with message and snap (S11).
- * Pinning and muting (S3/S5) need a small server field and come with their own package.
+ * them (S2); a long press on a row opens its menu - open, snap, pin, mute, mark read, profile, block, report (S4); up
+ * to three pinned conversations sit on top (S3) and muted ones never light the tab-bar dot (S5), both stored per person
+ * by the chat service; unread rows carry a count badge and a bold name (S6); with no conversations yet, friends are
+ * offered with message and snap (S11). Row swipe actions (S5) are left out on purpose: the chat tab lives in the
+ * horizontal tab pager, where a sideways row drag would fight the page swipe.
  */
 export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionExpired, onUnreadChange, onConversationOpenChange, snapRequested = false, onSnapHandled, openWith = null, onOpenWithHandled, onOpenProfile }: Props) {
   const insets = useSafeAreaInsets();
@@ -86,7 +88,7 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
   // People I blocked stay out of my list; the server refuses their messages anyway.
   const [blockedIds, setBlockedIds] = useState<Set<string>>(() => new Set());
   const [profileUser, setProfileUser] = useState<UserSummary | null>(null);
-  const conversations = useMemo(() => allConversations.filter((item) => !blockedIds.has(item.otherUserId)), [allConversations, blockedIds]);
+  const conversations = useMemo(() => orderConversations(allConversations.filter((item) => !blockedIds.has(item.otherUserId))), [allConversations, blockedIds]);
   const [isLoading, setLoading] = useState(true);
   const [isRefreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -193,7 +195,7 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
   useRealtimeEvent('message.read', refreshOnEvent);
 
   useEffect(() => {
-    onUnreadChange?.(conversations.some((conversation) => (conversation.unreadCount ?? 0) > 0));
+    onUnreadChange?.(hasAttentionUnread(conversations));
   }, [conversations, onUnreadChange]);
 
   useEffect(() => {
@@ -295,6 +297,33 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
     setConversations((current) => current.map((item) => (item.id === conversation.id ? { ...item, unreadCount: 0 } : item)));
     try { await markConversationRead(auth, conversation.id, onAuthChange, onSessionExpired); } catch { /* the poll restores the real count */ }
     refresh(true);
+  };
+
+  /** S3/S5: optimistic, then the server's answer; a refused pin (limit) or a failure puts the row back as it was. */
+  const changePreferences = async (conversation: Conversation, change: { pinned?: boolean; muted?: boolean }) => {
+    closeMenu();
+    if (change.pinned && !conversation.isPinned && pinnedCount(conversations) >= MAX_PINNED) {
+      setNotice(tx('chat:list.pinLimit', 'En fazla {{count}} sohbet sabitlenebilir', { count: MAX_PINNED }));
+      return;
+    }
+    const before = { isPinned: conversation.isPinned, pinnedAtUtc: conversation.pinnedAtUtc, isMuted: conversation.isMuted };
+    const patch = (values: Partial<Conversation>) =>
+      setConversations((current) => current.map((item) => (item.id === conversation.id ? { ...item, ...values } : item)));
+    patch({
+      ...(change.pinned !== undefined ? { isPinned: change.pinned, pinnedAtUtc: change.pinned ? new Date().toISOString() : null } : {}),
+      ...(change.muted !== undefined ? { isMuted: change.muted } : {}),
+    });
+    try {
+      const saved = await updateConversationPreferences(auth, conversation.id, change, refreshHandlers);
+      patch({ isPinned: saved.isPinned, pinnedAtUtc: saved.pinnedAtUtc ?? null, isMuted: saved.isMuted });
+      if (change.muted !== undefined) setNotice(saved.isMuted ? tx('chat:list.mutedNotice', 'Sessize alındı') : tx('chat:list.unmutedNotice', 'Sesi açıldı'));
+    } catch (err) {
+      patch(before);
+      const limit = (err as { status?: number })?.status === 409;
+      setNotice(limit
+        ? tx('chat:list.pinLimit', 'En fazla {{count}} sohbet sabitlenebilir', { count: MAX_PINNED })
+        : friendlyError(err, tx('chat:list.preferenceFailed', 'Ayar kaydedilemedi. Tekrar dene.')));
+    }
   };
 
   const block = async (conversation: Conversation) => {
@@ -407,14 +436,18 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
           >
             <Avatar avatarKey={userAvatarCache.get(item.otherUserId)} seed={item.otherUserId} userId={item.otherUserId} size={AVATAR_SIZE} />
             <View style={styles.rowBody}>
-              <Text numberOfLines={1} style={[styles.name, badge && styles.nameUnread]}>{name}</Text>
+              <View style={styles.nameLine}>
+                <Text numberOfLines={1} style={[styles.name, badge && styles.nameUnread]}>{name}</Text>
+                {item.isMuted ? <BellOff accessibilityLabel={tx('chat:list.mutedA11y', 'Sessizde')} color={colors.textSecondary} size={14} /> : null}
+              </View>
               <View style={styles.statusLine}>
                 <SnapStatusIcon filled={status.filled} icon={status.icon} tone={status.tone} />
                 <Text numberOfLines={1} style={[styles.status, { color: status.tone === 'quiet' ? colors.textSecondary : statusColor(status.tone) }, status.filled && styles.statusNew]}>{status.label}</Text>
                 <Text style={styles.when}>· {when}</Text>
               </View>
             </View>
-            {badge ? <View style={styles.badge} testID={`unread-${item.id}`}><Text style={styles.badgeText}>{badge}</Text></View> : null}
+            {item.isPinned ? <Pin accessibilityLabel={tx('chat:list.pinnedA11y', 'Sabitlendi')} color={colors.textSecondary} size={15} testID={`pinned-${item.id}`} /> : null}
+            {badge ? <View style={[styles.badge, item.isMuted && styles.badgeMuted]} testID={`unread-${item.id}`}><Text style={[styles.badgeText, item.isMuted && styles.badgeTextMuted]}>{badge}</Text></View> : null}
           </AnimatedPressable>
           <AnimatedPressable accessibilityLabel={tx('chat:list.snapToA11y', '{{name}} kişisine Snap gönder', { name })} accessibilityRole="button" hitSlop={6} onPress={() => setFlow({ mode: 'reply', conversationId: item.id })} pressScale={0.95} style={styles.cameraButton}>
             <Camera color={colors.textSecondary} size={18} />
@@ -607,6 +640,12 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
               </View>
               <MenuRow icon={<MessageCircle color={colors.text} size={20} />} label={tx('chat:list.openChat', 'Sohbeti aç')} onPress={() => { const target = menuFor; closeMenu(); setActiveConversation(target); }} />
               <MenuRow icon={<Camera color={colors.text} size={20} />} label={tx('chat:thread.sendSnap', 'Snap gönder')} onPress={() => { const target = menuFor; closeMenu(); setFlow({ mode: 'reply', conversationId: target.id }); }} />
+              {menuFor.isPinned
+                ? <MenuRow icon={<PinOff color={colors.text} size={20} />} label={tx('chat:list.unpin', 'Sabitlemeyi kaldır')} onPress={() => { void changePreferences(menuFor, { pinned: false }); }} />
+                : <MenuRow icon={<Pin color={colors.text} size={20} />} label={tx('chat:list.pin', 'Sabitle')} onPress={() => { void changePreferences(menuFor, { pinned: true }); }} />}
+              {menuFor.isMuted
+                ? <MenuRow icon={<Bell color={colors.text} size={20} />} label={tx('chat:list.unmute', 'Sesi aç')} onPress={() => { void changePreferences(menuFor, { muted: false }); }} />
+                : <MenuRow icon={<BellOff color={colors.text} size={20} />} label={tx('chat:list.mute', 'Sessize al')} onPress={() => { void changePreferences(menuFor, { muted: true }); }} />}
               {canMarkRead(menuFor, auth.userId) ? <MenuRow icon={<CheckCheck color={colors.text} size={20} />} label={tx('chat:list.markRead', 'Okundu işaretle')} onPress={() => { void markRead(menuFor); }} /> : null}
               <MenuRow icon={<UserRound color={colors.text} size={20} />} label={tx('chat:list.viewProfile', 'Profili gör')} onPress={() => { const target = menuFor; closeMenu(); setProfileUser({ id: target.otherUserId, userName: nameOf(target.otherUserId), avatarKey: userAvatarCache.get(target.otherUserId) }); }} />
               <MenuRow danger icon={<Ban color={colors.danger} size={20} />} label={tx('chat:list.block', 'Engelle')} onPress={() => setMenuView('confirmBlock')} />
@@ -667,7 +706,8 @@ const styles = StyleSheet.create({
   row: { alignItems: 'center', flexDirection: 'row', minHeight: 68, paddingRight: spacing.md },
   rowMain: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: ROW_GAP, minHeight: 68, paddingLeft: spacing.lg, paddingRight: spacing.sm, paddingVertical: spacing.sm },
   rowBody: { flex: 1, gap: 2 },
-  name: { ...typography.heading, color: colors.text, fontSize: 16, fontWeight: '500', lineHeight: 21 },
+  nameLine: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+  name: { ...typography.heading, flexShrink: 1, color: colors.text, fontSize: 16, fontWeight: '500', lineHeight: 21 },
   nameUnread: { fontWeight: '700' },
   statusLine: { alignItems: 'center', flexDirection: 'row', gap: 6 },
   status: { ...typography.caption, flexShrink: 1 },
@@ -675,6 +715,9 @@ const styles = StyleSheet.create({
   when: { ...typography.caption, color: colors.textSecondary },
   badge: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: radii.pill, height: 22, justifyContent: 'center', minWidth: 22, paddingHorizontal: 6 },
   badgeText: { ...typography.micro, color: colors.ink, fontWeight: '700' },
+  // Muted: the count stays readable but quiet, so it does not call for attention.
+  badgeMuted: { backgroundColor: colors.surfaceElevated },
+  badgeTextMuted: { color: colors.textSecondary },
   cameraButton: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 38, justifyContent: 'center', width: 38 },
   othersSection: { paddingTop: spacing.md },
   sectionTitle: { ...typography.callout, color: colors.textSecondary, fontWeight: '600', paddingBottom: spacing.xs, paddingHorizontal: spacing.lg },

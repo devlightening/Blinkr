@@ -145,15 +145,58 @@ public sealed class MarkConversationReadHandler : IRequestHandler<MarkConversati
     }
 }
 
+/// <summary>
+/// Doc S3/S5: pin (at most <see cref="ConversationPreference.MaxPinned"/>) and mute, for the caller only. A fourth pin is
+/// refused with 409 PIN_LIMIT rather than silently unpinning another; the client asks which one to unpin.
+/// </summary>
+public sealed class UpdateConversationPreferencesHandler : IRequestHandler<UpdateConversationPreferencesCommand, ConversationPreferencesDto>
+{
+    private readonly IConversationRepository _conversations;
+    private readonly IConversationPreferenceRepository _preferences;
+
+    public UpdateConversationPreferencesHandler(IConversationRepository conversations, IConversationPreferenceRepository preferences)
+    {
+        _conversations = conversations;
+        _preferences = preferences;
+    }
+
+    public async Task<ConversationPreferencesDto> Handle(UpdateConversationPreferencesCommand req, CancellationToken ct)
+    {
+        if (req.Pinned is null && req.Muted is null)
+            throw new ChatValidationException("Değiştirilecek bir ayar yok.");
+
+        var conversation = await _conversations.GetByIdAsync(req.ConversationId, ct)
+            ?? throw new ChatNotFoundException("Konuşma bulunamadı.");
+        if (!conversation.ParticipantIds.Contains(req.UserId))
+            throw new ChatForbiddenException("Bu konuşmaya erişimin yok.");
+
+        var preference = await _preferences.GetAsync(req.UserId, req.ConversationId, ct)
+            ?? ConversationPreference.For(req.UserId, req.ConversationId);
+        var now = DateTime.UtcNow;
+
+        if (req.Pinned == true && !preference.IsPinned
+            && await _preferences.CountPinnedAsync(req.UserId, req.ConversationId, ct) >= ConversationPreference.MaxPinned)
+            throw new ChatLimitException("PIN_LIMIT", $"En fazla {ConversationPreference.MaxPinned} sohbet sabitlenebilir.");
+
+        if (req.Pinned is { } pinned) preference.SetPinned(pinned, now);
+        if (req.Muted is { } muted) preference.SetMuted(muted, now);
+
+        await _preferences.SaveAsync(preference, ct);
+        return preference.ToDto();
+    }
+}
+
 public sealed class ListConversationsHandler : IRequestHandler<ListConversationsQuery, IReadOnlyList<ConversationDto>>
 {
     private readonly IConversationRepository _conversations;
     private readonly IChatMessageRepository _messages;
+    private readonly IConversationPreferenceRepository _preferences;
 
-    public ListConversationsHandler(IConversationRepository conversations, IChatMessageRepository messages)
+    public ListConversationsHandler(IConversationRepository conversations, IChatMessageRepository messages, IConversationPreferenceRepository preferences)
     {
         _conversations = conversations;
         _messages = messages;
+        _preferences = preferences;
     }
 
     public async Task<IReadOnlyList<ConversationDto>> Handle(ListConversationsQuery q, CancellationToken ct)
@@ -161,6 +204,7 @@ public sealed class ListConversationsHandler : IRequestHandler<ListConversations
         var list = await _conversations.ListForUserAsync(q.UserId, ct);
         var ids = list.Select(c => c.Id).OfType<string>().ToList();
         var unread = await _messages.CountUnreadAsync(ids, q.UserId, ct);
+        var preferences = await _preferences.GetManyAsync(q.UserId, ids, ct);
 
         // A snap as the latest message needs its state (waiting / opened / expired) for the list; text does not.
         var snapIds = list.Where(c => c.LastMessageKind == "snap" && c.LastMessageId is not null).Select(c => c.LastMessageId!).ToList();
@@ -174,7 +218,8 @@ public sealed class ListConversationsHandler : IRequestHandler<ListConversations
             string? state = c.LastMessageId is not null && snaps.TryGetValue(c.LastMessageId, out var message) && message.Snap is not null
                 ? message.Snap.EffectiveState(now)
                 : null;
-            return c.ToDto(q.UserId, c.Id is not null ? unread.GetValueOrDefault(c.Id) : 0, state);
+            var preference = c.Id is not null ? preferences.GetValueOrDefault(c.Id) : null;
+            return c.ToDto(q.UserId, c.Id is not null ? unread.GetValueOrDefault(c.Id) : 0, state, preference);
         }).ToList();
     }
 }

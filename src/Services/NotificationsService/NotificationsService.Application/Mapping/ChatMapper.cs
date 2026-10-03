@@ -5,7 +5,7 @@ namespace NotificationsService.Application.Mapping;
 
 public static class ChatMapper
 {
-    public static ConversationDto ToDto(this Conversation c, Guid viewerId, int unreadCount = 0, string? lastMessageState = null) =>
+    public static ConversationDto ToDto(this Conversation c, Guid viewerId, int unreadCount = 0, string? lastMessageState = null, ConversationPreference? preference = null) =>
         new(
             c.Id ?? string.Empty,
             c.ParticipantIds.FirstOrDefault(p => p != viewerId),
@@ -15,8 +15,13 @@ public static class ChatMapper
             unreadCount,
             c.LastMessageKind ?? "text",
             lastMessageState,
-            c.LastMessageId
+            c.LastMessageId,
+            preference?.IsPinned ?? false,
+            preference?.PinnedAtUtc,
+            preference?.IsMuted ?? false
         );
+
+    public static ConversationPreferencesDto ToDto(this ConversationPreference p) => new(p.ConversationId, p.IsPinned, p.PinnedAtUtc, p.IsMuted);
 
     /// <summary>"sent" past its expiry reads as "expired" even before the cleanup job has touched it.</summary>
     public static string EffectiveState(this SnapPayload snap, DateTime nowUtc) =>
