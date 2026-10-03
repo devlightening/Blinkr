@@ -20,6 +20,7 @@ builder.Services.AddSingleton(sp => sp.GetRequiredService<IMongoClient>().GetDat
 builder.Services.AddScoped<IPlaceRepository, PlaceRepository>();
 builder.Services.AddSingleton<ICurrentPlaceStateCalculator, CurrentPlaceStateCalculator>();
 builder.Services.AddSingleton<IPlaceRhythmCalculator, PlaceRhythmCalculator>();
+builder.Services.AddSingleton<PlaceStateChangeDetector>();
 builder.Services.Configure<PlaceDiscoveryOptions>(builder.Configuration.GetSection("PlaceDiscovery"));
 builder.Services.AddScoped<IPlaceDiscoveryService, PlaceDiscoveryService>();
 builder.Services.AddSingleton<PlaceDiscoveryRefreshQueue>();

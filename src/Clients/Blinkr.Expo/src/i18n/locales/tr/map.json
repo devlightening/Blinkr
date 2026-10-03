@@ -130,5 +130,19 @@
     "hourLevel": "{{hour}} · genelde {{level}}",
     "dayNoSummary": "Bu gün için az veri var",
     "basis": "Son 8 haftadaki {{count}} doğrulanmış gözleme dayanır; en az 3 kişinin olduğu saatler gösterilir."
+  },
+  "watch": {
+    "calm": "Sakinleşince",
+    "open": "Açılınca",
+    "update": "Yeni bilgi gelince",
+    "hoursLeft": "{{n}} sa kaldı",
+    "minutesLeft": "{{n}} dk kaldı",
+    "limit": "Aynı anda en fazla 5 yeri izleyebilirsin.",
+    "failed": "Şu an ayarlanamadı. Tekrar dene.",
+    "on": "{{condition}} haber vereceğiz",
+    "onHint": "Bir kez bildirir ve kapanır · {{left}}",
+    "stop": "Haber vermeyi kapat",
+    "title": "Haber ver",
+    "hint": "Durum değişince bir kez bildirelim"
   }
 }

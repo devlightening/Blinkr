@@ -15,6 +15,17 @@
 
 ## Kararlar
 
+### D-038 — "Haber ver": yer izleme, olay güdümlü, bir kez bildirir (2026-10-03)
+- Bağlam: Niş yol haritasının 2. maddesi (`docs/blinkr-v3/NIS_OZELLIKLER.md`). "Kafe X sakinleşince haber ver" - karar aracı.
+- Karar:
+  1. Durumun sahibi PlaceService'tir: doğrulanmış (VERIFIED_LIVE) yeni bir Doluluk/Bekleme/Geçici durum sinyali, `CurrentPlaceStateCalculator`'ın verdiği **görünür canlı durumu** değiştirdiyse (`PlaceStateChangeDetector`, sinyal varken/yokken karşılaştırır) `PlaceLiveStateChangedIntegrationEvent` yayınlanır. Her sinyal için değil, yalnız gerçek değişimde.
+  2. Olay kimliği tetikleyen gönderiden türetilir (MD5, sabit): yeniden teslim aynı kimlikle gelir. At-least-once kuralı aynı (CLAUDE.md §8.2).
+  3. İzlemeler NotificationsService'tedir (abonelikler onun işi, §6.5): `place_watches`, kişi+yer başına tek satır (benzersiz indeks), en fazla 5 aktif, 12 saatte TTL ile biter. Koşullar: `calm` (Sakin / Sıra yok), `open` (Açık), `update` (her değişim).
+  4. Tüketici her eşleşen izlemeyi önce atomik olarak siler, yalnız silen bildirim yazar: tekrar gelen olay ya da yarışan iki tüketici aynı bildirimi iki kez gönderemez. Bildirim bir kez gelir ve izleme kapanır.
+  5. Değişikliğe kendi sinyaliyle sebep olan izleyiciye bildirim gitmez (izlemesi başkasının teyidi için kalır). `CausedByAuthorId` yalnız iç veri yolunda taşınır, hiçbir istemciye gitmez. Bildirim tetikleyen doğrulanmış sinyali açar, paylaşanın adını söylemez.
+  6. Kimin hangi yeri izlediği yalnız izleyen kişiye döner (`GET /api/place-watches`); hesap silmede izlemeler silinir.
+- Etki: CLAUDE.md §6.5, §8.3, §13. Olay sözleşmesi `docs/contracts/event-schema.json`'a eklendi (BLK-CONTRACTS-01).
+
 ### D-037 — "Yerin Ritmi": yoğunluk saatleri yalnız doğrulanmış sinyallerden, k-anonim (2026-10-03)
 - Bağlam: Kullanıcı "projeyi en üst seviyeye çıkaracak niş şeyler" istedi. Niş yol haritası `docs/blinkr-v3/NIS_OZELLIKLER.md`; ilk özellik budur.
 - Karar:

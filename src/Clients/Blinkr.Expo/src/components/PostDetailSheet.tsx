@@ -17,6 +17,7 @@ import { AnimatedPressable } from './AnimatedPressable';
 import { ReportPanel } from './ReportPanel';
 import { ShareToChatPanel } from './chat/ShareToChatSheet';
 import { PlaceRhythmCard } from './place/PlaceRhythmCard';
+import { PlaceWatchControl } from './place/PlaceWatchControl';
 import { placeTarget, shareText } from '../shareTarget';
 import { Sheet } from './Sheet';
 import { SignalSymbol } from './SignalSymbol';
@@ -374,6 +375,8 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
 
             {/* D-037: how busy it usually is, from verified signals only. */}
             <PlaceRhythmCard placeId={place.id} />
+            {/* D-038: tell me once when it gets quiet / opens / has news. */}
+            {auth ? <PlaceWatchControl auth={auth} place={place} refresh={refresh} /> : null}
 
             <View style={styles.sectionHeader}>
               <Text accessibilityRole="header" style={styles.sectionLabel}>{tx('signal:place.recent', 'Son sinyaller')}</Text>

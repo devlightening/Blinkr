@@ -19,13 +19,15 @@ public sealed class UserDeletedConsumer : IConsumer<UserDeletedIntegrationEvent>
     private readonly IMongoDatabase _db;
     private readonly ISnapStorage _storage;
     private readonly IConversationPreferenceRepository _preferences;
+    private readonly IPlaceWatchRepository _placeWatches;
     private readonly ILogger<UserDeletedConsumer> _logger;
 
-    public UserDeletedConsumer(IMongoDatabase db, ISnapStorage storage, IConversationPreferenceRepository preferences, ILogger<UserDeletedConsumer> logger)
+    public UserDeletedConsumer(IMongoDatabase db, ISnapStorage storage, IConversationPreferenceRepository preferences, IPlaceWatchRepository placeWatches, ILogger<UserDeletedConsumer> logger)
     {
         _db = db;
         _storage = storage;
         _preferences = preferences;
+        _placeWatches = placeWatches;
         _logger = logger;
     }
 
@@ -76,6 +78,7 @@ public sealed class UserDeletedConsumer : IConsumer<UserDeletedIntegrationEvent>
         await _db.GetCollection<DeviceToken>("device_tokens").DeleteManyAsync(t => t.UserId == userId, ct);
         await _db.GetCollection<UserLocation>("user_locations").DeleteManyAsync(l => l.UserId == userId, ct);
         await _preferences.DeleteForUserAsync(userId, ct);
+        await _placeWatches.DeleteForUserAsync(userId, ct);
 
         _logger.LogInformation("Account erased in NotificationsService | UserId={UserId} | Messages={Messages} | Snaps={Snaps} | Stories={Stories}",
             userId, written.ModifiedCount, snaps.Count, storiesGone.DeletedCount);

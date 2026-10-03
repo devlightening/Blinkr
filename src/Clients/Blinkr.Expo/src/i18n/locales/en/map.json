@@ -130,5 +130,19 @@
     "hourLevel": "{{hour}} · usually {{level}}",
     "dayNoSummary": "Little data for this day",
     "basis": "Based on {{count}} verified observations from the last 8 weeks; only hours with at least 3 people are shown."
+  },
+  "watch": {
+    "calm": "When it gets quiet",
+    "open": "When it opens",
+    "update": "When there is news",
+    "hoursLeft": "{{n}} h left",
+    "minutesLeft": "{{n}} min left",
+    "limit": "You can watch up to 5 places at a time.",
+    "failed": "Couldn't set it up right now. Try again.",
+    "on": "We'll tell you: {{condition}}",
+    "onHint": "Notifies once, then turns off · {{left}}",
+    "stop": "Stop watching",
+    "title": "Notify me",
+    "hint": "We'll tell you once when it changes"
   }
 }

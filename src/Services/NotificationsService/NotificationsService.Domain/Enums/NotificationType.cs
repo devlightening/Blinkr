@@ -13,5 +13,7 @@ public enum NotificationType
     /// <summary>Someone liked your story (V2-3).</summary>
     StoryLiked = 8,
     /// <summary>Someone @mentioned you in a signal or comment (V2-4).</summary>
-    Mentioned = 9
+    Mentioned = 9,
+    /// <summary>A place you watch reached the state you waited for (D-038, "Haber ver").</summary>
+    PlaceWatch = 10
 }

@@ -625,6 +625,14 @@ export const getHashtagFeed = (auth: AuthResponse, tag: string, page = 1, signal
 export const searchHashtags = (auth: AuthResponse, q: string, signal?: AbortSignal, refresh: Refresh = {}) =>
   requestJson<Array<{ tag: string; postCount: number }>>(`/api/discover/hashtags/search?${new URLSearchParams({ q })}`, { auth, signal, ...refresh });
 
+/** D-038 "Haber ver": my own place watches (only I ever read them). 409 WATCH_LIMIT past five. */
+export const listPlaceWatches = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<import('./placeWatch').PlaceWatchInfo[]>('/api/place-watches', { auth, signal, ...refresh });
+export const watchPlace = (auth: AuthResponse, placeId: string, body: { condition: import('./placeWatch').WatchCondition; placeName: string }, refresh: Refresh = {}) =>
+  requestJson<import('./placeWatch').PlaceWatchInfo>(`/api/place-watches/${placeId}`, { auth, body, method: 'PUT', ...refresh });
+export const unwatchPlace = (auth: AuthResponse, placeId: string, refresh: Refresh = {}) =>
+  request(`/api/place-watches/${placeId}`, { auth, method: 'DELETE', ...refresh });
+
 /** D-037 "Yerin Ritmi": how busy a place usually is by weekday/hour, from verified signals only (public aggregate). */
 export const getPlaceRhythm = (placeId: string, signal?: AbortSignal) =>
   requestJson<import('./placeRhythm').PlaceRhythm>(`/api/places/${placeId}/rhythm`, { signal });

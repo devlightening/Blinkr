@@ -86,6 +86,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDeviceTokenRepository, MongoDeviceTokenRepository>();
         services.AddScoped<IConversationRepository, MongoConversationRepository>();
         services.AddScoped<IConversationPreferenceRepository, MongoConversationPreferenceRepository>();
+        services.AddScoped<IPlaceWatchRepository, MongoPlaceWatchRepository>();
         services.AddScoped<IChatMessageRepository, MongoChatMessageRepository>();
 
         return services;
@@ -120,6 +121,7 @@ public static class ServiceCollectionExtensions
             busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.PostMentionNotificationConsumer>();
             busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.PostRealtimeConsumer>();
             busCfg.AddConsumer<NotificationsService.Api.Consumers.UserDeletedConsumer>();
+            busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.PlaceWatchNotificationConsumer>();
 
             busCfg.UsingRabbitMq((ctx, cfg) =>
             {

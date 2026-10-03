@@ -526,6 +526,20 @@
         "UntilUtc": "System.DateTime?",
         "UserId": "System.Guid"
       }
+    },
+    "Shared.Events.Events.Place.PlaceLiveStateChangedIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "CausedByAuthorId": "System.Guid?",
+        "CausedByPostId": "System.Guid",
+        "Id": "System.Guid",
+        "ObservedAtUtc": "System.DateTime",
+        "OccurredOn": "System.DateTime",
+        "PlaceId": "System.Guid",
+        "PlaceName": "System.String",
+        "SignalType": "System.String?",
+        "SignalValue": "System.String?"
+      }
     }
   }
 }

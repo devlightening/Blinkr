@@ -10,7 +10,7 @@ etkileşim için mahremiyet zayıflatılmaz.
 | # | Özellik | Neden niş | Durum |
 |---|---|---|---|
 | 1 | **Yerin Ritmi** — haftanın günü × saat yoğunluğu | Google "Popüler saatler" pasif konum takibiyle çalışır; Blinkr yalnız gönüllü ve sunucunun doğruladığı sinyallerden üretir | **Yapıldı** (D-037) |
-| 2 | **Haber ver** — "sakinleşince haber ver" | Karar aracı, bağımlılık kancası değil: bir kez tetiklenir ve kapanır | Sırada |
+| 2 | **Haber ver** — "sakinleşince haber ver" | Karar aracı, bağımlılık kancası değil: bir kez tetiklenir ve kapanır | **Yapıldı** (D-038) |
 | 3 | **Yere sor** — "boş masa var mı?" | Talep üzerine taze veri; yalnız sunucunun yakında doğruladığı kişi yanıtlar, yanıt sinyal olur | Planlandı |
 | 4 | **Yer özellikleri** — Wi-Fi, priz, sessiz, çocuk dostu, erişilebilir | Statik yorum sitelerinin aksine her özellik zamanla solar: "3 kişi · son teyit 3 gün önce" | Planlandı |
 | 5 | **Yerel rehber** — mahalle rozeti | Açıklanabilir itibar (doğrulanmış sinyal + "işime yaradı"); tablo yok, seri yok | Planlandı |
@@ -30,7 +30,7 @@ etkileşim için mahremiyet zayıflatılmaz.
   saat dolu renk), veri olmayan saat kesikli çizgi (sıfır gibi gösterilmez), çubuğa dokununca "19:00 · genelde
   kalabalık", üstte tek cümle "Genelde bu saatte hareketli · En sakin: 15:00", altta dayanak notu.
 
-## 2. Haber ver (sıradaki)
+## 2. Haber ver (yapıldı, D-038)
 - Yer sayfasında "Sakinleşince haber ver" / "Açılınca haber ver". Kişi başına en fazla 5 aktif izleme, 12 saat sonra
   kendiliğinden biter, tetiklenince kapanır.
 - PlaceService, doğrulanmış yeni sinyal canlı durumu değiştirdiğinde `PlaceStateChanged` entegrasyon olayı yayınlar
