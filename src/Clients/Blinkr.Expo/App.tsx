@@ -293,6 +293,7 @@ export default function App() {
                       onSessionExpired={logout}
                       onUnreadChange={setChatUnread}
                       onOpenWithHandled={clearChatTarget}
+                      onOpenProfile={() => setActiveTab('profile')}
                       openWith={chatTarget}
                     />
                   ) : tab === 'nearby' ? (

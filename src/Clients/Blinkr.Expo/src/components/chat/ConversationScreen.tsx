@@ -18,6 +18,7 @@ import type { AuthResponse, ChatMessage, Conversation } from '../../types';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
 import { ReportPanel } from '../ReportPanel';
+import { SwipeToReply } from './SwipeToReply';
 import { Sheet } from '../Sheet';
 import { SignalSymbol } from '../SignalSymbol';
 import { SignalCardModal } from '../signal/SignalCardModal';
@@ -44,8 +45,9 @@ const formatClock = (iso: string) => {
 /**
  * One conversation as bubbles (plan-devam Faz E): mine on the right, theirs on the left, grouped when close together
  * (one time stamp per group), a day separator between days, "Görüldü" under my newest message and "yazıyor" while the
- * other person types (both come with the ~4 s poll - no realtime, CLAUDE.md §6.5). A long press opens the message
- * actions: react, reply with a quote, copy, take back (mine) or report (theirs).
+ * other person types (both come with the ~4 s poll - no realtime, CLAUDE.md §6.5). Pulling a bubble to the right
+ * replies to it (doc S8, `SwipeToReply`); a long press opens the message actions: react, reply with a quote, copy,
+ * take back (mine) or report (theirs).
  */
 export function ConversationScreen({ auth, conversation, otherUserName, otherAvatarKey, onAuthChange, onSessionExpired, onBack, onOpenSnap, onSendSnap, onOpenProfile }: {
   auth: AuthResponse;
@@ -257,6 +259,7 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
     const unsent = item.kind === 'unsent';
     return (
       <View style={[styles.row, mine ? styles.rowMine : styles.rowTheirs, groupTop && styles.rowGroupTop]}>
+        <SwipeToReply enabled={canReact(item)} onReply={() => startReply(item)}>
         <AnimatedPressable
           accessibilityHint={canReact(item) ? t('extras.actions') : undefined}
           accessibilityRole={canReact(item) || share ? 'button' : undefined}
@@ -292,6 +295,7 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
           ) : null}
           {!unsent && item.text ? <Text style={styles.bubbleText}>{item.text}</Text> : null}
         </AnimatedPressable>
+        </SwipeToReply>
         {summary.length ? (
           <View style={[styles.reactionRow, mine && styles.reactionRowMine]}>
             {summary.map((entry) => <Text key={entry.emoji} style={[styles.reactionChip, entry.mine && styles.reactionMine]}>{entry.emoji}{entry.count > 1 ? ` ${entry.count}` : ''}</Text>)}
