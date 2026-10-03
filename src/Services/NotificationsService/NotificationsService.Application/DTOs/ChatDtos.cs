@@ -34,8 +34,13 @@ public record ChatMessageDto(
     /// <summary>Only on my own messages: the other person has read it (and when, if known).</summary>
     bool Seen = false,
     DateTime? SeenAtUtc = null,
-    PlaceShareDto? Place = null
+    PlaceShareDto? Place = null,
+    MeetupDto? Meetup = null
 );
+
+/// <summary>Doc B2: when, who answered what, and whether answers are closed (well past the time).</summary>
+public record MeetupDto(DateTime AtUtc, IReadOnlyList<MeetupResponseDto> Responses, bool Closed);
+public record MeetupResponseDto(Guid UserId, string Answer, DateTime AtUtc);
 
 public record ReplyDto(string MessageId, Guid SenderId, string Text, string Kind);
 

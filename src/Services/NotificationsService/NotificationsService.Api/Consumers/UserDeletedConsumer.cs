@@ -50,9 +50,11 @@ public sealed class UserDeletedConsumer : IConsumer<UserDeletedIntegrationEvent>
 
         // Everything they wrote is emptied; their reactions and quotes of their messages go too.
         var written = await messages.UpdateManyAsync(m.Eq(x => x.SenderId, userId) & m.Ne(x => x.Kind, "snap"),
-            Builders<ChatMessage>.Update.Set(x => x.Kind, "unsent").Set(x => x.Text, string.Empty).Unset(x => x.Signal).Unset(x => x.Place).Unset(x => x.ReplyTo).Set(x => x.Reactions, new List<MessageReaction>()), cancellationToken: ct);
+            Builders<ChatMessage>.Update.Set(x => x.Kind, "unsent").Set(x => x.Text, string.Empty).Unset(x => x.Signal).Unset(x => x.Place).Unset(x => x.Meetup).Unset(x => x.ReplyTo).Set(x => x.Reactions, new List<MessageReaction>()), cancellationToken: ct);
         await messages.UpdateManyAsync(m.ElemMatch(x => x.Reactions, r => r.UserId == userId),
             Builders<ChatMessage>.Update.PullFilter(x => x.Reactions, r => r.UserId == userId), cancellationToken: ct);
+        await messages.UpdateManyAsync(m.ElemMatch("Meetup.Responses", Builders<MeetupResponse>.Filter.Eq(r => r.UserId, userId)),
+            Builders<ChatMessage>.Update.PullFilter("Meetup.Responses", Builders<MeetupResponse>.Filter.Eq(r => r.UserId, userId)), cancellationToken: ct);
         await messages.UpdateManyAsync(m.Eq("ReplyTo.SenderId", userId.ToString()),
             Builders<ChatMessage>.Update.Set("ReplyTo.Text", string.Empty).Set("ReplyTo.Kind", "unsent"), cancellationToken: ct);
         await conversations.UpdateManyAsync(

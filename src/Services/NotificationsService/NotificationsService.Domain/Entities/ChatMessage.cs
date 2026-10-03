@@ -21,7 +21,7 @@ public class ChatMessage
     [BsonRepresentation(BsonType.String)]
     public List<Guid> ReadByUserIds { get; set; } = new();
 
-    /// <summary>"text" (default, also for messages stored before snaps existed), "snap", "signal", "place" or "unsent".</summary>
+    /// <summary>"text" (default, also for messages stored before snaps existed), "snap", "signal", "place", "meetup" or "unsent".</summary>
     public string Kind { get; set; } = "text";
 
     [BsonIgnoreIfNull]
@@ -37,6 +37,10 @@ public class ChatMessage
     /// </summary>
     [BsonIgnoreIfNull]
     public PlaceSharePayload? Place { get; set; }
+
+    /// <summary>"Buluşalım" (Kind "meetup", doc B2): the time and the answers; the place is <see cref="Place"/>.</summary>
+    [BsonIgnoreIfNull]
+    public MeetupPayload? Meetup { get; set; }
 
     /// <summary>Sender-chosen id so a retried send never creates a second message (sinyal-mvp-plan P8.1).</summary>
     [BsonIgnoreIfNull]

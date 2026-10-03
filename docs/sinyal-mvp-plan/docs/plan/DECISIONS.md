@@ -15,6 +15,15 @@
 
 ## Kararlar
 
+### D-035 — "Buluşalım" kartı: yer + saat önerisi, konum yok (2026-10-03)
+- Bağlam: Tasarım belgesi B2. Sohbette "şurada şu saatte buluşalım mı?" sorusunu yer kararıyla birleştirmek; kartın altında yerin canlı durumu (B1) görünür.
+- Karar:
+  1. Mesaj türü `meetup`: yer `Place` alanında (D-034 ile aynı, koordinatsız), zaman ve yanıtlar `Meetup` alanında (`AtUtc`, `Responses[{ userId, answer: going|declined, atUtc }]`). Kimsenin konumu, varış durumu ya da "yoldayım" takibi yoktur; anayasa §2.2 "sürekli kişi takibi" yasağı korunur.
+  2. Kurallar alan nesnesinde (`MeetupPayload`): zaman şimdi (5 dk tolerans) ile 14 gün sonrası arasında; zamandan 2 saat sonra yanıtlar kapanır (410 `MEETUP_CLOSED`); kişi başına tek yanıt, aynı yanıta tekrar basmak geri alır (null).
+  3. Yalnız öneriyi alan kişi yanıtlar (öneren 403). Yanıt da diğer sohbet yazmaları gibi engel denetiminden geçer ve gerçek zamanlı `message.updated` olarak iki tarafa gider (mevcut `RealtimeChatFilter`).
+  4. Zaman seçimi tarih tekerleği yerine hızlı seçenekler (30 dk, 1 saat, bu akşam, yarın öğle/akşam) + 15 dk ileri/geri; yeni native bağımlılık eklenmedi.
+- Etki: CLAUDE.md §12.1, §13 Chat. Geri alma ve hesap silme buluşma yükünü ve kişinin yanıtlarını temizler.
+
 ### D-034 — Sohbette canlı yer kartı: mesaj yalnız yer kimliği taşır, durum PlaceService'ten okunur (2026-10-03)
 - Bağlam: Tasarım belgesi B1 (canlı yer kartı) ve B5 (kayıtlı yerden paylaşım). "Orası nasıl?" sorusunu sohbetin içinde yanıtlamak; Blinkr'in yer-öncelikli çekirdeğine bağlanan sohbet katkısı.
 - Karar:

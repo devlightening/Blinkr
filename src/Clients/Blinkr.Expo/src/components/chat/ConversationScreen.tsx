@@ -5,7 +5,8 @@ import { ActivityIndicator, AppState, BackHandler, FlatList, KeyboardAvoidingVie
 import { ArrowLeft, Camera, Copy, CornerUpLeft, Flag, MapPin, MessageCircle, Send, Undo2, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getMessages, markConversationRead, reactToMessage, sendMessage, sendReport, sendTyping, unsendMessage } from '../../api';
+import { getMessages, markConversationRead, reactToMessage, respondToMeetup, sendMessage, sendReport, sendTyping, unsendMessage } from '../../api';
+import { withMyAnswer } from '../../meetup';
 import { CHAT_REACTIONS, applyReaction, canReact, canUnsend, newClientId, nextReaction, reactionSummary } from '../../chatExtras';
 import { track } from '../../analytics';
 import { buildThread, lastOwnMessageId, receiptLabel, shouldPingTyping } from '../../chatThread';
@@ -17,12 +18,13 @@ import type { SavedPlace } from '../../savedPlaces';
 import { usePlacesLive } from '../../usePlacesLive';
 import { snapRow } from '../../snapPresentation';
 import { colors, radii, signalColors, sizes, spacing, typography } from '../../theme';
-import type { AuthResponse, BlinkrPlace, ChatMessage, Conversation } from '../../types';
+import type { AuthResponse, BlinkrPlace, ChatMessage, Conversation, MeetupAnswer } from '../../types';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
 import { ReportPanel } from '../ReportPanel';
 import { SwipeToReply } from './SwipeToReply';
 import { PlaceShareCard } from './PlaceShareCard';
+import { MeetupCard } from './MeetupCard';
 import { SharePlaceSheet } from './SharePlaceSheet';
 import { Sheet } from '../Sheet';
 import { SignalSymbol } from '../SignalSymbol';
@@ -86,6 +88,7 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [openCard, setOpenCard] = useState<CardSignal | null>(null);
   const [isPlaceSheetOpen, setPlaceSheetOpen] = useState(false);
+  const [answering, setAnswering] = useState<string | null>(null);
   const pollInFlight = useRef(false);
   const lastTypingPing = useRef(0);
   // The client id of a send that failed: retrying the same text reuses it, so the server never stores it twice.
@@ -189,7 +192,7 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
   };
 
   /** Doc B5: one tap on a saved place sends it; the bubble then shows its live state (B1). Retry-safe like text. */
-  const sendPlace = async (saved: SavedPlace) => {
+  const sendPlace = async (saved: SavedPlace, meetupAt?: Date) => {
     setPlaceSheetOpen(false);
     if (isSending) return;
     setSending(true);
@@ -197,8 +200,8 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
     setReplyTo(null);
     const clientId = newClientId();
     try {
-      const sent = await sendMessage(auth, conversation.id, '', onAuthChange, onSessionExpired, { clientId, place: placeShareFrom(saved), replyToId: quoting?.id ?? null });
-      track('message_sent', { type: 'place' });
+      const sent = await sendMessage(auth, conversation.id, '', onAuthChange, onSessionExpired, { clientId, place: placeShareFrom(saved), ...(meetupAt ? { meetup: { atUtc: meetupAt.toISOString() } } : {}), replyToId: quoting?.id ?? null });
+      track('message_sent', { type: meetupAt ? 'meetup' : 'place' });
       setMessages((prev) => (prev.some((message) => message.id === sent.id) ? prev : [sent, ...prev]));
       setError(null);
     } catch (err) {
@@ -206,6 +209,22 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
       setReplyTo(quoting);
     } finally {
       setSending(false);
+    }
+  };
+
+/** Doc B2: answer a meetup; optimistic, then the server's message (or back as it was, with the reason). */
+  const answerMeetup = async (message: ChatMessage, answer: MeetupAnswer | null) => {
+    if (!message.meetup || answering) return;
+    setAnswering(message.id);
+    replace({ ...message, meetup: withMyAnswer(message.meetup, auth.userId, answer, new Date().toISOString()) });
+    try {
+      replace(await respondToMeetup(auth, conversation.id, message.id, answer, refresh));
+      setError(null);
+    } catch (err) {
+      replace(message);
+      setError((err as { status?: number })?.status === 410 ? t('meetup.closedError') : friendlyError(err, t('meetup.answerFailed')));
+    } finally {
+      setAnswering(null);
     }
   };
 
@@ -289,7 +308,8 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
     const share = item.kind === 'signal' ? item.signal ?? null : null;
     const shareTone = share ? signalColors[share.signalType as keyof typeof signalColors] ?? colors.mint : colors.mint;
     const unsent = item.kind === 'unsent';
-    const sharedPlace = item.kind === 'place' ? item.place ?? null : null;
+    const sharedPlace = item.kind === 'place' || item.kind === 'meetup' ? item.place ?? null : null;
+    const meetup = item.kind === 'meetup' ? item.meetup ?? null : null;
     const livePlace = sharedPlace ? livePlaces[sharedPlace.placeId] ?? null : null;
     // A place opens on the map once the place service has answered with its position.
     const openPlace = sharedPlace && livePlace && onOpenPlace ? () => onOpenPlace(livePlace) : null;
@@ -330,7 +350,9 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
               </View>
             </View>
           ) : null}
-          {sharedPlace ? <PlaceShareCard place={livePlace} share={sharedPlace} /> : null}
+          {meetup && sharedPlace ? (
+            <MeetupCard busy={answering === item.id} meetup={meetup} myId={auth.userId} onAnswer={(answer) => { void answerMeetup(item, answer); }} otherName={otherUserName} place={livePlace} senderId={item.senderId} share={sharedPlace} />
+          ) : sharedPlace ? <PlaceShareCard place={livePlace} share={sharedPlace} /> : null}
           {!unsent && item.text ? <Text style={styles.bubbleText}>{item.text}</Text> : null}
         </AnimatedPressable>
         </SwipeToReply>
@@ -469,7 +491,7 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
     {isPlaceSheetOpen ? (
       <Sheet onClose={() => setPlaceSheetOpen(false)}>
         <BlinkrSheetPanel maxHeightRatio={0.8}>
-          <SharePlaceSheet onPick={(place) => { void sendPlace(place); }} userId={auth.userId} />
+          <SharePlaceSheet onPick={(place) => { void sendPlace(place); }} onPropose={(place, at) => { void sendPlace(place, at); }} userId={auth.userId} />
         </BlinkrSheetPanel>
       </Sheet>
     ) : null}

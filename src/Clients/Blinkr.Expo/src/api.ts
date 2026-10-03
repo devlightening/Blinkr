@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 
-import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, ConversationPreferences, CreateSignalInput, PlaceShare, MediaKind, UnifiedMapResponse, PlacePresence, SnapOpenResult, UserSummary, AuthoredPost, Friend, FriendRequests, MyProfile, PublicProfile, Relation, BlockedUser, FollowPage, FollowRequestItem, FollowUser } from './types';
+import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, ConversationPreferences, CreateSignalInput, MeetupAnswer, PlaceShare, MediaKind, UnifiedMapResponse, PlacePresence, SnapOpenResult, UserSummary, AuthoredPost, Friend, FriendRequests, MyProfile, PublicProfile, Relation, BlockedUser, FollowPage, FollowRequestItem, FollowUser } from './types';
 import { resolveUploadContentType, safeUploadFileName } from './mediaContentType';
 import { COMMENT_PAGE_SIZE, type CommentPage, type CommentSort } from './engagement';
 import { DISCOVER_PAGE_SIZE, DISCOVER_RADIUS_METERS, type DiscoverPage } from './discoverFeed';
@@ -686,15 +686,19 @@ export const sendMessage = (
   text: string,
   onAuthRefresh?: (auth: AuthResponse) => void,
   onSessionExpired?: () => void,
-  extras: { clientId?: string; signal?: SignalShare; place?: PlaceShare; replyToId?: string | null } = {},
+  extras: { clientId?: string; signal?: SignalShare; place?: PlaceShare; meetup?: { atUtc: string }; replyToId?: string | null } = {},
 ) =>
   requestJson<ChatMessage>(`/api/chat/conversations/${conversationId}/messages`, {
     auth,
-    body: { text, ...(extras.clientId ? { clientId: extras.clientId } : {}), ...(extras.signal ? { signal: extras.signal } : {}), ...(extras.place ? { place: extras.place } : {}), ...(extras.replyToId ? { replyToId: extras.replyToId } : {}) },
+    body: { text, ...(extras.clientId ? { clientId: extras.clientId } : {}), ...(extras.signal ? { signal: extras.signal } : {}), ...(extras.place ? { place: extras.place } : {}), ...(extras.meetup ? { meetup: extras.meetup } : {}), ...(extras.replyToId ? { replyToId: extras.replyToId } : {}) },
     method: 'POST',
     onAuthRefresh,
     onSessionExpired,
   });
+
+/** Doc B2: answer a meetup proposal; null takes the answer back. 410 MEETUP_CLOSED once it is well past. */
+export const respondToMeetup = (auth: AuthResponse, conversationId: string, messageId: string, answer: MeetupAnswer | null, refresh: Refresh = {}) =>
+  requestJson<ChatMessage>(`/api/chat/conversations/${conversationId}/messages/${messageId}/meetup`, { auth, body: { answer }, method: 'PUT', ...refresh });
 
 /** Take back my own text or shared signal (Faz 8). */
 export const unsendMessage = (auth: AuthResponse, conversationId: string, messageId: string, refresh: Refresh = {}) =>

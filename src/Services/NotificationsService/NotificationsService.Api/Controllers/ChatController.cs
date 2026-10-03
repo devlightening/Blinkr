@@ -52,7 +52,9 @@ public class ChatController : ControllerBase
 
     public record SignalShareRequest(Guid PostId, string? SignalType, string? SignalValue, string? Title, string? LocationName);
     public record PlaceShareRequest(Guid PlaceId, string? Name, string? Category);
-    public record SendMessageRequest(string? Text, string? ClientId = null, SignalShareRequest? Signal = null, string? ReplyToId = null, PlaceShareRequest? Place = null);
+    public record MeetupRequest(DateTime AtUtc);
+    public record SendMessageRequest(string? Text, string? ClientId = null, SignalShareRequest? Signal = null, string? ReplyToId = null, PlaceShareRequest? Place = null, MeetupRequest? Meetup = null);
+    public record MeetupAnswerRequest(string? Answer);
     public record ReactionRequest(string? Emoji);
 
     [HttpPost("conversations/{id}/messages")]
@@ -64,10 +66,11 @@ public class ChatController : ControllerBase
         if (ContentTextFilter.Review(req.Text, maskPersonalData: false).Verdict == TextVerdict.Blocked)
             return UnprocessableEntity(new { code = ContentTextFilter.BlockedCode, message = "Bu içerik topluluk kurallarına uymuyor." });
         var userId = User.GetUserId();
-        _logger.LogInformation("Chat: SendMessage | UserId={UserId} | ConversationId={ConversationId} | Kind={Kind}", userId, id, req.Signal is not null ? "signal" : req.Place is not null ? "place" : "text");
+        _logger.LogInformation("Chat: SendMessage | UserId={UserId} | ConversationId={ConversationId} | Kind={Kind}", userId, id, req.Signal is not null ? "signal" : req.Meetup is not null ? "meetup" : req.Place is not null ? "place" : "text");
         var signal = req.Signal is null ? null : new SignalShareInput(req.Signal.PostId, req.Signal.SignalType, req.Signal.SignalValue, req.Signal.Title, req.Signal.LocationName);
         var place = req.Place is null ? null : new PlaceShareInput(req.Place.PlaceId, req.Place.Name, req.Place.Category);
-        var message = await _mediator.Send(new SendMessageCommand(userId, id, req.Text ?? string.Empty, req.ClientId, signal, req.ReplyToId, place));
+        var meetup = req.Meetup is null ? null : new MeetupInput(req.Meetup.AtUtc);
+        var message = await _mediator.Send(new SendMessageCommand(userId, id, req.Text ?? string.Empty, req.ClientId, signal, req.ReplyToId, place, meetup));
         return Ok(message);
     }
 
@@ -80,6 +83,11 @@ public class ChatController : ControllerBase
     [HttpPut("conversations/{id}/messages/{messageId}/reaction")]
     public async Task<IActionResult> React(string id, string messageId, [FromBody] ReactionRequest req) =>
         Ok(await _mediator.Send(new ReactToMessageCommand(User.GetUserId(), id, messageId, req?.Emoji)));
+
+    /// <summary>PUT /api/chat/conversations/{id}/messages/{messageId}/meetup - { answer: "going" | "declined" | null } (doc B2).</summary>
+    [HttpPut("conversations/{id}/messages/{messageId}/meetup")]
+    public async Task<IActionResult> RespondToMeetup(string id, string messageId, [FromBody] MeetupAnswerRequest req) =>
+        Ok(await _mediator.Send(new RespondToMeetupCommand(User.GetUserId(), id, messageId, req?.Answer)));
 
     /// <summary>
     /// Sends a view-once photo or video. The body is the raw media (Content-Type = its type); the timer and an

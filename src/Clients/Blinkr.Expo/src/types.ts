@@ -297,7 +297,11 @@ export type Conversation = {
 /** Doc B1: a catalog place shared in chat. No coordinates and nothing about where the sender is. */
 export type PlaceShare = { placeId: string; name: string; category?: string | null };
 
-export type ConversationPreferences ={ conversationId: string; isPinned: boolean; pinnedAtUtc?: string | null; isMuted: boolean };
+export type MeetupAnswer = 'going' | 'declined';
+/** Doc B2: a place and a time, never anyone's position. `closed` = two hours past the time. */
+export type Meetup = { atUtc: string; responses: Array<{ userId: string; answer: MeetupAnswer; atUtc: string }>; closed: boolean };
+
+export type ConversationPreferences = {conversationId: string; isPinned: boolean; pinnedAtUtc?: string | null; isMuted: boolean };
 
 export type SnapState = 'sent' | 'opened' | 'expired';
 
@@ -327,7 +331,9 @@ export type ChatMessage = {
   text: string;
   createdAtUtc: string;
   isRead: boolean;
-  kind?: 'text' | 'snap' | 'signal' | 'place' | 'unsent';
+  kind?: 'text' | 'snap' | 'signal' | 'place' | 'meetup' | 'unsent';
+  /** Doc B2: "Buluşalım" - a time to meet at `place`, with the answers. */
+  meetup?: Meetup | null;
   snap?: SnapInfo | null;
   /** Faz 8: a shared signal (link + snapshot, never its author). */
   signal?: import('./chatExtras').SignalShare | null;

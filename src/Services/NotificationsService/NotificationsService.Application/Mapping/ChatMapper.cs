@@ -43,6 +43,10 @@ public static class ChatMapper
             m.ReplyTo is null ? null : new ReplyDto(m.ReplyTo.MessageId, m.ReplyTo.SenderId, m.ReplyTo.Text, m.ReplyTo.Kind),
             m.SenderId == viewerId && m.ReadByUserIds.Any(u => u != m.SenderId),
             m.SenderId == viewerId ? m.ReadAtUtc : null,
-            m.Place is null ? null : new PlaceShareDto(m.Place.PlaceId, m.Place.Name, m.Place.Category)
+            m.Place is null ? null : new PlaceShareDto(m.Place.PlaceId, m.Place.Name, m.Place.Category),
+            m.Meetup is null ? null : new MeetupDto(
+                m.Meetup.AtUtc,
+                m.Meetup.Responses.Select(r => new MeetupResponseDto(r.UserId, r.Answer, r.AtUtc)).ToList(),
+                m.Meetup.IsClosed(DateTime.UtcNow))
         );
 }

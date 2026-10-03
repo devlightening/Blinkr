@@ -166,5 +166,31 @@
     "noSavedHint": "Bir yerin sayfasında \"Kaydet\"e dokun; burada paylaşabilirsin.",
     "sendA11y": "{{name}} yerini gönder",
     "noMatch": "Eşleşen kayıtlı yer yok"
+  },
+  "meetup": {
+    "title": "Buluşalım",
+    "in30": "30 dk sonra",
+    "in60": "1 saat sonra",
+    "tonight": "Bu akşam 19:00",
+    "tomorrowNoon": "Yarın 12:00",
+    "tomorrowEvening": "Yarın 19:00",
+    "todayAt": "Bugün {{time}}",
+    "tomorrowAt": "Yarın {{time}}",
+    "closed": "Zamanı geçti",
+    "theyGoing": "{{name}} geliyor",
+    "theyDeclined": "{{name}} gelemiyor",
+    "waiting": "Yanıt bekleniyor",
+    "youGoing": "Geliyorsun",
+    "youDeclined": "Gelemiyorsun",
+    "askYou": "Geliyor musun?",
+    "going": "Geliyorum",
+    "decline": "Olmaz",
+    "earlier": "15 dk erken",
+    "later": "15 dk geç",
+    "privacy": "Yalnız yer ve saat gider; kimsenin konumu paylaşılmaz.",
+    "propose": "Buluşma öner",
+    "proposeAt": "{{name}} için buluşma öner",
+    "closedError": "Bu buluşmanın zamanı geçti.",
+    "answerFailed": "Yanıt gönderilemedi. Tekrar dene."
   }
 }

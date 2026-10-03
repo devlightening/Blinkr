@@ -17,7 +17,7 @@ export const placeShareFrom = (place: { id: string; name: string; category?: str
 export const sharedPlaceIds = (messages: Pick<ChatMessage, 'kind' | 'place'>[]): string[] => {
   const ids: string[] = [];
   for (const message of messages) {
-    const id = message.kind === 'place' ? message.place?.placeId : undefined;
+    const id = message.kind === 'place' || message.kind === 'meetup' ? message.place?.placeId : undefined;
     if (id && !ids.includes(id)) ids.push(id);
     if (ids.length >= PLACE_BATCH_LIMIT) break;
   }

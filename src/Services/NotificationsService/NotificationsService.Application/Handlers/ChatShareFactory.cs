@@ -13,6 +13,7 @@ public static class ChatShareFactory
     public const string TextKind = "text";
     public const string SignalKind = "signal";
     public const string PlaceKind = "place";
+    public const string MeetupKind = "meetup";
 
     public static string? Clip(string? value, int max)
     {
@@ -42,11 +43,21 @@ public static class ChatShareFactory
         return new PlaceSharePayload { PlaceId = input.PlaceId, Name = name, Category = Clip(input.Category, 40) };
     }
 
-    /// <summary>The kind of a new message; a message shares at most one thing.</summary>
-    public static string KindOf(SignalSharePayload? signal, PlaceSharePayload? place)
+    /// <summary>Doc B2: a meetup needs a place and a time inside the allowed window (see <see cref="MeetupPayload"/>).</summary>
+    public static MeetupPayload? Meetup(MeetupInput? input, PlaceSharePayload? place, DateTime nowUtc)
+    {
+        if (input is null) return null;
+        if (place is null) throw new ChatValidationException("Buluşma için bir yer seç.");
+        var at = DateTime.SpecifyKind(input.AtUtc.ToUniversalTime(), DateTimeKind.Utc);
+        if (!MeetupPayload.IsValidTime(at, nowUtc)) throw new ChatValidationException("Buluşma zamanı şimdi ile 14 gün sonrası arasında olmalı.");
+        return MeetupPayload.Create(at, nowUtc);
+    }
+
+    /// <summary>The kind of a new message; a message shares at most one thing (a meetup is a place with a time).</summary>
+    public static string KindOf(SignalSharePayload? signal, PlaceSharePayload? place, MeetupPayload? meetup = null)
     {
         if (signal is not null && place is not null) throw new ChatValidationException("Bir mesaj tek bir şey paylaşabilir.");
-        return signal is not null ? SignalKind : place is not null ? PlaceKind : TextKind;
+        return signal is not null ? SignalKind : meetup is not null ? MeetupKind : place is not null ? PlaceKind : TextKind;
     }
 
     /// <summary>The conversation list line: the sender's note if any, otherwise what was shared.</summary>
@@ -55,6 +66,7 @@ public static class ChatShareFactory
         {
             SignalKind => "Sinyal paylaştı",
             PlaceKind => "Yer paylaştı",
+            MeetupKind => "Buluşma önerdi",
             _ => text,
         };
 
@@ -63,7 +75,7 @@ public static class ChatShareFactory
     {
         "snap" or "unsent" => string.Empty,
         SignalKind => Clip(quoted.Signal?.Title ?? quoted.Text, 120) ?? string.Empty,
-        PlaceKind => Clip(quoted.Place?.Name ?? quoted.Text, 120) ?? string.Empty,
+        PlaceKind or MeetupKind => Clip(quoted.Place?.Name ?? quoted.Text, 120) ?? string.Empty,
         _ => Clip(quoted.Text, 120) ?? string.Empty,
     };
 }

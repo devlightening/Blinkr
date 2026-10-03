@@ -49,7 +49,8 @@ public sealed class SendMessageHandler : IRequestHandler<SendMessageCommand, Cha
         var text = req.Text?.Trim() ?? string.Empty;
         var signal = ChatShareFactory.Signal(req.Signal);
         var place = ChatShareFactory.Place(req.Place);
-        var kind = ChatShareFactory.KindOf(signal, place);
+        var meetup = ChatShareFactory.Meetup(req.Meetup, place, DateTime.UtcNow);
+        var kind = ChatShareFactory.KindOf(signal, place, meetup);
         if (string.IsNullOrEmpty(text) && kind == ChatShareFactory.TextKind)
             throw new ChatValidationException("Mesaj boş olamaz.");
         if (text.Length > 2000)
@@ -97,6 +98,7 @@ public sealed class SendMessageHandler : IRequestHandler<SendMessageCommand, Cha
             Kind = kind,
             Signal = signal,
             Place = place,
+            Meetup = meetup,
             ClientId = clientId,
         };
 
@@ -265,6 +267,7 @@ public sealed class UnsendMessageHandler : IRequestHandler<UnsendMessageCommand,
         message.Text = string.Empty;
         message.Signal = null;
         message.Place = null;
+        message.Meetup = null;
         message.Reactions = new();
         await _messages.ReplaceAsync(message, ct);
         await _messages.ClearQuotesAsync(req.ConversationId, message.Id!, ct);
@@ -299,6 +302,42 @@ public sealed class ReactToMessageHandler : IRequestHandler<ReactToMessageComman
 
         message.Reactions = (message.Reactions ?? new()).Where(r => r.UserId != req.UserId).ToList();
         if (req.Emoji is not null) message.Reactions.Add(new MessageReaction { UserId = req.UserId, Emoji = req.Emoji });
+        await _messages.ReplaceAsync(message, ct);
+        return message.ToDto(req.UserId);
+    }
+}
+
+/// <summary>
+/// Doc B2: the other person answers a meetup proposal. The proposer cannot answer their own; answers close two hours
+/// after the time (410 MEETUP_CLOSED). The same block check as every chat write applies.
+/// </summary>
+public sealed class RespondToMeetupHandler : IRequestHandler<RespondToMeetupCommand, ChatMessageDto>
+{
+    private readonly IConversationRepository _conversations;
+    private readonly IChatMessageRepository _messages;
+    private readonly IBlockGuard _blocks;
+
+    public RespondToMeetupHandler(IConversationRepository conversations, IChatMessageRepository messages, IBlockGuard blocks)
+    {
+        _conversations = conversations;
+        _messages = messages;
+        _blocks = blocks;
+    }
+
+    public async Task<ChatMessageDto> Handle(RespondToMeetupCommand req, CancellationToken ct)
+    {
+        if (req.Answer is not null && !MeetupPayload.IsAnswer(req.Answer)) throw new ChatValidationException("Geçersiz yanıt.");
+        var conversation = await _conversations.GetByIdAsync(req.ConversationId, ct) ?? throw new ChatNotFoundException("Konuşma bulunamadı.");
+        if (!conversation.ParticipantIds.Contains(req.UserId)) throw new ChatForbiddenException("Bu konuşmaya erişimin yok.");
+        await _blocks.EnsureAllowedAsync(req.UserId, conversation.ParticipantIds.OtherParticipant(req.UserId), ct);
+        var message = await _messages.GetByIdAsync(req.MessageId, ct);
+        if (message is null || message.ConversationId != req.ConversationId || message.Kind != ChatShareFactory.MeetupKind || message.Meetup is null)
+            throw new ChatNotFoundException("Buluşma bulunamadı.");
+        if (message.SenderId == req.UserId) throw new ChatForbiddenException("Kendi önerine yanıt veremezsin.");
+
+        var now = DateTime.UtcNow;
+        if (message.Meetup.IsClosed(now)) throw new ChatGoneException("MEETUP_CLOSED", "Bu buluşmanın zamanı geçti.");
+        message.Meetup.Respond(req.UserId, req.Answer, now);
         await _messages.ReplaceAsync(message, ct);
         return message.ToDto(req.UserId);
     }

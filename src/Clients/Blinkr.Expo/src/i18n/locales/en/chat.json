@@ -166,5 +166,31 @@
     "noSavedHint": "Tap \"Save\" on a place page to share it here.",
     "sendA11y": "Send {{name}}",
     "noMatch": "No saved place matches"
+  },
+  "meetup": {
+    "title": "Let's meet",
+    "in30": "In 30 min",
+    "in60": "In 1 hour",
+    "tonight": "Tonight 19:00",
+    "tomorrowNoon": "Tomorrow 12:00",
+    "tomorrowEvening": "Tomorrow 19:00",
+    "todayAt": "Today {{time}}",
+    "tomorrowAt": "Tomorrow {{time}}",
+    "closed": "Time has passed",
+    "theyGoing": "{{name}} is coming",
+    "theyDeclined": "{{name}} can't make it",
+    "waiting": "Waiting for an answer",
+    "youGoing": "You're going",
+    "youDeclined": "You can't make it",
+    "askYou": "Are you coming?",
+    "going": "I'm coming",
+    "decline": "Can't",
+    "earlier": "15 min earlier",
+    "later": "15 min later",
+    "privacy": "Only the place and time are sent; nobody's location is shared.",
+    "propose": "Propose meetup",
+    "proposeAt": "Propose meeting at {{name}}",
+    "closedError": "This meetup has passed.",
+    "answerFailed": "Couldn't send your answer. Try again."
   }
 }
