@@ -32,6 +32,7 @@ import { SkeletonList } from '../ui/BlinkrSkeleton';
 import { FeedCard } from './FeedCard';
 import { HashtagSearch } from './HashtagSearch';
 import { ShareToChatSheet } from '../chat/ShareToChatSheet';
+import { signalTarget } from '../../shareTarget';
 import { signalShareOf, type SignalShare } from '../../chatExtras';
 
 type Props = {
@@ -389,7 +390,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
         </Sheet>
       ) : null}
       {notificationsOpen ? <NotificationsScreen auth={auth} onAuthChange={onAuthChange} onBack={() => { setNotificationsOpen(false); setUnread(0); }} onLogout={onLogout} onMessageUser={onMessageUser} /> : null}
-      {sharing ? <ShareToChatSheet auth={auth} onClose={() => setSharing(null)} refresh={refresh.current} share={sharing} /> : null}
+      {sharing ? <ShareToChatSheet auth={auth} onClose={() => setSharing(null)} refresh={refresh.current} target={signalTarget(sharing)} /> : null}
       {storyView ? (
         <StoryViewer auth={auth} authors={storyView.authors} onClose={() => { setStoryView(null); setTrayKey((k) => k + 1); }} refresh={refresh.current} startAuthorId={storyView.start} />
       ) : null}

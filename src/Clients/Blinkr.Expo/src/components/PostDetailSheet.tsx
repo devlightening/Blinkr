@@ -1,4 +1,4 @@
-import { Bookmark, Camera, Check, Clock3, Compass, Flag, Image as ImageIcon, Layers, MapPin, MessageCircle, RefreshCw, Share2, ShieldCheck, X, Zap } from 'lucide-react-native';
+import { ArrowLeft, Bookmark, Camera, Check, Clock3, Compass, Flag, Image as ImageIcon, Layers, MapPin, MessageCircle, RefreshCw, Share2, ShieldCheck, X, Zap } from 'lucide-react-native';
 import { ActivityIndicator, Alert, Image, Linking, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +15,8 @@ import { confidenceKey, freshnessLabelKey, freshnessTier } from '../freshness';
 import { recheckSignal, signalValueLabel, trustLabel } from '../productPresentation';
 import { AnimatedPressable } from './AnimatedPressable';
 import { ReportPanel } from './ReportPanel';
+import { ShareToChatPanel } from './chat/ShareToChatSheet';
+import { placeTarget, shareText } from '../shareTarget';
 import { Sheet } from './Sheet';
 import { SignalSymbol } from './SignalSymbol';
 import { PlaceSymbol } from './PlaceSymbol';
@@ -167,9 +169,11 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
   const [saved, setSaved] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ postId?: string; userId?: string; label: string } | null>(null);
   const [thread, setThread] = useState<RecentSignal | null>(null);
+  // Doc B1: the share menu replaces the place page inside this same sheet (one overlay owner, CLAUDE.md §12.4).
+  const [sharing, setSharing] = useState(false);
 
   // A different place or signal closes any half-filled report and any open thread.
-  useEffect(() => { setReportTarget(null); setThread(null); }, [place?.id, signal?.postId]);
+  useEffect(() => { setReportTarget(null); setThread(null); setSharing(false); }, [place?.id, signal?.postId]);
 
   useEffect(() => {
     let active = true;
@@ -209,6 +213,14 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
             subject={reportTarget.label}
             target={reportTarget.userId ? 'user' : 'signal'}
           />
+        </BlinkrSheetPanel>
+      ) : null}
+      {!reportTarget && !thread && sharing && place && auth ? (
+        <BlinkrSheetPanel maxHeightRatio={0.8}>
+          <AnimatedPressable accessibilityLabel={tx('common:actions.back', 'Geri dön')} accessibilityRole="button" hitSlop={10} onPress={() => setSharing(false)} pressScale={0.9} style={styles.shareBack}>
+            <ArrowLeft color={colors.text} size={22} />
+          </AnimatedPressable>
+          <ShareToChatPanel auth={auth} refresh={refresh} target={placeTarget(place)} />
         </BlinkrSheetPanel>
       ) : null}
       {!reportTarget && thread ? (
@@ -275,7 +287,7 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
         </BlinkrSheetPanel>
       )}
 
-      {!reportTarget && !thread && place && (
+      {!reportTarget && !thread && !sharing && place && (
         <BlinkrSheetPanel maxHeightRatio={0.9}>
           <ScrollView showsVerticalScrollIndicator={false}>
             <PhotoRail signals={recentSignals} />
@@ -353,7 +365,8 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
               <ActionTile
                 icon={<Share2 color={colors.text} size={24} />}
                 label={tx('common:actions.share', 'Paylaş')}
-                onPress={() => Share.share({ message: `${place.name} · ${formatCategory(place.category)}\nhttps://maps.apple.com/?q=${encodeURIComponent(place.name)}&ll=${place.latitude},${place.longitude}` }).catch(() => Alert.alert(tx('signal:place.shareFailed', 'Paylaşılamadı')))}
+                // Signed in: the share menu (send to a friend as a live place card, copy, other apps). Otherwise the system sheet.
+                onPress={() => (auth ? setSharing(true) : Share.share({ message: shareText(placeTarget(place)) }).catch(() => Alert.alert(tx('signal:place.shareFailed', 'Paylaşılamadı'))))}
               />
               <ActionTile accessibilityLabel={tx('signal:place.directions', 'Yol tarifi')} icon={<Compass color={colors.text} size={24} />} label={tx('signal:place.directions', 'Yol tarifi')} onPress={() => openDirections(place)} />
             </View>
@@ -381,6 +394,7 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
 }
 
 const styles = StyleSheet.create({
+  shareBack: { alignItems: 'center', height: 40, justifyContent: 'center', marginBottom: spacing.xs, marginLeft: -spacing.xs, width: 40 },
   photoRail: { flexDirection: 'row', gap: spacing.sm, height: 128, marginBottom: spacing.lg },
   photo: { backgroundColor: colors.surfaceElevated, borderRadius: radii.card, height: '100%' },
   photoMain: { flex: 2.4 },

@@ -5,9 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
 import { listFriends, sendMessage, startConversation } from '../../api';
-import { newClientId, type SignalShare } from '../../chatExtras';
-import { postLink, shareMessage } from '../../deepLinks';
+import { newClientId } from '../../chatExtras';
 import { success } from '../../haptics';
+import { chatExtras, shareLink, shareText, type ShareTarget } from '../../shareTarget';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { AuthResponse, Friend } from '../../types';
 import { AnimatedPressable } from '../AnimatedPressable';
@@ -15,19 +15,23 @@ import { Avatar } from '../Avatar';
 import { Sheet } from '../Sheet';
 import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
 
-type Props = {
+type Refresh = { onAuthRefresh?: (auth: AuthResponse) => void; onSessionExpired?: () => void };
+
+type PanelProps = {
   auth: AuthResponse;
-  share: SignalShare;
-  onClose: () => void;
-  refresh?: { onAuthRefresh?: (auth: AuthResponse) => void; onSessionExpired?: () => void };
+  /** A signal (V2-7) or a catalog place (doc B1). */
+  target: ShareTarget;
+  refresh?: Refresh;
 };
 
 /**
- * The share menu (V2-7; sinyal-mvp-plan P8.7): copy the signal's link, hand it to another app (the system share sheet),
- * or send it to a friend as a chat message (a link and a summary, never the poster's name; each send carries its own
- * client id, so a double tap never sends twice).
+ * The share menu content (V2-7; sinyal-mvp-plan P8.7; doc B1): copy the link, hand it to another app (the system share
+ * sheet), or send it to a friend as a chat message - a signal as a link and a summary (never the poster's name), a
+ * place as its id and name (its live state is read when the bubble is shown). Each send carries its own client id, so
+ * a double tap never sends twice. Content only: a screen that already owns a sheet swaps this in instead of opening a
+ * second one (CLAUDE.md §12.4); `ShareToChatSheet` wraps it for everyone else.
  */
-export function ShareToChatSheet({ auth, share, onClose, refresh = {} }: Props) {
+export function ShareToChatPanel({ auth, target, refresh = {} }: PanelProps) {
   const { t } = useTranslation('chat');
   const [friends, setFriends] = useState<Friend[] | null>(null);
   const [sent, setSent] = useState<Record<string, 'sending' | 'sent' | 'failed'>>({});
@@ -44,7 +48,7 @@ export function ShareToChatSheet({ auth, share, onClose, refresh = {} }: Props) 
 
   const copyLink = async () => {
     try {
-      await Clipboard.setStringAsync(postLink(share.postId));
+      await Clipboard.setStringAsync(shareLink(target));
       setNotice(t('extras.linkCopied'));
       success();
     } catch {
@@ -54,7 +58,7 @@ export function ShareToChatSheet({ auth, share, onClose, refresh = {} }: Props) 
 
   const shareElsewhere = async () => {
     try {
-      await Share.share({ message: shareMessage(share) });
+      await Share.share({ message: shareText(target) });
     } catch {
       setNotice(t('extras.shareElsewhereFailed'));
     }
@@ -65,7 +69,7 @@ export function ShareToChatSheet({ auth, share, onClose, refresh = {} }: Props) 
     setSent((current) => ({ ...current, [friend.id]: 'sending' }));
     try {
       const conversation = await startConversation(auth, friend.id, refresh.onAuthRefresh, refresh.onSessionExpired);
-      await sendMessage(auth, conversation.id, '', refresh.onAuthRefresh, refresh.onSessionExpired, { clientId: newClientId(), signal: share });
+      await sendMessage(auth, conversation.id, '', refresh.onAuthRefresh, refresh.onSessionExpired, { clientId: newClientId(), ...chatExtras(target) });
       setSent((current) => ({ ...current, [friend.id]: 'sent' }));
       setNotice(t('extras.shareSent', { name: friend.userName }));
       success();
@@ -76,51 +80,61 @@ export function ShareToChatSheet({ auth, share, onClose, refresh = {} }: Props) 
   };
 
   return (
+    <View style={styles.panel}>
+      <Text accessibilityRole="header" style={styles.title}>{t('extras.shareMenuTitle')}</Text>
+      <View style={styles.actions}>
+        <AnimatedPressable accessibilityRole="button" onPress={() => { void copyLink(); }} pressScale={0.95} style={styles.action} testID="share-copy-link">
+          <View style={styles.actionIcon}><Link2 color={colors.text} size={20} /></View>
+          <Text style={styles.actionText}>{t('extras.copyLink')}</Text>
+        </AnimatedPressable>
+        <AnimatedPressable accessibilityRole="button" onPress={() => { void shareElsewhere(); }} pressScale={0.95} style={styles.action} testID="share-elsewhere">
+          <View style={styles.actionIcon}><Share2 color={colors.text} size={20} /></View>
+          <Text style={styles.actionText}>{t('extras.shareElsewhere')}</Text>
+        </AnimatedPressable>
+      </View>
+      {notice ? <Text accessibilityLiveRegion="polite" style={styles.notice}>{notice}</Text> : null}
+      <Text accessibilityRole="header" style={styles.subtitle}>{t('extras.shareTitle')}</Text>
+      <Text style={styles.hint}>{target.kind === 'place' ? t('extras.sharePlaceHint') : t('extras.shareHint')}</Text>
+      {friends === null ? <ActivityIndicator color={colors.primary} style={styles.loading} /> : null}
+      {friends && friends.length === 0 ? <Text style={styles.hint}>{t('extras.noFriends')}</Text> : null}
+      <ScrollView style={styles.list}>
+        {(friends ?? []).map((friend) => {
+          const state = sent[friend.id];
+          return (
+            <View key={friend.id} style={styles.row}>
+              <Avatar avatarKey={friend.avatarKey} seed={friend.id} userId={friend.id} size={40} />
+              <Text numberOfLines={1} style={styles.name}>{friend.userName}</Text>
+              <AnimatedPressable
+                accessibilityLabel={`${friend.userName}: ${t('extras.share')}`}
+                accessibilityRole="button"
+                disabled={state === 'sending' || state === 'sent'}
+                onPress={() => { void sendTo(friend); }}
+                pressScale={0.92}
+                style={[styles.send, state === 'sent' && styles.sent]}
+              >
+                {state === 'sending' ? <ActivityIndicator color={colors.ink} size="small" /> : <Send color={colors.ink} size={16} />}
+              </AnimatedPressable>
+            </View>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
+/** The share menu in its own sheet, for screens that do not already own one. */
+export function ShareToChatSheet({ onClose, ...panel }: PanelProps & { onClose: () => void }) {
+  return (
     <Sheet onClose={onClose}>
       <BlinkrSheetPanel maxHeightRatio={0.75}>
-        <Text accessibilityRole="header" style={styles.title}>{t('extras.shareMenuTitle')}</Text>
-        <View style={styles.actions}>
-          <AnimatedPressable accessibilityRole="button" onPress={() => { void copyLink(); }} pressScale={0.95} style={styles.action} testID="share-copy-link">
-            <View style={styles.actionIcon}><Link2 color={colors.text} size={20} /></View>
-            <Text style={styles.actionText}>{t('extras.copyLink')}</Text>
-          </AnimatedPressable>
-          <AnimatedPressable accessibilityRole="button" onPress={() => { void shareElsewhere(); }} pressScale={0.95} style={styles.action} testID="share-elsewhere">
-            <View style={styles.actionIcon}><Share2 color={colors.text} size={20} /></View>
-            <Text style={styles.actionText}>{t('extras.shareElsewhere')}</Text>
-          </AnimatedPressable>
-        </View>
-        {notice ? <Text accessibilityLiveRegion="polite" style={styles.notice}>{notice}</Text> : null}
-        <Text accessibilityRole="header" style={styles.subtitle}>{t('extras.shareTitle')}</Text>
-        <Text style={styles.hint}>{t('extras.shareHint')}</Text>
-        {friends === null ? <ActivityIndicator color={colors.primary} style={styles.loading} /> : null}
-        {friends && friends.length === 0 ? <Text style={styles.hint}>{t('extras.noFriends')}</Text> : null}
-        <ScrollView style={styles.list}>
-          {(friends ?? []).map((friend) => {
-            const state = sent[friend.id];
-            return (
-              <View key={friend.id} style={styles.row}>
-                <Avatar avatarKey={friend.avatarKey} seed={friend.id} userId={friend.id} size={40} />
-                <Text numberOfLines={1} style={styles.name}>{friend.userName}</Text>
-                <AnimatedPressable
-                  accessibilityLabel={`${friend.userName}: ${t('extras.share')}`}
-                  accessibilityRole="button"
-                  disabled={state === 'sending' || state === 'sent'}
-                  onPress={() => { void sendTo(friend); }}
-                  pressScale={0.92}
-                  style={[styles.send, state === 'sent' && styles.sent]}
-                >
-                  {state === 'sending' ? <ActivityIndicator color={colors.ink} size="small" /> : <Send color={colors.ink} size={16} />}
-                </AnimatedPressable>
-              </View>
-            );
-          })}
-        </ScrollView>
+        <ShareToChatPanel {...panel} />
       </BlinkrSheetPanel>
     </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
+  panel: { flexShrink: 1 },
   title: { ...typography.title, color: colors.text },
   hint: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
   subtitle: { ...typography.heading, color: colors.text, marginTop: spacing.lg },

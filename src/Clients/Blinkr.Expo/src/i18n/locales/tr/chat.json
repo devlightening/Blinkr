@@ -25,7 +25,8 @@
     "shareElsewhere": "Diğer uygulamalar",
     "linkCopied": "Bağlantı kopyalandı.",
     "linkCopyFailed": "Bağlantı kopyalanamadı.",
-    "shareElsewhereFailed": "Paylaşım açılamadı."
+    "shareElsewhereFailed": "Paylaşım açılamadı.",
+    "sharePlaceHint": "Yer kartı gider; arkadaşın o yerin şu anki durumunu görür. Senin konumun gitmez."
   },
   "thread": {
     "loadFailed": "Mesajlar yüklenemedi.",

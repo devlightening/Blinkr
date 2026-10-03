@@ -25,7 +25,8 @@
     "shareElsewhere": "Other apps",
     "linkCopied": "Link copied.",
     "linkCopyFailed": "Couldn't copy the link.",
-    "shareElsewhereFailed": "Couldn't open sharing."
+    "shareElsewhereFailed": "Couldn't open sharing.",
+    "sharePlaceHint": "A place card goes; your friend sees how it is doing right now. Your location is not sent."
   },
   "thread": {
     "loadFailed": "Messages couldn't be loaded.",

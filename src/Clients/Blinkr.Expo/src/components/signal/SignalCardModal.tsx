@@ -23,6 +23,7 @@ import { PlaceSymbol } from '../PlaceSymbol';
 import { ReportPanel } from '../ReportPanel';
 import { Sheet } from '../Sheet';
 import { ShareToChatSheet } from '../chat/ShareToChatSheet';
+import { signalTarget } from '../../shareTarget';
 import { BlinkrButton } from '../ui/BlinkrButton';
 import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
 import { MediaViewer } from './MediaViewer';
@@ -483,7 +484,7 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
         </Sheet>
       ) : null}
 
-      {share ? <ShareToChatSheet auth={auth} onClose={() => setShare(null)} refresh={refresh} share={share} /> : null}
+      {share ? <ShareToChatSheet auth={auth} onClose={() => setShare(null)} refresh={refresh} target={signalTarget(share)} /> : null}
       {viewer ? <MediaViewer items={viewer.items} onClose={() => setViewer(null)} startIndex={viewer.start} /> : null}
     </View>
   );
