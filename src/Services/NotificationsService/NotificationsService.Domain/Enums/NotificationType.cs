@@ -15,5 +15,7 @@ public enum NotificationType
     /// <summary>Someone @mentioned you in a signal or comment (V2-4).</summary>
     Mentioned = 9,
     /// <summary>A place you watch reached the state you waited for (D-038, "Haber ver").</summary>
-    PlaceWatch = 10
+    PlaceWatch = 10,
+    /// <summary>A question you asked about a place got a verified answer (D-039, "Yere sor").</summary>
+    PlaceQuestionAnswered = 11
 }

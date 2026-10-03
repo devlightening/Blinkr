@@ -18,6 +18,7 @@ import { ReportPanel } from './ReportPanel';
 import { ShareToChatPanel } from './chat/ShareToChatSheet';
 import { PlaceRhythmCard } from './place/PlaceRhythmCard';
 import { PlaceWatchControl } from './place/PlaceWatchControl';
+import { PlaceQuestionsCard } from './place/PlaceQuestionsCard';
 import { placeTarget, shareText } from '../shareTarget';
 import { Sheet } from './Sheet';
 import { SignalSymbol } from './SignalSymbol';
@@ -377,6 +378,8 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
             <PlaceRhythmCard placeId={place.id} />
             {/* D-038: tell me once when it gets quiet / opens / has news. */}
             {auth ? <PlaceWatchControl auth={auth} place={place} refresh={refresh} /> : null}
+            {/* D-039: ask how it is right now; answer with a normal signal (counts only when verified on site). */}
+            <PlaceQuestionsCard auth={auth} onAnswer={onRecheck ? (type) => onRecheck('changed', { type, value: '' }) : undefined} place={place} refresh={refresh} />
 
             <View style={styles.sectionHeader}>
               <Text accessibilityRole="header" style={styles.sectionLabel}>{tx('signal:place.recent', 'Son sinyaller')}</Text>

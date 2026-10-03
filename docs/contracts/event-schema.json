@@ -540,6 +540,23 @@
         "SignalType": "System.String?",
         "SignalValue": "System.String?"
       }
+    },
+    "Shared.Events.Events.Place.PlaceQuestionAnsweredIntegrationEvent, Shared.Events": {
+      "kind": "integration",
+      "properties": {
+        "AnswerPostId": "System.Guid",
+        "AnswerSignalType": "System.String?",
+        "AnswerValue": "System.String?",
+        "AnsweredAtUtc": "System.DateTime",
+        "AnsweredByAuthorId": "System.Guid?",
+        "AskerIds": "System.Collections.Generic.IReadOnlyList\u003CSystem.Guid\u003E",
+        "Id": "System.Guid",
+        "Kind": "System.String",
+        "OccurredOn": "System.DateTime",
+        "PlaceId": "System.Guid",
+        "PlaceName": "System.String",
+        "QuestionId": "System.Guid"
+      }
     }
   }
 }

@@ -1,12 +1,13 @@
 import * as Location from 'expo-location';
-import { Compass, MapPin, Radio, WifiOff } from 'lucide-react-native';
+import { Compass, HelpCircle, MapPin, Radio, WifiOff } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, AppState, FlatList, Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getUnifiedMapBounds } from '../api';
+import { getNearbyQuestions, getUnifiedMapBounds } from '../api';
+import { questionText, waitingLabel, type PlaceQuestion } from '../placeQuestions';
 import { ACTIVITY_RADIUS_METERS, boundsAround, buildNearbyActivity, filterActivity, type ActivityFilter, type ActivityItem } from '../nearbyActivity';
 import { formatAge, formatCategory, formatDistance, signalLabels } from '../presentation';
 import { friendlyError, signalValueLabel } from '../productPresentation';
@@ -110,6 +111,8 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedd
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
+  // D-039: open questions around me, which I could answer if I am there.
+  const [questions, setQuestions] = useState<PlaceQuestion[]>([]);
   const controller = useRef<AbortController | null>(null);
   const generation = useRef(0);
   const mounted = useRef(true);
@@ -139,6 +142,10 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedd
       if (!current()) return;
       if (!hasResult.current) setPhase('loading');
 
+      // Questions are a bonus: they load alongside and never hold up or fail the list.
+      getNearbyQuestions(origin.latitude, origin.longitude, null, mine.signal)
+        .then((found) => { if (current()) setQuestions(found); })
+        .catch(() => { /* keep the previous questions */ });
       const response = await getUnifiedMapBounds(boundsAround(origin), mine.signal, false);
       if (!current()) return;
       // Places missing (PlaceService down): a list without them would look like "nothing is happening", so keep the
@@ -276,6 +283,27 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedd
           contentContainerStyle={[styles.list, { paddingBottom: bottomBarClearance(insets.bottom) + spacing.lg }]}
           data={visible}
           keyExtractor={(item) => item.key}
+          ListHeaderComponent={questions.length > 0 ? (
+            <View style={styles.questions}>
+              <Text accessibilityRole="header" style={styles.questionsTitle}>{tx('map:ask.nearbyTitle', 'Yakınında sorulanlar')}</Text>
+              {questions.slice(0, 5).map((q) => (
+                <AnimatedPressable
+                  accessibilityRole="button"
+                  key={q.id}
+                  onPress={() => onOpenPlace({ id: q.placeId, name: q.placeName, category: q.placeCategory ?? null, latitude: q.latitude, longitude: q.longitude })}
+                  pressScale={0.99}
+                  style={styles.questionRow}
+                >
+                  <HelpCircle color={colors.primary} size={18} />
+                  <View style={styles.cardBody}>
+                    <Text numberOfLines={1} style={styles.cardTitle}>{q.placeName}</Text>
+                    <Text numberOfLines={1} style={styles.meta}>{questionText(q.kind)} · {waitingLabel(q.waiting)}</Text>
+                  </View>
+                </AnimatedPressable>
+              ))}
+              <Text style={styles.questionsHint}>{tx('map:ask.nearbyHint', 'Oradaysan yanıtla; yanıtın konumda doğrulanırsa soranlara iletilir.')}</Text>
+            </View>
+          ) : null}
           refreshControl={<RefreshControl onRefresh={() => { setRefreshing(true); void load(true); }} refreshing={refreshing} tintColor={colors.primary} />}
           renderItem={({ item, index }) => (
             <ActivityRow
@@ -291,6 +319,10 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedd
 }
 
 const styles = StyleSheet.create({
+  questions: { backgroundColor: colors.surface, borderRadius: radii.card, gap: spacing.sm, marginBottom: spacing.md, padding: spacing.md },
+  questionsTitle: { ...typography.heading, color: colors.text },
+  questionRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: 48 },
+  questionsHint: { ...typography.micro, color: colors.textSecondary },
   screen: { backgroundColor: colors.background, flex: 1 },
   header: { gap: 2, paddingBottom: spacing.md, paddingHorizontal: spacing.lg },
   title: { ...typography.headline, color: colors.text },

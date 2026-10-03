@@ -144,5 +144,24 @@
     "stop": "Haber vermeyi kapat",
     "title": "Haber ver",
     "hint": "Durum değişince bir kez bildirelim"
+  },
+  "ask": {
+    "crowd": "Şu an kalabalık mı?",
+    "queue": "Sıra var mı?",
+    "open": "Şu an açık mı?",
+    "oneWaiting": "1 kişi merak ediyor",
+    "manyWaiting": "{{n}} kişi merak ediyor",
+    "answered": "Yanıtlandı",
+    "answerLine": "Yanıt: {{value}} · {{age}}",
+    "limit": "Aynı anda en fazla 3 soru sorabilirsin.",
+    "failed": "Soru gönderilemedi. Tekrar dene.",
+    "title": "Yere sor",
+    "mine": "sen de soruyorsun",
+    "answerHint": "Yanıtın sayılması için yerde olman gerekir",
+    "answer": "Yanıtla",
+    "withdraw": "Sorumu geri al",
+    "note": "Soran kişi gösterilmez. Yalnız konumda doğrulanan yanıtlar sayılır.",
+    "nearbyTitle": "Yakınında sorulanlar",
+    "nearbyHint": "Oradaysan yanıtla; yanıtın konumda doğrulanırsa soranlara iletilir."
   }
 }

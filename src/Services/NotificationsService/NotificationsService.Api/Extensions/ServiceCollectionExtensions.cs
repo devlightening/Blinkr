@@ -122,6 +122,7 @@ public static class ServiceCollectionExtensions
             busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.PostRealtimeConsumer>();
             busCfg.AddConsumer<NotificationsService.Api.Consumers.UserDeletedConsumer>();
             busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.PlaceWatchNotificationConsumer>();
+            busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.PlaceQuestionNotificationConsumer>();
 
             busCfg.UsingRabbitMq((ctx, cfg) =>
             {

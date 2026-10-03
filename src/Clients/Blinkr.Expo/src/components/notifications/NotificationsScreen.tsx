@@ -1,4 +1,4 @@
-import { AtSign, ArrowLeft, Bell, BellRing, Heart, MessageCircle, ShieldAlert, UserCheck, UserPlus, WifiOff } from 'lucide-react-native';
+import { AtSign, ArrowLeft, Bell, BellRing, Heart, HelpCircle, MessageCircle, ShieldAlert, UserCheck, UserPlus, WifiOff } from 'lucide-react-native';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BackHandler, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -37,6 +37,7 @@ const iconFor = (type: string) => {
     case 'Mentioned': return <AtSign color={colors.primary} size={14} />;
     case 'ModerationNotice': return <ShieldAlert color={colors.warning} size={14} />;
     case 'PlaceWatch': return <BellRing color={colors.primary} size={14} />;
+    case 'PlaceQuestionAnswered': return <HelpCircle color={colors.primary} size={14} />;
     default: return <Bell color={colors.textSecondary} size={14} />;
   }
 };

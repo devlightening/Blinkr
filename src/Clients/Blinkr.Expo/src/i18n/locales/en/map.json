@@ -144,5 +144,24 @@
     "stop": "Stop watching",
     "title": "Notify me",
     "hint": "We'll tell you once when it changes"
+  },
+  "ask": {
+    "crowd": "Is it busy right now?",
+    "queue": "Is there a line?",
+    "open": "Is it open right now?",
+    "oneWaiting": "1 person wants to know",
+    "manyWaiting": "{{n}} people want to know",
+    "answered": "Answered",
+    "answerLine": "Answer: {{value}} · {{age}}",
+    "limit": "You can have up to 3 open questions at a time.",
+    "failed": "Couldn't send the question. Try again.",
+    "title": "Ask the place",
+    "mine": "you asked too",
+    "answerHint": "Your answer counts only if you are there",
+    "answer": "Answer",
+    "withdraw": "Withdraw my question",
+    "note": "Askers are never shown. Only answers verified on site count.",
+    "nearbyTitle": "Questions near you",
+    "nearbyHint": "If you're there, answer; it reaches the askers once it's verified on site."
   }
 }

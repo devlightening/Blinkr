@@ -21,6 +21,8 @@ builder.Services.AddScoped<IPlaceRepository, PlaceRepository>();
 builder.Services.AddSingleton<ICurrentPlaceStateCalculator, CurrentPlaceStateCalculator>();
 builder.Services.AddSingleton<IPlaceRhythmCalculator, PlaceRhythmCalculator>();
 builder.Services.AddSingleton<PlaceStateChangeDetector>();
+builder.Services.AddScoped<IPlaceQuestionRepository, PlaceQuestionRepository>();
+builder.Services.AddScoped<PlaceQuestionService>();
 builder.Services.Configure<PlaceDiscoveryOptions>(builder.Configuration.GetSection("PlaceDiscovery"));
 builder.Services.AddScoped<IPlaceDiscoveryService, PlaceDiscoveryService>();
 builder.Services.AddSingleton<PlaceDiscoveryRefreshQueue>();
@@ -117,6 +119,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     await scope.ServiceProvider.GetRequiredService<IPlaceRepository>().EnsureIndexesAsync(CancellationToken.None);
+    await scope.ServiceProvider.GetRequiredService<IPlaceQuestionRepository>().EnsureIndexesAsync(CancellationToken.None);
 }
 
 if (app.Environment.IsDevelopment())

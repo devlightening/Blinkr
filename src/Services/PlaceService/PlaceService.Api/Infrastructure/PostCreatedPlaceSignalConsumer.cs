@@ -15,12 +15,14 @@ public sealed class PostCreatedPlaceSignalConsumer : IConsumer<IPostCreatedInteg
 
     private readonly IPlaceRepository _repository;
     private readonly PlaceStateChangeDetector _changes;
+    private readonly PlaceQuestionService _questions;
     private readonly ILogger<PostCreatedPlaceSignalConsumer> _logger;
 
-    public PostCreatedPlaceSignalConsumer(IPlaceRepository repository, PlaceStateChangeDetector changes, ILogger<PostCreatedPlaceSignalConsumer> logger)
+    public PostCreatedPlaceSignalConsumer(IPlaceRepository repository, PlaceStateChangeDetector changes, PlaceQuestionService questions, ILogger<PostCreatedPlaceSignalConsumer> logger)
     {
         _repository = repository;
         _changes = changes;
+        _questions = questions;
         _logger = logger;
     }
 
@@ -55,7 +57,15 @@ public sealed class PostCreatedPlaceSignalConsumer : IConsumer<IPostCreatedInteg
             Media = message.Media?.Select(m => new SignalMediaDto(m.Url, m.MediaType, m.MediaId, m.ContentType, m.SizeBytes, m.Width, m.Height, m.DurationSeconds, m.ThumbnailUrl)).ToArray() ?? Array.Empty<SignalMediaDto>()
         }, context.CancellationToken);
 
-        // D-038 "Haber ver": only a verified signal of a watchable kind can change what watchers wait for.
+        // Two independent follow-ups, each published after the upsert so a redelivery repeats them with the same ids.
+        await PublishStateChangeAsync(context, place, signalType);
+        await PublishQuestionAnswerAsync(context, place, signalType);
+    }
+
+    /// <summary>D-038 "Haber ver": only a verified signal of a watchable kind can change what watchers wait for.</summary>
+    private async Task PublishStateChangeAsync(ConsumeContext<IPostCreatedIntegrationEvent> context, PlaceDocument place, string signalType)
+    {
+        var message = context.Message;
         if (message.PublicationTrust != "VERIFIED_LIVE" || !WatchableTypes.Contains(signalType)) return;
 
         var active = await _repository.GetSignalsAsync(place.Id, 20, context.CancellationToken);
@@ -65,7 +75,7 @@ public sealed class PostCreatedPlaceSignalConsumer : IConsumer<IPostCreatedInteg
         // Published after the upsert: a redelivery re-upserts (idempotent) and republishes with the same event id.
         await context.Publish(new PlaceLiveStateChangedIntegrationEvent
         {
-            Id = StableId(message.PostId),
+            Id = StableId($"place-live-state:{message.PostId:N}"),
             PlaceId = place.Id,
             PlaceName = place.Name,
             SignalType = changed.SignalType,
@@ -77,10 +87,30 @@ public sealed class PostCreatedPlaceSignalConsumer : IConsumer<IPostCreatedInteg
         _logger.LogInformation("Place live state changed | PlaceId={PlaceId} | PostId={PostId} | SignalType={SignalType}", place.Id, message.PostId, changed.SignalType);
     }
 
-    /// <summary>The same post always yields the same event id, so consumers can recognise a repeat.</summary>
-    private static Guid StableId(Guid postId)
+    /// <summary>D-039 "Yere sor": a verified signal answers the open question of its kind; everyone who asked is told.</summary>
+    private async Task PublishQuestionAnswerAsync(ConsumeContext<IPostCreatedIntegrationEvent> context, PlaceDocument place, string signalType)
     {
-        var hash = MD5.HashData(Encoding.UTF8.GetBytes($"place-live-state:{postId:N}"));
-        return new Guid(hash);
+        var message = context.Message;
+        var question = await _questions.AnswerFromSignalAsync(place.Id, message.PostId, signalType, message.SignalValue, message.PublicationTrust, context.CancellationToken);
+        if (question is null || question.AnsweredByPostId != message.PostId) return;
+
+        await context.Publish(new PlaceQuestionAnsweredIntegrationEvent
+        {
+            Id = StableId($"place-question:{question.Id:N}:{message.PostId:N}"),
+            QuestionId = question.Id,
+            PlaceId = place.Id,
+            PlaceName = place.Name,
+            Kind = question.Kind,
+            AskerIds = question.AskerIds.ToArray(),
+            AnswerPostId = message.PostId,
+            AnswerSignalType = signalType,
+            AnswerValue = message.SignalValue,
+            AnsweredByAuthorId = message.AuthorId == Guid.Empty ? null : message.AuthorId,
+            AnsweredAtUtc = question.AnsweredAtUtc ?? message.OccurredOn,
+        }, context.CancellationToken);
+        _logger.LogInformation("Place question answered | PlaceId={PlaceId} | QuestionId={QuestionId} | PostId={PostId} | Askers={Askers}", place.Id, question.Id, message.PostId, question.AskerIds.Count);
     }
+
+    /// <summary>The same input always yields the same event id, so consumers can recognise a repeat.</summary>
+    private static Guid StableId(string key) => new(MD5.HashData(Encoding.UTF8.GetBytes(key)));
 }

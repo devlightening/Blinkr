@@ -15,6 +15,17 @@
 
 ## Kararlar
 
+### D-039 — "Yere sor": yapılandırılmış soru, yanıt = konumda doğrulanmış sinyal (2026-10-03)
+- Bağlam: Niş yol haritasının 3. maddesi. Talep üzerine taze bilgi: "Kafe X şu an kalabalık mı?"
+- Karar:
+  1. **Yalnız üç sabit soru** (Şu an kalabalık mı? / Sıra var mı? / Şu an açık mı?), serbest metin yok: moderasyon gerektirmez, taciz kanalı olmaz ve her soru doğrudan bir sinyal türüne (Doluluk / Bekleme / Geçici durum) eşlenir.
+  2. **Yanıt için ayrı uç yok.** Yanıt normal bir sinyaldir; PlaceService `PostCreated` tüketicisinde, sunucunun `VERIFIED_LIVE` yayınladığı (yerde, ≤200 m) eşleşen türdeki sinyal o yerin açık sorusunu atomik olarak yanıtlar (ilk yanıt kazanır). Yakınlık kuralı tek yerde, BlogService `PlaceProximityPolicy`'de kalır; istemcinin "yanıtlıyorum" iddiası yetki değildir.
+  3. **Anonimlik:** sorular hiçbir yanıtta soranı göstermez, yalnız kaç kişinin beklediğini; `askedByMe` yalnız soranın kendisine. Soranların kimlikleri yalnız sunucuda ve iç veri yolunda (`PlaceQuestionAnsweredIntegrationEvent.AskerIds`) taşınır. Bildirim yanıtlayanı söylemez, doğrulanmış sinyali açar.
+  4. **Sınırlar:** soru 60 dk yaşar (TTL), yer + tür başına tek açık soru (kısmi benzersiz indeks; ikinci soran mevcut soruya katılır), kişi başına en fazla 3 açık soru (409 `QUESTION_LIMIT`). Soran sorusunu geri alabilir; kimse beklemeyen soru silinir.
+  5. **Teslim:** olay kimliği soru + yanıtlayan gönderiden türetilir; bildirim kimliği olay + kişiden türetilen ObjectId'dir, tekrar gelen olay yinelenen anahtara çarpar ve atlanır (gelen kutusu gerektirmeyen idempotentlik). Kendi sorusunu kendisi yanıtlayana bildirim gitmez.
+  6. Bilinen sınır: soru belgeleri soranların kimliklerini en fazla 60 dk tutar; PlaceService hesap silme olayını dinlemez, satırlar TTL ile en geç bir saatte silinir.
+- Etki: CLAUDE.md §6.3, §8.3, §12.1, §13. Olay sözleşmesi baseline'a eklendi.
+
 ### D-038 — "Haber ver": yer izleme, olay güdümlü, bir kez bildirir (2026-10-03)
 - Bağlam: Niş yol haritasının 2. maddesi (`docs/blinkr-v3/NIS_OZELLIKLER.md`). "Kafe X sakinleşince haber ver" - karar aracı.
 - Karar:

@@ -55,7 +55,7 @@ export type NotificationTarget = { kind: 'post'; postId: string } | { kind: 'use
 /** Where tapping a notification goes: the signal for likes/comments, the person for follows and story likes. */
 export const notificationTarget = (n: AppNotification): NotificationTarget => {
   // D-038: a place watch opens the verified signal that changed the place.
-  if (n.postId && (n.type === 'PostLiked' || n.type === 'CommentCreated' || n.type === 'Mentioned' || n.type === 'PlaceWatch')) return { kind: 'post', postId: n.postId };
+  if (n.postId && (n.type === 'PostLiked' || n.type === 'CommentCreated' || n.type === 'Mentioned' || n.type === 'PlaceWatch' || n.type === 'PlaceQuestionAnswered')) return { kind: 'post', postId: n.postId };
   if (n.actorUserId && (n.type === 'UserFollowed' || n.type === 'FollowRequested' || n.type === 'FollowAccepted' || n.type === 'StoryLiked')) {
     return { kind: 'user', userId: n.actorUserId, userName: n.actorUserName ?? '' };
   }

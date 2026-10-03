@@ -625,6 +625,17 @@ export const getHashtagFeed = (auth: AuthResponse, tag: string, page = 1, signal
 export const searchHashtags = (auth: AuthResponse, q: string, signal?: AbortSignal, refresh: Refresh = {}) =>
   requestJson<Array<{ tag: string; postCount: number }>>(`/api/discover/hashtags/search?${new URLSearchParams({ q })}`, { auth, signal, ...refresh });
 
+/** D-039 "Yere sor": structured questions about a place; never says who asked (askedByMe only for the caller). */
+export const getPlaceQuestions = (placeId: string, auth: AuthResponse | null, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<import('./placeQuestions').PlaceQuestion[]>(`/api/places/${placeId}/questions`, { auth: auth ?? undefined, signal, ...refresh });
+export const getNearbyQuestions = (lat: number, lon: number, auth: AuthResponse | null, signal?: AbortSignal) =>
+  requestJson<import('./placeQuestions').PlaceQuestion[]>(`/api/places/questions/nearby?${new URLSearchParams({ lat: String(lat), lon: String(lon), radiusMeters: '1500' })}`, { auth: auth ?? undefined, signal });
+/** 409 QUESTION_LIMIT past three open questions. */
+export const askPlace = (auth: AuthResponse, placeId: string, kind: import('./placeQuestions').QuestionKind, refresh: Refresh = {}) =>
+  requestJson<import('./placeQuestions').PlaceQuestion>(`/api/places/${placeId}/questions`, { auth, body: { kind }, method: 'POST', ...refresh });
+export const withdrawQuestion = (auth: AuthResponse, placeId: string, kind: import('./placeQuestions').QuestionKind, refresh: Refresh = {}) =>
+  request(`/api/places/${placeId}/questions/${kind}`, { auth, method: 'DELETE', ...refresh });
+
 /** D-038 "Haber ver": my own place watches (only I ever read them). 409 WATCH_LIMIT past five. */
 export const listPlaceWatches = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
   requestJson<import('./placeWatch').PlaceWatchInfo[]>('/api/place-watches', { auth, signal, ...refresh });
