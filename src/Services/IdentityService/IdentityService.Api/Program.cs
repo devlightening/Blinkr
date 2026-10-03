@@ -73,6 +73,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddSingleton<IdentityService.Api.Profile.ProfilePhotoStore>();
 builder.Services.AddAuthThrottle(builder.Configuration); // S3: sign-in / sign-up throttling
 builder.Services.AddScoped<IdentityService.Api.Moderation.ModerationService>();
+builder.Services.AddScoped<IdentityService.Api.Collections.PlaceCollectionService>();
 builder.Services.AddHostedService<IdentityService.Api.Account.AccountPurgeService>();
 
 // Authentication & Authorization: IdentityService is the sole JWT authority for the MVP.

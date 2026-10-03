@@ -15,6 +15,16 @@
 
 ## Kararlar
 
+### D-041 — "Koleksiyonlar": canlı durumlu yer listeleri, özel ya da bağlantıyla (2026-10-03)
+- Bağlam: Niş yol haritasının 6. maddesi. Instagram rehberleri gibi, ama her yer açıldığında şu anki durumunu gösterir.
+- Karar:
+  1. Sahibi IdentityService: listeler kayıtlı yerlerin (P6.8) yanında, aynı PostgreSQL'de (`PlaceCollections`, `PlaceCollectionItems`; yalnız iki yeni tablo ekleyen `AddPlaceCollections` migration'ı, mevcut veriye dokunmaz). Yerler görüntü anlık görüntüsüdür; yerin kendisi ve canlı durumu PlaceService'tedir, istemci `/api/places/batch` ile okur (ilk 20 yer).
+  2. Kişi başına 20 liste, liste başına 50 yer; başlık 60, açıklama 160, yer notu 140 karakter. Başlık/açıklama/not paylaşılabildiği için bio ile aynı `ContentTextFilter`'dan geçer (tehdit/nefret 422, kimlik no./plaka maskelenir).
+  3. Görünürlük: `private` (varsayılan) ya da `link`. Bağlantı 16 rastgele bayt (base64url, 22 karakter) taşır, tahmin edilemez; sahip "Yeni bağlantı" ile eskisini geçersiz kılabilir. Bağlantıyı yalnız giriş yapmış kişi açar (401); özel liste, bilinmeyen bağlantı ve iki yönlü engel aynı 404'ü verir, engel belli edilmez. Profilde herkese açık liste (takipçi kuralı) bilinçli olarak sonraya bırakıldı.
+  4. Hesap silmede listeler `AccountPurgeService` ile silinir (öğeler basamaklı), paylaşılan bağlantılar açılmaz olur.
+  5. Uygulama `blinkr://collections/{token}` bağlantısını açar (Profil sekmesinde salt okunur liste, sahibinin adıyla).
+- Etki: CLAUDE.md §6.1, §12.1, §13. Gateway `/api/collections/**` → IdentityService.
+
 ### D-040 — "Yer özellikleri": yalnız doğrulanmış ziyaretçi söyler, bilgi zamanla solar (2026-10-03)
 - Bağlam: Niş yol haritasının 4. maddesi. Wi-Fi, priz, sessiz, çocuk dostu, engelli erişimi, açık alan, evcil hayvan dostu.
 - Karar:

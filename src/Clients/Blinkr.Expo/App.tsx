@@ -170,18 +170,22 @@ export default function App() {
   // blinkr://users/{id} (a profile link or scanned profile QR) opens that person's profile from the Profil tab.
   const [pendingLink, setPendingLink] = useState<string | null>(null);
   const [profileRequest, setProfileRequest] = useState<string | null>(null);
+  // D-041: a shared collection link, opened on the Profil tab once signed in.
+  const [collectionRequest, setCollectionRequest] = useState<string | null>(null);
   useEffect(() => {
     const handle = (url: string | null) => {
       const link = parseAppLink(url);
       if (link?.kind === 'post') setPendingLink(link.postId);
       else if (link?.kind === 'user') setProfileRequest(link.userId);
+      else if (link?.kind === 'collection') setCollectionRequest(link.token);
     };
     void Linking.getInitialURL().then(handle).catch(() => {});
     const sub = Linking.addEventListener('url', ({ url }) => handle(url));
     return () => sub.remove();
   }, []);
   // A person link waits for sign-in, then switches to Profil; the screen opens the person and clears the request.
-  useEffect(() => { if (profileRequest && auth) setActiveTab('profile'); }, [profileRequest, auth]);
+  useEffect(() => { if ((profileRequest || collectionRequest) && auth) setActiveTab('profile'); }, [profileRequest, collectionRequest, auth]);
+  const clearCollectionRequest = useCallback(() => setCollectionRequest(null), []);
   const clearProfileRequest = useCallback(() => setProfileRequest(null), []);
   useEffect(() => {
     if (!pendingLink || !auth) return undefined;
@@ -310,7 +314,7 @@ export default function App() {
                   ) : tab === 'nearby' ? (
                     <DiscoverScreen auth={auth} hashtagRequest={hashtagRequest} onHashtagHandled={() => setHashtagRequest(null)} onAuthChange={acceptAuth} onCreateSignal={() => openShare('camera')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOpenSignal={openNearbySignal} onOverlayOpenChange={setDiscoverOverlayOpen} />
                   ) : tab === 'profile' ? (
-                    <ProfileScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={() => openShare('camera')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOpenUserHandled={clearProfileRequest} onOverlayOpenChange={setProfileOverlayOpen} onRequestsChange={onRequestsChange} openUserId={profileRequest} />
+                    <ProfileScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={() => openShare('camera')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOpenCollectionHandled={clearCollectionRequest} onOpenUserHandled={clearProfileRequest} openCollectionToken={collectionRequest} onOverlayOpenChange={setProfileOverlayOpen} onRequestsChange={onRequestsChange} openUserId={profileRequest} />
                   ) : null}
                   swipeEnabled={!((activeTab === 'chat' && chatConversationOpen) || (activeTab === 'profile' && profileOverlayOpen) || (activeTab === 'nearby' && discoverOverlayOpen))}
                 />

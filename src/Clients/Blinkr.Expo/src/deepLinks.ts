@@ -9,11 +9,14 @@ export const postLink = (postId: string) => `blinkr://posts/${postId}`;
 /** A person's link (doc P2, "Profili paylaş"): what the profile QR code carries. Only the id; no name or anything else. */
 export const userLink = (userId: string) => `blinkr://users/${userId}`;
 
-export type AppLink = { kind: 'post'; postId: string } | { kind: 'user'; userId: string };
+export type AppLink = { kind: 'post'; postId: string } | { kind: 'user'; userId: string } | { kind: 'collection'; token: string };
 
-/** A post or a person from a Blinkr link (opened from outside or scanned), or null for anything else. */
+/** A post, a person or a shared collection (D-041) from a Blinkr link (opened from outside or scanned), or null. */
 export function parseAppLink(url: string | null | undefined): AppLink | null {
-  const target = parseDeepLink(url?.trim().replace(/\/?(?:[?#].*)?$/, '') ?? null);
+  const clean = url?.trim().replace(/\/?(?:[?#].*)?$/, '') ?? null;
+  const collection = /^blinkr:\/\/collections\/([A-Za-z0-9_-]{22})$/.exec(clean ?? '');
+  if (collection) return { kind: 'collection', token: collection[1] };
+  const target = parseDeepLink(clean);
   if (!target) return null;
   return target.kind === 'post' ? { kind: 'post', postId: target.postId } : { kind: 'user', userId: target.userId };
 }

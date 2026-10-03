@@ -64,6 +64,8 @@ public sealed class AccountPurgeService : BackgroundService
             db.UserBlocks.RemoveRange(db.UserBlocks.Where(b => b.BlockerId == id || b.BlockedId == id));
             db.Follows.RemoveRange(db.Follows.Where(f => f.FollowerId == id || f.FolloweeId == id));
             db.SavedPlaces.RemoveRange(db.SavedPlaces.Where(s => s.UserId == id));
+            // D-041: their collections (items cascade) and any link they shared stop existing.
+            db.PlaceCollections.RemoveRange(db.PlaceCollections.Where(c => c.UserId == id));
             db.Reports.RemoveRange(db.Reports.Where(r => r.ReporterId == id));
             db.DataRequests.RemoveRange(db.DataRequests.Where(r => r.UserId == id));
             db.RefreshTokens.RemoveRange(db.RefreshTokens.Where(t => t.UserId == id));

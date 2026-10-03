@@ -15,6 +15,8 @@ public class AppDbContext : DbContext
     public DbSet<ModerationAction> ModerationActions => Set<ModerationAction>();
     public DbSet<Follow> Follows => Set<Follow>();
     public DbSet<SavedPlace> SavedPlaces => Set<SavedPlace>();
+    public DbSet<PlaceCollection> PlaceCollections => Set<PlaceCollection>();
+    public DbSet<PlaceCollectionItem> PlaceCollectionItems => Set<PlaceCollectionItem>();
     public DbSet<DataRequest> DataRequests => Set<DataRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -76,6 +78,30 @@ public class AppDbContext : DbContext
             entity.Property(p => p.Name).IsRequired().HasMaxLength(SavedPlaceRules.MaxNameLength);
             entity.Property(p => p.Category).HasMaxLength(SavedPlaceRules.MaxCategoryLength);
             entity.HasOne<User>().WithMany().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // D-041: place collections, private by default; items cascade with their list, lists with their owner.
+        modelBuilder.Entity<PlaceCollection>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            entity.HasIndex(c => new { c.UserId, c.UpdatedAtUtc });
+            entity.HasIndex(c => c.ShareToken).IsUnique();
+            entity.Property(c => c.Title).IsRequired().HasMaxLength(PlaceCollectionRules.MaxTitleLength);
+            entity.Property(c => c.Description).HasMaxLength(PlaceCollectionRules.MaxDescriptionLength);
+            entity.Property(c => c.Visibility).IsRequired().HasMaxLength(16);
+            entity.Property(c => c.ShareToken).HasMaxLength(PlaceCollectionRules.ShareTokenLength);
+            entity.HasOne<User>().WithMany().HasForeignKey(c => c.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(c => c.Items).WithOne().HasForeignKey(i => i.CollectionId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PlaceCollectionItem>(entity =>
+        {
+            entity.HasKey(i => i.Id);
+            entity.HasIndex(i => new { i.CollectionId, i.PlaceId }).IsUnique();
+            entity.HasIndex(i => new { i.CollectionId, i.Position });
+            entity.Property(i => i.Name).IsRequired().HasMaxLength(SavedPlaceRules.MaxNameLength);
+            entity.Property(i => i.Category).HasMaxLength(SavedPlaceRules.MaxCategoryLength);
+            entity.Property(i => i.Note).HasMaxLength(PlaceCollectionRules.MaxNoteLength);
         });
 
         modelBuilder.Entity<Follow>(entity =>

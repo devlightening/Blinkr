@@ -153,6 +153,96 @@ namespace IdentityService.Infrastructure.Migrations
                     b.ToTable("ModerationActions");
                 });
 
+            modelBuilder.Entity("IdentityService.Domain.Entities.PlaceCollection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<string>("ShareToken")
+                        .HasMaxLength(22)
+                        .HasColumnType("character varying(22)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ShareToken")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "UpdatedAtUtc");
+
+                    b.ToTable("PlaceCollections");
+                });
+
+            modelBuilder.Entity("IdentityService.Domain.Entities.PlaceCollectionItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AddedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(140)
+                        .HasColumnType("character varying(140)");
+
+                    b.Property<Guid>("PlaceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CollectionId", "PlaceId")
+                        .IsUnique();
+
+                    b.HasIndex("CollectionId", "Position");
+
+                    b.ToTable("PlaceCollectionItems");
+                });
+
             modelBuilder.Entity("IdentityService.Domain.Entities.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -294,14 +384,6 @@ namespace IdentityService.Infrastructure.Migrations
                     b.Property<int?>("BirthYear")
                         .HasColumnType("integer");
 
-                    b.Property<string>("DisplayName")
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)");
-
-                    b.Property<string>("PhotoVersion")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -314,6 +396,10 @@ namespace IdentityService.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletionScheduledForUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("text");
@@ -324,6 +410,10 @@ namespace IdentityService.Infrastructure.Migrations
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("PhotoVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<DateTime?>("RestrictedUntilUtc")
                         .HasColumnType("timestamp with time zone");
@@ -421,6 +511,24 @@ namespace IdentityService.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("IdentityService.Domain.Entities.PlaceCollection", b =>
+                {
+                    b.HasOne("IdentityService.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("IdentityService.Domain.Entities.PlaceCollectionItem", b =>
+                {
+                    b.HasOne("IdentityService.Domain.Entities.PlaceCollection", null)
+                        .WithMany("Items")
+                        .HasForeignKey("CollectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("IdentityService.Domain.Entities.RefreshToken", b =>
                 {
                     b.HasOne("IdentityService.Domain.Entities.User", null)
@@ -461,6 +569,11 @@ namespace IdentityService.Infrastructure.Migrations
                         .HasForeignKey("BlockerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("IdentityService.Domain.Entities.PlaceCollection", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("IdentityService.Domain.Entities.User", b =>

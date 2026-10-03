@@ -20,6 +20,7 @@ import { PlaceRhythmCard } from './place/PlaceRhythmCard';
 import { PlaceWatchControl } from './place/PlaceWatchControl';
 import { PlaceQuestionsCard } from './place/PlaceQuestionsCard';
 import { PlaceAttributesCard } from './place/PlaceAttributesCard';
+import { AddToCollectionPanel } from './collections/AddToCollectionPanel';
 import { placeTarget, shareText } from '../shareTarget';
 import { Sheet } from './Sheet';
 import { SignalSymbol } from './SignalSymbol';
@@ -175,9 +176,11 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
   const [thread, setThread] = useState<RecentSignal | null>(null);
   // Doc B1: the share menu replaces the place page inside this same sheet (one overlay owner, CLAUDE.md §12.4).
   const [sharing, setSharing] = useState(false);
+  // D-041: "Koleksiyona ekle" replaces the place page inside this same sheet, like sharing.
+  const [collecting, setCollecting] = useState(false);
 
   // A different place or signal closes any half-filled report and any open thread.
-  useEffect(() => { setReportTarget(null); setThread(null); setSharing(false); }, [place?.id, signal?.postId]);
+  useEffect(() => { setReportTarget(null); setThread(null); setSharing(false); setCollecting(false); }, [place?.id, signal?.postId]);
 
   useEffect(() => {
     let active = true;
@@ -217,6 +220,14 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
             subject={reportTarget.label}
             target={reportTarget.userId ? 'user' : 'signal'}
           />
+        </BlinkrSheetPanel>
+      ) : null}
+      {!reportTarget && !thread && collecting && place && auth ? (
+        <BlinkrSheetPanel maxHeightRatio={0.8}>
+          <AnimatedPressable accessibilityLabel={tx('common:actions.back', 'Geri dön')} accessibilityRole="button" hitSlop={10} onPress={() => setCollecting(false)} pressScale={0.9} style={styles.shareBack}>
+            <ArrowLeft color={colors.text} size={22} />
+          </AnimatedPressable>
+          <AddToCollectionPanel auth={auth} place={place} refresh={refresh} />
         </BlinkrSheetPanel>
       ) : null}
       {!reportTarget && !thread && sharing && place && auth ? (
@@ -291,7 +302,7 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
         </BlinkrSheetPanel>
       )}
 
-      {!reportTarget && !thread && !sharing && place && (
+      {!reportTarget && !thread && !sharing && !collecting && place && (
         <BlinkrSheetPanel maxHeightRatio={0.9}>
           <ScrollView showsVerticalScrollIndicator={false}>
             <PhotoRail signals={recentSignals} />
@@ -374,6 +385,12 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
               />
               <ActionTile accessibilityLabel={tx('signal:place.directions', 'Yol tarifi')} icon={<Compass color={colors.text} size={24} />} label={tx('signal:place.directions', 'Yol tarifi')} onPress={() => openDirections(place)} />
             </View>
+            {auth ? (
+              <AnimatedPressable accessibilityRole="button" onPress={() => setCollecting(true)} pressScale={0.98} style={styles.collectRow}>
+                <Layers color={colors.primary} size={18} />
+                <Text style={styles.collectText}>{tx('profile:collections.addTitle', 'Koleksiyona ekle')}</Text>
+              </AnimatedPressable>
+            ) : null}
 
             {/* D-037: how busy it usually is, from verified signals only. */}
             <PlaceRhythmCard placeId={place.id} />
@@ -407,6 +424,8 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
 }
 
 const styles = StyleSheet.create({
+  collectRow: { alignItems: 'center', alignSelf: 'flex-start', flexDirection: 'row', gap: spacing.sm, minHeight: 40 },
+  collectText: { ...typography.bodyStrong, color: colors.primary },
   shareBack: { alignItems: 'center', height: 40, justifyContent: 'center', marginBottom: spacing.xs, marginLeft: -spacing.xs, width: 40 },
   photoRail: { flexDirection: 'row', gap: spacing.sm, height: 128, marginBottom: spacing.lg },
   photo: { backgroundColor: colors.surfaceElevated, borderRadius: radii.card, height: '100%' },

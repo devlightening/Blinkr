@@ -625,6 +625,27 @@ export const getHashtagFeed = (auth: AuthResponse, tag: string, page = 1, signal
 export const searchHashtags = (auth: AuthResponse, q: string, signal?: AbortSignal, refresh: Refresh = {}) =>
   requestJson<Array<{ tag: string; postCount: number }>>(`/api/discover/hashtags/search?${new URLSearchParams({ q })}`, { auth, signal, ...refresh });
 
+/** D-041 "Koleksiyonlar": my place lists (owner only) and a list someone shared by link. */
+export const listCollections = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<import('./collections').CollectionSummary[]>('/api/users/me/collections', { auth, signal, ...refresh });
+export const getCollection = (auth: AuthResponse, id: string, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<import('./collections').CollectionDetail>(`/api/users/me/collections/${id}`, { auth, signal, ...refresh });
+/** 429 COLLECTION_LIMIT past 20, 422 CONTENT_BLOCKED. */
+export const createCollection = (auth: AuthResponse, body: { title: string; description?: string | null }, refresh: Refresh = {}) =>
+  requestJson<import('./collections').CollectionDetail>('/api/users/me/collections', { auth, body, method: 'POST', ...refresh });
+export const updateCollection = (auth: AuthResponse, id: string, body: { title?: string; description?: string; visibility?: import('./collections').CollectionVisibility; newLink?: boolean }, refresh: Refresh = {}) =>
+  requestJson<import('./collections').CollectionDetail>(`/api/users/me/collections/${id}`, { auth, body, method: 'PUT', ...refresh });
+export const deleteCollection = (auth: AuthResponse, id: string, refresh: Refresh = {}) =>
+  request(`/api/users/me/collections/${id}`, { auth, method: 'DELETE', ...refresh });
+/** Adds (or updates) a place; 429 COLLECTION_ITEMS_LIMIT past 50. */
+export const putCollectionItem = (auth: AuthResponse, id: string, place: { id: string; name: string; category?: string | null; latitude: number; longitude: number }, note: string | null = null, refresh: Refresh = {}) =>
+  requestJson<import('./collections').CollectionDetail>(`/api/users/me/collections/${id}/items/${place.id}`, { auth, body: { name: place.name, category: place.category ?? null, latitude: place.latitude, longitude: place.longitude, note }, method: 'PUT', ...refresh });
+export const removeCollectionItem = (auth: AuthResponse, id: string, placeId: string, refresh: Refresh = {}) =>
+  requestJson<import('./collections').CollectionDetail>(`/api/users/me/collections/${id}/items/${placeId}`, { auth, method: 'DELETE', ...refresh });
+/** A list shared by link; private lists, unknown links and blocks all answer 404. */
+export const getSharedCollection = (auth: AuthResponse, token: string, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<import('./collections').CollectionDetail>(`/api/collections/shared/${encodeURIComponent(token)}`, { auth, signal, ...refresh });
+
 /** D-040 "Yer özellikleri": facts about a place with how many and how recently; voters never returned. */
 export const getPlaceAttributes = (placeId: string, auth: AuthResponse | null, signal?: AbortSignal, refresh: Refresh = {}) =>
   requestJson<import('./placeAttributes').PlaceAttributes>(`/api/places/${placeId}/attributes`, { auth: auth ?? undefined, signal, ...refresh });

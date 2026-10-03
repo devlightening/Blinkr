@@ -38,6 +38,8 @@ import { ProfileCompletionCard } from './profile/ProfileCompletionCard';
 import { ProfileTabs, type ProfileTab } from './profile/ProfileTabs';
 import { ShareProfileSheet } from './profile/ShareProfileSheet';
 import { TrustLine } from './profile/TrustLine';
+import { CollectionsSection } from './collections/CollectionsSection';
+import { CollectionScreen, type CollectionTarget } from './collections/CollectionScreen';
 
 const formatCount = (value: number) => value.toLocaleString(displayLocale());
 
@@ -58,6 +60,9 @@ type Props = {
   /** One-shot: open this person's profile (a scanned or opened blinkr://users/{id} link). */
   openUserId?: string | null;
   onOpenUserHandled?: () => void;
+  /** One-shot (D-041): open a collection someone shared (blinkr://collections/{token}). */
+  openCollectionToken?: string | null;
+  onOpenCollectionHandled?: () => void;
 };
 
 type FriendsTab = 'friends' | 'requests' | 'add';
@@ -70,7 +75,7 @@ type FriendsTab = 'friends' | 'requests' | 'add';
  * page (SignalArchiveScreen). A signal opens as its Sinyal Kartı. Only real data; account things (privacy, sign out)
  * live in Ayarlar.
  */
-export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCreateSignal, onOverlayOpenChange, onMessageUser, onRequestsChange, openUserId = null, onOpenUserHandled }: Props) {
+export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCreateSignal, onOverlayOpenChange, onMessageUser, onRequestsChange, openUserId = null, onOpenUserHandled, openCollectionToken = null, onOpenCollectionHandled }: Props) {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation('profile');
   const { width: screenWidth } = useWindowDimensions();
@@ -94,6 +99,8 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
   const [incoming, setIncoming] = useState(0);
   const [friendsOpen, setFriendsOpen] = useState<FriendsTab | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [collection, setCollection] = useState<CollectionTarget | null>(null);
+  const [collectionsVersion, setCollectionsVersion] = useState(0);
   const [editOpen, setEditOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -170,7 +177,15 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openUserId]);
 
-  const overlayOpen = shareOpen || avatarOpen || Boolean(friendsOpen) || editOpen || settingsOpen || archiveOpen || Boolean(openPost) || Boolean(followList) || Boolean(person);
+  useEffect(() => {
+    if (!openCollectionToken) return;
+    onOpenCollectionHandled?.();
+    setTab('places');
+    setCollection({ kind: 'shared', token: openCollectionToken });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openCollectionToken]);
+
+  const overlayOpen = Boolean(collection) || shareOpen || avatarOpen || Boolean(friendsOpen) || editOpen || settingsOpen || archiveOpen || Boolean(openPost) || Boolean(followList) || Boolean(person);
   useEffect(() => {
     onOverlayOpenChange?.(overlayOpen);
     return () => onOverlayOpenChange?.(false);
@@ -223,7 +238,7 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
     </View>
   );
 
-  const placesTab = saved === null ? (
+  const savedContent = saved === null ? (
     <SkeletonList rows={2} style={styles.savedSkeleton} />
   ) : savedError && saved.length === 0 ? (
     <View style={styles.inline}>
@@ -266,6 +281,14 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
           </AnimatedPressable>
         );
       })}
+    </View>
+  );
+
+  // D-041: my collections sit above the saved places on the Yerler tab.
+  const placesTab = (
+    <View>
+      <CollectionsSection auth={auth} onOpen={(id) => setCollection({ kind: 'mine', id })} refresh={{ onAuthRefresh: onAuthChange, onSessionExpired: onLogout }} reloadKey={collectionsVersion} />
+      {savedContent}
     </View>
   );
 
@@ -351,6 +374,16 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
         <View style={styles.tabBody}>{tab === 'signals' ? signalsTab : placesTab}</View>
       </ScrollView>
 
+      {collection ? (
+        <CollectionScreen
+          auth={auth}
+          onBack={() => setCollection(null)}
+          onChanged={() => setCollectionsVersion((v) => v + 1)}
+          onOpenPlace={(place) => { setCollection(null); onOpenPlace(place); }}
+          refresh={{ onAuthRefresh: onAuthChange, onSessionExpired: onLogout }}
+          target={collection}
+        />
+      ) : null}
       {archiveOpen ? <SignalArchiveScreen auth={auth} onAuthChange={onAuthChange} onBack={() => setArchiveOpen(false)} onLogout={onLogout} onOpenPost={setOpenPost} /> : null}
       {openPost ? (
         <SignalCardModal

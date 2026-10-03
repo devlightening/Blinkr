@@ -9,7 +9,7 @@ param(
 # BLK-NICHE-01: end-to-end proof for the features built on 2026-10-03 without a running backend:
 #   D-033 chat pin/mute, D-034 place card in chat, D-035 meetup, D-036 verified line on profiles,
 #   D-037 place rhythm, D-038 "Haber ver" (PlaceService event -> NotificationsService), D-039 "Yere sor",
-#   D-040 place attributes.
+#   D-040 place attributes, D-041 collections.
 # Needs the full stack (start-blinkr-dev.ps1) incl. RabbitMQ, the projection worker and a real place catalog.
 # ASCII only on purpose: Windows PowerShell 5 reads a BOM-less script as ANSI.
 
@@ -232,6 +232,39 @@ $badKey = Invoke-Api -Method PUT -Path "/api/places/$($place.id)/attributes/tast
 Check "D-040 only catalog facts (400)" ($badKey.Status -eq 400)
 $undo = Invoke-Api -Method PUT -Path "/api/places/$($place.id)/attributes/wifi" -Token $a.Token -Body @{ value = $null }
 Check "D-040 an answer can be taken back" (@($undo.Json.attributes | Where-Object { $_.key -eq "wifi" }).Count -eq 0)
+
+# ---------------------------------------------------------------- D-041 collections
+$list = Invoke-Api -Method POST -Path "/api/users/me/collections" -Token $a.Token -Body @{ title = "Ders calismalik kafeler" }
+Check "D-041 a collection is created private" ($list.Status -eq 200 -and $list.Json.visibility -eq "private" -and -not $list.Json.shareToken) "HTTP $($list.Status) $($list.Raw)"
+$cid = $list.Json.id
+$withPlace = Invoke-Api -Method PUT -Path "/api/users/me/collections/$cid/items/$($place.id)" -Token $a.Token -Body @{ name = $place.name; category = $place.category; latitude = $place.latitude; longitude = $place.longitude; note = "sessiz kose" }
+Check "D-041 a place is added with a note" ($withPlace.Status -eq 200 -and @($withPlace.Json.items).Count -eq 1 -and $withPlace.Json.items[0].note -eq "sessiz kose") "HTTP $($withPlace.Status) $($withPlace.Raw)"
+$again = Invoke-Api -Method PUT -Path "/api/users/me/collections/$cid/items/$($place.id)" -Token $a.Token -Body @{ name = $place.name; latitude = $place.latitude; longitude = $place.longitude }
+Check "D-041 adding the same place twice keeps one row" (@($again.Json.items).Count -eq 1)
+$summary = Invoke-Api -Method GET -Path "/api/users/me/collections" -Token $a.Token
+Check "D-041 the summary lists its place ids" (@($summary.Json | Where-Object { $_.id -eq $cid })[0].placeIds -contains $place.id)
+$foreign = Invoke-Api -Method GET -Path "/api/users/me/collections/$cid" -Token $b.Token
+Check "D-041 someone else cannot open my list by id (404)" ($foreign.Status -eq 404)
+$shared = Invoke-Api -Method PUT -Path "/api/users/me/collections/$cid" -Token $a.Token -Body @{ visibility = "link" }
+$token = $shared.Json.shareToken
+Check "D-041 sharing by link issues a 22-character token" ($shared.Status -eq 200 -and $token -and $token.Length -eq 22) "HTTP $($shared.Status) $($shared.Raw)"
+$viewB = Invoke-Api -Method GET -Path "/api/collections/shared/$token" -Token $b.Token
+Check "D-041 anyone signed in with the link can read it" ($viewB.Status -eq 200 -and -not $viewB.Json.isMine -and $viewB.Json.owner.userName -eq $a.UserName -and -not $viewB.Json.shareToken) "HTTP $($viewB.Status) $($viewB.Raw)"
+$rotated = Invoke-Api -Method PUT -Path "/api/users/me/collections/$cid" -Token $a.Token -Body @{ newLink = $true }
+$old = Invoke-Api -Method GET -Path "/api/collections/shared/$token" -Token $b.Token
+Check "D-041 a new link cuts the old one off (404)" ($rotated.Json.shareToken -ne $token -and $old.Status -eq 404)
+[void](Invoke-Api -Method POST -Path "/api/blocks" -Token $a.Token -Body @{ userId = $d.Id })
+$blockedView = Invoke-Api -Method GET -Path "/api/collections/shared/$($rotated.Json.shareToken)" -Token $d.Token
+Check "D-041 a blocked person gets 404 (the block is not revealed)" ($blockedView.Status -eq 404)
+[void](Invoke-Api -Method PUT -Path "/api/users/me/collections/$cid" -Token $a.Token -Body @{ visibility = "private" })
+$privateView = Invoke-Api -Method GET -Path "/api/collections/shared/$($rotated.Json.shareToken)" -Token $b.Token
+Check "D-041 back to private: the link stops working" ($privateView.Status -eq 404)
+$anon = Invoke-Api -Method GET -Path "/api/collections/shared/$($rotated.Json.shareToken)"
+Check "D-041 reading a shared list needs sign-in" ($anon.Status -eq 401)
+$empty = Invoke-Api -Method POST -Path "/api/users/me/collections" -Token $a.Token -Body @{ title = "   " }
+Check "D-041 a title is required (400)" ($empty.Status -eq 400)
+$gone = Invoke-Api -Method DELETE -Path "/api/users/me/collections/$cid" -Token $a.Token
+Check "D-041 the owner deletes the list" ($gone.Status -eq 204 -and (Invoke-Api -Method GET -Path "/api/users/me/collections/$cid" -Token $a.Token).Status -eq 404)
 
 Write-Host ""
 if ($script:failures.Count -gt 0) {
