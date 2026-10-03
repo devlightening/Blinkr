@@ -32,15 +32,18 @@ public sealed class PlaceRhythmCalculator : IPlaceRhythmCalculator
     // Turkey has no DST (UTC+3 all year); the named zone is used when the host knows it.
     private static readonly TimeZoneInfo Turkey = ResolveTurkey();
 
-    /// <summary>Crowd and Queue answers on one 0..1 "busyness" scale; any other value is not used.</summary>
-    public static double? Busyness(string signalType, string? value) => (signalType, value) switch
+    /// <summary>
+    /// Crowd and Queue answers on one 0..1 "busyness" scale; any other value is not used. Case-insensitive: the app
+    /// sends "Busy", older clients and seeds "BUSY", and the legacy "EMPTY" (calm) / "LONG" (long line) still appear.
+    /// </summary>
+    public static double? Busyness(string signalType, string? value) => (signalType, value?.Trim().ToUpperInvariant()) switch
     {
-        ("Crowd", "Calm") => 0.0,
-        ("Crowd", "Moderate") => 0.5,
-        ("Crowd", "Busy") => 1.0,
-        ("Queue", "None") => 0.0,
-        ("Queue", "5To15") => 0.5,
-        ("Queue", "Over15") => 1.0,
+        ("Crowd", "CALM" or "EMPTY") => 0.0,
+        ("Crowd", "MODERATE") => 0.5,
+        ("Crowd", "BUSY") => 1.0,
+        ("Queue", "NONE") => 0.0,
+        ("Queue", "5TO15") => 0.5,
+        ("Queue", "OVER15" or "LONG") => 1.0,
         _ => null,
     };
 

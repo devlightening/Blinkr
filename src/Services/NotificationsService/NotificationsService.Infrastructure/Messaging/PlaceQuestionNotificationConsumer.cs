@@ -68,16 +68,16 @@ public class PlaceQuestionNotificationConsumer : IConsumer<PlaceQuestionAnswered
         return new ObjectId(hash.AsSpan(0, 12).ToArray()).ToString();
     }
 
-    private static string AnswerLabel(string? type, string? value) => (type, value) switch
+    private static string AnswerLabel(string? type, string? value) => (type, value?.Trim().ToUpperInvariant()) switch
     {
-        ("Crowd", "Calm") => "Şu an sakin",
-        ("Crowd", "Moderate") => "Şu an hareketli",
-        ("Crowd", "Busy") => "Şu an kalabalık",
-        ("Queue", "None") => "Sıra yok",
-        ("Queue", "5To15") => "Sıra 5–15 dk",
-        ("Queue", "Over15") => "Sıra 15 dk üzeri",
-        ("TemporaryStatus", "Open") => "Şu an açık",
-        ("TemporaryStatus", "Closed") => "Şu an kapalı",
+        ("Crowd", "CALM" or "EMPTY") => "Şu an sakin",
+        ("Crowd", "MODERATE") => "Şu an hareketli",
+        ("Crowd", "BUSY") => "Şu an kalabalık",
+        ("Queue", "NONE") => "Sıra yok",
+        ("Queue", "5TO15") => "Sıra 5–15 dk",
+        ("Queue", "OVER15" or "LONG") => "Sıra 15 dk üzeri",
+        ("TemporaryStatus", "OPEN") => "Şu an açık",
+        ("TemporaryStatus", "CLOSED") => "Şu an kapalı",
         _ => "Yeni bilgi var",
     };
 }

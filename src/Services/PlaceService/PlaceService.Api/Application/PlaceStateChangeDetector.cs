@@ -20,7 +20,9 @@ public sealed class PlaceStateChangeDetector
         var after = _calculator.Calculate(activeSignals, nowUtc);
         if (after.SignalType is null) return null;
         var before = _calculator.Calculate(activeSignals.Where(s => s.PostId != newPostId).ToList(), nowUtc);
-        var changed = before.SignalType != after.SignalType || before.SignalValue != after.SignalValue;
+        // Values compare case-insensitively: "Busy" (app) and "BUSY" (older clients) are the same state, not news.
+        var changed = before.SignalType != after.SignalType
+                      || !string.Equals(before.SignalValue, after.SignalValue, StringComparison.OrdinalIgnoreCase);
         return changed ? after : null;
     }
 }

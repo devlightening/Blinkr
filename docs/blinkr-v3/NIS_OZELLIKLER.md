@@ -16,6 +16,12 @@ etkileşim için mahremiyet zayıflatılmaz.
 | 5 | **Yerel rehber** — mahalle rozeti | Açıklanabilir itibar (doğrulanmış sinyal + "işime yaradı"); tablo yok, seri yok | Planlandı |
 | 6 | **Koleksiyonlar** — paylaşılabilir yer listeleri | Instagram Rehberleri gibi, ama canlı durumlu | Planlandı |
 
+## Doğrulama (BLK-NICHE-01)
+- `scripts/test-niche-features.ps1`: D-033…D-040 için uçtan uca kabul betiği (Gateway, RabbitMQ, iki servis). Backend ayaktayken çalıştırılır; 2026-10-03 itibarıyla **henüz çalıştırılmadı**.
+- `scripts/seed-place-rhythm.ps1 -PlaceId <id>`: ritim grafiğini görmek için geliştirme verisi (yalnız `place_signals`, `-Remove` ile geri alınır).
+- Betik yazılırken bulunan ve düzeltilen hata: sinyal değerleri büyük/küçük harf duyarlı karşılaştırılıyordu ("Busy" uygulamadan, "BUSY" eski istemci ve testlerden, eski "EMPTY"/"LONG"). Ritim, izleme eşleşmesi, bildirim metinleri ve durum değişikliği algılayıcısı artık duyarsız; aksi halde "BUSY" sinyali ritimde sayılmazdı ve "Yeni bilgi gelince" izleyenlerine sahte "değişti" bildirimi giderdi.
+- Bilinen, önceden var olan risk: `CurrentPlaceStateCalculator` değerleri büyük/küçük harf duyarlı grupluyor ("Busy" ve "BUSY" ayrı grup). Algılayıcı bunu sahte değişim saymaz ama oylar bölünebilir; ayrı bir düzeltme olarak ele alınmalı.
+
 ## 1. Yerin Ritmi (yapıldı)
 
 - **Kaynak:** PlaceService `place_signals` (silinmez, TTL yok). Son 8 hafta, yalnız `VERIFIED_LIVE`, yalnız

@@ -57,11 +57,14 @@ public class PlaceWatch
         };
     }
 
-    /// <summary>Whether a new live state is what this person is waiting for.</summary>
+    /// <summary>
+    /// Whether a new live state is what this person is waiting for. Values compare case-insensitively ("Calm" from the
+    /// app, "CALM" from older clients; legacy "EMPTY" means calm).
+    /// </summary>
     public static bool Matches(string condition, string? signalType, string? signalValue) => condition switch
     {
-        Calm => (signalType, signalValue) is ("Crowd", "Calm") or ("Queue", "None"),
-        Open => (signalType, signalValue) is ("TemporaryStatus", "Open"),
+        Calm => (signalType, signalValue?.Trim().ToUpperInvariant()) is ("Crowd", "CALM" or "EMPTY") or ("Queue", "NONE"),
+        Open => (signalType, signalValue?.Trim().ToUpperInvariant()) is ("TemporaryStatus", "OPEN"),
         Update => signalType is not null,
         _ => false,
     };

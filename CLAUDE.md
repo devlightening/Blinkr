@@ -913,6 +913,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\test-location-map-core.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\test-place-live-signal.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\test-place-search.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\test-friends.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\test-niche-features.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\test-safety.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\test-place-batch.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\test-content-media-smoke.ps1

@@ -19,9 +19,10 @@ export const conditionLabel = (condition: WatchCondition) => ({
  */
 export const conditionsFor = (state: Pick<CurrentPlaceState, 'signalType' | 'signalValue'> | null | undefined): WatchCondition[] => {
   const type = state?.signalType ?? null;
-  const value = state?.signalValue ?? null;
-  const closed = type === 'TemporaryStatus' && value === 'Closed';
-  const calm = (type === 'Crowd' && value === 'Calm') || (type === 'Queue' && value === 'None');
+  // Case-insensitive: the app sends 'Calm', older clients 'CALM' (legacy 'EMPTY' = calm).
+  const value = state?.signalValue?.trim().toUpperCase() ?? null;
+  const closed = type === 'TemporaryStatus' && value === 'CLOSED';
+  const calm = (type === 'Crowd' && (value === 'CALM' || value === 'EMPTY')) || (type === 'Queue' && value === 'NONE');
   const list: WatchCondition[] = [];
   if (!calm && !closed) list.push('calm');
   if (closed) list.push('open');

@@ -68,16 +68,16 @@ public class PlaceWatchNotificationConsumer : IConsumer<PlaceLiveStateChangedInt
     };
 
     /// <summary>The same words the app uses for the signal catalog (Doluluk, Bekleme, Geçici durum).</summary>
-    private static string StateLabel(string? type, string? value) => (type, value) switch
+    private static string StateLabel(string? type, string? value) => (type, value?.Trim().ToUpperInvariant()) switch
     {
-        ("Crowd", "Calm") => "Doluluk: Sakin",
-        ("Crowd", "Moderate") => "Doluluk: Hareketli",
-        ("Crowd", "Busy") => "Doluluk: Kalabalık",
-        ("Queue", "None") => "Bekleme: Sıra yok",
-        ("Queue", "5To15") => "Bekleme: 5–15 dk",
-        ("Queue", "Over15") => "Bekleme: 15 dk üzeri",
-        ("TemporaryStatus", "Open") => "Durum: Açık",
-        ("TemporaryStatus", "Closed") => "Durum: Kapalı",
+        ("Crowd", "CALM" or "EMPTY") => "Doluluk: Sakin",
+        ("Crowd", "MODERATE") => "Doluluk: Hareketli",
+        ("Crowd", "BUSY") => "Doluluk: Kalabalık",
+        ("Queue", "NONE") => "Bekleme: Sıra yok",
+        ("Queue", "5TO15") => "Bekleme: 5–15 dk",
+        ("Queue", "OVER15" or "LONG") => "Bekleme: 15 dk üzeri",
+        ("TemporaryStatus", "OPEN") => "Durum: Açık",
+        ("TemporaryStatus", "CLOSED") => "Durum: Kapalı",
         _ => "Yeni bilgi",
     };
 }
