@@ -319,4 +319,25 @@ public class PostsReadController : ControllerBase
             return StatusCode(500, "An error occurred while retrieving author posts");
         }
     }
+
+    /// <summary>
+    /// GET /api/posts-read/author/{id}/trust - design doc P6: { verifiedSignals, verifiedPlaces }, the author's signals
+    /// the server published as VERIFIED_LIVE and at how many places. Anonymous signals never count; no place names.
+    /// Same visibility as the author's list (a private account shows it only to approved followers).
+    /// </summary>
+    [HttpGet("author/{authorId:guid}/trust")]
+    [ProducesResponseType(typeof(AuthorTrustStats), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAuthorTrust(Guid authorId, [FromServices] IAuthorTrustQuery trust, CancellationToken ct = default)
+    {
+        Response.Headers.CacheControl = "private, no-store";
+        if (User.GetUserId() != authorId)
+        {
+            var visibility = await _visibility.CheckAsync(authorId, ct);
+            if (visibility == BlogService.Api.Services.ProfileVisibility.Unavailable)
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new { code = "PROFILE_UNAVAILABLE" });
+            if (visibility == BlogService.Api.Services.ProfileVisibility.Hidden)
+                return StatusCode(StatusCodes.Status403Forbidden, new { code = "PRIVATE_ACCOUNT" });
+        }
+        return Ok(await trust.GetAsync(authorId, ct));
+    }
 }

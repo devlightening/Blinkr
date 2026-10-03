@@ -1,7 +1,7 @@
-import { Archive, Bookmark, Camera, ChevronRight, Lock, Pencil, Radio, Settings, UserPlus, Users } from 'lucide-react-native';
+import { Archive, Bookmark, Camera, ChevronRight, Lock, Pencil, Radio, Settings, Share2, UserPlus, Users } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getMyPosts, getMyProfile, getPlacesByIds } from '../api';
@@ -25,7 +25,6 @@ import { SignalArchiveScreen } from './SignalArchiveScreen';
 import { SignalCardModal } from './signal/SignalCardModal';
 import { SignalGridTile } from './SignalGridTile';
 import { GRID_GAP, PROFILE_RECENT, gridTileSize } from '../profileGrid';
-import { SegmentedControl } from './ui/BlinkrSegmentedControl';
 import { SettingsScreen } from './SettingsScreen';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { bottomBarClearance } from './ui/BlinkrBottomBar';
@@ -33,6 +32,12 @@ import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
 import { SkeletonList } from './ui/BlinkrSkeleton';
 import { tx } from '../i18n/tx';
 import { displayLocale } from '../i18n/locale';
+import { profileCompletion, type CompletionStep } from '../profileCompletion';
+import { GridSkeleton } from './profile/GridSkeleton';
+import { ProfileCompletionCard } from './profile/ProfileCompletionCard';
+import { ProfileTabs, type ProfileTab } from './profile/ProfileTabs';
+import { ShareProfileSheet } from './profile/ShareProfileSheet';
+import { TrustLine } from './profile/TrustLine';
 
 const formatCount = (value: number) => value.toLocaleString(displayLocale());
 
@@ -50,17 +55,22 @@ type Props = {
   onMessageUser?: (user: UserSummary) => void;
   /** Number of friend requests waiting for an answer (drives the dot on the Profil tab). */
   onRequestsChange?: (waiting: number) => void;
+  /** One-shot: open this person's profile (a scanned or opened blinkr://users/{id} link). */
+  openUserId?: string | null;
+  onOpenUserHandled?: () => void;
 };
 
-type ProfileTab = 'signals' | 'places';
+type FriendsTab = 'friends' | 'requests' | 'add';
 
 /**
- * My profile: who I am (avatar, numbers, bio), then two tabs - my newest signals and my saved places. There is no
+ * My profile: who I am (avatar, numbers, bio), the Instagram button row (edit, share with a QR code, add friend; doc P2),
+ * a completion card while something is missing (P8), then sticky icon tabs (P4) - my newest signals and my saved places.
+ * Friends moved from a big button to an icon with a request badge in the top bar. There is no
  * endless list: the profile shows the newest PROFILE_RECENT signals and "all signals" opens the archive, read page by
  * page (SignalArchiveScreen). A signal opens as its Sinyal Kartı. Only real data; account things (privacy, sign out)
  * live in Ayarlar.
  */
-export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCreateSignal, onOverlayOpenChange, onMessageUser, onRequestsChange }: Props) {
+export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCreateSignal, onOverlayOpenChange, onMessageUser, onRequestsChange, openUserId = null, onOpenUserHandled }: Props) {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation('profile');
   const { width: screenWidth } = useWindowDimensions();
@@ -82,7 +92,8 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
   const [followList, setFollowList] = useState<FollowListTab | null>(null);
   const [person, setPerson] = useState<UserSummary | null>(null);
   const [incoming, setIncoming] = useState(0);
-  const [friendsOpen, setFriendsOpen] = useState(false);
+  const [friendsOpen, setFriendsOpen] = useState<FriendsTab | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -151,7 +162,15 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
   useEffect(() => { void loadProfile(); }, [auth.userId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { void loadPosts(); return () => postsRequest.current?.abort(); }, [auth.userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const overlayOpen = avatarOpen || friendsOpen || editOpen || settingsOpen || archiveOpen || Boolean(openPost) || Boolean(followList) || Boolean(person);
+  // A profile link (scanned QR or opened from outside) shows that person; my own link just stays on my profile.
+  useEffect(() => {
+    if (!openUserId) return;
+    onOpenUserHandled?.();
+    if (openUserId !== auth.userId) setPerson({ id: openUserId, userName: '' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openUserId]);
+
+  const overlayOpen = shareOpen || avatarOpen || Boolean(friendsOpen) || editOpen || settingsOpen || archiveOpen || Boolean(openPost) || Boolean(followList) || Boolean(person);
   useEffect(() => {
     onOverlayOpenChange?.(overlayOpen);
     return () => onOverlayOpenChange?.(false);
@@ -167,8 +186,14 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
     </AnimatedPressable>
   );
 
+  const completion = profileCompletion({ hasPhoto: Boolean(photoVersion) || Boolean(auth.avatarKey), bio, signalCount: posts === null ? null : total ?? posts.length });
+  const onCompletionStep = (step: CompletionStep) => {
+    if (step === 'signal') onCreateSignal?.();
+    else setEditOpen(true);
+  };
+
   const signalsTab = posts === null ? (
-    <ActivityIndicator accessibilityLabel={tx('profile:me.postsLoading', 'Sinyallerin yükleniyor')} color={colors.primary} style={styles.loading} />
+    <GridSkeleton tileWidth={tileSize} />
   ) : postsError && posts.length === 0 ? (
     <View style={styles.inline}>
       <Text accessibilityRole="alert" style={styles.error}>{postsError}</Text>
@@ -250,15 +275,30 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
         contentContainerStyle={[styles.content, { paddingBottom: bottomBarClearance(insets.bottom) + spacing.lg }]}
         refreshControl={<RefreshControl onRefresh={refresh} refreshing={refreshing} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[1]}
       >
+        <View style={styles.head}>
         <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
           <View style={styles.handleRow}>
             {isPrivate ? <Lock accessibilityLabel={t('private.badge')} color={colors.text} size={16} /> : null}
             <Text accessibilityRole="header" numberOfLines={1} style={styles.handle}>{auth.userName}</Text>
           </View>
-          <AnimatedPressable accessibilityLabel={tx('settings:title', 'Ayarlar')} accessibilityRole="button" onPress={() => setSettingsOpen(true)} pressScale={0.92} style={styles.iconButton}>
-            <Settings color={colors.text} size={22} />
-          </AnimatedPressable>
+          <View style={styles.topActions}>
+            <AnimatedPressable
+              accessibilityLabel={incoming > 0 ? tx('profile:me.friendsA11y', 'Arkadaşlar, {{count}} yeni istek', { count: incoming }) : tx('profile:friends.title', 'Arkadaşlar')}
+              accessibilityRole="button"
+              onPress={() => setFriendsOpen(incoming > 0 ? 'requests' : 'friends')}
+              pressScale={0.92}
+              style={styles.iconButton}
+              testID="profile-friends"
+            >
+              <Users color={colors.text} size={22} />
+              {incoming > 0 ? <View style={styles.badge}><Text style={styles.badgeText}>{badgeText(incoming)}</Text></View> : null}
+            </AnimatedPressable>
+            <AnimatedPressable accessibilityLabel={tx('settings:title', 'Ayarlar')} accessibilityRole="button" onPress={() => setSettingsOpen(true)} pressScale={0.92} style={styles.iconButton}>
+              <Settings color={colors.text} size={22} />
+            </AnimatedPressable>
+          </View>
         </View>
 
         <View style={styles.identityTop}>
@@ -275,6 +315,7 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
 
         <View style={styles.about}>
           {displayName ? <Text numberOfLines={1} style={styles.displayName} testID="profile-display-name">{displayName}</Text> : null}
+          <TrustLine auth={auth} refresh={{ onAuthRefresh: onAuthChange, onSessionExpired: onLogout }} userId={auth.userId} />
           {bio
             ? <Text style={styles.bio}>{bio}</Text>
             : (
@@ -286,16 +327,13 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
 
         <View style={styles.buttonRow}>
           <BlinkrButton label={tx('profile:me.edit', 'Profili düzenle')} onPress={() => setEditOpen(true)} style={styles.flex} variant="secondary" />
-          <BlinkrButton
-            accessibilityLabel={incoming > 0 ? tx('profile:me.friendsA11y', 'Arkadaşlar, {{count}} yeni istek', { count: incoming }) : tx('profile:friends.title', 'Arkadaşlar')}
-            icon={<Users color={colors.text} size={16} />}
-            label={incoming > 0 ? tx('profile:me.friendsBadge', 'Arkadaşlar · {{count}}', { count: badgeText(incoming) }) : tx('profile:friends.title', 'Arkadaşlar')}
-            onPress={() => setFriendsOpen(true)}
-           
-            style={styles.flex}
-            variant="secondary"
-          />
+          <BlinkrButton icon={<Share2 color={colors.text} size={16} />} label={tx('profile:share.button', 'Profili paylaş')} onPress={() => setShareOpen(true)} style={styles.flex} variant="secondary" />
+          <AnimatedPressable accessibilityLabel={tx('profile:me.addFriend', 'Arkadaş ekle')} accessibilityRole="button" onPress={() => setFriendsOpen('add')} pressScale={0.95} style={styles.squareButton}>
+            <UserPlus color={colors.text} size={18} />
+          </AnimatedPressable>
         </View>
+
+        {completion && !completion.complete ? <ProfileCompletionCard completion={completion} onStep={onCompletionStep} /> : null}
 
         {followRequests > 0 ? (
           <AnimatedPressable accessibilityRole="button" onPress={() => setFollowList('requests')} pressScale={0.99} style={styles.requests}>
@@ -306,17 +344,11 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
           </AnimatedPressable>
         ) : null}
 
-        <SegmentedControl
-          accessibilityLabel={tx('profile:me.tabs', 'Profil bölümleri')}
-          onChange={setTab}
-          options={[
-            { value: 'signals', label: total ? tx('profile:me.tabSignalsCount', 'Sinyaller · {{count}}', { count: formatCount(total) }) : tx('profile:me.tabSignals', 'Sinyaller') },
-            { value: 'places', label: savedCount ? tx('profile:me.tabPlacesCount', 'Yerler · {{count}}', { count: formatCount(savedCount) }) : tx('profile:me.tabPlaces', 'Yerler') },
-          ]}
-          value={tab}
-        />
+        </View>
 
-        {tab === 'signals' ? signalsTab : placesTab}
+        <ProfileTabs onChange={setTab} placeCount={savedCount} signalCount={total} value={tab} />
+
+        <View style={styles.tabBody}>{tab === 'signals' ? signalsTab : placesTab}</View>
       </ScrollView>
 
       {archiveOpen ? <SignalArchiveScreen auth={auth} onAuthChange={onAuthChange} onBack={() => setArchiveOpen(false)} onLogout={onLogout} onOpenPost={setOpenPost} /> : null}
@@ -334,14 +366,23 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
           refresh={{ onAuthRefresh: onAuthChange, onSessionExpired: onLogout }}
         />
       ) : null}
+      {shareOpen ? (
+        <ShareProfileSheet
+          auth={auth}
+          displayName={displayName}
+          onClose={() => setShareOpen(false)}
+          onOpenUser={(userId) => { setShareOpen(false); setPerson({ id: userId, userName: '' }); }}
+          photoVersion={photoVersion ?? null}
+        />
+      ) : null}
       {friendsOpen ? (
         <FriendsScreen
           auth={auth}
-          initialTab={incoming > 0 ? 'requests' : 'friends'}
+          initialTab={friendsOpen}
           onAuthChange={onAuthChange}
-          onBack={() => { setFriendsOpen(false); void loadProfile(); }}
+          onBack={() => { setFriendsOpen(null); void loadProfile(); }}
           onCountsChange={({ incoming: waiting }) => { setIncoming(waiting); onRequestsChange?.(waiting); }}
-          onMessage={(user) => { setFriendsOpen(false); onMessageUser?.(user); }}
+          onMessage={(user) => { setFriendsOpen(null); onMessageUser?.(user); }}
           onSessionExpired={onLogout}
         />
       ) : null}
@@ -392,11 +433,17 @@ const AVATAR = 84;
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.background, flex: 1 },
-  content: { gap: spacing.md, paddingHorizontal: spacing.lg },
+  content: { paddingHorizontal: spacing.lg },
+  head: { gap: spacing.md, paddingBottom: spacing.md },
+  tabBody: { paddingTop: spacing.md },
+  topActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginRight: -spacing.sm },
+  badge: { alignItems: 'center', backgroundColor: colors.primary, borderColor: colors.background, borderRadius: radii.pill, borderWidth: 2, height: 20, justifyContent: 'center', minWidth: 20, paddingHorizontal: 4, position: 'absolute', right: 2, top: 4 },
+  badgeText: { ...typography.micro, color: colors.ink, fontWeight: '700' },
+  squareButton: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.md, height: sizes.touch, justifyContent: 'center', width: sizes.touch },
   topBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   handleRow: { alignItems: 'center', flexDirection: 'row', flexShrink: 1, gap: spacing.xs },
   handle: { ...typography.headline, color: colors.text, flexShrink: 1 },
-  iconButton: { alignItems: 'center', height: sizes.touch, justifyContent: 'center', marginRight: -spacing.sm, width: sizes.touch },
+  iconButton: { alignItems: 'center', height: sizes.touch, justifyContent: 'center', width: sizes.touch },
   identityTop: { alignItems: 'center', flexDirection: 'row', gap: spacing.lg, marginTop: spacing.xs },
   avatarButton: { height: AVATAR, width: AVATAR },
   avatarEdit: { alignItems: 'center', backgroundColor: colors.primary, borderColor: colors.background, borderRadius: radii.pill, borderWidth: 2, bottom: 0, height: 26, justifyContent: 'center', position: 'absolute', right: 0, width: 26 },

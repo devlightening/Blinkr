@@ -404,6 +404,11 @@ export const getMyPosts = (
 
 type Refresh = { onAuthRefresh?: (auth: AuthResponse) => void; onSessionExpired?: () => void };
 
+/** Doc P6: signals the server published as VERIFIED_LIVE and at how many places (never anonymous ones, no names). */
+export type AuthorTrust = { verifiedSignals: number; verifiedPlaces: number };
+export const getAuthorTrust = (auth: AuthResponse, userId: string, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<AuthorTrust>(`/api/posts-read/author/${userId}/trust`, { auth, signal, ...refresh });
+
 export const getMyProfile = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
   requestJson<MyProfile>('/api/users/me', { auth, signal, ...refresh });
 

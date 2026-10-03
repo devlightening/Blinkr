@@ -6,6 +6,18 @@ import { parseDeepLink } from './notifications';
  */
 export const postLink = (postId: string) => `blinkr://posts/${postId}`;
 
+/** A person's link (doc P2, "Profili paylaş"): what the profile QR code carries. Only the id; no name or anything else. */
+export const userLink = (userId: string) => `blinkr://users/${userId}`;
+
+export type AppLink = { kind: 'post'; postId: string } | { kind: 'user'; userId: string };
+
+/** A post or a person from a Blinkr link (opened from outside or scanned), or null for anything else. */
+export function parseAppLink(url: string | null | undefined): AppLink | null {
+  const target = parseDeepLink(url?.trim().replace(/\/?(?:[?#].*)?$/, '') ?? null);
+  if (!target) return null;
+  return target.kind === 'post' ? { kind: 'post', postId: target.postId } : { kind: 'user', userId: target.userId };
+}
+
 /** The post id from a Blinkr link, or null for anything else. */
 export function parsePostLink(url: string | null | undefined): string | null {
   const target = parseDeepLink(url?.trim().replace(/\/?(?:[?#].*)?$/, '') ?? null);

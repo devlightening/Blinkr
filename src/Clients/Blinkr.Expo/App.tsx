@@ -10,7 +10,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, w
 
 import { clearAuth, getMyProfile, getSignalDetail, listConversations, loadAuth, saveAuth } from './src/api';
 import { setPeopleAuth } from './src/people';
-import { parsePostLink } from './src/deepLinks';
+import { parseAppLink } from './src/deepLinks';
 import { AuthScreen } from './src/components/AuthScreen';
 import { initI18n } from './src/i18n';
 
@@ -166,13 +166,23 @@ export default function App() {
     setFocusSignal(signal);
     setActiveTab('map');
   }, []);
-  // V2-2: blinkr://post/{id} (a shared signal) opens it on the map, the same way a Keşfet row does.
+  // V2-2: blinkr://posts/{id} (a shared signal) opens it on the map, the same way a Keşfet row does. Doc P2:
+  // blinkr://users/{id} (a profile link or scanned profile QR) opens that person's profile from the Profil tab.
   const [pendingLink, setPendingLink] = useState<string | null>(null);
+  const [profileRequest, setProfileRequest] = useState<string | null>(null);
   useEffect(() => {
-    void Linking.getInitialURL().then((url) => { const id = parsePostLink(url); if (id) setPendingLink(id); }).catch(() => {});
-    const sub = Linking.addEventListener('url', ({ url }) => { const id = parsePostLink(url); if (id) setPendingLink(id); });
+    const handle = (url: string | null) => {
+      const link = parseAppLink(url);
+      if (link?.kind === 'post') setPendingLink(link.postId);
+      else if (link?.kind === 'user') setProfileRequest(link.userId);
+    };
+    void Linking.getInitialURL().then(handle).catch(() => {});
+    const sub = Linking.addEventListener('url', ({ url }) => handle(url));
     return () => sub.remove();
   }, []);
+  // A person link waits for sign-in, then switches to Profil; the screen opens the person and clears the request.
+  useEffect(() => { if (profileRequest && auth) setActiveTab('profile'); }, [profileRequest, auth]);
+  const clearProfileRequest = useCallback(() => setProfileRequest(null), []);
   useEffect(() => {
     if (!pendingLink || !auth) return undefined;
     const controller = new AbortController();
@@ -300,7 +310,7 @@ export default function App() {
                   ) : tab === 'nearby' ? (
                     <DiscoverScreen auth={auth} hashtagRequest={hashtagRequest} onHashtagHandled={() => setHashtagRequest(null)} onAuthChange={acceptAuth} onCreateSignal={() => openShare('camera')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOpenSignal={openNearbySignal} onOverlayOpenChange={setDiscoverOverlayOpen} />
                   ) : tab === 'profile' ? (
-                    <ProfileScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={() => openShare('camera')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOverlayOpenChange={setProfileOverlayOpen} onRequestsChange={onRequestsChange} />
+                    <ProfileScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={() => openShare('camera')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOpenUserHandled={clearProfileRequest} onOverlayOpenChange={setProfileOverlayOpen} onRequestsChange={onRequestsChange} openUserId={profileRequest} />
                   ) : null}
                   swipeEnabled={!((activeTab === 'chat' && chatConversationOpen) || (activeTab === 'profile' && profileOverlayOpen) || (activeTab === 'nearby' && discoverOverlayOpen))}
                 />

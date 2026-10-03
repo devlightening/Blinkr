@@ -312,6 +312,7 @@ public static class ServiceCollectionExtensions
 
         // Register CachedPostQueryService as IPostQueryService
         services.AddScoped<IPostQueryService, CachedPostQueryService>();
+        services.AddScoped<IAuthorTrustQuery, BlogService.Infrastructure.Services.MongoAuthorTrustQuery>();
 
         // Maintenance service for read model sync
         services.AddScoped<IPostMaintenanceService, PostMaintenanceService>();

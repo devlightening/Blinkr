@@ -118,7 +118,8 @@
     "tabSignals": "Sinyaller",
     "tabSignalsCount": "Sinyaller · {{count}}",
     "tabPlaces": "Yerler",
-    "tabPlacesCount": "Yerler · {{count}}"
+    "tabPlacesCount": "Yerler · {{count}}",
+    "addFriend": "Arkadaş ekle"
   },
   "relation": {
     "friends": "Arkadaş",
@@ -215,5 +216,34 @@
     "failed": "Fotoğraf yüklenemedi. Tekrar dene.",
     "removeFailed": "Fotoğraf kaldırılamadı. Tekrar dene.",
     "help": "Fotoğrafın profilinde, sohbette ve yorumlarda görünür. Haritada ve anonim paylaşımlarında asla görünmez."
+  },
+  "share": {
+    "button": "Profili paylaş",
+    "copied": "Bağlantı kopyalandı",
+    "copyFailed": "Kopyalanamadı",
+    "message": "Blinkr'da beni ekle: @{{name}}\n{{link}}",
+    "failed": "Paylaşılamadı",
+    "cameraDenied": "QR okumak için kamera izni gerekiyor. Ayarlar > İzinler.",
+    "notBlinkr": "Bu bir Blinkr profil kodu değil",
+    "self": "Bu senin kodun",
+    "scanTitle": "QR kodu tara",
+    "scanHint": "Arkadaşının Blinkr profil kodunu çerçeveye getir.",
+    "qrA11y": "@{{name}} profil kodu",
+    "cardHint": "Telefon kamerasıyla okutunca profilin Blinkr'da açılır.",
+    "copy": "Bağlantıyı kopyala",
+    "elsewhere": "Paylaş",
+    "scan": "QR tara"
+  },
+  "complete": {
+    "photo": "Fotoğraf ya da avatar seç",
+    "bio": "Kendini kısaca tanıt",
+    "signal": "İlk sinyalini bırak",
+    "title": "Profilini tamamla",
+    "count": "{{done}}/{{total}}",
+    "progressA11y": "{{done}} / {{total}} adım tamam"
+  },
+  "trust": {
+    "line": "Konumda doğrulanmış {{signals}} sinyal · {{places}} yer",
+    "signalsOnly": "Konumda doğrulanmış {{signals}} sinyal"
   }
 }

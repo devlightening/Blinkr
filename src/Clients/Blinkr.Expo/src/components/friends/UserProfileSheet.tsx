@@ -17,6 +17,7 @@ import { colors, radii, sizes, spacing, typography } from '../../theme';
 import type { AuthoredPost, AuthResponse, PublicProfile, Relation, UserSummary } from '../../types';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
+import { TrustLine } from '../profile/TrustLine';
 import { ReportPanel } from '../ReportPanel';
 import { Sheet } from '../Sheet';
 import { SignalCardModal } from '../signal/SignalCardModal';
@@ -198,6 +199,7 @@ export function UserProfileSheet({ auth, user, onAuthChange, onSessionExpired, o
 
         <View style={styles.about}>
           {profile?.displayName ? <Text numberOfLines={1} style={styles.displayName}>{profile.displayName}</Text> : null}
+          {profile && !blocked ? <TrustLine auth={auth} enabled={!locked} refresh={{ onAuthRefresh: onAuthChange, onSessionExpired }} userId={user.id} /> : null}
           {profile?.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
           <View style={styles.metaRow}>
             {profile?.followsYou && follow !== 'self' ? <Text style={styles.badge}>{t('follow.followsYou')}</Text> : null}

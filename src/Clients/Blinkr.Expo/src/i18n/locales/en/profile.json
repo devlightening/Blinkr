@@ -118,7 +118,8 @@
     "tabSignals": "Signals",
     "tabSignalsCount": "Signals · {{count}}",
     "tabPlaces": "Places",
-    "tabPlacesCount": "Places · {{count}}"
+    "tabPlacesCount": "Places · {{count}}",
+    "addFriend": "Add friend"
   },
   "relation": {
     "friends": "Friend",
@@ -215,5 +216,34 @@
     "failed": "Couldn't upload the photo. Try again.",
     "removeFailed": "Couldn't remove the photo. Try again.",
     "help": "Your photo shows on your profile, in chats and comments. Never on the map or on anonymous posts."
+  },
+  "share": {
+    "button": "Share profile",
+    "copied": "Link copied",
+    "copyFailed": "Couldn't copy",
+    "message": "Add me on Blinkr: @{{name}}\n{{link}}",
+    "failed": "Couldn't share",
+    "cameraDenied": "Reading a QR code needs camera access. Settings > Permissions.",
+    "notBlinkr": "This is not a Blinkr profile code",
+    "self": "This is your code",
+    "scanTitle": "Scan a QR code",
+    "scanHint": "Bring your friend's Blinkr profile code into the frame.",
+    "qrA11y": "@{{name}} profile code",
+    "cardHint": "Scanning it with a phone camera opens your profile in Blinkr.",
+    "copy": "Copy link",
+    "elsewhere": "Share",
+    "scan": "Scan QR"
+  },
+  "complete": {
+    "photo": "Add a photo or pick an avatar",
+    "bio": "Introduce yourself",
+    "signal": "Drop your first signal",
+    "title": "Complete your profile",
+    "count": "{{done}}/{{total}}",
+    "progressA11y": "{{done}} of {{total}} steps done"
+  },
+  "trust": {
+    "line": "{{signals}} signals verified on site · {{places}} places",
+    "signalsOnly": "{{signals}} signals verified on site"
   }
 }

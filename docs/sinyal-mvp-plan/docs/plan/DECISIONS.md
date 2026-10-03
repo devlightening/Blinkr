@@ -15,6 +15,15 @@
 
 ## Kararlar
 
+### D-036 — Profil paylaşımı (QR) ve "konumda doğrulanmış" satırı (2026-10-03)
+- Bağlam: Tasarım belgesi P2 (Profili paylaş + QR), P4 (simgeli yapışkan sekmeler), P6 (doğrulanmış sinyal satırı), P8 (tamamlama kartı, ızgara iskeleti).
+- Karar:
+  1. QR, `qrcode-generator` (MIT, saf JS, yerel modül yok) ile üretilir ve mevcut `react-native-svg` ile çizilir; yeni yerel bağımlılık yok. Kod yalnız `blinkr://users/{id}` taşır. Uygulama içi okuma mevcut `expo-camera` barkod okuyucusuyla, kamera izni yalnız "QR tara"ya basınca istenir. Uygulama artık `blinkr://users/{id}` bağlantısını da açar (Profil sekmesinde o kişinin profili); profil her zamanki kurallarla (engel, gizli hesap) açılır.
+  2. P6 sayısı sunucunundur: BlogService `GET /api/posts-read/author/{id}/trust` → `{ verifiedSignals, verifiedPlaces }`; yalnız `VERIFIED_LIVE` yayınlar, anonim sinyal **hiç** sayılmaz (yazarın kendisi sorsa da), yer adı dönmez. Görünürlük yazar listesiyle aynı (gizli hesapta yalnız onaylı takipçi). Ayrı küçük arayüz (`IAuthorTrustQuery`), büyük `IPostQueryService`'e eklenmedi. Tek bir "güven puanı"na çevrilmez.
+  3. Sekmeler arası yana kaydırma yapılmadı: Profil, uygulamanın yatay sekme sayfalayıcısında; iki yatay hareket çakışır.
+  4. Tamamlama kartında "fotoğraf" adımı fotoğraf **ya da** seçilmiş avatar ile tamamlanır: D-032 gereği fotoğraf isteğe bağlıdır, kart kimseyi yüzünü koymaya zorlamaz.
+- Etki: CLAUDE.md §12.1, §13 Posts.
+
 ### D-035 — "Buluşalım" kartı: yer + saat önerisi, konum yok (2026-10-03)
 - Bağlam: Tasarım belgesi B2. Sohbette "şurada şu saatte buluşalım mı?" sorusunu yer kararıyla birleştirmek; kartın altında yerin canlı durumu (B1) görünür.
 - Karar:
