@@ -21,7 +21,7 @@ public class ChatMessage
     [BsonRepresentation(BsonType.String)]
     public List<Guid> ReadByUserIds { get; set; } = new();
 
-    /// <summary>"text" (default, also for messages stored before snaps existed), "snap", "signal" or "unsent".</summary>
+    /// <summary>"text" (default, also for messages stored before snaps existed), "snap", "signal", "place" or "unsent".</summary>
     public string Kind { get; set; } = "text";
 
     [BsonIgnoreIfNull]
@@ -30,6 +30,13 @@ public class ChatMessage
     /// <summary>A shared signal (Kind "signal"): a link to a post plus a display snapshot. Never an author name.</summary>
     [BsonIgnoreIfNull]
     public SignalSharePayload? Signal { get; set; }
+
+    /// <summary>
+    /// A shared place (Kind "place", design doc B1): only the place id and a name snapshot. The live state is never stored
+    /// here; the app reads it from PlaceService when the bubble is shown, so it is current and follows the same trust rules.
+    /// </summary>
+    [BsonIgnoreIfNull]
+    public PlaceSharePayload? Place { get; set; }
 
     /// <summary>Sender-chosen id so a retried send never creates a second message (sinyal-mvp-plan P8.1).</summary>
     [BsonIgnoreIfNull]
@@ -55,6 +62,19 @@ public class ReplyPayload
     /// <summary>At most 120 characters of the quoted text; empty for a snap or a taken-back message.</summary>
     public string Text { get; set; } = string.Empty;
     public string Kind { get; set; } = "text";
+}
+
+/// <summary>
+/// A catalog place shared in chat. Name and category are the sender's snapshot, shown only until (or if) PlaceService
+/// answers for the id; no coordinates or sender location are kept.
+/// </summary>
+public class PlaceSharePayload
+{
+    [BsonRepresentation(BsonType.String)]
+    public Guid PlaceId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    [BsonIgnoreIfNull]
+    public string? Category { get; set; }
 }
 
 public class SignalSharePayload

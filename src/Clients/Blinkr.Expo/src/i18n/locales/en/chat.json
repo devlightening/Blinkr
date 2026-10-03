@@ -149,5 +149,21 @@
   },
   "story": {
     "reply": "↩ Reply to your story: {{text}}"
+  },
+  "place": {
+    "share": "Share a place",
+    "live": "Now · {{live}}",
+    "noLive": "No current info",
+    "loading": "Loading status…",
+    "open": "Open on map",
+    "a11yLive": "{{name}}, {{category}}. Now: {{live}}. Open on map",
+    "a11y": "{{name}}, {{category}}. No current info. Open on map",
+    "pickTitle": "Share a place",
+    "pickHint": "Send one of your saved places; they will see how it is doing right now.",
+    "search": "Search saved places",
+    "noSaved": "No saved places",
+    "noSavedHint": "Tap \"Save\" on a place page to share it here.",
+    "sendA11y": "Send {{name}}",
+    "noMatch": "No saved place matches"
   }
 }

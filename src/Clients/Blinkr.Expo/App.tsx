@@ -294,6 +294,7 @@ export default function App() {
                       onUnreadChange={setChatUnread}
                       onOpenWithHandled={clearChatTarget}
                       onOpenProfile={() => setActiveTab('profile')}
+                      onOpenPlace={openSavedPlace}
                       openWith={chatTarget}
                     />
                   ) : tab === 'nearby' ? (

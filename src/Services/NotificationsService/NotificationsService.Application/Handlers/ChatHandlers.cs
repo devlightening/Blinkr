@@ -44,22 +44,17 @@ public sealed class SendMessageHandler : IRequestHandler<SendMessageCommand, Cha
         _typing = typing;
     }
 
-    private static string? Clip(string? value, int max)
-    {
-        var trimmed = value?.Trim();
-        return string.IsNullOrEmpty(trimmed) ? null : trimmed.Length <= max ? trimmed : trimmed[..max];
-    }
-
     public async Task<ChatMessageDto> Handle(SendMessageCommand req, CancellationToken ct)
     {
         var text = req.Text?.Trim() ?? string.Empty;
-        if (string.IsNullOrEmpty(text) && req.Signal is null)
+        var signal = ChatShareFactory.Signal(req.Signal);
+        var place = ChatShareFactory.Place(req.Place);
+        var kind = ChatShareFactory.KindOf(signal, place);
+        if (string.IsNullOrEmpty(text) && kind == ChatShareFactory.TextKind)
             throw new ChatValidationException("Mesaj boş olamaz.");
-        if (req.Signal is not null && req.Signal.PostId == Guid.Empty)
-            throw new ChatValidationException("Paylaşılan sinyal seçilemedi.");
         if (text.Length > 2000)
             text = text[..2000];
-        var clientId = Clip(req.ClientId, ChatRules.MaxClientIdLength);
+        var clientId = ChatShareFactory.Clip(req.ClientId, ChatRules.MaxClientIdLength);
 
         var conversation = await _conversations.GetByIdAsync(req.ConversationId, ct)
             ?? throw new ChatNotFoundException("Konuşma bulunamadı.");
@@ -75,14 +70,6 @@ public sealed class SendMessageHandler : IRequestHandler<SendMessageCommand, Cha
             if (existing is not null) return existing.ToDto(req.UserId);
         }
 
-        var signal = req.Signal is null ? null : new SignalSharePayload
-        {
-            PostId = req.Signal.PostId,
-            SignalType = Clip(req.Signal.SignalType, 40) ?? "GeneralObservation",
-            SignalValue = Clip(req.Signal.SignalValue, 40),
-            Title = Clip(req.Signal.Title, 120),
-            LocationName = Clip(req.Signal.LocationName, 120),
-        };
         ReplyPayload? reply = null;
         if (!string.IsNullOrWhiteSpace(req.ReplyToId))
         {
@@ -94,7 +81,7 @@ public sealed class SendMessageHandler : IRequestHandler<SendMessageCommand, Cha
                 SenderId = quoted.SenderId,
                 Kind = quoted.Kind,
                 // A snap never quotes its media; a taken-back message quotes nothing.
-                Text = quoted.Kind is "snap" or "unsent" ? string.Empty : Clip(quoted.Kind == "signal" ? quoted.Signal?.Title ?? quoted.Text : quoted.Text, 120) ?? string.Empty,
+                Text = ChatShareFactory.QuoteText(quoted),
             };
         }
         _typing.Clear(req.ConversationId, req.UserId);
@@ -107,13 +94,14 @@ public sealed class SendMessageHandler : IRequestHandler<SendMessageCommand, Cha
             ReplyTo = reply,
             CreatedAtUtc = DateTime.UtcNow,
             ReadByUserIds = new List<Guid> { req.UserId },
-            Kind = signal is null ? "text" : "signal",
+            Kind = kind,
             Signal = signal,
+            Place = place,
             ClientId = clientId,
         };
 
         var inserted = await _messages.InsertAsync(message, ct);
-        var previewSource = signal is not null ? (string.IsNullOrEmpty(text) ? "Sinyal paylaştı" : text) : text;
+        var previewSource = ChatShareFactory.Preview(kind, text);
         var preview = previewSource.Length > 120 ? previewSource[..117] + "..." : previewSource;
         await _conversations.UpdateLastMessageAsync(req.ConversationId, req.UserId, preview, inserted.CreatedAtUtc, inserted.Kind, inserted.Id, ct);
 
@@ -276,6 +264,7 @@ public sealed class UnsendMessageHandler : IRequestHandler<UnsendMessageCommand,
         message.Kind = "unsent";
         message.Text = string.Empty;
         message.Signal = null;
+        message.Place = null;
         message.Reactions = new();
         await _messages.ReplaceAsync(message, ct);
         await _messages.ClearQuotesAsync(req.ConversationId, message.Id!, ct);

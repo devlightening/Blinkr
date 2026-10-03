@@ -7,9 +7,13 @@ public record StartOrGetConversationCommand(Guid UserId, Guid TargetUserId) : IR
 
 public record SignalShareInput(Guid PostId, string? SignalType, string? SignalValue, string? Title, string? LocationName);
 
+/// <summary>A catalog place to share (design doc B1): its id and the name/category the sender saw.</summary>
+public record PlaceShareInput(Guid PlaceId, string? Name, string? Category);
+
 /// <param name="ClientId">Optional idempotency key: the same key in the same conversation returns the first message.</param>
 /// <param name="Signal">Optional shared signal (the text is then an optional note).</param>
-public record SendMessageCommand(Guid UserId, string ConversationId, string Text, string? ClientId = null, SignalShareInput? Signal = null, string? ReplyToId = null) : IRequest<ChatMessageDto>;
+/// <param name="Place">Optional shared place (the text is then an optional note); never together with a signal.</param>
+public record SendMessageCommand(Guid UserId, string ConversationId, string Text, string? ClientId = null, SignalShareInput? Signal = null, string? ReplyToId = null, PlaceShareInput? Place = null) : IRequest<ChatMessageDto>;
 
 /// <summary>"I am typing" (plan-devam E4): remembered for a few seconds, never stored.</summary>
 public record TypingCommand(Guid UserId, string ConversationId) : IRequest<Unit>;

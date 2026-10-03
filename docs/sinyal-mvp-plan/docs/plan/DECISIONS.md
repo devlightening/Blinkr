@@ -15,6 +15,16 @@
 
 ## Kararlar
 
+### D-034 — Sohbette canlı yer kartı: mesaj yalnız yer kimliği taşır, durum PlaceService'ten okunur (2026-10-03)
+- Bağlam: Tasarım belgesi B1 (canlı yer kartı) ve B5 (kayıtlı yerden paylaşım). "Orası nasıl?" sorusunu sohbetin içinde yanıtlamak; Blinkr'in yer-öncelikli çekirdeğine bağlanan sohbet katkısı.
+- Karar:
+  1. Yeni mesaj türü `place`: `{ placeId, name, category }`. Ad/kategori yalnız gönderenin anlık görüntüsüdür; koordinat, gönderenin konumu ve canlı durum mesaja **yazılmaz**.
+  2. Canlı durum her gösterimde PlaceService'ten (`GET /api/places/batch`, konuşmadaki tüm yerler tek istekte, açıkken dakikada bir) okunur ve kayıtlı yerlerdeki kuralla gösterilir: yalnız doğrulanmış ve taze (FRESH/RECENT) etkinlik, aksi halde "Güncel bilgi yok". Böylece tazelik/güven kuralı tek yerde (PlaceService + `savedLive.ts`) kalır; NotificationsService PlaceService'e senkron bağımlılık kazanmaz.
+  3. PlaceService'in verdiği ad, gönderenin anlık görüntüsünün önüne geçer: bir balon bir yeri başka bir yerin adıyla gösteremez.
+  4. Paylaşım ve önizleme kuralları (`ChatShareFactory`) gönderim işleyicisinden ayrıldı: kimlik denetimi, kırpma, tür seçimi, liste satırı ve alıntı metni tek yerde. Bir mesaj en fazla bir şey paylaşır (sinyal ya da yer).
+  5. Giriş noktası şimdilik kayıtlı yerler (B5, konuşmadaki konum düğmesi). Yer sayfasından "sohbette paylaş" sonraki adım.
+- Etki: CLAUDE.md §12.1, §13 Chat. Geri alma ve hesap silme yer yükünü de temizler.
+
 ### D-033 — Sohbet sabitleme ve sessize alma kişiye özel, ayrı koleksiyonda (2026-10-03)
 - Bağlam: Tasarım belgesi S3 (en fazla 3 sohbet sabitle) ve S5 (sessize al) sunucu alanı istiyordu. Sohbetin sahibi NotificationsService'tir (CLAUDE.md §6.5); yeni servis açılmaz.
 - Karar:

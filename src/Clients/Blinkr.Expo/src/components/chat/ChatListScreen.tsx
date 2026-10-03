@@ -21,7 +21,7 @@ import { UserProfileSheet } from '../friends/UserProfileSheet';
 import { UserSearchSheet } from './UserSearchSheet';
 import { ConversationScreen } from './ConversationScreen';
 import { colors, motion, radii, sizes, spacing, typography } from '../../theme';
-import type { AuthResponse, Conversation, Friend, UserSummary } from '../../types';
+import type { AuthResponse, BlinkrPlace, Conversation, Friend, UserSummary } from '../../types';
 import { Avatar } from '../Avatar';
 import { conversationLabel, conversationStatus } from '../../snapPresentation';
 import { SnapFlow, type SnapFlowRequest } from '../snap/SnapFlow';
@@ -66,6 +66,8 @@ type Props = {
   /** One-shot request from a profile: open (or start) the conversation with this person. */
   openWith?: UserSummary | null;
   onOpenWithHandled?: () => void;
+  /** Doc B1: a place shared in a conversation opens on the map. */
+  onOpenPlace?: (place: BlinkrPlace) => void;
   /** Doc S1: my own avatar in the top-left corner goes to my profile. */
   onOpenProfile?: () => void;
 };
@@ -82,7 +84,7 @@ type MenuView = 'actions' | 'confirmBlock' | 'report';
  * offered with message and snap (S11). Row swipe actions (S5) are left out on purpose: the chat tab lives in the
  * horizontal tab pager, where a sideways row drag would fight the page swipe.
  */
-export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionExpired, onUnreadChange, onConversationOpenChange, snapRequested = false, onSnapHandled, openWith = null, onOpenWithHandled, onOpenProfile }: Props) {
+export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionExpired, onUnreadChange, onConversationOpenChange, snapRequested = false, onSnapHandled, openWith = null, onOpenWithHandled, onOpenProfile, onOpenPlace }: Props) {
   const insets = useSafeAreaInsets();
   const [allConversations, setConversations] = useState<Conversation[]>([]);
   // People I blocked stay out of my list; the server refuses their messages anyway.
@@ -596,6 +598,7 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
           onAuthChange={onAuthChange}
           onBack={() => conversationPage.current?.back()}
           onOpenProfile={() => setProfileUser({ id: activeConversation.otherUserId, userName: nameOf(activeConversation.otherUserId), avatarKey: userAvatarCache.get(activeConversation.otherUserId) })}
+          onOpenPlace={onOpenPlace}
           onOpenSnap={(messageId) => setViewing({ conversation: activeConversation, messageId })}
           onSendSnap={() => setFlow({ mode: 'reply', conversationId: activeConversation.id })}
           onSessionExpired={onSessionExpired}

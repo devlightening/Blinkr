@@ -42,6 +42,7 @@ public static class ChatMapper
             m.SenderId == viewerId ? m.ClientId : null,
             m.ReplyTo is null ? null : new ReplyDto(m.ReplyTo.MessageId, m.ReplyTo.SenderId, m.ReplyTo.Text, m.ReplyTo.Kind),
             m.SenderId == viewerId && m.ReadByUserIds.Any(u => u != m.SenderId),
-            m.SenderId == viewerId ? m.ReadAtUtc : null
+            m.SenderId == viewerId ? m.ReadAtUtc : null,
+            m.Place is null ? null : new PlaceShareDto(m.Place.PlaceId, m.Place.Name, m.Place.Category)
         );
 }

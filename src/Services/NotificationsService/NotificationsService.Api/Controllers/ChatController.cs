@@ -51,7 +51,8 @@ public class ChatController : ControllerBase
     }
 
     public record SignalShareRequest(Guid PostId, string? SignalType, string? SignalValue, string? Title, string? LocationName);
-    public record SendMessageRequest(string? Text, string? ClientId = null, SignalShareRequest? Signal = null, string? ReplyToId = null);
+    public record PlaceShareRequest(Guid PlaceId, string? Name, string? Category);
+    public record SendMessageRequest(string? Text, string? ClientId = null, SignalShareRequest? Signal = null, string? ReplyToId = null, PlaceShareRequest? Place = null);
     public record ReactionRequest(string? Emoji);
 
     [HttpPost("conversations/{id}/messages")]
@@ -63,9 +64,10 @@ public class ChatController : ControllerBase
         if (ContentTextFilter.Review(req.Text, maskPersonalData: false).Verdict == TextVerdict.Blocked)
             return UnprocessableEntity(new { code = ContentTextFilter.BlockedCode, message = "Bu içerik topluluk kurallarına uymuyor." });
         var userId = User.GetUserId();
-        _logger.LogInformation("Chat: SendMessage | UserId={UserId} | ConversationId={ConversationId} | Kind={Kind}", userId, id, req.Signal is null ? "text" : "signal");
+        _logger.LogInformation("Chat: SendMessage | UserId={UserId} | ConversationId={ConversationId} | Kind={Kind}", userId, id, req.Signal is not null ? "signal" : req.Place is not null ? "place" : "text");
         var signal = req.Signal is null ? null : new SignalShareInput(req.Signal.PostId, req.Signal.SignalType, req.Signal.SignalValue, req.Signal.Title, req.Signal.LocationName);
-        var message = await _mediator.Send(new SendMessageCommand(userId, id, req.Text ?? string.Empty, req.ClientId, signal, req.ReplyToId));
+        var place = req.Place is null ? null : new PlaceShareInput(req.Place.PlaceId, req.Place.Name, req.Place.Category);
+        var message = await _mediator.Send(new SendMessageCommand(userId, id, req.Text ?? string.Empty, req.ClientId, signal, req.ReplyToId, place));
         return Ok(message);
     }
 

@@ -33,12 +33,16 @@ public record ChatMessageDto(
     ReplyDto? ReplyTo = null,
     /// <summary>Only on my own messages: the other person has read it (and when, if known).</summary>
     bool Seen = false,
-    DateTime? SeenAtUtc = null
+    DateTime? SeenAtUtc = null,
+    PlaceShareDto? Place = null
 );
 
 public record ReplyDto(string MessageId, Guid SenderId, string Text, string Kind);
 
 public record SignalShareDto(Guid PostId, string SignalType, string? SignalValue, string? Title, string? LocationName);
+
+/// <summary>A shared place: id plus the sender's name/category snapshot. The live state comes from PlaceService.</summary>
+public record PlaceShareDto(Guid PlaceId, string Name, string? Category);
 public record ReactionDto(Guid UserId, string Emoji);
 
 /// <summary>What clients may know about a snap: never the media or its storage key.</summary>

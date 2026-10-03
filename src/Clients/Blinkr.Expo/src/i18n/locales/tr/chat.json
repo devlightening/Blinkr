@@ -149,5 +149,21 @@
   },
   "story": {
     "reply": "↩ Hikayene yanıt: {{text}}"
+  },
+  "place": {
+    "share": "Yer paylaş",
+    "live": "Şu an · {{live}}",
+    "noLive": "Güncel bilgi yok",
+    "loading": "Durumu yükleniyor…",
+    "open": "Haritada aç",
+    "a11yLive": "{{name}}, {{category}}. Şu an: {{live}}. Haritada aç",
+    "a11y": "{{name}}, {{category}}. Güncel bilgi yok. Haritada aç",
+    "pickTitle": "Yer paylaş",
+    "pickHint": "Kayıtlı yerlerinden birini gönder; karşı taraf o yerin şu anki durumunu görür.",
+    "search": "Kayıtlı yerlerde ara",
+    "noSaved": "Kayıtlı yerin yok",
+    "noSavedHint": "Bir yerin sayfasında \"Kaydet\"e dokun; burada paylaşabilirsin.",
+    "sendA11y": "{{name}} yerini gönder",
+    "noMatch": "Eşleşen kayıtlı yer yok"
   }
 }

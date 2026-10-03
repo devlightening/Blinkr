@@ -294,7 +294,10 @@ export type Conversation = {
   isMuted?: boolean;
 };
 
-export type ConversationPreferences = { conversationId: string; isPinned: boolean; pinnedAtUtc?: string | null; isMuted: boolean };
+/** Doc B1: a catalog place shared in chat. No coordinates and nothing about where the sender is. */
+export type PlaceShare = { placeId: string; name: string; category?: string | null };
+
+export type ConversationPreferences ={ conversationId: string; isPinned: boolean; pinnedAtUtc?: string | null; isMuted: boolean };
 
 export type SnapState = 'sent' | 'opened' | 'expired';
 
@@ -324,10 +327,12 @@ export type ChatMessage = {
   text: string;
   createdAtUtc: string;
   isRead: boolean;
-  kind?: 'text' | 'snap' | 'signal' | 'unsent';
+  kind?: 'text' | 'snap' | 'signal' | 'place' | 'unsent';
   snap?: SnapInfo | null;
   /** Faz 8: a shared signal (link + snapshot, never its author). */
   signal?: import('./chatExtras').SignalShare | null;
+  /** Doc B1: a shared place (id + the sender's name snapshot); its live state is read from the place service. */
+  place?: PlaceShare | null;
   reactions?: import('./chatExtras').ChatReaction[] | null;
   clientId?: string | null;
   /** plan-devam E7: the message this one answers (a short quote; blank once that message is taken back). */

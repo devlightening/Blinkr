@@ -2,7 +2,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, BackHandler, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ArrowLeft, Camera, Copy, CornerUpLeft, Flag, MessageCircle, Send, Undo2, X } from 'lucide-react-native';
+import { ArrowLeft, Camera, Copy, CornerUpLeft, Flag, MapPin, MessageCircle, Send, Undo2, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getMessages, markConversationRead, reactToMessage, sendMessage, sendReport, sendTyping, unsendMessage } from '../../api';
@@ -12,13 +12,18 @@ import { buildThread, lastOwnMessageId, receiptLabel, shouldPingTyping } from '.
 import { signalLabels } from '../../presentation';
 import { friendlyError, signalValueLabel } from '../../productPresentation';
 import { fromShare, type CardSignal } from '../../signalCard';
+import { placeCard, placeCardLabel, placeShareFrom, sharedPlaceIds } from '../../placeShare';
+import type { SavedPlace } from '../../savedPlaces';
+import { usePlacesLive } from '../../usePlacesLive';
 import { snapRow } from '../../snapPresentation';
 import { colors, radii, signalColors, sizes, spacing, typography } from '../../theme';
-import type { AuthResponse, ChatMessage, Conversation } from '../../types';
+import type { AuthResponse, BlinkrPlace, ChatMessage, Conversation } from '../../types';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
 import { ReportPanel } from '../ReportPanel';
 import { SwipeToReply } from './SwipeToReply';
+import { PlaceShareCard } from './PlaceShareCard';
+import { SharePlaceSheet } from './SharePlaceSheet';
 import { Sheet } from '../Sheet';
 import { SignalSymbol } from '../SignalSymbol';
 import { SignalCardModal } from '../signal/SignalCardModal';
@@ -49,7 +54,7 @@ const formatClock = (iso: string) => {
  * replies to it (doc S8, `SwipeToReply`); a long press opens the message actions: react, reply with a quote, copy,
  * take back (mine) or report (theirs).
  */
-export function ConversationScreen({ auth, conversation, otherUserName, otherAvatarKey, onAuthChange, onSessionExpired, onBack, onOpenSnap, onSendSnap, onOpenProfile }: {
+export function ConversationScreen({ auth, conversation, otherUserName, otherAvatarKey, onAuthChange, onSessionExpired, onBack, onOpenSnap, onSendSnap, onOpenProfile, onOpenPlace }: {
   auth: AuthResponse;
   conversation: Conversation;
   otherUserName: string;
@@ -63,6 +68,8 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
   onOpenSnap?: (messageId: string) => void;
   /** Opens the camera to send a snap to this person. */
   onSendSnap?: () => void;
+  /** Doc B1: a shared place's bubble opens that place on the map. */
+  onOpenPlace?: (place: BlinkrPlace) => void;
   onSessionExpired: () => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -78,6 +85,7 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
   const [reporting, setReporting] = useState(false);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [openCard, setOpenCard] = useState<CardSignal | null>(null);
+  const [isPlaceSheetOpen, setPlaceSheetOpen] = useState(false);
   const pollInFlight = useRef(false);
   const lastTypingPing = useRef(0);
   // The client id of a send that failed: retrying the same text reuses it, so the server never stores it twice.
@@ -90,12 +98,13 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       if (actionFor) { setActionFor(null); setReporting(false); return true; }
+      if (isPlaceSheetOpen) { setPlaceSheetOpen(false); return true; }
       if (openCard) { setOpenCard(null); return true; }
       onBack();
       return true;
     });
     return () => subscription.remove();
-  }, [onBack, actionFor, openCard]);
+  }, [onBack, actionFor, openCard, isPlaceSheetOpen]);
 
   const load = useCallback(async (background = false) => {
     if (background && pollInFlight.current) return;
@@ -179,6 +188,27 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
     }
   };
 
+  /** Doc B5: one tap on a saved place sends it; the bubble then shows its live state (B1). Retry-safe like text. */
+  const sendPlace = async (saved: SavedPlace) => {
+    setPlaceSheetOpen(false);
+    if (isSending) return;
+    setSending(true);
+    const quoting = replyTo;
+    setReplyTo(null);
+    const clientId = newClientId();
+    try {
+      const sent = await sendMessage(auth, conversation.id, '', onAuthChange, onSessionExpired, { clientId, place: placeShareFrom(saved), replyToId: quoting?.id ?? null });
+      track('message_sent', { type: 'place' });
+      setMessages((prev) => (prev.some((message) => message.id === sent.id) ? prev : [sent, ...prev]));
+      setError(null);
+    } catch (err) {
+      setError(friendlyError(err, t('thread.sendFailed')));
+      setReplyTo(quoting);
+    } finally {
+      setSending(false);
+    }
+  };
+
   const replace = (next: ChatMessage) => setMessages((prev) => prev.map((m) => (m.id === next.id ? next : m)));
 
   const react = async (message: ChatMessage, pressed: string) => {
@@ -215,6 +245,8 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
   };
 
   const rows = useMemo(() => buildThread(messages, auth.userId, new Date(), language), [messages, auth.userId, language]);
+  // B1: every place shared in this thread, read in one batch and refreshed every minute while the thread is open.
+  const livePlaces = usePlacesLive(useMemo(() => sharedPlaceIds(messages), [messages]));
   const receiptFor = useMemo(() => lastOwnMessageId(messages, auth.userId), [messages, auth.userId]);
   const canSend = draft.trim().length > 0 && !isSending;
   const quoteName = (senderId: string) => (senderId === auth.userId ? t('thread.you') : otherUserName);
@@ -257,16 +289,21 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
     const share = item.kind === 'signal' ? item.signal ?? null : null;
     const shareTone = share ? signalColors[share.signalType as keyof typeof signalColors] ?? colors.mint : colors.mint;
     const unsent = item.kind === 'unsent';
+    const sharedPlace = item.kind === 'place' ? item.place ?? null : null;
+    const livePlace = sharedPlace ? livePlaces[sharedPlace.placeId] ?? null : null;
+    // A place opens on the map once the place service has answered with its position.
+    const openPlace = sharedPlace && livePlace && onOpenPlace ? () => onOpenPlace(livePlace) : null;
     return (
       <View style={[styles.row, mine ? styles.rowMine : styles.rowTheirs, groupTop && styles.rowGroupTop]}>
         <SwipeToReply enabled={canReact(item)} onReply={() => startReply(item)}>
         <AnimatedPressable
           accessibilityHint={canReact(item) ? t('extras.actions') : undefined}
-          accessibilityRole={canReact(item) || share ? 'button' : undefined}
+          accessibilityLabel={sharedPlace ? placeCardLabel(placeCard(sharedPlace, livePlace)) : undefined}
+          accessibilityRole={canReact(item) || share || openPlace ? 'button' : undefined}
           delayLongPress={300}
-          disabled={!canReact(item) && !share}
+          disabled={!canReact(item) && !share && !openPlace}
           onLongPress={() => { if (canReact(item)) setActionFor(item); }}
-          onPress={() => { if (share) setOpenCard(fromShare(share)); }}
+          onPress={() => { if (share) setOpenCard(fromShare(share)); else if (openPlace) openPlace(); }}
           pressScale={0.98}
           style={[styles.bubble, mine ? styles.mineBubble : styles.theirBubble, corners, unsent && styles.unsentBubble]}
           testID={`message-${item.id}`}
@@ -293,6 +330,7 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
               </View>
             </View>
           ) : null}
+          {sharedPlace ? <PlaceShareCard place={livePlace} share={sharedPlace} /> : null}
           {!unsent && item.text ? <Text style={styles.bubbleText}>{item.text}</Text> : null}
         </AnimatedPressable>
         </SwipeToReply>
@@ -361,7 +399,7 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
         <CornerUpLeft color={colors.primary} size={18} />
         <View style={styles.flex}>
           <Text numberOfLines={1} style={styles.quoteName}>{t('thread.replyingTo', { name: quoteName(replyTo.senderId) })}</Text>
-          <Text numberOfLines={1} style={styles.quoteText}>{replyTo.text || t('extras.signalShared')}</Text>
+          <Text numberOfLines={1} style={styles.quoteText}>{replyTo.text || replyTo.place?.name || t('extras.signalShared')}</Text>
         </View>
         <AnimatedPressable accessibilityLabel={t('thread.cancelReply')} accessibilityRole="button" hitSlop={8} onPress={() => setReplyTo(null)} style={styles.back}>
           <X color={colors.textSecondary} size={18} />
@@ -373,6 +411,11 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
       {onSendSnap ? (
         <AnimatedPressable accessibilityLabel={tx('chat:thread.sendSnap', 'Snap gönder')} accessibilityRole="button" onPress={onSendSnap} pressScale={0.95} style={styles.cameraButton}>
           <Camera color={colors.text} size={20} />
+        </AnimatedPressable>
+      ) : null}
+      {draft.trim().length === 0 ? (
+        <AnimatedPressable accessibilityLabel={tx('chat:place.share', 'Yer paylaş')} accessibilityRole="button" disabled={isSending} onPress={() => setPlaceSheetOpen(true)} pressScale={0.95} style={styles.cameraButton} testID="share-place">
+          <MapPin color={colors.text} size={20} />
         </AnimatedPressable>
       ) : null}
       <TextInput
@@ -419,6 +462,14 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
                 : <ActionRow danger icon={<Flag color={colors.danger} size={20} />} label={t('thread.report')} onPress={() => setReporting(true)} />}
             </View>
           )}
+        </BlinkrSheetPanel>
+      </Sheet>
+    ) : null}
+
+    {isPlaceSheetOpen ? (
+      <Sheet onClose={() => setPlaceSheetOpen(false)}>
+        <BlinkrSheetPanel maxHeightRatio={0.8}>
+          <SharePlaceSheet onPick={(place) => { void sendPlace(place); }} userId={auth.userId} />
         </BlinkrSheetPanel>
       </Sheet>
     ) : null}
