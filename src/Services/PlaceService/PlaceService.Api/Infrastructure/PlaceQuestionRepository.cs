@@ -20,6 +20,8 @@ public interface IPlaceQuestionRepository
     /// same post already answered, so a redelivered event can republish; null when there is nothing to answer.
     /// </summary>
     Task<PlaceQuestionDocument?> TryAnswerAsync(Guid placeId, string kind, Guid postId, string? value, DateTime nowUtc, CancellationToken ct);
+    /// <summary>Account deletion: this person leaves every question; questions nobody waits for any more go.</summary>
+    Task RemoveAskerEverywhereAsync(Guid askerId, CancellationToken ct);
     Task EnsureIndexesAsync(CancellationToken ct);
 }
 
@@ -109,6 +111,12 @@ public sealed class PlaceQuestionRepository : IPlaceQuestionRepository
                 .Set(q => q.AnsweredAtUtc, nowUtc),
             new FindOneAndUpdateOptions<PlaceQuestionDocument> { ReturnDocument = ReturnDocument.After }, ct);
         return answered ?? await _questions.Find(F.Eq(q => q.AnsweredByPostId, postId)).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task RemoveAskerEverywhereAsync(Guid askerId, CancellationToken ct)
+    {
+        await _questions.UpdateManyAsync(F.AnyEq(q => q.AskerIds, askerId), Builders<PlaceQuestionDocument>.Update.Pull(q => q.AskerIds, askerId), cancellationToken: ct);
+        await _questions.DeleteManyAsync(F.Eq(q => q.Status, PlaceQuestionDocument.StatusOpen) & F.Size(q => q.AskerIds, 0), ct);
     }
 
     public async Task EnsureIndexesAsync(CancellationToken ct)

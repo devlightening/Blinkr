@@ -19,6 +19,7 @@ import { ShareToChatPanel } from './chat/ShareToChatSheet';
 import { PlaceRhythmCard } from './place/PlaceRhythmCard';
 import { PlaceWatchControl } from './place/PlaceWatchControl';
 import { PlaceQuestionsCard } from './place/PlaceQuestionsCard';
+import { PlaceAttributesCard } from './place/PlaceAttributesCard';
 import { placeTarget, shareText } from '../shareTarget';
 import { Sheet } from './Sheet';
 import { SignalSymbol } from './SignalSymbol';
@@ -376,6 +377,8 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
 
             {/* D-037: how busy it usually is, from verified signals only. */}
             <PlaceRhythmCard placeId={place.id} />
+            {/* D-040: Wi-Fi, outlets, quiet... from people verifiably here, fading unless confirmed. */}
+            <PlaceAttributesCard auth={auth} placeId={place.id} refresh={refresh} />
             {/* D-038: tell me once when it gets quiet / opens / has news. */}
             {auth ? <PlaceWatchControl auth={auth} place={place} refresh={refresh} /> : null}
             {/* D-039: ask how it is right now; answer with a normal signal (counts only when verified on site). */}

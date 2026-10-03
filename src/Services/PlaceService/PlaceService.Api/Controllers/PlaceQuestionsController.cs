@@ -1,7 +1,7 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PlaceService.Api.Application;
+using PlaceService.Api.Infrastructure;
 
 namespace PlaceService.Api.Controllers;
 
@@ -72,9 +72,5 @@ public class PlaceQuestionsController : ControllerBase
         return Ok(await _questions.NearAsync(lat, lon, radiusMeters, CurrentUserId(), ct));
     }
 
-    private Guid? CurrentUserId()
-    {
-        var raw = User.Identity?.Name ?? User.FindFirst("sub")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return Guid.TryParse(raw, out var id) ? id : null;
-    }
+    private Guid? CurrentUserId() => User.UserIdOrNull();
 }

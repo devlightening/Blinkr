@@ -23,6 +23,9 @@ builder.Services.AddSingleton<IPlaceRhythmCalculator, PlaceRhythmCalculator>();
 builder.Services.AddSingleton<PlaceStateChangeDetector>();
 builder.Services.AddScoped<IPlaceQuestionRepository, PlaceQuestionRepository>();
 builder.Services.AddScoped<PlaceQuestionService>();
+builder.Services.AddSingleton<PlaceAttributeCalculator>();
+builder.Services.AddScoped<IPlaceAttributeRepository, PlaceAttributeRepository>();
+builder.Services.AddScoped<PlaceAttributeService>();
 builder.Services.Configure<PlaceDiscoveryOptions>(builder.Configuration.GetSection("PlaceDiscovery"));
 builder.Services.AddScoped<IPlaceDiscoveryService, PlaceDiscoveryService>();
 builder.Services.AddSingleton<PlaceDiscoveryRefreshQueue>();
@@ -41,6 +44,7 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<PostCreatedPlaceSignalConsumer>();
     x.AddConsumer<PostModerationPlaceSignalConsumer>();
     x.AddConsumer<PostDeletedPlaceSignalConsumer>();
+    x.AddConsumer<UserDeletedPlaceDataConsumer>();
     x.UsingRabbitMq((context, cfg) =>
     {
         cfg.Host(builder.Configuration["RabbitMq:Host"] ?? "localhost", "/", h =>
@@ -62,6 +66,12 @@ builder.Services.AddMassTransit(x =>
         cfg.ReceiveEndpoint("place-service-post-deleted", e =>
         {
             e.ConfigureConsumer<PostDeletedPlaceSignalConsumer>(context);
+        });
+
+        // D-040: what PlaceService keeps about a person (attribute votes, question entries) leaves with the account.
+        cfg.ReceiveEndpoint("place-service-user-deleted", e =>
+        {
+            e.ConfigureConsumer<UserDeletedPlaceDataConsumer>(context);
         });
     });
 });
@@ -120,6 +130,7 @@ using (var scope = app.Services.CreateScope())
 {
     await scope.ServiceProvider.GetRequiredService<IPlaceRepository>().EnsureIndexesAsync(CancellationToken.None);
     await scope.ServiceProvider.GetRequiredService<IPlaceQuestionRepository>().EnsureIndexesAsync(CancellationToken.None);
+    await scope.ServiceProvider.GetRequiredService<IPlaceAttributeRepository>().EnsureIndexesAsync(CancellationToken.None);
 }
 
 if (app.Environment.IsDevelopment())

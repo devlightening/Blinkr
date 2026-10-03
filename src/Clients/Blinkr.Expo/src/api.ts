@@ -625,6 +625,13 @@ export const getHashtagFeed = (auth: AuthResponse, tag: string, page = 1, signal
 export const searchHashtags = (auth: AuthResponse, q: string, signal?: AbortSignal, refresh: Refresh = {}) =>
   requestJson<Array<{ tag: string; postCount: number }>>(`/api/discover/hashtags/search?${new URLSearchParams({ q })}`, { auth, signal, ...refresh });
 
+/** D-040 "Yer özellikleri": facts about a place with how many and how recently; voters never returned. */
+export const getPlaceAttributes = (placeId: string, auth: AuthResponse | null, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<import('./placeAttributes').PlaceAttributes>(`/api/places/${placeId}/attributes`, { auth: auth ?? undefined, signal, ...refresh });
+/** 403 ATTRIBUTE_NOT_ELIGIBLE without a verified signal here in 30 days; null takes my answer back. */
+export const votePlaceAttribute = (auth: AuthResponse, placeId: string, key: import('./placeAttributes').AttributeKey, value: boolean | null, refresh: Refresh = {}) =>
+  requestJson<import('./placeAttributes').PlaceAttributes>(`/api/places/${placeId}/attributes/${key}`, { auth, body: { value }, method: 'PUT', ...refresh });
+
 /** D-039 "Yere sor": structured questions about a place; never says who asked (askedByMe only for the caller). */
 export const getPlaceQuestions = (placeId: string, auth: AuthResponse | null, signal?: AbortSignal, refresh: Refresh = {}) =>
   requestJson<import('./placeQuestions').PlaceQuestion[]>(`/api/places/${placeId}/questions`, { auth: auth ?? undefined, signal, ...refresh });

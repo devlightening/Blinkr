@@ -12,7 +12,7 @@ etkileşim için mahremiyet zayıflatılmaz.
 | 1 | **Yerin Ritmi** — haftanın günü × saat yoğunluğu | Google "Popüler saatler" pasif konum takibiyle çalışır; Blinkr yalnız gönüllü ve sunucunun doğruladığı sinyallerden üretir | **Yapıldı** (D-037) |
 | 2 | **Haber ver** — "sakinleşince haber ver" | Karar aracı, bağımlılık kancası değil: bir kez tetiklenir ve kapanır | **Yapıldı** (D-038) |
 | 3 | **Yere sor** — "boş masa var mı?" | Talep üzerine taze veri; yalnız sunucunun yakında doğruladığı kişi yanıtlar, yanıt sinyal olur | **Yapıldı** (D-039) |
-| 4 | **Yer özellikleri** — Wi-Fi, priz, sessiz, çocuk dostu, erişilebilir | Statik yorum sitelerinin aksine her özellik zamanla solar: "3 kişi · son teyit 3 gün önce" | Planlandı |
+| 4 | **Yer özellikleri** — Wi-Fi, priz, sessiz, çocuk dostu, erişilebilir | Statik yorum sitelerinin aksine her özellik zamanla solar: "3 kişi · son teyit 3 gün önce" | **Yapıldı** (D-040) |
 | 5 | **Yerel rehber** — mahalle rozeti | Açıklanabilir itibar (doğrulanmış sinyal + "işime yaradı"); tablo yok, seri yok | Planlandı |
 | 6 | **Koleksiyonlar** — paylaşılabilir yer listeleri | Instagram Rehberleri gibi, ama canlı durumlu | Planlandı |
 

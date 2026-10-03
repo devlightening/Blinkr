@@ -163,5 +163,29 @@
     "note": "Askers are never shown. Only answers verified on site count.",
     "nearbyTitle": "Questions near you",
     "nearbyHint": "If you're there, answer; it reaches the askers once it's verified on site."
+  },
+  "attr": {
+    "wifi": "Wi-Fi",
+    "outlets": "Power outlets",
+    "quiet": "Quiet",
+    "kid_friendly": "Kid-friendly",
+    "accessible": "Wheelchair access",
+    "outdoor": "Outdoor seating",
+    "pet_friendly": "Pet-friendly",
+    "yes": "Yes",
+    "no": "No",
+    "mixed": "Mixed",
+    "today": "today",
+    "daysAgo": "{{n}} days ago",
+    "line": "{{n}} people · last confirmed {{when}}",
+    "notEligible": "To add info you need a signal verified on site here in the last 30 days.",
+    "tooMany": "You've contributed enough today, try again tomorrow.",
+    "failed": "Couldn't save. Try again.",
+    "title": "Place facts",
+    "contribute": "Add info",
+    "empty": "No one has added info yet. If you're here, be the first.",
+    "fading": "needs confirming",
+    "fadingLine": "needs confirming · {{line}}",
+    "howToVote": "Once you drop a signal verified on site here, you can add info too."
   }
 }

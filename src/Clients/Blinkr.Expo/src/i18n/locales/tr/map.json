@@ -163,5 +163,29 @@
     "note": "Soran kişi gösterilmez. Yalnız konumda doğrulanan yanıtlar sayılır.",
     "nearbyTitle": "Yakınında sorulanlar",
     "nearbyHint": "Oradaysan yanıtla; yanıtın konumda doğrulanırsa soranlara iletilir."
+  },
+  "attr": {
+    "wifi": "Wi-Fi",
+    "outlets": "Priz",
+    "quiet": "Sessiz",
+    "kid_friendly": "Çocuk dostu",
+    "accessible": "Engelli erişimi",
+    "outdoor": "Açık alan",
+    "pet_friendly": "Evcil hayvan dostu",
+    "yes": "Var",
+    "no": "Yok",
+    "mixed": "Karışık",
+    "today": "bugün",
+    "daysAgo": "{{n}} gün önce",
+    "line": "{{n}} kişi · son teyit {{when}}",
+    "notEligible": "Bilgi vermek için son 30 günde burada konumda doğrulanmış bir sinyalin olmalı.",
+    "tooMany": "Bugün yeterince katkı verdin, yarın tekrar dene.",
+    "failed": "Kaydedilemedi. Tekrar dene.",
+    "title": "Yer özellikleri",
+    "contribute": "Bilgi ver",
+    "empty": "Henüz kimse bilgi vermedi. Buradaysan ilk sen söyle.",
+    "fading": "teyit gerekiyor",
+    "fadingLine": "teyit gerekiyor · {{line}}",
+    "howToVote": "Burada konumda doğrulanmış bir sinyal bıraktıktan sonra sen de bilgi verebilirsin."
   }
 }

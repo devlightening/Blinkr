@@ -15,6 +15,17 @@
 
 ## Kararlar
 
+### D-040 — "Yer özellikleri": yalnız doğrulanmış ziyaretçi söyler, bilgi zamanla solar (2026-10-03)
+- Bağlam: Niş yol haritasının 4. maddesi. Wi-Fi, priz, sessiz, çocuk dostu, engelli erişimi, açık alan, evcil hayvan dostu.
+- Karar:
+  1. **Sabit katalog** (7 olgu, öznel "lezzetli" gibi şeyler yok). Kişi + yer + olgu başına tek oy; yeniden söylemek zamanı tazeler, aynı yanıta tekrar basmak geri alır.
+  2. **Kim söyleyebilir:** son 30 günde o yerde sunucunun `VERIFIED_LIVE` yayınladığı bir sinyali olan kişi. Uygunluk PlaceService'in kendi `place_signals.AuthorId` kaydından okunur (yalnız sunucuda, hiçbir yanıtta yok); istemcinin iddiası yetki değildir (403 `ATTRIBUTE_NOT_ELIGIBLE`). Günde en fazla 50 oy (429).
+  3. **Solma:** oyun ağırlığı 30 günde yarıya iner; 60 gün teyit edilmeyen olgu "teyit gerekiyor" ile soluk gösterilir, 180 günden eski oylar gösterilmez, bir yılda TTL ile silinir. Sonuç açıklanabilir: her olgu "N kişi · son teyit X gün önce" taşır; tek bir puana indirgenmez (CLAUDE.md §21).
+  4. Oy verenler hiçbir yanıtta yoktur; `myVote` ve `canVote` yalnız çağıranı anlatır.
+  5. **Hesap silme:** PlaceService artık `UserDeletedIntegrationEvent`'i dinler (`place-service-user-deleted`): kişinin oyları silinir ve açık sorulardan çıkarılır; böylece D-039'daki "kimlik en fazla bir saat kalır" sınırı da kapandı.
+  6. Ortak kod: kullanıcı kimliği okuma `UserClaims.UserIdOrNull` ile tek yerde (soru ve özellik denetleyicileri).
+- Etki: CLAUDE.md §6.3, §12.1, §13.
+
 ### D-039 — "Yere sor": yapılandırılmış soru, yanıt = konumda doğrulanmış sinyal (2026-10-03)
 - Bağlam: Niş yol haritasının 3. maddesi. Talep üzerine taze bilgi: "Kafe X şu an kalabalık mı?"
 - Karar:
