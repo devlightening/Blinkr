@@ -46,6 +46,44 @@ var legacy = calculator.Calculate([By(null, "Busy", 2), By(null, "Busy", 1)], no
 Check(legacy.ActiveSignalCount == 2, "signals without a known author each stay their own voice");
 var outvoted = calculator.Calculate([By(alice, "Busy", 40), By(alice, "Busy", 30), By(bob, "Calm", 5), By(Guid.NewGuid(), "Calm", 4)], now);
 Check(outvoted.SignalValue == "Calm", "two people beat one person repeating themselves");
+var mixedCase = calculator.Calculate([By(alice, "Busy", 3), By(bob, "BUSY", 2), By(Guid.NewGuid(), "Calm", 1)], now);
+Check(mixedCase.SignalValue?.ToUpperInvariant() == "BUSY", "\"Busy\" and \"BUSY\" are one opinion, not two split groups");
+
+// D-038: only a real change of the visible state is news.
+var detector = new PlaceStateChangeDetector(calculator);
+var first = By(alice, "Busy", 1);
+Check(detector.Detect([first], first.PostId, now) is not null, "the first verified signal changes an empty place");
+var agree = By(bob, "BUSY", 0);
+Check(detector.Detect([first, agree], agree.PostId, now) is null, "agreeing (any letter case) is not a change");
+// Busy by two people; a first calm voice does not flip it, the second (newer, equal weight) does.
+var busyBob = By(bob, "Busy", 1);
+var turn = By(Guid.NewGuid(), "Calm", 0); var turn2 = By(Guid.NewGuid(), "Calm", 0);
+Check(detector.Detect([first, busyBob, turn], turn.PostId, now) is null, "one calm voice against two busy is not a change");
+Check(detector.Detect([first, busyBob, turn, turn2], turn2.PostId, now)?.SignalValue == "Calm", "a second calm voice turns the busy place calm");
+
+// D-037: rhythm only from verified Crowd/Queue, one voice per person-hour, an hour needs three different people.
+var rhythm = new PlaceRhythmCalculator();
+var noon = new DateTime(2026, 9, 28, 9, 30, 0, DateTimeKind.Utc); // Monday 12:30 in Turkey
+PlaceSignalDocument RhythmAt(Guid author, string value, DateTime when, string trust = "VERIFIED_LIVE") =>
+    new() { PostId = Guid.NewGuid(), PlaceId = Guid.NewGuid(), AuthorId = author, PublicationTrust = trust, SignalType = "Crowd", SignalValue = value, CreatedAtUtc = when };
+var r1 = rhythm.Calculate([RhythmAt(alice, "Busy", noon), RhythmAt(alice, "Busy", noon.AddMinutes(5)), RhythmAt(bob, "Busy", noon)], noon.AddDays(1));
+Check(r1.Observations == 2 && !r1.Enough, "one voice per person-hour; too little history is not a rhythm");
+var crowd = Enumerable.Range(0, 3).SelectMany(w => Enumerable.Range(0, 3).Select(_ => RhythmAt(Guid.NewGuid(), "BUSY", noon.AddDays(-7 * w)))).ToList();
+var r2 = rhythm.Calculate(crowd, noon.AddDays(1));
+var mondayNoon = r2.Days.First(d => d.Weekday == 1).Hours.First(h => h.Hour == 12);
+Check(r2.Enough && mondayNoon.Level == 1.0, "three people a week, three weeks: Monday 12:00 reads busy (upper-case counted)");
+Check(r2.Days.First(d => d.Weekday == 1).Hours.First(h => h.Hour == 13).Level is null, "an hour with nobody stays empty, not quiet");
+var lonely = crowd.Take(8).Append(RhythmAt(alice, "Calm", noon.AddHours(3))).ToList();
+Check(rhythm.Calculate(lonely, noon.AddDays(1)).Days.First(d => d.Weekday == 1).Hours.First(h => h.Hour == 15).Level is null, "one person's hour is never shown (k-anonymity)");
+Check(rhythm.Calculate([.. crowd, RhythmAt(bob, "Calm", noon, "NEARBY_PLACE_POST")], noon.AddDays(1)).Observations == r2.Observations, "unverified signals never shape the rhythm");
+
+// D-040: facts fade - recent answers outweigh old ones, and forgotten ones disappear.
+var facts = new PlaceAttributeCalculator();
+PlaceAttributeVoteDocument Vote(Guid user, bool value, int daysAgo) => new() { PlaceId = Guid.NewGuid(), Key = "wifi", UserId = user, Value = value, VotedAtUtc = now.AddDays(-daysAgo) };
+var wifi = facts.Calculate([Vote(alice, false, 90), Vote(bob, true, 1)], alice, now).Single();
+Check(wifi.State == "yes" && wifi.Voters == 2 && wifi.MyVote == false, "a fresh yes outweighs a 90-day-old no; my own vote is mine");
+Check(facts.Calculate([Vote(alice, true, 70)], null, now).Single().Fading, "unconfirmed for 60+ days is fading");
+Check(facts.Calculate([Vote(alice, true, 200)], null, now).Count == 0, "after 180 days it is forgotten");
 
 // P5.11: an old gallery photo can only lower trust, never raise it.
 var t0 = new DateTime(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc);

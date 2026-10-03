@@ -26,7 +26,9 @@ public sealed class CurrentPlaceStateCalculator : ICurrentPlaceStateCalculator
             return new CurrentPlaceStateDto(null, null, "NONE", null, null, "LOW", 0, 0);
 
         var grouped = valid
-            .GroupBy(s => $"{s.SignalType}:{s.SignalValue ?? s.Title ?? s.Text}")
+            // Case-insensitive: "Busy" (app) and "BUSY" (older clients, tests, legacy data) are one opinion, not two
+            // groups that split the votes (found while writing BLK-NICHE-01).
+            .GroupBy(s => $"{s.SignalType}:{(s.SignalValue ?? s.Title ?? s.Text)?.Trim().ToUpperInvariant()}")
             .Select(g =>
             {
                 var score = g.Sum(s => FreshnessWeight(s.CreatedAtUtc, nowUtc));

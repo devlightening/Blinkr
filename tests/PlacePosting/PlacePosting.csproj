@@ -11,5 +11,9 @@
     <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/CurrentPlaceStateCalculator.cs" Link="CurrentPlaceStateCalculator.cs" />
     <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/PlaceDtos.cs" Link="PlaceDtos.cs" />
     <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Domain/PlaceSignalDocument.cs" Link="PlaceSignalDocument.cs" />
+    <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/PlaceStateChangeDetector.cs" Link="PlaceStateChangeDetector.cs" />
+    <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/PlaceRhythmCalculator.cs" Link="PlaceRhythmCalculator.cs" />
+    <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/PlaceAttributeCalculator.cs" Link="PlaceAttributeCalculator.cs" />
+    <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Domain/PlaceAttributeVoteDocument.cs" Link="PlaceAttributeVoteDocument.cs" />
   </ItemGroup>
 </Project>
