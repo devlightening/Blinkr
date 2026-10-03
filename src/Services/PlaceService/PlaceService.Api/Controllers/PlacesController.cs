@@ -65,6 +65,23 @@ public sealed class PlacesController : ControllerBase
         return Ok(ToDetail(place, signals));
     }
 
+    /// <summary>
+    /// GET /api/places/{id}/rhythm - "Yerin Ritmi" (D-037): how busy the place usually is by weekday and hour, from
+    /// verified Crowd/Queue signals of the last eight weeks. Aggregates only: an hour appears when at least three
+    /// different people reported in it, and nothing about who reported leaves the service. The same for everyone, so
+    /// it may be cached briefly.
+    /// </summary>
+    [HttpGet("{id:guid}/rhythm")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Rhythm(Guid id, [FromServices] IPlaceRhythmCalculator rhythm, CancellationToken ct)
+    {
+        if (await _repository.GetAsync(id, ct) is null) return NotFound();
+        var now = DateTime.UtcNow;
+        var signals = await _repository.GetRhythmSignalsAsync(id, now - PlaceRhythmCalculator.Window, ct);
+        Response.Headers.CacheControl = "public, max-age=600";
+        return Ok(rhythm.Calculate(signals, now));
+    }
+
     [HttpGet("{id:guid}/signals")]
     [AllowAnonymous]
     public async Task<IActionResult> Signals(Guid id, [FromQuery] int limit = 20, CancellationToken ct = default)

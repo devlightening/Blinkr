@@ -15,6 +15,16 @@
 
 ## Kararlar
 
+### D-037 — "Yerin Ritmi": yoğunluk saatleri yalnız doğrulanmış sinyallerden, k-anonim (2026-10-03)
+- Bağlam: Kullanıcı "projeyi en üst seviyeye çıkaracak niş şeyler" istedi. Niş yol haritası `docs/blinkr-v3/NIS_OZELLIKLER.md`; ilk özellik budur.
+- Karar:
+  1. PlaceService, bir yerin son 8 haftadaki `VERIFIED_LIVE` Doluluk/Bekleme sinyallerinden hafta günü × saat (06-23, Türkiye saati) yoğunluk düzeyi hesaplar (`PlaceRhythmCalculator`, saf ve deterministik). Pasif konum takibi yoktur ve eklenmeyecek.
+  2. Kişi başına tek ses: aynı kişinin aynı gün-saatteki gözlemleri bir sayılır.
+  3. k-anonimlik: bir saat yalnız en az 3 farklı kişi bildirdiyse gösterilir; toplam 8 gözlemin altında ritim yok sayılır. Grafikten bir kişinin rutini çıkarılamaz.
+  4. `GET /api/places/{id}/rhythm` herkese açık bir toplamdır (diğer yer okumaları gibi `AllowAnonymous`), 10 dk önbelleklenebilir; kişi, metin, medya taşımaz. Okuma yalnız gereken alanları çeker (projeksiyon) ve yeni `ix_place_signals_place_history` indeksini kullanır.
+  5. Arayüzde veri olmayan saat sıfır gibi gösterilmez (kesikli çizgi); tek seri, tek renk; ekran okuyucuya metin özeti.
+- Etki: CLAUDE.md §9, §12.1, §13 Places.
+
 ### D-036 — Profil paylaşımı (QR) ve "konumda doğrulanmış" satırı (2026-10-03)
 - Bağlam: Tasarım belgesi P2 (Profili paylaş + QR), P4 (simgeli yapışkan sekmeler), P6 (doğrulanmış sinyal satırı), P8 (tamamlama kartı, ızgara iskeleti).
 - Karar:

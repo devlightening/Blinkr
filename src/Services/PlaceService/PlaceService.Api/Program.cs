@@ -19,6 +19,7 @@ builder.Services.AddSingleton<IMongoClient>(_ => new MongoClient(mongoConnection
 builder.Services.AddSingleton(sp => sp.GetRequiredService<IMongoClient>().GetDatabase(mongoDatabase));
 builder.Services.AddScoped<IPlaceRepository, PlaceRepository>();
 builder.Services.AddSingleton<ICurrentPlaceStateCalculator, CurrentPlaceStateCalculator>();
+builder.Services.AddSingleton<IPlaceRhythmCalculator, PlaceRhythmCalculator>();
 builder.Services.Configure<PlaceDiscoveryOptions>(builder.Configuration.GetSection("PlaceDiscovery"));
 builder.Services.AddScoped<IPlaceDiscoveryService, PlaceDiscoveryService>();
 builder.Services.AddSingleton<PlaceDiscoveryRefreshQueue>();

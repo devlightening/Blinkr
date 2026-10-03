@@ -16,6 +16,7 @@ import { recheckSignal, signalValueLabel, trustLabel } from '../productPresentat
 import { AnimatedPressable } from './AnimatedPressable';
 import { ReportPanel } from './ReportPanel';
 import { ShareToChatPanel } from './chat/ShareToChatSheet';
+import { PlaceRhythmCard } from './place/PlaceRhythmCard';
 import { placeTarget, shareText } from '../shareTarget';
 import { Sheet } from './Sheet';
 import { SignalSymbol } from './SignalSymbol';
@@ -370,6 +371,9 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
               />
               <ActionTile accessibilityLabel={tx('signal:place.directions', 'Yol tarifi')} icon={<Compass color={colors.text} size={24} />} label={tx('signal:place.directions', 'Yol tarifi')} onPress={() => openDirections(place)} />
             </View>
+
+            {/* D-037: how busy it usually is, from verified signals only. */}
+            <PlaceRhythmCard placeId={place.id} />
 
             <View style={styles.sectionHeader}>
               <Text accessibilityRole="header" style={styles.sectionLabel}>{tx('signal:place.recent', 'Son sinyaller')}</Text>

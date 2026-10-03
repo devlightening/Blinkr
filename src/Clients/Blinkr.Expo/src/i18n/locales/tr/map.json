@@ -109,5 +109,26 @@
     "cluster": "{{count}} sinyal ve yer, yakınlaştır",
     "showList": "Liste olarak göster"
   },
-  "placesUnavailable": "Yerler şu an yenilenemedi; son bilinen durum gösteriliyor."
+  "placesUnavailable": "Yerler şu an yenilenemedi; son bilinen durum gösteriliyor.",
+  "rhythm": {
+    "title": "Yerin ritmi",
+    "sun": "Paz",
+    "mon": "Pzt",
+    "tue": "Sal",
+    "wed": "Çar",
+    "thu": "Per",
+    "fri": "Cum",
+    "sat": "Cmt",
+    "calm": "Sakin",
+    "moderate": "Hareketli",
+    "busy": "Kalabalık",
+    "usuallyNow": "Genelde bu saatte {{level}}",
+    "quietest": "En sakin: {{hour}}",
+    "noDayData": "Bu gün için yeterli veri yok",
+    "notYet": "Henüz yeterli doğrulanmış gözlem yok. Burada sinyal bıraktıkça yerin ritmi oluşur.",
+    "hourNoData": "{{hour}} · yeterli veri yok",
+    "hourLevel": "{{hour}} · genelde {{level}}",
+    "dayNoSummary": "Bu gün için az veri var",
+    "basis": "Son 8 haftadaki {{count}} doğrulanmış gözleme dayanır; en az 3 kişinin olduğu saatler gösterilir."
+  }
 }

@@ -24,6 +24,8 @@ public interface IPlaceRepository
     Task<bool> HasFreshCoverageAsync(string key, TimeSpan ttl, CancellationToken ct);
     Task MarkCoverageAsync(string key, string provider, string status, int count, CancellationToken ct);
     Task<IReadOnlyList<PlaceSignalDocument>> GetSignalsAsync(Guid placeId, int limit, CancellationToken ct);
+    /// <summary>D-037: verified Crowd/Queue observations of one place since a time (expired ones included), for its rhythm.</summary>
+    Task<IReadOnlyList<PlaceSignalDocument>> GetRhythmSignalsAsync(Guid placeId, DateTime sinceUtc, CancellationToken ct);
     Task<IReadOnlyList<PlaceSignalDocument>> GetSignalsForPlacesAsync(IReadOnlyCollection<Guid> placeIds, int perPlaceLimit, CancellationToken ct);
     Task UpsertSignalAsync(PlaceSignalDocument signal, CancellationToken ct);
     /// <summary>Moves a signal out of (hidden) or back into (restored) the live collection; true when something moved.</summary>
@@ -254,6 +256,21 @@ public sealed class PlaceRepository : IPlaceRepository
         return await GetSignalsForPlacesAsync(new[] { placeId }, limit, ct);
     }
 
+    public async Task<IReadOnlyList<PlaceSignalDocument>> GetRhythmSignalsAsync(Guid placeId, DateTime sinceUtc, CancellationToken ct)
+    {
+        var f = Builders<PlaceSignalDocument>.Filter;
+        var filter = f.Eq(s => s.PlaceId, placeId)
+                     & f.Gte(s => s.CreatedAtUtc, sinceUtc)
+                     & f.Eq(s => s.PublicationTrust, "VERIFIED_LIVE")
+                     & f.In(s => s.SignalType, new[] { "Crowd", "Queue" });
+        // Only what the rhythm needs: no text, media or names leave the database for this.
+        var projection = Builders<PlaceSignalDocument>.Projection
+            .Include(s => s.PostId).Include(s => s.PlaceId).Include(s => s.SignalType).Include(s => s.SignalValue)
+            .Include(s => s.PublicationTrust).Include(s => s.AuthorId).Include(s => s.CreatedAtUtc);
+        return await _signals.Find(filter).Project<PlaceSignalDocument>(projection)
+            .SortByDescending(s => s.CreatedAtUtc).Limit(5000).ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<PlaceSignalDocument>> GetSignalsForPlacesAsync(IReadOnlyCollection<Guid> placeIds, int perPlaceLimit, CancellationToken ct)
     {
         if (placeIds.Count == 0) return Array.Empty<PlaceSignalDocument>();
@@ -332,7 +349,11 @@ public sealed class PlaceRepository : IPlaceRepository
                 new CreateIndexOptions { Name = "ix_place_signals_place_freshness" }),
             new CreateIndexModel<PlaceSignalDocument>(
                 Builders<PlaceSignalDocument>.IndexKeys.Ascending(s => s.ExpiresAtUtc),
-                new CreateIndexOptions { Name = "ix_place_signals_expires" })
+                new CreateIndexOptions { Name = "ix_place_signals_expires" }),
+            new CreateIndexModel<PlaceSignalDocument>(
+                // D-037: a place's history by time, for its weekly rhythm.
+                Builders<PlaceSignalDocument>.IndexKeys.Ascending(s => s.PlaceId).Descending(s => s.CreatedAtUtc),
+                new CreateIndexOptions { Name = "ix_place_signals_place_history" })
         }, ct);
 
         await _coverage.Indexes.CreateOneAsync(

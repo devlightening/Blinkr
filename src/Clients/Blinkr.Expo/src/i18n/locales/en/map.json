@@ -109,5 +109,26 @@
     "cluster": "{{count}} signals and places, zoom in",
     "showList": "Show as list"
   },
-  "placesUnavailable": "Places could not be refreshed right now; showing the last known state."
+  "placesUnavailable": "Places could not be refreshed right now; showing the last known state.",
+  "rhythm": {
+    "title": "Place rhythm",
+    "sun": "Sun",
+    "mon": "Mon",
+    "tue": "Tue",
+    "wed": "Wed",
+    "thu": "Thu",
+    "fri": "Fri",
+    "sat": "Sat",
+    "calm": "Calm",
+    "moderate": "Lively",
+    "busy": "Busy",
+    "usuallyNow": "Usually {{level}} at this hour",
+    "quietest": "Quietest: {{hour}}",
+    "noDayData": "Not enough data for this day",
+    "notYet": "Not enough verified observations yet. The rhythm builds up as people drop signals here.",
+    "hourNoData": "{{hour}} · not enough data",
+    "hourLevel": "{{hour}} · usually {{level}}",
+    "dayNoSummary": "Little data for this day",
+    "basis": "Based on {{count}} verified observations from the last 8 weeks; only hours with at least 3 people are shown."
+  }
 }

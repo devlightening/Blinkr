@@ -625,6 +625,10 @@ export const getHashtagFeed = (auth: AuthResponse, tag: string, page = 1, signal
 export const searchHashtags = (auth: AuthResponse, q: string, signal?: AbortSignal, refresh: Refresh = {}) =>
   requestJson<Array<{ tag: string; postCount: number }>>(`/api/discover/hashtags/search?${new URLSearchParams({ q })}`, { auth, signal, ...refresh });
 
+/** D-037 "Yerin Ritmi": how busy a place usually is by weekday/hour, from verified signals only (public aggregate). */
+export const getPlaceRhythm = (placeId: string, signal?: AbortSignal) =>
+  requestJson<import('./placeRhythm').PlaceRhythm>(`/api/places/${placeId}/rhythm`, { signal });
+
 /** Up to 20 places by id with their current state: how the places a person saved are doing right now. */
 export const getPlacesByIds = (ids: string[], signal?: AbortSignal) =>
   requestJson<BlinkrPlace[]>(`/api/places/batch?${new URLSearchParams({ ids: ids.slice(0, 20).join(',') })}`, { signal });
