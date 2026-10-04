@@ -60,3 +60,28 @@ export function liveA11yLabel(name: string, s: LiveState): string {
   if (ago) parts.push(ago);
   return `${parts.join('. ')}.`;
 }
+
+/** One sentence under the state pill on the place page. No live info says so and invites the first report. */
+export function stateSummary(s: LiveState): string {
+  const hours = s.source === 'hours';
+  if (s.source === 'none') return tx('live:summaryNone', 'Henüz canlı bilgi yok. İlk sen bildir.');
+  switch (s.kind) {
+    case 'calm': return isQueue(s) ? tx('live:summaryCalmQueue', 'Şu an sıra yok.') : tx('live:summaryCalm', 'Şu an rahat, yer bulunur.');
+    case 'busy': return isQueue(s) ? tx('live:summaryBusyQueue', 'Kısa bir sıra var.') : tx('live:summaryBusy', 'Hareketli ama yer bulunur.');
+    case 'crowded': return isQueue(s) ? tx('live:summaryCrowdedQueue', 'Uzun bir sıra var, bekleme olabilir.') : tx('live:summaryCrowded', 'Şu an kalabalık, bekleme olabilir.');
+    case 'closed': return hours ? tx('live:summaryHoursClosed', 'Çalışma saatine göre kapalı görünüyor.') : tx('live:summaryClosed', 'Şu an kapalı görünüyor.');
+    case 'event': return tx('live:summaryEvent', 'Şu an bir etkinlik var.');
+    case 'deal': return (s.signalType ?? '').toLowerCase() === 'newopening' ? tx('live:summaryNew', 'Yeni açılmış.') : tx('live:summaryDeal', 'Şu an bir fırsat var.');
+    case 'info': return hours ? tx('live:summaryHoursOpen', 'Çalışma saatine göre açık görünüyor.') : tx('live:summaryOpen', 'Açık olduğu doğrulandı.');
+    default: return tx('live:summaryTemp', 'Geçici bir durum bildirildi.');
+  }
+}
+
+/** "3 kişi yerinde bildirdi · son bilgi 4 dk önce"; one reporter reads just "son bilgi 4 dk önce". Empty without live info. */
+export function trustLine(s: LiveState): string {
+  if (s.source !== 'live' || s.ageMinutes === null) return '';
+  const ago = agoLabel(s.ageMinutes);
+  return s.confirmations >= 2
+    ? tx('live:trustLineN', '{{n}} kişi yerinde bildirdi · son bilgi {{ago}}', { n: s.confirmations, ago })
+    : tx('live:lastInfo', 'son bilgi {{ago}}', { ago });
+}

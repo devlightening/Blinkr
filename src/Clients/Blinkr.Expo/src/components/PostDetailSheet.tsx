@@ -1,18 +1,18 @@
-import { ArrowLeft, Bookmark, Camera, Check, Clock3, Compass, Flag, Image as ImageIcon, Layers, MapPin, MessageCircle, RefreshCw, Share2, ShieldCheck, X, Zap } from 'lucide-react-native';
+import { ArrowLeft, Bell, BellRing, Bookmark, Check, Compass, Flag, HelpCircle, Image as ImageIcon, Layers, MessageCircle, Plus, RefreshCw, Share2, ShieldCheck, X } from 'lucide-react-native';
 import { ActivityIndicator, Alert, Image, Linking, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import { useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { toAbsoluteUrl } from '../api';
 import { formatAge, formatCategory, formatDistance, signalLabels } from '../presentation';
 import { cardText } from '../signalCard';
 import { isPlaceSaved, savePlace, unsavePlace } from '../savedPlaces';
-import { categoryTone, colors, radii, signalColors, spacing, typography } from '../theme';
+import { colors, liveColors, liveRingSize, radii, signalColors, spacing, typography, withAlpha } from '../theme';
 import type { AuthResponse, BlinkrMedia, BlinkrPlace, CoordinateSignal, RecentSignal, SignalType } from '../types';
 import type { ReportReasonId } from '../friends';
 import { placeSensitivity } from '../placeSafety';
-import { confidenceKey, freshnessLabelKey, freshnessTier } from '../freshness';
-import { recheckSignal, signalValueLabel, trustLabel } from '../productPresentation';
+import { recheckSignal, trustLabel } from '../productPresentation';
+import { liveA11yLabel, stateLabel, stateSummary, trustLine } from '../live/liveLabels';
+import { isEstimated, liveStateFromCurrent } from '../live/liveState';
 import { AnimatedPressable } from './AnimatedPressable';
 import { ReportPanel } from './ReportPanel';
 import { ShareToChatPanel } from './chat/ShareToChatSheet';
@@ -33,7 +33,8 @@ import { BlinkrChip } from './ui/BlinkrChip';
 import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
 import { BlinkrSheetPanel } from './ui/BlinkrSheetPanel';
 import { BlinkrSignalCard } from './ui/BlinkrSignalCard';
-import { StatRow } from './ui/BlinkrStatRow';
+import { LiveRing } from './live/LiveRing';
+import { StatusPill } from './live/StatusPill';
 import { MediaImage } from './ui/BlinkrMediaImage';
 import { tx } from '../i18n/tx';
 
@@ -166,7 +167,6 @@ const SignalItem = ({ signal, index, onReport, onOpenThread }: { signal: RecentS
 };
 
 export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading, onClose, onCreateSignal, onRecheck, onReportSignal, place, signal, userId, onOpenPerson, onOpenHashtag }: Props) {
-  const { t } = useTranslation('common');
   const state = place?.currentState;
   const recheck = onRecheck ? recheckSignal(state) : null;
   const recentSignals = place?.recentSignals ?? [];
@@ -178,9 +178,13 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
   const [sharing, setSharing] = useState(false);
   // D-041: "Koleksiyona ekle" replaces the place page inside this same sheet, like sharing.
   const [collecting, setCollecting] = useState(false);
+  // The "Haber ver" tile opens the watch card under the action row; "Yere sor" scrolls to the questions card.
+  const [watchOpen, setWatchOpen] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const questionsY = useRef(0);
 
   // A different place or signal closes any half-filled report and any open thread.
-  useEffect(() => { setReportTarget(null); setThread(null); setSharing(false); setCollecting(false); }, [place?.id, signal?.postId]);
+  useEffect(() => { setReportTarget(null); setThread(null); setSharing(false); setCollecting(false); setWatchOpen(false); }, [place?.id, signal?.postId]);
 
   useEffect(() => {
     let active = true;
@@ -202,11 +206,11 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
 
   if (!visible) return null;
 
-  const tone = place ? categoryTone(place.category) : colors.mint;
-  const stateType = state?.signalType ?? null;
   const distance = place ? formatDistance(place.distanceMeters) : '';
-  // Place state only holds server-verified observations, so the shared rule may call it "Canlı" (freshness.ts).
-  const freshness = freshnessTier(state?.observedAtUtc ?? place?.lastActivityUtc, state?.expiresAtUtc);
+  // The ring comes from the server's verified summary only (the same rule as every other screen).
+  const live = liveStateFromCurrent(state, Date.now());
+  const hasLive = live.source === 'live';
+  const estimated = isEstimated(live);
 
   return (
     <Sheet onClose={onClose}>
@@ -304,20 +308,38 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
 
       {!reportTarget && !thread && !sharing && !collecting && place && (
         <BlinkrSheetPanel maxHeightRatio={0.9}>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <PhotoRail signals={recentSignals} />
-
+          {hasLive ? <View pointerEvents="none" style={[styles.glow, { backgroundColor: withAlpha(liveColors[live.kind], 0.08) }]} /> : null}
+          <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
-              <View style={[styles.placeIcon, { borderColor: tone }]}>
-                <PlaceSymbol category={place.category} color={tone} size={26} />
-              </View>
+              <LiveRing
+                accessibilityLabel={liveA11yLabel(place.name, live)}
+                estimated={estimated}
+                freshness={hasLive ? live.freshness : 0}
+                kind={live.kind}
+                size={liveRingSize.hero}
+              >
+                <PlaceSymbol category={place.category} color={hasLive || estimated ? liveColors[live.kind] : colors.textSecondary} size={34} />
+              </LiveRing>
               <View style={styles.headerText}>
                 <Text accessibilityRole="header" style={styles.title}>{place.name}</Text>
                 <Text style={styles.subtitle}>{formatCategory(place.category)}{distance ? ` · ${distance}` : ''}</Text>
               </View>
-              <AnimatedPressable accessibilityLabel={tx('common:actions.close', 'Kapat')} accessibilityRole="button" hitSlop={10} onPress={onClose} pressScale={0.88} style={styles.close}>
-                <X color={colors.text} size={22} />
-              </AnimatedPressable>
+              <View style={styles.headerButtons}>
+                <AnimatedPressable accessibilityLabel={tx('common:actions.close', 'Kapat')} accessibilityRole="button" hitSlop={10} onPress={onClose} pressScale={0.88} style={styles.close}>
+                  <X color={colors.text} size={22} />
+                </AnimatedPressable>
+                <AnimatedPressable
+                  accessibilityLabel={saved ? tx('signal:place.unsave', 'Kayıttan kaldır') : tx('signal:place.save', 'Kaydet')}
+                  accessibilityRole="button"
+                  aria-selected={saved}
+                  hitSlop={10}
+                  onPress={toggleSaved}
+                  pressScale={0.88}
+                  style={styles.close}
+                >
+                  <Bookmark color={colors.text} fill={saved ? colors.primary : 'none'} size={20} />
+                </AnimatedPressable>
+              </View>
             </View>
 
             {isLoading && (
@@ -329,62 +351,55 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
 
             {placeSensitivity(place.category) === 'health' ? <HealthNotice /> : null}
 
-            <View style={styles.statusBanner}>
-              <View style={styles.statusIcon}>
-                {stateType ? <SignalSymbol color={colors.mint} size={22} type={stateType} /> : <Clock3 color={colors.textSecondary} size={22} />}
-              </View>
-              <View style={styles.statusCopy}>
-                <Text style={styles.statusTitle}>{stateType ? signalLabels[stateType] ?? stateType : tx('signal:place.noFresh', 'Henüz taze sinyal yok')}</Text>
-                <Text style={styles.subtitle}>{signalValueLabel(stateType, state?.signalValue) || tx('signal:place.noVerified', 'Henüz doğrulanmış canlı gözlem yok.')}</Text>
-              </View>
+            <View style={styles.statusCard}>
+              <StatusPill estimated={estimated} kind={live.kind} label={stateLabel(live)} size="lg" />
+              <Text style={styles.statusSummary}>{stateSummary(live)}</Text>
+              {hasLive ? (
+                <View style={styles.trustRow}>
+                  <ShieldCheck color={liveColors[live.kind]} size={18} />
+                  <Text style={styles.trustText}>{trustLine(live)}</Text>
+                </View>
+              ) : null}
+              {recheck && onRecheck ? (
+                <View style={styles.recheck}>
+                  <Text style={styles.recheckTitle}>{tx('signal:verify.question', 'Hâlâ böyle mi?')}</Text>
+                  <Text style={styles.recheckHint}>{tx('signal:place.recheckHint', 'Buradaysan cevabın bu yerin canlı durumunu güncel tutar.')}</Text>
+                  <View style={styles.recheckRow}>
+                    <BlinkrChip accessibilityLabel={tx('signal:verify.yes', 'Evet, hâlâ böyle')} selected={false} icon={(color) => <Check color={color} size={18} />} label={tx('signal:verify.yes', 'Evet, hâlâ böyle')} onPress={() => onRecheck('confirm', recheck)} />
+                    <BlinkrChip accessibilityLabel={tx('signal:verify.changed', 'Değişti')} selected={false} icon={(color) => <RefreshCw color={color} size={18} />} label={tx('signal:verify.changed', 'Değişti')} onPress={() => onRecheck('changed', recheck)} />
+                  </View>
+                </View>
+              ) : null}
             </View>
 
-            <StatRow
-              items={[
-                { key: 'signals', icon: <Layers color={colors.mint} size={18} />, text: t('common:stats.signals', { count: recentSignals.length || (state?.activeSignalCount ?? 0) }) },
-                // No observation time: say nothing rather than "Henüz yok" next to a signal count.
-                ...(freshness !== 'none' ? [{ key: 'freshness', icon: <Zap color={colors.mint} size={18} />, text: t(freshnessLabelKey(freshness, true)) }] : []),
-                { key: 'confidence', icon: <ShieldCheck color={colors.mint} size={18} />, text: t(confidenceKey(state?.confidence)) },
-                ...(distance ? [{ key: 'distance', icon: <MapPin color={colors.mint} size={18} />, text: distance }] : []),
-              ]}
-              style={styles.stats}
-            />
-
-            {recheck && onRecheck ? (
-              <View style={styles.recheck}>
-                <Text style={styles.recheckTitle}>{tx('signal:verify.question', 'Hâlâ böyle mi?')}</Text>
-                <Text style={styles.recheckHint}>{tx('signal:place.recheckHint', 'Buradaysan cevabın bu yerin canlı durumunu güncel tutar.')}</Text>
-                <View style={styles.recheckRow}>
-                  <BlinkrChip accessibilityLabel={tx('signal:verify.yes', 'Evet, hâlâ böyle')} selected={false} icon={(color) => <Check color={color} size={18} />} label={tx('signal:verify.yes', 'Evet, hâlâ böyle')} onPress={() => onRecheck('confirm', recheck)} />
-                  <BlinkrChip accessibilityLabel={tx('signal:verify.changed', 'Değişti')} selected={false} icon={(color) => <RefreshCw color={color} size={18} />} label={tx('signal:verify.changed', 'Değişti')} onPress={() => onRecheck('changed', recheck)} />
-                </View>
-              </View>
-            ) : null}
-
             <View style={styles.actions}>
-              <BlinkrButton
-                icon={<Camera color={colors.ink} size={22} />}
-                label={tx('signal:drop', 'Sinyal bırak')}
-                onPress={onCreateSignal}
-                size="lg"
-                style={styles.primaryAction}
-                subtitle={tx('signal:place.whatsHappening', 'Burada neler oluyor?')}
-              />
-              <ActionTile
-                accessibilityLabel={saved ? tx('signal:place.unsave', 'Kayıttan kaldır') : tx('signal:place.save', 'Kaydet')}
-                icon={<Bookmark color={colors.text} fill={saved ? colors.primary : 'none'} size={24} />}
-                label={saved ? tx('signal:place.saved', 'Kayıtlı') : tx('signal:place.save', 'Kaydet')}
-                onPress={toggleSaved}
-                selected={saved}
-              />
+              {auth ? (
+                <ActionTile
+                  accessibilityLabel={tx('map:watch.title', 'Haber ver')}
+                  icon={watchOpen ? <BellRing color={colors.primary} size={24} /> : <Bell color={colors.text} size={24} />}
+                  label={tx('map:watch.title', 'Haber ver')}
+                  onPress={() => setWatchOpen((v) => !v)}
+                  selected={watchOpen}
+                />
+              ) : null}
+              {auth ? (
+                <ActionTile
+                  accessibilityLabel={tx('map:ask.title', 'Yere sor')}
+                  icon={<HelpCircle color={colors.text} size={24} />}
+                  label={tx('map:ask.title', 'Yere sor')}
+                  onPress={() => scrollRef.current?.scrollTo({ y: Math.max(0, questionsY.current - spacing.md), animated: true })}
+                />
+              ) : null}
+              <ActionTile accessibilityLabel={tx('signal:place.directions', 'Yol tarifi')} icon={<Compass color={colors.text} size={24} />} label={tx('signal:place.directions', 'Yol tarifi')} onPress={() => openDirections(place)} />
               <ActionTile
                 icon={<Share2 color={colors.text} size={24} />}
                 label={tx('common:actions.share', 'Paylaş')}
                 // Signed in: the share menu (send to a friend as a live place card, copy, other apps). Otherwise the system sheet.
                 onPress={() => (auth ? setSharing(true) : Share.share({ message: shareText(placeTarget(place)) }).catch(() => Alert.alert(tx('signal:place.shareFailed', 'Paylaşılamadı'))))}
               />
-              <ActionTile accessibilityLabel={tx('signal:place.directions', 'Yol tarifi')} icon={<Compass color={colors.text} size={24} />} label={tx('signal:place.directions', 'Yol tarifi')} onPress={() => openDirections(place)} />
             </View>
+            {/* D-038: tell me once when it gets quiet / opens / has news. */}
+            {auth ? <View style={styles.watch}><PlaceWatchControl auth={auth} open={watchOpen} place={place} refresh={refresh} /></View> : null}
             {auth ? (
               <AnimatedPressable accessibilityRole="button" onPress={() => setCollecting(true)} pressScale={0.98} style={styles.collectRow}>
                 <Layers color={colors.primary} size={18} />
@@ -394,17 +409,18 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
 
             {/* D-037: how busy it usually is, from verified signals only. */}
             <PlaceRhythmCard placeId={place.id} />
+            {/* D-039: ask how it is right now; answer with a normal signal (counts only when verified on site). */}
+            <View onLayout={(e) => { questionsY.current = e.nativeEvent.layout.y; }}>
+              <PlaceQuestionsCard auth={auth} onAnswer={onRecheck ? (type) => onRecheck('changed', { type, value: '' }) : undefined} place={place} refresh={refresh} />
+            </View>
             {/* D-040: Wi-Fi, outlets, quiet... from people verifiably here, fading unless confirmed. */}
             <PlaceAttributesCard auth={auth} placeId={place.id} refresh={refresh} />
-            {/* D-038: tell me once when it gets quiet / opens / has news. */}
-            {auth ? <PlaceWatchControl auth={auth} place={place} refresh={refresh} /> : null}
-            {/* D-039: ask how it is right now; answer with a normal signal (counts only when verified on site). */}
-            <PlaceQuestionsCard auth={auth} onAnswer={onRecheck ? (type) => onRecheck('changed', { type, value: '' }) : undefined} place={place} refresh={refresh} />
 
             <View style={styles.sectionHeader}>
               <Text accessibilityRole="header" style={styles.sectionLabel}>{tx('signal:place.recent', 'Son sinyaller')}</Text>
               <Text style={styles.sectionCount}>{recentSignals.length}</Text>
             </View>
+            <PhotoRail signals={recentSignals} />
             {recentSignals.length === 0 ? (
               <BlinkrEmptyState
                 description={tx('signal:place.emptyHint', 'İlk sinyali paylaşarak haritadaki kararı kolaylaştırabilirsin.')}
@@ -417,6 +433,15 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
               </View>
             )}
           </ScrollView>
+          <View style={styles.cta}>
+            <BlinkrButton
+              icon={<Plus color={colors.onCreate} size={22} />}
+              label={tx('live:ctaHere', 'Buradasın? Sinyal bırak')}
+              onPress={onCreateSignal}
+              size="lg"
+              variant="create"
+            />
+          </View>
         </BlinkrSheetPanel>
       )}
     </Sheet>
@@ -435,7 +460,8 @@ const styles = StyleSheet.create({
   photoMoreText: { ...typography.heading, color: colors.text },
   photoMoreLabel: { ...typography.caption, color: colors.textSecondary },
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
-  placeIcon: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.md, height: 44, justifyContent: 'center', width: 44 },
+  headerButtons: { alignSelf: 'flex-start', gap: spacing.sm },
+  glow: { borderTopLeftRadius: radii.panel, borderTopRightRadius: radii.panel, bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
   signalIcon: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 44, justifyContent: 'center', width: 44 },
   headerText: { flex: 1 },
   title: { ...typography.title, color: colors.text },
@@ -444,20 +470,20 @@ const styles = StyleSheet.create({
   body: { marginTop: spacing.lg },
   loading: { marginBottom: spacing.md },
   loadingRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  statusBanner: { alignItems: 'center', backgroundColor: colors.greenSoft, borderColor: colors.greenLine, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg, padding: spacing.md },
-  statusIcon: { alignItems: 'center', backgroundColor: colors.background, borderRadius: radii.md, height: 38, justifyContent: 'center', width: 38 },
-  statusCopy: { flex: 1 },
-  statusTitle: { ...typography.bodyStrong, color: colors.mint },
-  stats: { marginTop: spacing.md },
+  statusCard: { backgroundColor: colors.surfaceElevated, borderRadius: radii.card, gap: spacing.sm, marginTop: spacing.lg, padding: spacing.md },
+  statusSummary: { ...typography.title, color: colors.text },
+  trustRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
+  trustText: { ...typography.caption, color: colors.textSecondary, flex: 1 },
+  watch: { marginTop: spacing.sm },
+  cta: { paddingTop: spacing.md },
   // One row like the design: a wide lime CTA plus three fixed tiles. On very narrow screens the tiles
   // wrap under the CTA instead of squeezing its label.
-  recheck: { backgroundColor: colors.background, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, gap: spacing.xs, marginTop: spacing.md, padding: spacing.md },
+  recheck: { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.xs, marginTop: spacing.xs, paddingTop: spacing.md },
   recheckTitle: { ...typography.heading, color: colors.text, fontSize: 16, lineHeight: 21 },
   recheckHint: { ...typography.caption, color: colors.textSecondary },
   recheckRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
-  actions: { alignItems: 'stretch', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg },
-  primaryAction: { flexBasis: 146, flexGrow: 1, minWidth: 146, paddingHorizontal: 10 },
-  actionTile: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, gap: 4, justifyContent: 'center', minHeight: 56, width: 54 },
+  actions: { alignItems: 'stretch', flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  actionTile: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flex: 1, gap: 4, justifyContent: 'center', minHeight: 64 },
   actionLabel: { ...typography.micro, color: colors.text },
   healthNotice: { alignItems: 'center', backgroundColor: colors.errorSoft, borderColor: colors.errorLine, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
   healthTitle: { ...typography.bodyStrong, color: colors.text },

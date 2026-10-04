@@ -16,7 +16,13 @@ type Refresh = { onAuthRefresh?: (auth: AuthResponse) => void; onSessionExpired?
  * "Haber ver" (D-038) on a place page: tell me once when it gets quiet / opens / has news, then stop. Ends on its own
  * after 12 hours. Only the watcher ever sees it; nobody learns who waits for which place.
  */
-export function PlaceWatchControl({ auth, place, refresh = {} }: { auth: AuthResponse; place: BlinkrPlace; refresh?: Refresh }) {
+export function PlaceWatchControl({ auth, place, refresh = {}, open }: {
+  auth: AuthResponse;
+  place: BlinkrPlace;
+  refresh?: Refresh;
+  /** Place page: an action tile owns the open/closed state. The card is then hidden until opened (an active watch always shows). */
+  open?: boolean;
+}) {
   const [watch, setWatch] = useState<PlaceWatchInfo | null | undefined>(undefined);
   const [choosing, setChoosing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -59,6 +65,9 @@ export function PlaceWatchControl({ auth, place, refresh = {} }: { auth: AuthRes
   };
 
   if (watch === undefined) return null;
+  const external = open !== undefined;
+  if (external && !watch && !open) return null;
+  const showChoices = external ? Boolean(open) : choosing;
 
   if (watch) {
     return (
@@ -77,14 +86,14 @@ export function PlaceWatchControl({ auth, place, refresh = {} }: { auth: AuthRes
 
   return (
     <View style={styles.card} testID="place-watch">
-      <AnimatedPressable accessibilityRole="button" accessibilityState={{ expanded: choosing }} onPress={() => setChoosing((v) => !v)} pressScale={0.98} style={styles.row}>
+      <AnimatedPressable accessibilityRole="button" accessibilityState={{ expanded: showChoices }} disabled={external} onPress={() => setChoosing((v) => !v)} pressScale={0.98} style={styles.row}>
         <Bell color={colors.text} size={18} />
         <View style={styles.copy}>
           <Text style={styles.title}>{tx('map:watch.title', 'Haber ver')}</Text>
           <Text style={styles.sub}>{tx('map:watch.hint', 'Durum değişince bir kez bildirelim')}</Text>
         </View>
       </AnimatedPressable>
-      {choosing ? (
+      {showChoices ? (
         <View style={styles.chips}>
           {conditionsFor(place.currentState).map((condition) => (
             <AnimatedPressable accessibilityRole="button" disabled={busy} key={condition} onPress={() => { void start(condition); }} pressScale={0.95} style={styles.chip}>
