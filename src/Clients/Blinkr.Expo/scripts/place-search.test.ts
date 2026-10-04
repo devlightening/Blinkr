@@ -1,5 +1,5 @@
 import {
-  CATEGORY_SHORTCUTS, MAX_RECENT_SEARCHES, addRecentSearch, distanceTier, editDistance, foldSearchText, fuzzyMatches, isCategoryQuery, typoBudget, highlightSegments, isLiveResult, isSearchableQuery, rankPlaces, recentToPlace, scorePlace, toRecentSearch, type RecentSearch,
+  CATEGORY_SHORTCUTS, MAX_RECENT_SEARCHES, addRecentSearch, distanceTier, editDistance, foldSearchText, fuzzyMatches, isCategoryQuery, typoBudget, highlightSegments, isSearchableQuery, rankPlaces, recentToPlace, scorePlace, toRecentSearch, type RecentSearch,
 } from '../src/placeSearch';
 import type { BlinkrPlace } from '../src/types';
 
@@ -101,9 +101,4 @@ run('recent <-> place round trip keeps what the map needs', () => {
   const original = place('p1', 'Kent Meydanı', 10, { latitude: 37.07, longitude: 36.25, category: 'PUBLIC' });
   const back = recentToPlace(toRecentSearch(original));
   check(back.id === 'p1' && back.name === 'Kent Meydanı' && back.latitude === 37.07 && back.longitude === 36.25 && back.category === 'PUBLIC', 'round trip');
-});
-run('live badge only for verified, recent activity', () => {
-  const state = (freshness: string, count: number) => ({ currentState: { freshness, activeSignalCount: count } });
-  check(isLiveResult(place('a', 'A', 1, state('FRESH', 2))) && isLiveResult(place('b', 'B', 1, state('RECENT', 1))), 'fresh and recent');
-  check(!isLiveResult(place('c', 'C', 1, state('STALE', 3))) && !isLiveResult(place('d', 'D', 1, state('FRESH', 0))) && !isLiveResult(place('e', 'E', 1)), 'stale, empty, none');
 });

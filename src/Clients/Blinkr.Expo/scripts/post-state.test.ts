@@ -1,4 +1,5 @@
 import { postLiveState } from '../src/live/postState';
+import type { AuthoredPost } from '../src/types';
 
 function check(value: unknown, message: string) { if (!value) throw new Error(message); }
 const run = (name: string, fn: () => void) => { fn(); console.log('PASS', name); };
@@ -20,4 +21,10 @@ run('an observation, an expired or a 3 h+ old post is never live', () => {
   check(postLiveState({ signalType: 'GeneralObservation', signalValue: null, createdAtUtc: ago(2) }, NOW).source !== 'live', 'observation');
   check(postLiveState({ signalType: 'Crowd', signalValue: 'Busy', createdAtUtc: ago(10), expiresAtUtc: ago(1) }, NOW).source !== 'live', 'expired');
   check(postLiveState({ signalType: 'Crowd', signalValue: 'Busy', createdAtUtc: ago(200) }, NOW).source !== 'live', 'old');
+});
+
+run('an AuthoredPost (expiresAt, not expiresAtUtc) that has expired is not live', () => {
+  const post: AuthoredPost = { id: 'p', title: '', content: '', createdAtUtc: ago(100), expiresAt: ago(40), signalType: 'Crowd', signalValue: 'Busy', identityDisclosure: 'LimitedProfile', mediaUrls: [] };
+  check(postLiveState(post, NOW).source !== 'live', 'expired author post');
+  check(postLiveState({ ...post, expiresAt: new Date(NOW + 20 * 60000).toISOString() }, NOW).source === 'live', 'unexpired author post');
 });

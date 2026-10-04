@@ -314,12 +314,12 @@ export function MapSearchOverlay({ auth, origin, onClose, onSelectPlace, onSelec
                   title={tx('common:people.notFound', 'Kullanıcı bulunamadı')}
                 />
               ) : null}
-              {typed && query.trim().length < MIN_PEOPLE_QUERY_LENGTH ? <Text style={styles.hint}>Aramak için en az {MIN_PEOPLE_QUERY_LENGTH} harf yaz.</Text> : null}
+              {typed && query.trim().length < MIN_PEOPLE_QUERY_LENGTH ? <Text style={styles.hint}>{tx('map:search.minChars', 'Aramak için en az {{n}} harf yaz.', { n: MIN_PEOPLE_QUERY_LENGTH })}</Text> : null}
             </>
           )
         ) : !searching ? (
           <>
-            {typed ? <Text style={styles.hint}>Aramak için en az {MIN_QUERY_LENGTH} harf yaz.</Text> : null}
+            {typed ? <Text style={styles.hint}>{tx('map:search.minChars', 'Aramak için en az {{n}} harf yaz.', { n: MIN_QUERY_LENGTH })}</Text> : null}
             <Text style={styles.section}>{tx('map:search.nearby', 'Yakınında ara')}</Text>
             <View style={styles.chips}>
               {CATEGORY_SHORTCUTS.map((item) => (
@@ -364,8 +364,8 @@ export function MapSearchOverlay({ auth, origin, onClose, onSelectPlace, onSelec
             {status === 'loading' && results.length === 0 ? <ActivityIndicator accessibilityLabel={tx('common:actions.searching', 'Aranıyor')} color={colors.primary} style={styles.loading} /> : null}
             {results.length > 0 ? (
               <ScrollView contentContainerStyle={styles.filterRow} horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-                <NowChips active={nowFilters} onToggle={toggleNow} />
                 <BlinkrChip label={tx('map:search.walk', 'Yürüme mesafesi')} onPress={() => setWalking((v) => !v)} selected={walking} />
+                <NowChips active={nowFilters} onToggle={toggleNow} />
               </ScrollView>
             ) : null}
             {results.length > 0 && shown.length === 0 ? <Text style={styles.hint}>{tx('map:search.noneMatch', 'Bu filtrelere uyan yer yok.')}</Text> : null}

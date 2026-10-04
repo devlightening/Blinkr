@@ -102,6 +102,9 @@ export function FeedCard({ item, myUserId, onLike, onReact, onDoubleTap, onMenti
   const headMeta = [formatAge(item.createdAtUtc), distance].filter(Boolean).join(' · ');
   const openHead = () => { if (item.placeId && onShowOnMap) onShowOnMap(item); else onOpenAuthor?.(item); };
   const headTappable = Boolean((item.placeId && onShowOnMap) || authorTappable);
+  // With a place the header opens the map, so the author link inside it is out of a screen reader's reach: name the author in the label and offer the profile as an action.
+  const authorInLabel = placeTitle && authorLabel ? `, ${authorLabel}` : '';
+  const authorAction = placeTitle && authorTappable && item.placeId && onShowOnMap;
 
   const badge = (
     <View style={styles.typeRow}>
@@ -122,9 +125,11 @@ export function FeedCard({ item, myUserId, onLike, onReact, onDoubleTap, onMenti
     <View onLayout={(e) => setWidth(Math.round(e.nativeEvent.layout.width))} style={[styles.card, item.expired && styles.expired]} testID={`feed-card-${item.id}`}>
       <View style={styles.head}>
         <AnimatedPressable
-          accessibilityLabel={liveState ? liveA11yLabel(title, liveState) : `${title}. ${headMeta}`}
+          accessibilityActions={authorAction ? [{ name: 'openAuthor', label: t('discover.openAuthor') }] : undefined}
+          accessibilityLabel={liveState ? liveA11yLabel(`${title}${authorInLabel}`, liveState) : `${title}${authorInLabel}. ${headMeta}`}
           accessibilityRole="button"
           disabled={!headTappable}
+          onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'openAuthor') onOpenAuthor?.(item); }}
           onPress={openHead}
           pressScale={0.98}
           style={styles.author}

@@ -27,6 +27,8 @@ export type PlaceStatusCardProps = {
   centerColor?: string;
   /** The word shown, as plain text, when nothing is known about the place. Without it a no-info row is just ring + name + meta. */
   noInfoLabel?: string;
+  /** Sits inside an already-labelled pressable (a chat bubble): no accessibility group of its own, so a screen reader reads the label once. */
+  embedded?: boolean;
   accessibilityLabel?: string;
   accessibilityHint?: string;
   testID?: string;
@@ -37,7 +39,7 @@ export type PlaceStatusCardProps = {
  * the state word and how old / how many people stand behind it. A closed place is muted but still worded.
  */
 function PlaceStatusCardBase({
-  name, nameNode, meta, state, category, onPress, trailing, flat = false, noInfoLabel, centerColor, accessibilityLabel, accessibilityHint, testID,
+  name, nameNode, meta, state, category, onPress, trailing, flat = false, noInfoLabel, centerColor, embedded = false, accessibilityLabel, accessibilityHint, testID,
 }: PlaceStatusCardProps) {
   const estimated = isEstimated(state);
   const live = state.source === 'live';
@@ -76,6 +78,7 @@ function PlaceStatusCardBase({
 
   const style = [styles.base, flat ? styles.flat : styles.card, state.kind === 'closed' && styles.muted];
   const label = accessibilityLabel ?? liveA11yLabel(name, state);
+  if (embedded) return <View accessible={false} style={style} testID={testID}>{body}</View>;
   if (!pressable) {
     return <View accessible accessibilityLabel={label} style={style} testID={testID}>{body}</View>;
   }

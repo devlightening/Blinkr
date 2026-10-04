@@ -5,8 +5,8 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { toAbsoluteUrl } from '../../api';
 import { tx } from '../../i18n/tx';
-import { pinTagParts, stateLabel } from '../../live/liveLabels';
-import { postLiveState } from '../../live/postState';
+import { pinTagParts } from '../../live/liveLabels';
+import { kindFromSignal } from '../../live/liveState';
 import { formatAge, signalLabels } from '../../presentation';
 import { signalValueLabel } from '../../productPresentation';
 import { gridTile, gridTileHeight } from '../../profileGrid';
@@ -21,17 +21,16 @@ const RING = 64;
 const CORNER_ROOM = 28;
 
 /**
- * One tile of a profile grid: the photo, or a soft tint of the post's state colour with its ring, a pill with what the
- * post reported, and "place · age" at the bottom. The pill is coloured only while the post is live (<= 3 h, not expired);
- * an older post keeps its word but goes neutral, so a tile never looks like current information.
+ * One tile of a profile grid: the photo, or a plain tile with a neutral ring, a pill with the short word of what the post
+ * reported, and "place · age" at the bottom. The author list carries no publication trust, so a tile is never coloured:
+ * the coloured ring and pill mean "server-verified, live" and a profile grid cannot claim that.
  */
 function SignalTileBase({ post, size, onPress }: { post: AuthoredPost; size: number; onPress?: () => void }) {
   const tile = gridTile(post);
-  const state = postLiveState(post, Date.now());
-  const live = state.source === 'live';
-  const kind = live ? state.kind : 'unknown';
-  const value = signalValueLabel(post.signalType, post.signalValue);
-  const word = live ? pinTagParts(state).state || stateLabel(state) : value || (signalLabels[post.signalType] ?? tx('profile:grid.signal', 'Sinyal'));
+  const stateKind = kindFromSignal(post.signalType, post.signalValue);
+  const word = stateKind
+    ? pinTagParts({ kind: stateKind, level: null, freshness: 0, ageMinutes: null, confirmations: 0, isStale: true, source: 'live', signalType: post.signalType, signalValue: post.signalValue ?? null }).state
+    : signalValueLabel(post.signalType, post.signalValue) || tx('profile:grid.signal', 'Sinyal');
   const place = post.locationName || signalLabels[post.signalType] || tx('profile:grid.signal', 'Sinyal');
   const age = formatAge(post.createdAtUtc);
   const url = tile.photoUrl ? toAbsoluteUrl(tile.photoUrl) : null;
@@ -54,14 +53,14 @@ function SignalTileBase({ post, size, onPress }: { post: AuthoredPost; size: num
           <LinearGradient colors={gradients.scrimBottom} pointerEvents="none" style={styles.scrim} />
         </>
       ) : (
-        <View style={[StyleSheet.absoluteFill, styles.plain, { backgroundColor: withAlpha(liveColors[kind], 0.12) }]}>
-          <LiveRing freshness={live ? state.freshness : 0} kind={kind} size={RING}>
-            <SignalSymbol color={live ? liveColors[kind] : colors.textSecondary} size={22} type={post.signalType} />
+        <View style={[StyleSheet.absoluteFill, styles.plain, { backgroundColor: withAlpha(liveColors.unknown, 0.12) }]}>
+          <LiveRing freshness={0} kind="unknown" size={RING}>
+            <SignalSymbol color={colors.textSecondary} size={22} type={post.signalType} />
           </LiveRing>
         </View>
       )}
-      <View style={[styles.pillBack, { maxWidth: size - spacing.xs * 2 - CORNER_ROOM }]}>
-        <StatusPill kind={kind} label={word} />
+      <View style={[styles.pillBack, { maxWidth: size - spacing.xs * 2 - (tile.video || tile.extraPhotos > 0 ? CORNER_ROOM : 0) }]}>
+        <StatusPill kind="unknown" label={word} singleLine />
       </View>
       {tile.video ? <View accessibilityLabel={tx('profile:grid.video', 'video')} style={styles.corner} testID={`grid-video-${post.id}`}><Play color={mediaColors.white} fill={mediaColors.white} size={14} /></View>
         : tile.extraPhotos > 0 ? <View style={styles.corner}><Images color={onPhoto ? mediaColors.white : colors.text} size={14} /></View> : null}

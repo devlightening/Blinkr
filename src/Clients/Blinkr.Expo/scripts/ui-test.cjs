@@ -2,6 +2,8 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { chromium, expect } = require('@playwright/test');
 const { buildPreview, servePreview } = require('./ui-build.cjs');
+// A search result row reads "Name. State. Category · distance · address." (PlaceStatusCard); the names in list order.
+const resultNames = (page) => page.getByRole('button').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label') || '').filter((label) => / ~?\d[\d.,]* ?(m|km)\b/.test(label)).map((label) => label.split('. ')[0]));
 async function main() {
   const out = path.resolve('.tmp/product-ui');
   await buildPreview(out);
@@ -154,18 +156,19 @@ async function main() {
     // Chat list: names, real unread badge, "Sen:" prefix for own last message; empty and failing states.
     await page.goto(url + '?scene=chat');
     // Snapchat-style rows: a waiting snap is "Yeni Snap" and opens the viewer; text shows its preview or "Yeni sohbet".
-    await expect(page.getByLabel(/^zeynep, Yeni Snap, .* önce\. Snapı aç$/)).toBeVisible();
+    await expect(page.getByLabel(/^zeynep, Yeni Snap, .* önce\. Snapı aç(\. \d+ okunmamış)?$/)).toBeVisible();
     await expect(page.getByLabel(/^arda, Buraya geldin mi\?, .* önce\. Sohbeti aç$/)).toBeVisible();
     await expect(page.getByLabel(/^melis, Açıldı, .* önce\. Sohbeti aç$/)).toBeVisible();
-    await expect(page.getByLabel(/^ece, Yeni sohbet, .* önce\. Sohbeti aç$/)).toBeVisible();
+    await expect(page.getByLabel(/^ece, Yeni sohbet, .* önce\. Sohbeti aç(\. \d+ okunmamış)?$/)).toBeVisible();
     await expect(page.getByLabel(/^can, Süresi doldu, .* önce\. Sohbeti aç$/)).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Sohbetler' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Sohbet' })).toBeVisible();
     await expect(page.getByLabel('zeynep kişisine Snap gönder')).toBeVisible();
     await expect(page.getByLabel('Sohbet, okunmamış mesaj var')).toBeVisible();
     await page.screenshot({ path: path.join(out, 'chat.png') });
     await page.goto(url + '?scene=chat&empty');
     await expect(page.getByText('Henüz mesajın yok')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Yeni mesaj' })).toHaveCount(2);
+    await expect(page.getByRole('button', { name: 'Yeni mesaj' })).toHaveCount(1);
+    await expect(page.getByLabel('zeynep ile mesajlaş')).toBeVisible();
     await page.goto(url + '?scene=chat&failing');
     await expect(page.getByText('Sohbetler açılamadı')).toBeVisible();
     await expect(page.getByText('Network request failed')).toHaveCount(0);
@@ -380,19 +383,21 @@ async function main() {
     await expect(page.getByText('Yakınında ara')).toBeVisible();
     await expect(page.getByText('Son aramalar')).toHaveCount(0);
     await page.getByRole('button', { name: 'Eczane', exact: true }).click();
-    await expect(page.getByLabel(/Kent Eczanesi, .*Haritada göster/)).toBeVisible();
-    const pharmacyOrder = await page.getByLabel(/Haritada göster/).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label').split(',')[0]));
+    await expect(page.getByLabel(/^Kent Eczanesi\. /)).toBeVisible();
+    const pharmacyOrder = await resultNames(page);
     if (pharmacyOrder.join('|') !== 'Kent Eczanesi|Şifa Eczanesi') throw new Error('Category results not nearest first: ' + pharmacyOrder.join('|'));
     await page.getByLabel('Yer ara', { exact: true }).fill('a');
     await expect(page.getByText('Aramak için en az 2 harf yaz.')).toBeVisible();
     await page.getByLabel('Yer ara', { exact: true }).fill('kent');
-    await expect(page.getByLabel(/Kent Meydanı, .*Haritada göster/)).toBeVisible();
-    const kentOrder = await page.getByLabel(/Haritada göster/).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label').split(',')[0]));
+    await expect(page.getByLabel(/^Kent Meydanı\. /)).toBeVisible();
+    const kentOrder = await resultNames(page);
     // Name matches first (prefix, nearest first), a mid-word match last.
     if (kentOrder.join('|') !== 'Kent Meydanı|Kent Eczanesi|Şehirkent Market') throw new Error('Name ranking wrong: ' + kentOrder.join('|'));
-    await expect(page.getByText('Canlı', { exact: true })).toHaveCount(1);
+    // The live word shows only on the place with verified activity (Kent Meydanı: "Kalabalık"); the others say there is no live information.
+    await expect(page.getByText('Kalabalık', { exact: true })).toHaveCount(1);
+    await expect(page.getByText('Canlı bilgi yok', { exact: true })).toHaveCount(2);
     await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'map-search.png') });
-    await page.getByLabel(/Kent Meydanı, .*Haritada göster/).click();
+    await page.getByLabel(/^Kent Meydanı\. /).click();
     await expect(page.getByLabel('chosen')).toHaveText('place:kent');
     await page.goto(url + '?scene=mapSearch');
     await expect(page.getByText('Son aramalar')).toBeVisible();
@@ -408,7 +413,7 @@ async function main() {
     await page.getByLabel('Yer ara', { exact: true }).fill('soulmate');
     await expect(page.getByText('Diğer şehirler', { exact: true })).toBeVisible();
     await expect(page.getByText('Yakınında', { exact: true })).toBeVisible();
-    const soulOrder = await page.getByLabel(/Haritada göster/).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label').split(',')[0]));
+    const soulOrder = await resultNames(page);
     if (soulOrder.join('|') !== 'Soulmate Cafe|Soulmate Coffee') throw new Error('Far result outranked the near one: ' + soulOrder.join('|'));
     await page.goto(url + '?scene=mapSearch&emptysearch');
     await page.getByLabel('Yer ara', { exact: true }).fill('zzzz');
@@ -503,7 +508,8 @@ async function main() {
     await page.getByTestId('person-menu').click();
     await page.getByRole('button', { name: 'Arkadaşlıktan çıkar' }).click();
     await page.getByRole('button', { name: 'Evet, çıkar' }).click();
-    await expect(page.getByRole('button', { name: 'Arkadaş ekle' })).toBeVisible();
+    // The own profile underneath has its own icon-only "Arkadaş ekle" button, so look inside this person's page.
+    await expect(page.getByTestId('person-profile').getByRole('button', { name: 'Arkadaş ekle' })).toBeVisible();
     await page.getByTestId('person-menu').click();
     await expect(page.getByRole('button', { name: 'Arkadaşlıktan çıkar' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Engelle' })).toBeVisible();
@@ -803,7 +809,7 @@ async function main() {
     await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'discover-thread.png') });
     await page.getByRole('button', { name: 'Kapat' }).last().click();
     await page.getByTestId('feed-card-n-1').getByRole('button', { name: 'Haritada göster' }).click();
-    await expect(page.getByLabel('opened')).toHaveText('place:kent');
+    await expect(page.getByLabel('opened')).toHaveText('place:kent-ecz');
     // V2-6 Instagram card: media edge to edge, a double tap adds the heart, the caption starts with the name,
     // "N yorumun tümünü gör" opens the comments.
     await page.goto(url + '?scene=discover');
@@ -1083,7 +1089,7 @@ async function main() {
     await page.getByTestId('person-menu').click();
     await page.getByRole('button', { name: 'Engelle', exact: true }).click();
     await page.getByRole('button', { name: 'Evet, engelle' }).click();
-    await expect(page.getByRole('heading', { name: 'Sohbetler' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Sohbet' })).toBeVisible();
     await expect(page.getByLabel(/^arda, /)).toHaveCount(0);
     await expect(page.getByLabel(/^zeynep, /)).toBeVisible();
     // Saved places show how they are doing right now: only fresh verified activity, live places first, failures change nothing.

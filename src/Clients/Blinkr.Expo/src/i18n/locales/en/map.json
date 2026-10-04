@@ -4,7 +4,6 @@
     "tierNear": "Near you",
     "tierCity": "In the city",
     "tierOther": "Other cities",
-    "rowA11y": "{{name}}, {{subtitle}}. Show on map",
     "failed": "Search isn't working right now. Try again.",
     "close": "Close search",
     "searchPlaces": "Search places",
@@ -28,6 +27,7 @@
     "noResults": "No results",
     "clearShort": "Clear",
     "walk": "Walking distance",
+    "minChars": "Type at least {{n}} letters to search.",
     "noneMatch": "No place matches these filters.",
     "legendSolid": "Solid ring: live information verified on site; the ring empties as it gets older."
   },

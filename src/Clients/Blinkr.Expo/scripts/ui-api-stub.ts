@@ -173,11 +173,12 @@ export const getPlacesByIds = async (ids: string[]) => {
   const placeCardStates: typeof states = {
     'pc-calm': { signalType: 'Crowd', signalValue: 'Calm', freshness: 'FRESH', activeSignalCount: 3, observedAtUtc: new Date(Date.now() - 4 * 60_000).toISOString() },
     'pc-crowd': { signalType: 'Crowd', signalValue: 'Busy', freshness: 'FRESH', activeSignalCount: 2, observedAtUtc: new Date(Date.now() - 9 * 60_000).toISOString() },
-    kent: { signalType: 'Queue', signalValue: 'Over15', freshness: 'FRESH', activeSignalCount: 2, observedAtUtc: new Date(Date.now() - 6 * 60_000).toISOString() },
+    'kent-ecz': { signalType: 'Queue', signalValue: 'Over15', freshness: 'FRESH', activeSignalCount: 2, observedAtUtc: new Date(Date.now() - 6 * 60_000).toISOString() },
     'pc-closed': { signalType: 'TemporaryStatus', signalValue: 'Closed', freshness: 'RECENT', activeSignalCount: 1, observedAtUtc: new Date(Date.now() - 40 * 60_000).toISOString() },
   };
   const names: Record<string, string> = { 'pc-calm': 'Soulmate Kafe', 'pc-crowd': 'Moka Coffee', 'pc-none': 'Köşe Kahve', 'pc-closed': 'Çınar Kahve' };
-  return ids.map((id) => ({ id, name: names[id] ?? id, category: 'CAFE', latitude: 37, longitude: 36, currentState: states[id] ?? placeCardStates[id] ?? null }));
+  const known = new Map([...kafeCatalogue, ...catalogue].map((p) => [p.id, p]));
+  return ids.map((id) => ({ id, name: names[id] ?? known.get(id)?.name ?? id, category: known.get(id)?.category ?? 'CAFE', latitude: known.get(id)?.latitude ?? 37, longitude: known.get(id)?.longitude ?? 36, currentState: states[id] ?? placeCardStates[id] ?? null }));
 };
 let sent: ChatMessage[] = [];
 export const getMessages = async () => ({ items: flag('emptychat') ? [] : flag('placecards') ? placeMessages : [...sent, ...chatMessages], otherTyping: flag('typing') });
@@ -279,7 +280,7 @@ const feedNow = Date.now();
 const feedItem = (id: string, extra: Record<string, unknown> = {}) => ({
   id, title: '', content: 'Kuyruk kapıya kadar.', signalType: 'Queue', signalValue: 'Over15', authorId: 'u-zeynep', authorName: 'zeynep', anonymous: false,
   createdAtUtc: new Date(feedNow - 6 * 60_000).toISOString(), expiresAtUtc: new Date(feedNow + 50 * 60_000).toISOString(), expired: false,
-  likeCount: 4, commentCount: 1, isLikedByCurrentUser: false, placeId: 'kent', locationName: 'Kent Eczanesi', distanceMeters: 350, media: [], verified: true, ...extra,
+  likeCount: 4, commentCount: 1, isLikedByCurrentUser: false, placeId: 'kent-ecz', locationName: 'Kent Eczanesi', distanceMeters: 350, media: [], verified: true, ...extra,
 });
 export const getDiscoverNearby = async (_auth: unknown, _lat: number, _lon: number, page = 1) => {
   if (flag('feedfail')) throw new Error('Network request failed');

@@ -11,11 +11,13 @@ export type StatusPillProps = {
   size?: 'sm' | 'lg';
   /** No live confirmation, estimated from opening hours: a dashed outline instead of a fill. */
   estimated?: boolean;
+  /** One line with an ellipsis, for narrow tiles; the default lets the word wrap to two lines at large text sizes. */
+  singleLine?: boolean;
   /** e.g. `alignSelf: 'center'` when the pill sits in a row beside a ring. */
   style?: StyleProp<ViewStyle>;
 };
 
-function StatusPillBase({ kind, label, size = 'sm', estimated = false, style }: StatusPillProps) {
+function StatusPillBase({ kind, label, size = 'sm', estimated = false, singleLine = false, style }: StatusPillProps) {
   const color = liveColors[kind];
   const large = size === 'lg';
   return (
@@ -30,7 +32,7 @@ function StatusPillBase({ kind, label, size = 'sm', estimated = false, style }: 
       ]}
     >
       <View style={[styles.dot, { backgroundColor: color }]} />
-      <Text numberOfLines={2} style={[large ? typography.callout : typography.label, styles.text, { color }]}>{label}</Text>
+      <Text ellipsizeMode="tail" numberOfLines={singleLine ? 1 : 2} style={[large ? typography.callout : typography.label, styles.text, { color }]}>{label}</Text>
     </View>
   );
 }

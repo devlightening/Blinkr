@@ -4,7 +4,6 @@
     "tierNear": "Yakınında",
     "tierCity": "Şehirde",
     "tierOther": "Diğer şehirler",
-    "rowA11y": "{{name}}, {{subtitle}}. Haritada göster",
     "failed": "Arama şu anda yapılamadı. Tekrar dene.",
     "close": "Aramayı kapat",
     "searchPlaces": "Yer ara",
@@ -28,6 +27,7 @@
     "noResults": "Sonuç bulunamadı",
     "clearShort": "Temizle",
     "walk": "Yürüme mesafesi",
+    "minChars": "Aramak için en az {{n}} harf yaz.",
     "noneMatch": "Bu filtrelere uyan yer yok.",
     "legendSolid": "Dolu halka: yerinde doğrulanmış canlı bilgi; halka boşaldıkça bilgi eskir."
   },

@@ -82,8 +82,6 @@
   },
   "sections": {
     "account": "Account",
-    "safety": "Safety",
-    "privacy": "Privacy",
     "developer": "Developer",
     "about": "About",
     "permissions": "Permissions",

@@ -158,6 +158,3 @@ export const recentToPlace = (recent: RecentSearch): BlinkrPlace => ({
   id: recent.id, name: recent.name, category: recent.category ?? null, latitude: recent.latitude, longitude: recent.longitude,
 });
 
-/** Live means the server currently verifies activity at the Place; this is what the result row badges. */
-export const isLiveResult = (place: BlinkrPlace) =>
-  (place.currentState?.activeSignalCount ?? 0) > 0 && (place.currentState?.freshness === 'FRESH' || place.currentState?.freshness === 'RECENT');
