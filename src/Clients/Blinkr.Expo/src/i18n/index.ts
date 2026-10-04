@@ -8,8 +8,10 @@ import enCommon from './locales/en/common.json';
 import enCreate from './locales/en/create.json';
 import enErrors from './locales/en/errors.json';
 import enFeed from './locales/en/feed.json';
+import enLive from './locales/en/live.json';
 import enMap from './locales/en/map.json';
 import enProfile from './locales/en/profile.json';
+import enQuick from './locales/en/quick.json';
 import enSettings from './locales/en/settings.json';
 import enSignal from './locales/en/signal.json';
 import trChat from './locales/tr/chat.json';
@@ -17,8 +19,10 @@ import trCommon from './locales/tr/common.json';
 import trCreate from './locales/tr/create.json';
 import trErrors from './locales/tr/errors.json';
 import trFeed from './locales/tr/feed.json';
+import trLive from './locales/tr/live.json';
 import trMap from './locales/tr/map.json';
 import trProfile from './locales/tr/profile.json';
+import trQuick from './locales/tr/quick.json';
 import trSettings from './locales/tr/settings.json';
 import trSignal from './locales/tr/signal.json';
 
@@ -43,8 +47,8 @@ export const supportedLanguage = (deviceLanguageCode: string | null | undefined)
   (AVAILABLE_LANGUAGES as readonly string[]).includes(deviceLanguageCode ?? '') ? (deviceLanguageCode as AppLanguage) : DEFAULT_LANGUAGE;
 
 const resources = {
-  tr: { common: trCommon, map: trMap, signal: trSignal, create: trCreate, feed: trFeed, profile: trProfile, chat: trChat, settings: trSettings, errors: trErrors },
-  en: { common: enCommon, map: enMap, signal: enSignal, create: enCreate, feed: enFeed, profile: enProfile, chat: enChat, settings: enSettings, errors: enErrors },
+  tr: { common: trCommon, map: trMap, signal: trSignal, create: trCreate, feed: trFeed, profile: trProfile, chat: trChat, settings: trSettings, errors: trErrors, live: trLive, quick: trQuick },
+  en: { common: enCommon, map: enMap, signal: enSignal, create: enCreate, feed: enFeed, profile: enProfile, chat: enChat, settings: enSettings, errors: enErrors, live: enLive, quick: enQuick },
 };
 
 /** The person's choice in Ayarlar > Dil (plan-devam G3): 'system' follows the device. Read synchronously at boot. */
@@ -74,7 +78,7 @@ export const initI18n = () => {
     initAsync: false,
     lng: preference === 'system' ? supportedLanguage(deviceLanguage) : preference,
     fallbackLng: DEFAULT_LANGUAGE,
-    ns: ['common', 'map', 'signal', 'create', 'feed', 'profile', 'chat', 'settings', 'errors'],
+    ns: ['common', 'map', 'signal', 'create', 'feed', 'profile', 'chat', 'settings', 'errors', 'live', 'quick'],
     defaultNS: 'common',
     interpolation: { escapeValue: false },
     returnNull: false,

@@ -1,0 +1,60 @@
+import { tx } from '../i18n/tx';
+import { ageParts, type LiveState } from './liveState';
+
+const isQueue = (s: LiveState) => (s.signalType ?? '').toLowerCase() === 'queue';
+
+/** The word that always accompanies a ring: state is never colour alone. Queue signals read as a queue, not as a crowd. */
+export function stateLabel(s: LiveState): string {
+  const hours = s.source === 'hours';
+  switch (s.kind) {
+    case 'calm': return isQueue(s) ? tx('live:stateCalmQueue', 'Sıra yok') : tx('live:stateCalm', 'Açık · Sakin');
+    case 'busy': return isQueue(s) ? tx('live:stateBusyQueue', 'Kısa sıra') : tx('live:stateBusy', 'Hareketli');
+    case 'crowded': return isQueue(s) ? tx('live:stateCrowdedQueue', 'Uzun sıra') : tx('live:stateCrowded', 'Kalabalık');
+    case 'closed': return hours ? tx('live:stateClosedHours', 'Kapalı · saate göre') : tx('live:stateClosed', 'Kapalı');
+    case 'event': return tx('live:stateEvent', 'Etkinlik');
+    case 'deal': return (s.signalType ?? '').toLowerCase() === 'newopening' ? tx('live:stateNew', 'Yeni açılış') : tx('live:stateDeal', 'Fırsat');
+    case 'info': return hours ? tx('live:stateHours', 'Açık · saate göre') : tx('live:stateOpen', 'Açık');
+    default: return s.source === 'live' ? tx('live:stateTemp', 'Geçici durum') : tx('live:stateUnknown', 'Canlı bilgi yok');
+  }
+}
+
+/** "4 dk önce" · "2 sa önce" · "3 gün önce"; the word order stays with the translation. */
+export function agoLabel(min: number | null): string {
+  if (min === null) return '';
+  const p = ageParts(min);
+  if (p.unit === 'min') return tx('live:agoMin', '{{n}} dk önce', { n: p.n });
+  if (p.unit === 'hour') return tx('live:agoHour', '{{n}} sa önce', { n: p.n });
+  return tx('live:agoDay', '{{n}} gün önce', { n: p.n });
+}
+
+/** Short map-tag form: "Sakin" + "4 dk". */
+export function pinTagParts(s: LiveState): { state: string; age: string } {
+  let state = '';
+  switch (s.kind) {
+    case 'calm': state = tx('live:tagCalm', 'Sakin'); break;
+    case 'busy': state = tx('live:tagBusy', 'Hareketli'); break;
+    case 'crowded': state = tx('live:tagCrowded', 'Kalabalık'); break;
+    case 'closed': state = tx('live:tagClosed', 'Kapalı'); break;
+    case 'event': state = tx('live:tagEvent', 'Etkinlik'); break;
+    case 'deal': state = tx('live:tagDeal', 'Fırsat'); break;
+    case 'info': state = tx('live:tagOpen', 'Açık'); break;
+    default: state = s.source === 'live' ? tx('live:tagTemp', 'Geçici') : '';
+  }
+  if (s.ageMinutes === null) return { state, age: '' };
+  const p = ageParts(s.ageMinutes);
+  const age = p.unit === 'min' ? tx('live:shortMin', '{{n}} dk', { n: p.n })
+    : p.unit === 'hour' ? tx('live:shortHour', '{{n}} sa', { n: p.n })
+    : tx('live:shortDay', '{{n}} g', { n: p.n });
+  return { state, age };
+}
+
+/** "N kişi yerinde bildirdi"; one person is not a confirmation worth a line. */
+export const confirmLabel = (n: number): string => (n < 2 ? '' : tx('live:reportedN', '{{n}} kişi yerinde bildirdi', { n }));
+
+/** Screen-reader label of a row: "Soulmate Kafe. Açık · Sakin. 4 dk önce." */
+export function liveA11yLabel(name: string, s: LiveState): string {
+  const parts = [name, stateLabel(s)];
+  const ago = agoLabel(s.ageMinutes);
+  if (ago) parts.push(ago);
+  return `${parts.join('. ')}.`;
+}

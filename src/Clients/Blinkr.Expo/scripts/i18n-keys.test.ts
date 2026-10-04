@@ -3,8 +3,10 @@ import enCommon from '../src/i18n/locales/en/common.json';
 import enCreate from '../src/i18n/locales/en/create.json';
 import enErrors from '../src/i18n/locales/en/errors.json';
 import enFeed from '../src/i18n/locales/en/feed.json';
+import enLive from '../src/i18n/locales/en/live.json';
 import enMap from '../src/i18n/locales/en/map.json';
 import enProfile from '../src/i18n/locales/en/profile.json';
+import enQuick from '../src/i18n/locales/en/quick.json';
 import enSettings from '../src/i18n/locales/en/settings.json';
 import enSignal from '../src/i18n/locales/en/signal.json';
 import trChat from '../src/i18n/locales/tr/chat.json';
@@ -12,8 +14,10 @@ import trCommon from '../src/i18n/locales/tr/common.json';
 import trCreate from '../src/i18n/locales/tr/create.json';
 import trErrors from '../src/i18n/locales/tr/errors.json';
 import trFeed from '../src/i18n/locales/tr/feed.json';
+import trLive from '../src/i18n/locales/tr/live.json';
 import trMap from '../src/i18n/locales/tr/map.json';
 import trProfile from '../src/i18n/locales/tr/profile.json';
+import trQuick from '../src/i18n/locales/tr/quick.json';
 import trSettings from '../src/i18n/locales/tr/settings.json';
 import trSignal from '../src/i18n/locales/tr/signal.json';
 
@@ -45,6 +49,8 @@ const namespaces: Array<[string, unknown, unknown]> = [
   ['chat', trChat, enChat],
   ['settings', trSettings, enSettings],
   ['errors', trErrors, enErrors],
+  ['live', trLive, enLive],
+  ['quick', trQuick, enQuick],
 ];
 
 run('tr and en offer exactly the same keys in every namespace', () => {

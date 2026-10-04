@@ -454,3 +454,26 @@ export const setMyProfile = async (_auth: unknown, profile: { bio: string | null
   myBio = profile.bio;
   return { bio: profile.bio, displayName: profile.displayName || null };
 };
+
+// Later features (rhythm, attributes, questions, watches, collections, meetups, trust): empty answers so the preview bundle links.
+export const getPlaceRhythm = async () => ({ enough: false, observations: 0, today: 0, currentHour: 0, days: [] });
+export const getPlaceAttributes = async () => ({ attributes: [], canVote: false, catalog: [] });
+export const votePlaceAttribute = async () => undefined;
+export const getPlaceQuestions = async () => ({ items: [] });
+export const getNearbyQuestions = async () => ({ items: [] });
+export const askPlace = async () => undefined;
+export const withdrawQuestion = async () => undefined;
+export const listPlaceWatches = async () => ({ items: [] });
+export const watchPlace = async () => undefined;
+export const unwatchPlace = async () => undefined;
+export const listCollections = async () => ({ items: [] });
+export const createCollection = async () => undefined;
+export const getCollection = async () => undefined;
+export const getSharedCollection = async () => undefined;
+export const updateCollection = async () => undefined;
+export const deleteCollection = async () => undefined;
+export const putCollectionItem = async () => undefined;
+export const removeCollectionItem = async () => undefined;
+export const getAuthorTrust = async () => ({ verifiedSignals: 0, verifiedPlaces: 0 });
+export const respondToMeetup = async () => undefined;
+export const updateConversationPreferences = async () => undefined;

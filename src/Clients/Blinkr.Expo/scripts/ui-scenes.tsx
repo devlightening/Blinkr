@@ -29,6 +29,10 @@ import { SignalCardModal } from '../src/components/signal/SignalCardModal';
 import { fromRecentSignal } from '../src/signalCard';
 import { CARD_LANDSCAPE, CARD_PORTRAIT } from './ui-fixtures';
 import { ThemeProvider } from '../src/components/ThemeProvider';
+import { LiveRing } from '../src/components/live/LiveRing';
+import { StatusPill } from '../src/components/live/StatusPill';
+import { stateLabel } from '../src/live/liveLabels';
+import type { LiveKind, LiveState } from '../src/live/liveState';
 import { sendReport } from '../src/api';
 import { UserProfileSheet } from '../src/components/friends/UserProfileSheet';
 import { ChatListScreen } from '../src/components/chat/ChatListScreen';
@@ -485,7 +489,45 @@ function ReportableDetail() {
   );
 }
 
-const scenes: Record<string, () => React.JSX.Element> = { pendingDeletion: PendingDeletion, onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, card: CardScene, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, discover: Discover, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
+const liveCell = (kind: LiveKind, freshness: number, source: LiveState['source'], signalType: string | null = null): LiveState => ({
+  kind, level: null, freshness, ageMinutes: freshness > 0 ? 4 : null, confirmations: 2, isStale: freshness === 0, source, signalType, signalValue: null,
+});
+function LiveRings() {
+  const rows: Array<[string, LiveKind, LiveState['source'], string | null]> = [
+    ['calm', 'calm', 'live', null], ['busy', 'busy', 'live', null], ['crowded', 'crowded', 'live', null], ['closed', 'closed', 'live', null],
+    ['event', 'event', 'live', null], ['deal', 'deal', 'live', 'NewOpening'], ['info', 'info', 'live', null], ['info (hours)', 'info', 'hours', null],
+    ['closed (hours)', 'closed', 'hours', null], ['queue calm', 'calm', 'live', 'Queue'], ['unknown (notice)', 'unknown', 'live', 'TemporaryStatus'],
+  ];
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <ScrollView contentContainerStyle={{ gap: 12, padding: 16, paddingBottom: 60 }}>
+        {rows.map(([name, kind, source, signalType]) => {
+          const estimated = source === 'hours';
+          const cells: Array<[string, number]> = estimated ? [['', 0]] : [['fresh', 1], ['old', 0.3], ['empty', 0]];
+          return (
+            <View key={name} style={{ gap: 6 }}>
+              <View style={{ alignItems: 'center', flexDirection: 'row', gap: 12 }}>
+                {cells.map(([cell, freshness]) => (
+                  <LiveRing key={cell || 'est'} estimated={estimated} freshness={freshness} kind={kind} size={46} pulse={cell === 'fresh' && kind === 'calm'}>
+                    <Coffee color={colors.textSecondary} size={18} />
+                  </LiveRing>
+                ))}
+                <StatusPill estimated={estimated} kind={kind} label={stateLabel(liveCell(kind, 1, source, signalType))} />
+              </View>
+              <Text style={{ ...typography.micro, color: colors.textSecondary }}>{name}</Text>
+            </View>
+          );
+        })}
+        <View style={{ alignItems: 'center', flexDirection: 'row', gap: 12 }}>
+          <LiveRing freshness={0.8} kind="busy" size={84}><Coffee color={colors.text} size={30} /></LiveRing>
+          <View style={{ flex: 1 }}><StatusPill kind="crowded" label="Çok uzun bir durum yazısı yazı boyutu büyüyünce iki satıra geçer" size="lg" /></View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const scenes: Record<string, () => React.JSX.Element> = { liveRings: LiveRings, pendingDeletion: PendingDeletion, onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, card: CardScene, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, discover: Discover, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
 
 export function SceneHost({ name }: { name: string }) {
   const Scene = scenes[name];
