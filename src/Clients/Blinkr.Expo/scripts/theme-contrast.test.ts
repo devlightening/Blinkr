@@ -1,4 +1,4 @@
-import { applyThemeMode, colors, darkColors, gradients, lightColors, mediaColors, motion, radii, resolveThemeMode, semanticColors, signalInks, signalTints, sizes, springs, typography, type ThemeMode } from '../src/theme';
+import { applyThemeMode, colors, darkColors, gradients, lightColors, liveColors, liveColorsDark, liveColorsLight, liveTones, mediaColors, motion, withAlpha, radii, resolveThemeMode, semanticColors, signalInks, signalTints, sizes, springs, typography, type ThemeMode } from '../src/theme';
 
 const channel = (value: number) => {
   const c = value / 255;
@@ -46,6 +46,24 @@ for (const mode of ['light', 'dark'] as ThemeMode[]) {
   const muted = contrast(c.textMuted, c.surface);
   console.log(`info [${mode}] ${muted.toFixed(2)}:1 textMuted on surface - decorative/large text only`);
 }
+// v4 Canlı Halka: a state word is drawn in its state colour on surface/canvas and on its own pill tint (text, 4.5:1);
+// the ring against the canvas is a graphic (3:1).
+const blend = (fg: string, bg: string, alpha: number) => {
+  const [f, b] = [fg, bg].map((h) => parseInt(h.replace('#', ''), 16));
+  const mix = (shift: number) => Math.round(((f >> shift) & 255) * alpha + ((b >> shift) & 255) * (1 - alpha));
+  return `#${[16, 8, 0].map((s) => mix(s).toString(16).padStart(2, '0')).join('')}`;
+};
+for (const mode of ['light', 'dark'] as ThemeMode[]) {
+  applyThemeMode(mode);
+  for (const kind of Object.keys(liveColors) as (keyof typeof liveColors)[]) {
+    const tone = liveColors[kind];
+    check(mode, `live ${kind} text on surface`, tone, colors.surface);
+    check(mode, `live ${kind} text on canvas`, tone, colors.background);
+    check(mode, `live ${kind} text on surfaceElevated`, tone, colors.surfaceElevated);
+    check(mode, `live ${kind} text on its pill`, tone, blend(tone, colors.surface, liveTones.pillAlpha));
+    check(mode, `live ${kind} ring on canvas (graphic)`, tone, colors.background, 3);
+  }
+}
 applyThemeMode('light');
 check('media', 'white chrome on camera black', mediaColors.text, '#000000');
 check('media', 'sun on camera black', mediaColors.flare, '#000000');
@@ -81,6 +99,10 @@ if (failed > 0) throw new Error('text on the brand gradient is below 4.5:1');
 guard('dark canvas is not pure black', darkColors.background.toLowerCase() !== '#000000');
 guard('both semantic palettes have the same shape', JSON.stringify(Object.keys(semanticColors.dark).sort()) === JSON.stringify(Object.keys(semanticColors.light).sort()));
 guard('every semantic colour is a real colour string', [...Object.values(semanticColors.dark), ...Object.values(semanticColors.light)].every((value) => typeof value === 'string' && value.length > 0));
+guard('live palettes follow the mode and cover the same kinds', (() => { applyThemeMode('dark'); const d = liveColors.calm; applyThemeMode('light'); return d === liveColorsDark.calm && liveColors.calm === liveColorsLight.calm
+  && JSON.stringify(Object.keys(liveColorsDark).sort()) === JSON.stringify(Object.keys(liveColorsLight).sort()); })());
+guard('a state colour is not an action colour', Object.values(liveColorsLight).every((v) => v !== lightColors.primary && v !== lightColors.danger));
+guard('withAlpha turns a token hex into rgba and leaves anything else alone', withAlpha('#FF6B6B', 0.5) === 'rgba(255, 107, 107, 0.5)' && withAlpha('rgba(1, 2, 3, 1)', 0.5) === 'rgba(1, 2, 3, 1)');
 guard('sun appears only as flare/onCreate tokens (create/send)', Object.entries(lightColors).filter(([, v]) => v === '#FFC83D').every(([k]) => k === 'flare'));
 
 console.log('theme contrast tests passed');

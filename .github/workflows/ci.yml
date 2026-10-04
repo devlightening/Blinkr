@@ -53,6 +53,8 @@ jobs:
       - run: npm run test:nearby
       - run: npm run test:product
       - run: npm run test:i18n
+      - run: npm run test:live
+      - run: npm run lint
       - name: Browser UI tests
         run: |
           npx playwright install chrome || true

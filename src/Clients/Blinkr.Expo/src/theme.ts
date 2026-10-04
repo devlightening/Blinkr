@@ -11,7 +11,9 @@
  * itself stays pure (no native imports) so node tests can use it; untouched, it is the light theme.
  */
 
-// ---- Raw palette (plan-devam B1) -----------------------------------------------------------------------------
+import type { LiveKind } from './live/liveState';
+
+// ---- Raw palette (plan-devam B1)-----------------------------------------------------------------------------
 export const palette = {
   // Warm paper (light surfaces)
   paper50: '#FCFBF8', paper100: '#F6F4EE', paper200: '#EDEAE2', paper300: '#E1DDD3',
@@ -191,6 +193,38 @@ export const categoryTones: Record<string, string> = {};
 /** Occupancy/wait level scale (0 = calm, 3 = packed): tints, readable as bars in both themes. */
 export const levelScale = [p.sage500, p.butter, p.apricot, p.coral] as const;
 
+/**
+ * Canlı Halka (v4 brief §1): the colour of a place's current state. A state colour is not an action colour - it never
+ * replaces `primary`/`danger`. Each value reads as 4.5:1 text on surface, canvas and its own pill fill (theme test).
+ */
+export const liveColorsDark: Readonly<Record<LiveKind, string>> = {
+  calm: '#4ADE80', busy: '#FFC83D', crowded: '#FF6B6B', closed: '#9AA1AB',
+  event: '#BD87FF', deal: '#F472B6', info: '#5EB6FF', unknown: '#9AA1AB',
+};
+export const liveColorsLight: Readonly<Record<LiveKind, string>> = {
+  calm: '#166534', busy: '#8A5300', crowded: '#B91C1C', closed: '#55606E',
+  event: '#6D28D9', deal: '#BE185D', info: '#1A5FB4', unknown: '#55606E',
+};
+/** Active-mode state colours (filled by `applyThemeMode`). */
+export const liveColors: Record<LiveKind, string> = { ...liveColorsLight };
+/** The unfilled part of a ring, and how strongly a state colour tints a pill behind its own text. */
+export const liveTones = { track: 'rgba(14, 15, 18, 0.12)', pillAlpha: 0.1, chipAlpha: 0.14 };
+const liveTonesByMode = {
+  dark: { track: 'rgba(255, 255, 255, 0.14)', pillAlpha: 0.16, chipAlpha: 0.18 },
+  light: { track: 'rgba(14, 15, 18, 0.12)', pillAlpha: 0.1, chipAlpha: 0.14 },
+} as const;
+/** Ring diameters (pt). Touch targets stay >= 44 through a wrapper, not the ring itself. */
+export const liveRingSize = { chip: 28, card: 46, pin: 44, tile: 56, tray: 60, hero: 84 } as const;
+export const liveRingStroke = 3;
+
+/** `#RRGGBB` + alpha -> `rgba(...)`. Only for token colours; anything else is returned unchanged. */
+export function withAlpha(hex: string, alpha: number): string {
+  const match = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!match) return hex;
+  const n = parseInt(match[1], 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
 /** B6: soft shadows on light; dark uses borders and surface steps instead (shadow opacity 0). */
 export const shadow = { shadowColor: p.ink900, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 24, elevation: 6 };
 /** Floating surfaces over the map (the signal card, toasts): a wide, low shadow so they lift without a hard edge. */
@@ -206,6 +240,8 @@ export function applyThemeMode(mode: ThemeMode) {
   const source = mode === 'dark' ? dark : light;
   Object.assign(colors, source);
   Object.assign(signalColors, mode === 'dark' ? signalTints : signalInks);
+  Object.assign(liveColors, mode === 'dark' ? liveColorsDark : liveColorsLight);
+  Object.assign(liveTones, liveTonesByMode[mode]);
   const tone = (tint: string, ink: string) => (mode === 'dark' ? tint : ink);
   const tones: Record<keyof typeof categoryKeys, string> = {
     sage: mode === 'dark' ? p.sage400 : p.sage700,
