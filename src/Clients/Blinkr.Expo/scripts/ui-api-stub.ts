@@ -1,13 +1,22 @@
-import { chatMessages, chatUsers, conversations, nearby } from './ui-fixtures';
+import { chatMessages, chatUsers, conversations, nearby, placeMessages } from './ui-fixtures';
 import type { ChatMessage, Relation } from '../src/types';
 
 const flag = (name: string) => typeof location !== 'undefined' && location.search.includes(name);
 
+const seenAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+// Canlı Halka search rows (?q=kafe): calm, busy, crowded, no live info, closed.
+const kafeCatalogue = [
+  { id: 'k1', name: 'Soulmate Kafe', category: 'CAFE', latitude: 37.0745, longitude: 36.2481, distanceMeters: 120, displayAddress: 'Fatih', currentState: { activeSignalCount: 3, freshness: 'FRESH', signalType: 'Crowd', signalValue: 'Calm', observedAtUtc: seenAgo(4) } },
+  { id: 'k2', name: 'Somuncu Fırın Cafe', category: 'CAFE', latitude: 37.0751, longitude: 36.2492, distanceMeters: 340, displayAddress: null, currentState: { activeSignalCount: 1, freshness: 'RECENT', signalType: 'Crowd', signalValue: 'Moderate', observedAtUtc: seenAgo(18) } },
+  { id: 'k3', name: 'Moka Coffee', category: 'CAFE', latitude: 37.0759, longitude: 36.2501, distanceMeters: 410, displayAddress: null, currentState: { activeSignalCount: 2, freshness: 'RECENT', signalType: 'Queue', signalValue: 'Over15', observedAtUtc: seenAgo(32) } },
+  { id: 'k4', name: 'Köşe Kahve', category: 'CAFE', latitude: 37.0765, longitude: 36.2511, distanceMeters: 520, displayAddress: null, currentState: { activeSignalCount: 0, freshness: 'NONE' } },
+  { id: 'k5', name: 'Çınar Kahve', category: 'CAFE', latitude: 37.0771, longitude: 36.2523, distanceMeters: 600, displayAddress: null, currentState: { activeSignalCount: 1, freshness: 'RECENT', signalType: 'TemporaryStatus', signalValue: 'Closed', observedAtUtc: seenAgo(40) } },
+];
 const catalogue = [
-  { id: 'kent', name: 'Kent Meydanı', category: 'PUBLIC', latitude: 37.075, longitude: 36.248, distanceMeters: 220, displayAddress: 'Osmaniye Merkez', currentState: { activeSignalCount: 2, freshness: 'FRESH', signalType: 'Crowd', signalValue: 'Busy' } },
+  { id: 'kent', name: 'Kent Meydanı', category: 'PUBLIC', latitude: 37.075, longitude: 36.248, distanceMeters: 220, displayAddress: 'Osmaniye Merkez', currentState: { activeSignalCount: 2, freshness: 'FRESH', signalType: 'Crowd', signalValue: 'Busy', observedAtUtc: seenAgo(6) } },
   { id: 'kent-ecz', name: 'Kent Eczanesi', category: 'PHARMACY', latitude: 37.076, longitude: 36.25, distanceMeters: 640, displayAddress: 'Raufbey Mh.', currentState: { activeSignalCount: 0, freshness: 'NONE' } },
   { id: 'sifa-ecz', name: 'Şifa Eczanesi', category: 'PHARMACY', latitude: 37.07, longitude: 36.24, distanceMeters: 4200, displayAddress: 'Yıldırım Beyazıt Mh.', currentState: { activeSignalCount: 0, freshness: 'NONE' } },
-  { id: 'masal', name: 'Masal Parkı', category: 'PARK', latitude: 37.08, longitude: 36.26, distanceMeters: 1900, displayAddress: 'Alparslan Türkeş Bulvarı', currentState: { activeSignalCount: 1, freshness: 'RECENT', signalType: 'Crowd', signalValue: 'Calm' } },
+  { id: 'masal', name: 'Masal Parkı', category: 'PARK', latitude: 37.08, longitude: 36.26, distanceMeters: 1900, displayAddress: 'Alparslan Türkeş Bulvarı', currentState: { activeSignalCount: 1, freshness: 'RECENT', signalType: 'Crowd', signalValue: 'Calm', observedAtUtc: seenAgo(35) } },
   { id: 'sehirkent', name: 'Şehirkent Market', category: 'SUPERMARKET', latitude: 37.06, longitude: 36.23, distanceMeters: 900, displayAddress: null, currentState: { activeSignalCount: 0, freshness: 'NONE' } },
 ];
 // ?searchfail = the search request fails; ?emptysearch = nothing is found.
@@ -19,6 +28,7 @@ export const searchPlaces = async (q: string) => {
     { id: 'soul-near', name: 'Soulmate Cafe', category: 'CAFE', latitude: 37.0760, longitude: 36.2480, distanceMeters: 900, displayAddress: null },
   ];
   const folded = q.toLocaleLowerCase('tr');
+  if (folded === 'kafe') return kafeCatalogue;
   const category = ({ eczane: 'PHARMACY', park: 'PARK', market: 'SUPERMARKET' } as Record<string, string>)[folded];
   if (category) return catalogue.filter(p => p.category === category);
   const composerMatches = nearby.filter(p => p.name.toLocaleLowerCase('tr').includes(folded));
@@ -160,10 +170,16 @@ export const getPlacesByIds = async (ids: string[]) => {
     p2: { signalType: 'Crowd', signalValue: 'Calm', freshness: 'STALE', activeSignalCount: 1, observedAtUtc: new Date(Date.now() - 300 * 60_000).toISOString() },
     p3: { signalType: 'Queue', signalValue: 'Over15', freshness: 'RECENT', activeSignalCount: 1, observedAtUtc: new Date(Date.now() - 35 * 60_000).toISOString() },
   };
-  return ids.map((id) => ({ id, name: id, category: 'CAFE', latitude: 37, longitude: 36, currentState: states[id] ?? null }));
+  const placeCardStates: typeof states = {
+    'pc-calm': { signalType: 'Crowd', signalValue: 'Calm', freshness: 'FRESH', activeSignalCount: 3, observedAtUtc: new Date(Date.now() - 4 * 60_000).toISOString() },
+    'pc-crowd': { signalType: 'Crowd', signalValue: 'Busy', freshness: 'FRESH', activeSignalCount: 2, observedAtUtc: new Date(Date.now() - 9 * 60_000).toISOString() },
+    'pc-closed': { signalType: 'TemporaryStatus', signalValue: 'Closed', freshness: 'RECENT', activeSignalCount: 1, observedAtUtc: new Date(Date.now() - 40 * 60_000).toISOString() },
+  };
+  const names: Record<string, string> = { 'pc-calm': 'Soulmate Kafe', 'pc-crowd': 'Moka Coffee', 'pc-none': 'Köşe Kahve', 'pc-closed': 'Çınar Kahve' };
+  return ids.map((id) => ({ id, name: names[id] ?? id, category: 'CAFE', latitude: 37, longitude: 36, currentState: states[id] ?? placeCardStates[id] ?? null }));
 };
 let sent: ChatMessage[] = [];
-export const getMessages = async () => ({ items: flag('emptychat') ? [] : [...sent, ...chatMessages], otherTyping: flag('typing') });
+export const getMessages = async () => ({ items: flag('emptychat') ? [] : flag('placecards') ? placeMessages : [...sent, ...chatMessages], otherTyping: flag('typing') });
 export const sendTyping = async () => { (window as unknown as { __typingPings?: number }).__typingPings = ((window as unknown as { __typingPings?: number }).__typingPings ?? 0) + 1; };
 export const sendMessage = async (_auth: unknown, conversationId: string, text: string, _r?: unknown, _e?: unknown, extras: { clientId?: string; signal?: ChatMessage['signal']; replyToId?: string | null } = {}): Promise<ChatMessage> => {
   if (flag('sendfail')) throw new Error('Network request failed');

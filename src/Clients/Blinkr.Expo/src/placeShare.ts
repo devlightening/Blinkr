@@ -1,5 +1,6 @@
-import { formatAge, formatCategory } from './presentation';
-import { savedLiveStatus } from './savedLive';
+import { formatCategory } from './presentation';
+import { liveA11yLabel } from './live/liveLabels';
+import { liveStateFromCurrent, type LiveState } from './live/liveState';
 import type { BlinkrPlace, ChatMessage, PlaceShare } from './types';
 import { tx } from './i18n/tx';
 
@@ -28,28 +29,25 @@ export type PlaceCard = {
   /** The live name from the place service when known; the sender's snapshot otherwise. */
   name: string;
   category: string;
-  /** "Doluluk · Kalabalık · 6 dk önce" only for verified, fresh activity (savedLive rules). */
-  liveLine: string | null;
+  /** The ring: the same `liveStateFromCurrent` every screen uses, so the bubble never disagrees with the map. */
+  state: LiveState;
   /** True once the place service has answered for this place (so "no live info" is a fact, not a guess). */
   known: boolean;
 };
 
 /**
- * Doc B1: what a shared-place bubble says. The live line follows the same rule as saved places: verified and fresh
- * (FRESH/RECENT) or nothing - a stale state is never shown as current. The name from the place service wins over the
- * sender's snapshot, so a bubble can never present one place under another's name.
+ * Doc B1: what a shared-place bubble says. The state is the server's verified, unexpired summary or nothing - a stale
+ * state is never shown as current. The name from the place service wins over the sender's snapshot, so a bubble can
+ * never present one place under another's name.
  */
-export const placeCard = (share: PlaceShare, place: BlinkrPlace | null | undefined): PlaceCard => {
-  const live = savedLiveStatus(place);
-  return {
-    name: place?.name || share.name,
-    category: formatCategory(place?.category ?? share.category),
-    liveLine: live ? (live.observedAtUtc ? `${live.headline} · ${formatAge(live.observedAtUtc)}` : live.headline) : null,
-    known: Boolean(place),
-  };
-};
+export const placeCard = (share: PlaceShare, place: BlinkrPlace | null | undefined, nowMs: number = Date.now()): PlaceCard => ({
+  name: place?.name || share.name,
+  category: formatCategory(place?.category ?? share.category),
+  state: liveStateFromCurrent(place?.currentState, nowMs),
+  known: Boolean(place),
+});
 
 export const placeCardLabel = (card: PlaceCard) =>
-  card.liveLine
-    ? tx('chat:place.a11yLive', '{{name}}, {{category}}. Şu an: {{live}}. Haritada aç', { name: card.name, category: card.category, live: card.liveLine })
-    : tx('chat:place.a11y', '{{name}}, {{category}}. Güncel bilgi yok. Haritada aç', { name: card.name, category: card.category });
+  card.state.source === 'none'
+    ? tx('chat:place.a11y', '{{name}}, {{category}}. Güncel bilgi yok. Haritada aç', { name: card.name, category: card.category })
+    : `${liveA11yLabel(card.name, card.state)} ${tx('chat:place.open', 'Haritada aç')}`;

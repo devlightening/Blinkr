@@ -1,16 +1,18 @@
 import * as Location from 'expo-location';
 import { ArrowLeft, Bookmark, Clock3, MapPin, Search, Trash2, UserRound, WifiOff, X } from 'lucide-react-native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { listFriends, searchPlaces, searchUsers } from '../../api';
 import { orderPeople, relationLabel } from '../../friends';
+import { liveA11yLabel } from '../../live/liveLabels';
+import { liveStateFromCurrent } from '../../live/liveState';
 import { distanceMeters } from '../../nearbyRequestOwnership';
 import { formatCategory, formatDistance } from '../../presentation';
 import { friendlyError } from '../../productPresentation';
 import {
-  CATEGORY_SHORTCUTS, MIN_QUERY_LENGTH, distanceTier, highlightSegments, isLiveResult, isSearchableQuery, rankPlaces, recentToPlace, toRecentSearch,
+  CATEGORY_SHORTCUTS, MIN_QUERY_LENGTH, distanceTier, highlightSegments, isSearchableQuery, rankPlaces, recentToPlace, toRecentSearch,
   type RankedPlace, type RecentSearch,
 } from '../../placeSearch';
 import { clearRecentSearches, listRecentSearches, rememberSearch } from '../../recentSearches';
@@ -19,7 +21,7 @@ import { colors, radii, sizes, spacing, typography } from '../../theme';
 import type { AuthResponse, BlinkrPlace, UserSummary } from '../../types';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
-import { PlaceSymbol } from '../PlaceSymbol';
+import { PlaceStatusCard } from '../live/PlaceStatusCard';
 import { BlinkrChip } from '../ui/BlinkrChip';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
 import { SegmentedControl } from '../ui/BlinkrSegmentedControl';
@@ -59,17 +61,21 @@ function Highlighted({ text, query }: { text: string; query: string }) {
 }
 
 function ResultRow({ place, distance, query, onPress }: { place: BlinkrPlace; distance: number; query: string; onPress: () => void }) {
-  const live = isLiveResult(place);
-  const subtitle = [formatCategory(place.category), Number.isFinite(distance) ? formatDistance(distance) : '', place.displayAddress].filter(Boolean).join(' · ');
+  const state = useMemo(() => liveStateFromCurrent(place.currentState, Date.now()), [place.currentState]);
+  const meta = [formatCategory(place.category), Number.isFinite(distance) ? formatDistance(distance) : '', place.displayAddress].filter(Boolean).join(' · ');
   return (
-    <AnimatedPressable accessibilityLabel={tx('map:search.rowA11y', '{{name}}, {{subtitle}}. Haritada göster', { name: place.name, subtitle })} accessibilityRole="button" onPress={onPress} pressScale={0.99} style={styles.row}>
-      <View style={styles.tile}><PlaceSymbol category={place.category} color={colors.textSecondary} size={18} /></View>
-      <View style={styles.rowCopy}>
-        <Highlighted query={query} text={place.name} />
-        <Text numberOfLines={1} style={styles.sub}>{subtitle}</Text>
-      </View>
-      {live ? <Text style={styles.live}>{tx('common:live', 'Canlı')}</Text> : null}
-    </AnimatedPressable>
+    <PlaceStatusCard
+      accessibilityHint={tx('live:hintShowOnMap', 'Haritada göster')}
+      accessibilityLabel={`${liveA11yLabel(place.name, state)} ${meta}.`}
+      category={place.category}
+      flat
+      meta={meta}
+      name={place.name}
+      nameNode={<Highlighted query={query} text={place.name} />}
+      onPress={onPress}
+      state={state}
+      trailing={null}
+    />
   );
 }
 
@@ -351,6 +357,7 @@ export function MapSearchOverlay({ auth, origin, onClose, onSelectPlace, onSelec
                 </View>
               );
             })}
+            {results.length > 0 ? <Text style={styles.legend}>{tx('live:legendLive', 'Dolu halka doğrulanmış canlı bilgi; kesikli çizgi saate göre tahmin.')}</Text> : null}
             {place ? (
               <SimpleRow
                 icon={<MapPin color={colors.primary} size={18} />}
@@ -395,7 +402,7 @@ const styles = StyleSheet.create({
   name: { ...typography.bodyStrong, color: colors.text, fontWeight: '400' },
   nameMatch: { fontWeight: '700' },
   sub: { ...typography.caption, color: colors.textSecondary },
-  live: { ...typography.label, color: colors.primary },
+  legend: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.sm },
   loading: { marginTop: spacing.xl },
   tierTitle: { ...typography.label, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md },
   empty: { marginTop: spacing.xxl },

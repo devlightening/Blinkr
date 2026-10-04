@@ -153,11 +153,9 @@
   },
   "place": {
     "share": "Share a place",
-    "live": "Now · {{live}}",
     "noLive": "No current info",
     "loading": "Loading status…",
     "open": "Open on map",
-    "a11yLive": "{{name}}, {{category}}. Now: {{live}}. Open on map",
     "a11y": "{{name}}, {{category}}. No current info. Open on map",
     "pickTitle": "Share a place",
     "pickHint": "Send one of your saved places; they will see how it is doing right now.",
