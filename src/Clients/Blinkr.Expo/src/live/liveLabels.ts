@@ -30,14 +30,16 @@ export function agoLabel(min: number | null): string {
 /** Short map-tag form: "Sakin" + "4 dk". */
 export function pinTagParts(s: LiveState): { state: string; age: string } {
   let state = '';
+  const queue = s.signalType === 'Queue';
+  const hours = s.source === 'hours';
   switch (s.kind) {
-    case 'calm': state = tx('live:tagCalm', 'Sakin'); break;
-    case 'busy': state = tx('live:tagBusy', 'Hareketli'); break;
-    case 'crowded': state = tx('live:tagCrowded', 'Kalabalık'); break;
-    case 'closed': state = tx('live:tagClosed', 'Kapalı'); break;
+    case 'calm': state = queue ? tx('live:stateCalmQueue', 'Sıra yok') : tx('live:tagCalm', 'Sakin'); break;
+    case 'busy': state = queue ? tx('live:stateBusyQueue', 'Kısa sıra') : tx('live:tagBusy', 'Hareketli'); break;
+    case 'crowded': state = queue ? tx('live:stateCrowdedQueue', 'Uzun sıra') : tx('live:tagCrowded', 'Kalabalık'); break;
+    case 'closed': state = hours ? tx('live:tagClosedHours', 'Kapalı (tahmin)') : tx('live:tagClosed', 'Kapalı'); break;
     case 'event': state = tx('live:tagEvent', 'Etkinlik'); break;
-    case 'deal': state = tx('live:tagDeal', 'Fırsat'); break;
-    case 'info': state = tx('live:tagOpen', 'Açık'); break;
+    case 'deal': state = s.signalType === 'NewOpening' ? tx('live:tagNew', 'Yeni açılış') : tx('live:tagDeal', 'Fırsat'); break;
+    case 'info': state = hours ? tx('live:tagOpenHours', 'Açık (tahmin)') : tx('live:tagOpen', 'Açık'); break;
     default: state = s.source === 'live' ? tx('live:tagTemp', 'Geçici') : '';
   }
   if (s.ageMinutes === null) return { state, age: '' };

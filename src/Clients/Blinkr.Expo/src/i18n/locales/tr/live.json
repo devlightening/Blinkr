@@ -35,5 +35,9 @@
   "chipDeal": "Fırsat",
   "nearbyNow": "Yakınında şu an",
   "nearbyCount": "{{n}} yer canlı",
-  "legendLive": "Dolu halka doğrulanmış canlı bilgi; kesikli çizgi saate göre tahmin."
+  "legendLive": "Dolu halka doğrulanmış canlı bilgi; kesikli çizgi saate göre tahmin.",
+  "hintShowOnMap": "Haritada göster",
+  "tagClosedHours": "Kapalı (tahmin)",
+  "tagOpenHours": "Açık (tahmin)",
+  "tagNew": "Yeni açılış"
 }

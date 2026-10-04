@@ -35,5 +35,9 @@
   "chipDeal": "Deals",
   "nearbyNow": "Nearby right now",
   "nearbyCount": "{{n}} places live",
-  "legendLive": "A filled ring is verified live info; a dashed line is an estimate from opening hours."
+  "legendLive": "A filled ring is verified live info; a dashed line is an estimate from opening hours.",
+  "hintShowOnMap": "Show on map",
+  "tagClosedHours": "Closed (est.)",
+  "tagOpenHours": "Open (est.)",
+  "tagNew": "New opening"
 }

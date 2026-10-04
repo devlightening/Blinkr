@@ -32,6 +32,6 @@
   "ctaShare": "Share",
   "ctaShareValue": "Share · {{v}}",
   "atPlace": "On site",
-  "noPlace": "No place found nearby",
+  "noPlace": "No place found near you",
   "pickPlace": "Pick a place"
 }

@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import type { LiveKind } from '../../live/liveState';
 import { liveColors, liveTones, typography, withAlpha } from '../../theme';
@@ -11,9 +11,11 @@ export type StatusPillProps = {
   size?: 'sm' | 'lg';
   /** No live confirmation, estimated from opening hours: a dashed outline instead of a fill. */
   estimated?: boolean;
+  /** e.g. `alignSelf: 'center'` when the pill sits in a row beside a ring. */
+  style?: StyleProp<ViewStyle>;
 };
 
-function StatusPillBase({ kind, label, size = 'sm', estimated = false }: StatusPillProps) {
+function StatusPillBase({ kind, label, size = 'sm', estimated = false, style }: StatusPillProps) {
   const color = liveColors[kind];
   const large = size === 'lg';
   return (
@@ -24,6 +26,7 @@ function StatusPillBase({ kind, label, size = 'sm', estimated = false }: StatusP
         estimated
           ? { borderWidth: 1.5, borderStyle: 'dashed', borderColor: withAlpha(color, 0.55) }
           : { backgroundColor: withAlpha(color, liveTones.pillAlpha) },
+        style,
       ]}
     >
       <View style={[styles.dot, { backgroundColor: color }]} />
@@ -35,7 +38,7 @@ function StatusPillBase({ kind, label, size = 'sm', estimated = false }: StatusP
 export const StatusPill = memo(StatusPillBase);
 
 const styles = StyleSheet.create({
-  base: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', maxWidth: '100%', borderRadius: 999, gap: 6 },
+  base: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', flexShrink: 1, maxWidth: '100%', borderRadius: 999, gap: 6 },
   small: { minHeight: 24, paddingLeft: 8, paddingRight: 10, paddingVertical: 3 },
   large: { minHeight: 30, paddingLeft: 12, paddingRight: 14, paddingVertical: 4 },
   dot: { width: 7, height: 7, borderRadius: 4 },

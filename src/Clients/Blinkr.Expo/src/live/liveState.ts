@@ -91,7 +91,7 @@ export function freshnessFromAge(min: number): number {
 
 export type AgeParts = { unit: 'min' | 'hour' | 'day'; n: number };
 export function ageParts(min: number): AgeParts {
-  if (min < 60) return { unit: 'min', n: Math.max(1, Math.round(min)) };
+  if (min < 59.5) return { unit: 'min', n: Math.max(1, Math.round(min)) };
   if (min < 60 * 24) return { unit: 'hour', n: Math.round(min / 60) };
   return { unit: 'day', n: Math.round(min / (60 * 24)) };
 }

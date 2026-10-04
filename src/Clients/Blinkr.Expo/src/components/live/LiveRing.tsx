@@ -41,27 +41,13 @@ function LiveRingBase({
   const showArc = !estimated && fraction > 0;
   const showPulse = pulse && showArc;
 
-  const reduce = useReducedMotion();
-  const k = useSharedValue(0);
-  useEffect(() => {
-    if (!showPulse || reduce) { k.value = 0; return undefined; }
-    k.value = withRepeat(withSequence(withTiming(1, { duration: 900, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 700 })), -1, false);
-    return () => { k.value = 0; };
-  }, [showPulse, reduce, k]);
-  const haloStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.22 * k.value }], opacity: 0.55 - 0.4 * k.value }), [k]);
-
   const a11y = accessibilityLabel
     ? { accessible: true, accessibilityRole: 'image' as const, accessibilityLabel }
     : { accessible: false, importantForAccessibility: 'no-hide-descendants' as const, accessibilityElementsHidden: true };
 
   return (
     <View style={[{ width: size, height: size }, style]} testID={testID} {...a11y}>
-      {showPulse && !reduce ? (
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.halo, { top: -HALO, left: -HALO, width: size + HALO * 2, height: size + HALO * 2, borderColor: withAlpha(color, 0.45) }, haloStyle]}
-        />
-      ) : null}
+      {showPulse ? <PulseHalo color={color} size={size} /> : null}
       <Svg width={size} height={size} style={styles.startAtTop}>
         {isEvent ? (
           <Defs>
@@ -81,7 +67,7 @@ function LiveRingBase({
           <Circle
             cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} strokeLinecap="round"
             stroke={isEvent ? `url(#${gradientId})` : color}
-            strokeDasharray={`${circumference * (isEvent ? 1 : fraction)} ${circumference}`}
+            strokeDasharray={`${circumference * fraction} ${circumference}`}
           />
         ) : null}
       </Svg>
@@ -91,6 +77,25 @@ function LiveRingBase({
 }
 
 export const LiveRing = memo(LiveRingBase);
+
+/** Mounted only while a list ring pulses, so idle rings (and every map marker) carry no animation state at all. */
+function PulseHalo({ color, size }: { color: string; size: number }) {
+  const reduce = useReducedMotion();
+  const k = useSharedValue(0);
+  useEffect(() => {
+    if (reduce) return undefined;
+    k.value = withRepeat(withSequence(withTiming(1, { duration: 900, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 700 })), -1, false);
+    return () => { k.value = 0; };
+  }, [reduce, k]);
+  const haloStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.22 * k.value }], opacity: 0.55 - 0.4 * k.value }), [k]);
+  if (reduce) return null;
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[styles.halo, { top: -HALO, left: -HALO, width: size + HALO * 2, height: size + HALO * 2, borderColor: withAlpha(color, 0.45) }, haloStyle]}
+    />
+  );
+}
 
 const styles = StyleSheet.create({
   /** An arc starts at 3 o'clock; turning the whole drawing starts it at 12 (so the gradient above is drawn pre-rotated: it ends up bottom-left to top-right). */
