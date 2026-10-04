@@ -33,5 +33,15 @@
   "ctaShareValue": "Paylaş · {{v}}",
   "atPlace": "Konumda",
   "noPlace": "Yakınında yer bulunamadı",
-  "pickPlace": "Yer seç"
+  "pickPlace": "Yer seç",
+  "locating": "Konumun alınıyor…",
+  "checking": "Konumun doğrulanıyor…",
+  "reasonPermission": "Konum izni olmadan yakındaki yeri bulamıyoruz. Yer seçerek devam edebilirsin.",
+  "reasonUnavailable": "Konum alınamadı. Yer seçerek devam edebilirsin.",
+  "reasonCatalog": "Blinkr yer kataloğu bu bölgede hazır değil. Yer seçerek devam edebilirsin.",
+  "reasonNone": "100 m içinde bir yer bulamadık. Yer seçerek devam edebilirsin.",
+  "presencePermission": "Konum izni olmadan bu yere sinyal bırakılamaz.",
+  "presenceUnavailable": "Konumun doğrulanamadı. Biraz sonra tekrar dene.",
+  "tooFar": "Bu yere çok uzaksın{{d}}. Sinyal bırakmak için 600 m içinde olmalısın.",
+  "nearbyOnly": "Yakındasın{{d}}: paylaşılır ama canlı duruma katkı vermez."
 }

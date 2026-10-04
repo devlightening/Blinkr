@@ -16,7 +16,7 @@ export type BlinkrTab = 'chat' | 'map' | 'nearby' | 'profile';
 type Props = {
   active: BlinkrTab;
   onTab: (tab: BlinkrTab) => void;
-  /** (+) tap opens the camera; a long press opens the text-only composer (sinyal-mvp-plan P5.1). */
+  /** (+) tap opens the quick signal (v4); a long press opens the camera-first post. */
   onShare: (mode: 'quick' | 'camera') => void;
   /** Shows the red dot on Sohbet. Only pass true when a real unread message exists. */
   chatUnread?: boolean;

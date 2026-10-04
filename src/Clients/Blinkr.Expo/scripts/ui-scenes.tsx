@@ -562,7 +562,8 @@ function QuickScene() {
     <View style={{ backgroundColor: colors.background, flex: 1, justifyContent: 'flex-end' }}>
       <BlinkrSheetPanel maxHeightRatio={0.94}>
         <QuickSignalSheet initial={initial} locating={false} onChangePlace={() => {}} onClose={() => {}} onSubmit={() => {}} submitting={false}
-          place={params.has('noplace') ? null : { name: 'Soulmate Kafe', category: 'CAFE', distanceMeters: 12, state }} />
+          noPlaceReason={params.has('denied') ? 'permission' : 'none'} place={params.has('noplace') ? null : { id: 'soulmate', name: 'Soulmate Kafe', category: 'CAFE', state }}
+          presence={params.has('far') ? { status: 'ok', allowed: false, trustLevel: 'OUT_OF_RANGE', distanceMeters: 2400 } : { status: 'ok', allowed: true, trustLevel: 'VERIFIED_LIVE', distanceMeters: 12 }} />
       </BlinkrSheetPanel>
     </View>
   );

@@ -34,7 +34,7 @@ import { clusterMapPoints, regionToZoom, zoomToLongitudeDelta, type ClusterBucke
 import { compareByLiveness, liveRenderKey, liveStateFromCurrent, liveStateKey, type LiveState, type NowFilter } from '../live/liveState';
 import { pinTagParts } from '../live/liveLabels';
 import { NearbyNowSheet, type NearbyNowItem } from './live/NearbyNowSheet';
-import { QuickSignalSheet, type QuickMedia } from './live/QuickSignalSheet';
+import { QuickSignalSheet, type QuickMedia, type QuickNoPlaceReason, type QuickPresence } from './live/QuickSignalSheet';
 import { buildPostBody, quickStateFor, TILE_AUTO_VALUE, TILE_TYPE, type QuickState } from '../live/quickSignal';
 import { oldestCapture } from '../galleryCapture';
 import { SIGNAL_CATALOG } from '../signalCatalog';
@@ -888,14 +888,20 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
   const [quick, setQuick] = useState<{ place: BlinkrPlace | null; initial: QuickState | null; key: number } | null>(null);
   const [quickError, setQuickError] = useState<string | null>(null);
   const [quickSending, setQuickSending] = useState(false);
+  const [quickPresence, setQuickPresence] = useState<QuickPresence | null>(null);
+  const presenceSeq = useRef(0);
   const startQuick = (place: BlinkrPlace | null = null, initial: QuickState | null = null) => {
     closeDetailSheet();
     setQuickError(null);
+    setQuickPresence(null);
     setQuick({ place, initial, key: Date.now() });
     if (place) return;
     composerGeneration.current += 1;
     setComposerArea(null);
     nearbyOwner.current.reset();
+    // An older list was measured from another fix (or the map centre): never offer a place from it.
+    setNearbyPlaces([]);
+    setNearbyStatus('LOADING');
     // Asking here is fine: the person just pressed (+) to share where they are.
     Location.getForegroundPermissionsAsync()
       .then(async (permission) => {
@@ -908,17 +914,55 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
   };
   const closeQuick = () => {
     if (quickSending) return;
+    presenceSeq.current += 1;
+    setQuickPresence(null);
     setQuick(null);
     composerGeneration.current += 1;
     nearbyRequest.current?.abort();
     nearbyOwner.current.reset();
   };
-  const quickPlace = quick ? quick.place ?? cameraPlace?.place ?? null : null;
-  const quickLocating = Boolean(quick && !quick.place && !cameraPlace?.place
+  // The suggested place only comes from a list that answered for the current fix.
+  const quickPlace = quick ? quick.place ?? (nearbyStatus === 'READY' ? cameraPlace?.place ?? null : null) : null;
+  const quickLocating = Boolean(quick && !quickPlace
     && locationReadiness !== 'permission-required' && locationReadiness !== 'unavailable'
     && (!composerArea || nearbyStatus === 'LOADING'));
+  const quickNoPlaceReason: QuickNoPlaceReason = locationReadiness === 'permission-required' ? 'permission'
+    : locationReadiness === 'unavailable' || nearbyStatus === 'FAILED' ? 'unavailable'
+    : nearbyStatus === 'NOT_LOADED' ? 'catalog' : 'none';
+
+  // The server decides whether this person may post here and with what trust (place-presence), before Paylaş.
+  const quickPlaceId = quickPlace?.id ?? null;
+  useEffect(() => {
+    if (!quickPlaceId || !quickPlace) return;
+    const seq = ++presenceSeq.current;
+    const place = quickPlace;
+    setQuickPresence({ status: 'checking' });
+    (async () => {
+      try {
+        const current = await Location.getForegroundPermissionsAsync();
+        const permission = current.status === 'granted' || !current.canAskAgain ? current : await Location.requestForegroundPermissionsAsync();
+        if (permission.status !== 'granted') {
+          if (seq === presenceSeq.current) setQuickPresence({ status: 'error', reason: 'permission' });
+          return;
+        }
+        const position = await getFreshDeviceLocation();
+        const presence = await previewPresence(auth, {
+          placeId: place.id, latitude: position.coords.latitude, longitude: position.coords.longitude,
+          accuracyMeters: Math.max(1, position.coords.accuracy ?? 25),
+        }, onAuthChange, onLogout);
+        if (seq !== presenceSeq.current) return;
+        setQuickPresence({ status: 'ok', allowed: presence.isAllowed, trustLevel: presence.trustLevel, distanceMeters: presence.effectiveDistanceMeters ?? presence.distanceMeters });
+      } catch {
+        if (seq === presenceSeq.current) setQuickPresence({ status: 'error', reason: 'unavailable' });
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quickPlaceId]);
   // "Değiştir" / "Yer seç": the full composer with its place picker, keeping the chosen type and value.
   const quickToComposer = (state: QuickState) => {
+    if (quickSending) return;
+    presenceSeq.current += 1;
+    setQuickPresence(null);
     const given = quick?.place ?? null;
     setQuick(null);
     const initial = state.tile ? { type: TILE_TYPE[state.tile], value: state.value ?? TILE_AUTO_VALUE[state.tile] ?? null } : null;
@@ -926,7 +970,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
   };
   const submitQuick = async (state: QuickState, media: QuickMedia[]) => {
     const place = quickPlace;
-    if (!place || submissionInFlight.current) return;
+    if (!place || submissionInFlight.current || quickPresence?.status !== 'ok' || !quickPresence.allowed) return;
     submissionInFlight.current = true;
     setQuickSending(true);
     setQuickError(null);
@@ -952,6 +996,8 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
         },
       };
       await outbox.enqueue(item);
+      presenceSeq.current += 1;
+      setQuickPresence(null);
       setQuick(null);
       composerGeneration.current += 1;
       nearbyRequest.current?.abort();
@@ -1142,15 +1188,17 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
               initial={quick.initial}
               key={quick.key}
               locating={quickLocating}
+              noPlaceReason={quickNoPlaceReason}
               onChangePlace={quickToComposer}
               onClose={closeQuick}
               onSubmit={(state, media) => { void submitQuick(state, media); }}
               place={quickPlace ? {
+                id: quickPlace.id,
                 name: quickPlace.name,
                 category: quickPlace.category,
-                distanceMeters: quick.place ? null : quickPlace.distanceMeters ?? null,
                 state: liveStateFromCurrent(quickPlace.currentState, now),
               } : null}
+              presence={quickPresence}
               submitting={quickSending}
             />
           </BlinkrSheetPanel>

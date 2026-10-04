@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import {
-  Camera, DoorOpen, Eye, Flame, Hourglass, Image as ImageIcon, MapPin, Send, ShieldCheck, Sparkles, Tag, Users, X, type LucideIcon,
+  AlertCircle, Camera, DoorOpen, Eye, Flame, Hourglass, Image as ImageIcon, MapPin, Send, ShieldCheck, Sparkles, Tag, Users, X, type LucideIcon,
 } from 'lucide-react-native';
 import { useEffect, useMemo, useReducer, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -12,7 +12,7 @@ import type { LiveKind, LiveState } from '../../live/liveState';
 import {
   NOTE_MAX, NOTE_REQUIRED, QUICK_TILES, TILE_TYPE, TILE_VALUES, canSubmit, initialQuick, quickReducer, type QuickDisclosure, type QuickState, type QuickTile,
 } from '../../live/quickSignal';
-import { mediaAllowedAt } from '../../placeSafety';
+import { mediaAllowedAt, placeSensitivity } from '../../placeSafety';
 import { formatDistance } from '../../presentation';
 import { friendlyError } from '../../productPresentation';
 import { SIGNAL_TTL_MINUTES, formatLifetime } from '../../signalCatalog';
@@ -22,6 +22,18 @@ import { PlaceSymbol } from '../PlaceSymbol';
 import { BlinkrButton } from '../ui/BlinkrButton';
 import { SegmentedControl } from '../ui/BlinkrSegmentedControl';
 import { LiveRing } from './LiveRing';
+
+/**
+ * The server's answer for "may I post here from where I am" (POST /api/posts/place-presence), shown before Paylaş:
+ * trust is server-owned, so the sheet never claims "Konumda" on its own.
+ */
+export type QuickPresence =
+  | { status: 'checking' }
+  | { status: 'ok'; allowed: boolean; trustLevel: string; distanceMeters: number | null }
+  | { status: 'error'; reason: 'permission' | 'unavailable' };
+
+/** Why no place is shown: the person picks one instead (brief §3.4b). */
+export type QuickNoPlaceReason = 'permission' | 'unavailable' | 'catalog' | 'none';
 
 export type QuickMedia = { uri: string; kind: 'image' | 'video'; mimeType?: string | null; fileName?: string | null; capturedAt: Date | null };
 
@@ -49,8 +61,10 @@ const VALUES: Record<string, { kind: LiveKind; label: () => string }> = {
 
 type Props = {
   /** The place the signal goes to: found from the position (within 100 m) or chosen. Null while locating or when none is near. */
-  place: { name: string; category?: string | null; distanceMeters?: number | null; state: LiveState } | null;
+  place: { id: string; name: string; category?: string | null; state: LiveState } | null;
+  presence: QuickPresence | null;
   locating: boolean;
+  noPlaceReason?: QuickNoPlaceReason;
   /** Start on a tile and value ("Hâlâ böyle" / "Değişti"). */
   initial?: QuickState | null;
   submitting: boolean;
@@ -65,7 +79,8 @@ type Props = {
  * a note or photo is optional except where the type needs words. Content only - the caller owns the sheet shell, the
  * position, the place and the publishing (share outbox).
  */
-export function QuickSignalSheet({ place, locating, initial, submitting, error, onChangePlace, onClose, onSubmit }: Props) {
+export function QuickSignalSheet({ place, presence, locating, noPlaceReason = 'none', initial, submitting, error, onChangePlace, onClose, onSubmit }: Props) {
+  const [privacyAck, setPrivacyAck] = useState<string | null>(null);
   const [state, dispatch] = useReducer(quickReducer, initial ?? initialQuick);
   const [media, setMedia] = useState<QuickMedia[]>([]);
   const [mediaError, setMediaError] = useState<string | null>(null);
@@ -74,7 +89,9 @@ export function QuickSignalSheet({ place, locating, initial, submitting, error, 
   const values = state.tile ? TILE_VALUES[state.tile] : [];
   const noteRequired = !!state.tile && (NOTE_REQUIRED.has(state.tile) || (state.tile === 'Observation' && media.length === 0));
   const canAttach = mediaAllowedAt(place?.category);
-  const ready = canSubmit(state) && !!place && !submitting;
+  const allowed = presence?.status === 'ok' && presence.allowed;
+  const ready = canSubmit(state) && !!place && allowed && !submitting;
+  const sensitivity = placeSensitivity(place?.category);
   const valueLabel = state.value ? VALUES[state.value]?.label() : null;
   const cta = !canSubmit(state) ? tx('quick:ctaIdle', 'Bir durum seç')
     : valueLabel ? tx('quick:ctaShareValue', 'Paylaş · {{v}}', { v: valueLabel }) : tx('quick:ctaShare', 'Paylaş');
@@ -126,18 +143,34 @@ export function QuickSignalSheet({ place, locating, initial, submitting, error, 
             <View style={styles.placeIcon}>{locating ? <ActivityIndicator color={colors.textSecondary} /> : <MapPin color={colors.textSecondary} size={20} />}</View>
           )}
           <View style={styles.placeText}>
-            <Text numberOfLines={1} style={styles.placeName}>{place?.name ?? (locating ? tx('map:composer.locating', 'Konumun alınıyor…') : tx('quick:noPlace', 'Yakınında yer bulunamadı'))}</Text>
-            {place?.distanceMeters != null ? (
-              <View style={styles.atPlace}>
-                <ShieldCheck color={colors.mint} size={14} />
-                <Text style={styles.atPlaceText}>{[tx('quick:atPlace', 'Konumda'), formatDistance(place.distanceMeters)].filter(Boolean).join(' · ')}</Text>
-              </View>
-            ) : null}
+            <Text numberOfLines={1} style={styles.placeName}>{place?.name ?? (locating ? tx('quick:locating', 'Konumun alınıyor…') : tx('quick:noPlace', 'Yakınında yer bulunamadı'))}</Text>
+            {place ? <PresenceLine presence={presence} /> : !locating ? <Text style={styles.reason}>{noPlaceText(noPlaceReason)}</Text> : null}
           </View>
-          <AnimatedPressable accessibilityRole="button" onPress={() => onChangePlace(state)} pressScale={0.95} style={styles.change}>
+          <AnimatedPressable accessibilityRole="button" disabled={submitting} onPress={() => onChangePlace(state)} pressScale={0.95} style={[styles.change, submitting && styles.disabled]}>
             <Text style={styles.changeText}>{place ? tx('quick:change', 'Değiştir') : tx('quick:pickPlace', 'Yer seç')}</Text>
           </AnimatedPressable>
         </View>
+
+        {place && !canAttach ? (
+          <View accessibilityRole="alert" style={styles.notice}>
+            <AlertCircle color={colors.warning} size={18} />
+            <View style={styles.noticeText}>
+              <Text style={styles.noticeTitle}>{tx('create:safety.noMediaTitle', 'Bu yerde fotoğraf ve video kapalı')}</Text>
+              <Text style={styles.noticeBody}>{tx('create:safety.noMediaBody', 'Okul ve kreşlerde çocukların güvenliği için yalnız yazılı sinyal paylaşılabilir.')}</Text>
+            </View>
+          </View>
+        ) : place && sensitivity && privacyAck !== place.id ? (
+          <View accessibilityRole="alert" style={styles.notice}>
+            <ShieldCheck color={colors.warning} size={18} />
+            <View style={styles.noticeText}>
+              <Text style={styles.noticeTitle}>{tx('create:safety.privacyTitle', 'Başkalarının mahremiyetine dikkat')}</Text>
+              <Text style={styles.noticeBody}>{tx('create:safety.privacyBody', 'Burada çekim yaparken başkalarının yüzlerini paylaşma. İnsanların mahremiyetine saygı göster.')}</Text>
+              <AnimatedPressable accessibilityRole="button" onPress={() => setPrivacyAck(place.id)} pressScale={0.95} style={styles.noticeAction}>
+                <Text style={styles.changeText}>{tx('create:safety.gotIt', 'Anladım')}</Text>
+              </AnimatedPressable>
+            </View>
+          </View>
+        ) : null}
 
         <Text style={styles.section}>{tx('quick:q1', 'Ne oluyor?')}</Text>
         <View style={styles.grid}>
@@ -226,7 +259,51 @@ export function QuickSignalSheet({ place, locating, initial, submitting, error, 
   );
 }
 
+const noPlaceText = (reason: QuickNoPlaceReason) => {
+  switch (reason) {
+    case 'permission': return tx('quick:reasonPermission', 'Konum izni olmadan yakındaki yeri bulamıyoruz. Yer seçerek devam edebilirsin.');
+    case 'unavailable': return tx('quick:reasonUnavailable', 'Konum alınamadı. Yer seçerek devam edebilirsin.');
+    case 'catalog': return tx('quick:reasonCatalog', 'Blinkr yer kataloğu bu bölgede hazır değil. Yer seçerek devam edebilirsin.');
+    default: return tx('quick:reasonNone', '100 m içinde bir yer bulamadık. Yer seçerek devam edebilirsin.');
+  }
+};
+
+/** "Konumda · 12 m" only when the server says VERIFIED_LIVE; a nearby post says it will not change the live state. */
+function PresenceLine({ presence }: { presence: QuickPresence | null }) {
+  if (!presence || presence.status === 'checking') {
+    return <Text style={styles.reason}>{tx('quick:checking', 'Konumun doğrulanıyor…')}</Text>;
+  }
+  if (presence.status === 'error') {
+    return (
+      <Text style={styles.blocked}>{presence.reason === 'permission'
+        ? tx('quick:presencePermission', 'Konum izni olmadan bu yere sinyal bırakılamaz.')
+        : tx('quick:presenceUnavailable', 'Konumun doğrulanamadı. Biraz sonra tekrar dene.')}</Text>
+    );
+  }
+  const distance = formatDistance(presence.distanceMeters);
+  if (!presence.allowed) {
+    return <Text style={styles.blocked}>{tx('quick:tooFar', 'Bu yere çok uzaksın{{d}}. Sinyal bırakmak için 600 m içinde olmalısın.', { d: distance ? ` (${distance})` : '' })}</Text>;
+  }
+  if (presence.trustLevel === 'VERIFIED_LIVE') {
+    return (
+      <View style={styles.atPlace}>
+        <ShieldCheck color={colors.mint} size={14} />
+        <Text style={styles.atPlaceText}>{[tx('quick:atPlace', 'Konumda'), distance].filter(Boolean).join(' · ')}</Text>
+      </View>
+    );
+  }
+  return <Text style={styles.reason}>{tx('quick:nearbyOnly', 'Yakındasın{{d}}: paylaşılır ama canlı duruma katkı vermez.', { d: distance ? ` (${distance})` : '' })}</Text>;
+}
+
 const styles = StyleSheet.create({
+  reason: { ...typography.caption, color: colors.textSecondary },
+  blocked: { ...typography.caption, color: colors.danger, fontWeight: '700' },
+  disabled: { opacity: 0.5 },
+  notice: { alignItems: 'flex-start', backgroundColor: colors.surfaceElevated, borderRadius: radii.md, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
+  noticeText: { flex: 1, gap: 4 },
+  noticeTitle: { ...typography.callout, color: colors.text, fontWeight: '700' },
+  noticeBody: { ...typography.caption, color: colors.textSecondary },
+  noticeAction: { alignSelf: 'flex-start', backgroundColor: colors.surface, borderRadius: radii.pill, justifyContent: 'center', marginTop: 4, minHeight: 36, paddingHorizontal: spacing.md },
   wrap: { flexShrink: 1 },
   titleRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
   close: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 40, justifyContent: 'center', width: 40 },

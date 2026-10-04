@@ -33,5 +33,15 @@
   "ctaShareValue": "Share · {{v}}",
   "atPlace": "On site",
   "noPlace": "No place found near you",
-  "pickPlace": "Pick a place"
+  "pickPlace": "Pick a place",
+  "locating": "Getting your location…",
+  "checking": "Checking your location…",
+  "reasonPermission": "Without location access we cannot find the place you are at. Pick a place to continue.",
+  "reasonUnavailable": "Your location could not be read. Pick a place to continue.",
+  "reasonCatalog": "The Blinkr place catalogue is not ready in this area. Pick a place to continue.",
+  "reasonNone": "No place within 100 m. Pick a place to continue.",
+  "presencePermission": "A signal for this place needs location access.",
+  "presenceUnavailable": "Your location could not be checked. Try again in a moment.",
+  "tooFar": "You are too far from this place{{d}}. Signals need you within 600 m.",
+  "nearbyOnly": "You are nearby{{d}}: it will be posted but will not change the live state."
 }
