@@ -58,5 +58,7 @@
   "summaryNone": "Henüz canlı bilgi yok. İlk sen bildir.",
   "lastInfo": "son bilgi {{ago}}",
   "trustLineN": "{{n}} kişi yerinde bildirdi · son bilgi {{ago}}",
-  "summaryNoneOld": "Şu an canlı bilgi yok; aşağıda eski bildirimler var."
+  "summaryNoneOld": "Şu an canlı bilgi yok; aşağıda eski bildirimler var.",
+  "tagObs": "Gözlem",
+  "tagEnded": "Bitti"
 }

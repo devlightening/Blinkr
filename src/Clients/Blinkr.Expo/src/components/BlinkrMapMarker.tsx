@@ -4,14 +4,12 @@ import { Marker } from 'react-native-maps';
 import { liveA11yLabel, pinTagParts } from '../live/liveLabels';
 import type { LiveState } from '../live/liveState';
 import type { ClusterMix } from '../mapClusters';
-import { SIGNAL_BUBBLE, anchorOf, livePinAnchor } from '../markerGeometry';
+import { livePinAnchor } from '../markerGeometry';
 import { clusterMixLabel, signalPinLabel } from '../markerA11y';
 import type { BlinkrPlace, CoordinateSignal } from '../types';
 import { ClusterRing } from './live/ClusterRing';
 import { LivePin } from './live/LivePin';
-import { MarkerVisual } from './MapMarkerVisuals';
-
-const SIGNAL_ANCHOR = anchorOf(SIGNAL_BUBBLE);
+import { SignalPin } from './live/SignalPin';
 
 /**
  * A marker's view is snapshotted into a bitmap. It tracks changes only until its SVG has drawn (Android can snapshot an
@@ -48,17 +46,17 @@ export const BlinkrPlaceMarker = memo(function BlinkrPlaceMarker({ place, state,
   );
 });
 
-export const BlinkrSignalMarker = memo(function BlinkrSignalMarker({ signal, selected, now, onSignal }: {
-  signal: CoordinateSignal; selected: boolean; now: number; onSignal: (signal: CoordinateSignal) => void;
+export const BlinkrSignalMarker = memo(function BlinkrSignalMarker({ signal, state, selected, onSignal }: {
+  signal: CoordinateSignal; state: LiveState; selected: boolean; onSignal: (signal: CoordinateSignal) => void;
 }) {
   const tracks = useSettledTracking();
   return (
     <Marker
-      accessibilityLabel={signalPinLabel(signal)} accessibilityRole="button" anchor={SIGNAL_ANCHOR}
+      accessibilityLabel={signalPinLabel(signal)} accessibilityRole="button" anchor={livePinAnchor(false, selected, true)}
       coordinate={{ latitude: signal.latitude, longitude: signal.longitude }} onPress={() => onSignal(signal)}
       tracksViewChanges={tracks} zIndex={selected ? 45 : 30}
     >
-      <MarkerVisual now={now} selected={selected} signal={signal} />
+      <SignalPin selected={selected} state={state} type={signal.signalType} />
     </Marker>
   );
 });

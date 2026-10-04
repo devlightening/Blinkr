@@ -48,7 +48,8 @@ import { conversations, nearby, area as composerArea } from './ui-fixtures';
 import { SignalComposer } from '../src/components/SignalComposer';
 import { PendingDeletionScreen } from '../src/components/account/PendingDeletionScreen';
 import { AuthScreen } from '../src/components/AuthScreen';
-import { MarkerVisual } from '../src/components/MapMarkerVisuals';
+import { SignalPin } from '../src/components/live/SignalPin';
+import { signalPinState } from '../src/live/postState';
 import { ClusterRing } from '../src/components/live/ClusterRing';
 import { LivePin } from '../src/components/live/LivePin';
 import { NearbyNowSheet } from '../src/components/live/NearbyNowSheet';
@@ -217,12 +218,12 @@ const at = (place: Partial<BlinkrPlace> & { category: string }, left: number, to
     </View>
   );
 };
-const bubble = (type: SignalType, left: number, top: number, ageMinutes: number, selected = false) => (
+const bubble = (type: SignalType, left: number, top: number, ageMinutes: number, selected = false, value: string | null = null) => (
   <View key={`sig-${type}-${left}-${top}`} style={{ left, position: 'absolute', top }}>
-    <MarkerVisual
-      now={Date.now()}
+    <SignalPin
       selected={selected}
-      signal={{ postId: `s${left}`, title: 'Sinyal', textPreview: '', latitude: 0, longitude: 0, signalType: type, createdAtUtc: iso(ageMinutes), expiresAt: new Date(Date.now() + (180 - ageMinutes) * 60_000).toISOString() }}
+      state={signalPinState({ signalType: type, signalValue: value, createdAtUtc: iso(ageMinutes), expiresAt: new Date(Date.now() + (180 - ageMinutes) * 60_000).toISOString() }, Date.now())}
+      type={type}
     />
   </View>
 );
@@ -256,9 +257,11 @@ function MapChrome() {
           at({ category: 'SPORT' }, 260, 320, { type: 'Event', value: 'Started', age: 30 }),
           at({ category: 'SUPERMARKET' }, 70, 500, { type: 'Queue', value: 'None', age: 140 }),
           at({ category: 'SHOP' }, 300, 500, { tag: false }),
-          bubble('GeneralObservation', 300, 400, 6),
-          bubble('Offer', 320, 470, 80),
-          bubble('Event', 200, 520, 165),
+          bubble('GeneralObservation', 290, 400, 6),
+          bubble('Offer', 280, 470, 80, false, 'Available'),
+          bubble('Event', 170, 520, 120, false, 'Started'),
+          bubble('Crowd', 20, 600, 9, false, 'Busy'),
+          bubble('TemporaryStatus', 130, 640, 30, false, 'Closed'),
         ]}
       </View>
       <MapTopChrome

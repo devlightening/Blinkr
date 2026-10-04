@@ -58,5 +58,7 @@
   "summaryNone": "No live info yet. Be the first to report.",
   "lastInfo": "last update {{ago}}",
   "trustLineN": "{{n}} people reported on site · last update {{ago}}",
-  "summaryNoneOld": "No live info right now; older reports are below."
+  "summaryNoneOld": "No live info right now; older reports are below.",
+  "tagObs": "Seen",
+  "tagEnded": "Ended"
 }

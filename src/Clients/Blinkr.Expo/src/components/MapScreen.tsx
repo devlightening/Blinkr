@@ -40,8 +40,8 @@ import { oldestCapture } from '../galleryCapture';
 import { SIGNAL_CATALOG } from '../signalCatalog';
 import { Sheet } from './Sheet';
 import { BlinkrSheetPanel } from './ui/BlinkrSheetPanel';
-import { lifetimeFraction } from '../markerGeometry';
-import { freshnessOpacity } from '../productPresentation';
+import { signalPinState } from '../live/postState';
+import { signalTagParts } from '../live/liveLabels';
 import { tx } from '../i18n/tx';
 
 const MAX_MAP_PINS = 300;
@@ -1135,8 +1135,10 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
           }
           const signal = markerLookup.signals.get(item.id);
           if (!signal) return null;
-          const look = `${Math.round(lifetimeFraction(signal.createdAtUtc, signal.expiresAt, now) * 10)}.${freshnessOpacity(signal.createdAtUtc, now)}`;
-          return <BlinkrSignalMarker key={`${item.id}:${look}:${selected ? 1 : 0}`} now={now} onSignal={openSignalDetailAfterTouch} selected={selected} signal={signal} />;
+          const pinState = signalPinState(signal, now);
+          const words = signalTagParts(pinState);
+          // The key is the picture: ring look, the word and age, the selection.
+          return <BlinkrSignalMarker key={`${item.id}:${liveRenderKey(pinState)}.${words.state}.${words.age}.${selected ? 1 : 0}`} onSignal={openSignalDetailAfterTouch} selected={selected} signal={signal} state={pinState} />;
         })}
       </MapView>
 

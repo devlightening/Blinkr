@@ -86,3 +86,15 @@ export function trustLine(s: LiveState): string {
     ? tx('live:trustLineN', '{{n}} kişi yerinde bildirdi · son bilgi {{ago}}', { n: s.confirmations, ago })
     : tx('live:lastInfo', 'son bilgi {{ago}}', { ago });
 }
+
+/**
+ * Map-tag words for a coordinate signal: the state word like a place, or what the neutral ring stands for
+ * (an observation, an ended event/offer) - never "Geçici durum" for something that is not a status.
+ */
+export function signalTagParts(s: LiveState): { state: string; age: string } {
+  const parts = pinTagParts(s);
+  if (s.kind !== 'unknown' || s.source !== 'live') return parts;
+  const type = (s.signalType ?? '').toLowerCase();
+  if (type === 'temporarystatus') return parts;
+  return { ...parts, state: type === 'generalobservation' ? tx('live:tagObs', 'Gözlem') : tx('live:tagEnded', 'Bitti') };
+}
