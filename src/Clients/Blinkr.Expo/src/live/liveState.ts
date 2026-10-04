@@ -4,7 +4,9 @@
  *
  * Every screen builds a place's ring from the server's `currentState` (`liveStateFromCurrent`): the server already
  * keeps only VERIFIED_LIVE, unexpired signals and one voice per person (trust is server-owned), so every screen shows
- * the same ring. `computeLiveState` is the client-side fallback for a list of raw signals; it follows the same rules.
+ * the same ring. `computeLiveState` is a client-side fallback for raw signals (no screen uses it while the server sends
+ * `currentState`): it shares the verified-only, unexpired and one-voice rules but weights votes by a 30 min half-life
+ * and lets a recent "closed" win, so it is not interchangeable with the server summary on the same screen.
  *
  * Value names are the backend's (`signalCatalog.ts`): Crowd Calm | Moderate | Busy - note Busy means *crowded* -
  * Queue None | 5To15 | Over15. Legacy upper-case values (EMPTY, BUSY, LONG) still map. An unknown value is no vote.
@@ -19,6 +21,8 @@ export type LiveSignal = {
   atUtc: string;
   reporterId: string;
   verified: boolean;
+  /** The server's per-type lifetime (Crowd/Queue live 60 min); an expired signal is no vote. */
+  expiresAtUtc?: string | null;
 };
 
 export type LiveState = {
@@ -142,9 +146,10 @@ export function liveStateFromCurrent(
   };
 }
 
-/** Client-side fallback from raw signals; same rules as the server plus "closed wins for 90 min". */
+/** Client-side fallback from raw signals (see the note at the top: not the server's weighting). */
 export function computeLiveState(signals: LiveSignal[], nowMs: number, hoursOpen: boolean | null = null): LiveState {
-  const live = signals.filter((s) => s.verified && Number.isFinite(Date.parse(s.atUtc)) && ageMin(s.atUtc, nowMs) <= WINDOW_MINUTES);
+  const live = signals.filter((s) => s.verified && Number.isFinite(Date.parse(s.atUtc)) && ageMin(s.atUtc, nowMs) <= WINDOW_MINUTES
+    && !(s.expiresAtUtc && Date.parse(s.expiresAtUtc) <= nowMs));
 
   const latestByReporter = new Map<string, LiveSignal>();
   for (const s of live) {

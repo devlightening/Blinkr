@@ -13,7 +13,7 @@ export const signalOptions: Partial<Record<SignalType, Array<{ value: string; la
 );
 export const signalValueLabel = (type?: SignalType | null, value?: string | null) =>
   signalOptions[type ?? 'GeneralObservation']?.find(item => item.value.toUpperCase() === value?.toUpperCase())?.label
-    ?? ({ EMPTY: tx('signal:catalog.Calm', 'Sakin'), LONG: tx('signal:catalog.QueueLong', 'Uzun sıra') } as Record<string, string>)[value?.toUpperCase() ?? ''] ?? value ?? '';
+    ?? ({ EMPTY: tx('signal:catalog.Calm', 'Sakin'), LONG: tx('signal:catalog.QueueLong', 'Uzun sıra'), NOTICE: tx('signal:catalog.Notice', 'Duyuru') } as Record<string, string>)[value?.toUpperCase() ?? ''] ?? value ?? '';
 // One freshness rule for the whole app (plan-devam A8).
 export { freshnessOpacity } from './freshness';
 /**

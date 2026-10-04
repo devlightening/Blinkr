@@ -158,7 +158,8 @@
     "OfferEnded": "Sona erdi",
     "NewOpening": "Yeni açılış",
     "QueueLong": "Uzun sıra",
-    "Opened": "Açıldı"
+    "Opened": "Açıldı",
+    "Notice": "Duyuru"
   },
   "trust": {
     "verified": "Konum doğrulandı",

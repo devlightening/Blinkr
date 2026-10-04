@@ -194,8 +194,9 @@ export const categoryTones: Record<string, string> = {};
 export const levelScale = [p.sage500, p.butter, p.apricot, p.coral] as const;
 
 /**
- * Canlı Halka (v4 brief §1): the colour of a place's current state. A state colour is not an action colour - it never
- * replaces `primary`/`danger`. Each value reads as 4.5:1 text on surface, canvas and its own pill fill (theme test).
+ * Canlı Halka (v4 brief §1): the colour of a place's current state, kept in its own table so state and action colours
+ * can move independently (in dark, crowded/busy reuse the brand rose/sun values by design). Each value reads as 4.5:1
+ * text on surface, canvas and its own pill fill (theme test).
  */
 export const liveColorsDark: Readonly<Record<LiveKind, string>> = {
   calm: '#4ADE80', busy: '#FFC83D', crowded: '#FF6B6B', closed: '#9AA1AB',

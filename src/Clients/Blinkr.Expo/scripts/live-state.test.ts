@@ -72,6 +72,8 @@ run('client fallback: verified only, one vote per person, fresh beats old, ties 
   eq(computeLiveState([sig({ value: 'Calm', min: 10, by: 'a' }), sig({ value: 'Busy', min: 10, by: 'b' })], NOW).kind, 'crowded', 'tie -> cautious');
   eq(computeLiveState([sig({ value: 'Calm', min: 200, by: 'a' })], NOW, true).source, 'hours', 'old vote -> hours');
   eq(computeLiveState([], NOW, false).kind, 'closed', 'closed by hours');
+  const expired = { ...sig({ value: 'Busy', min: 70, by: 'a' }), expiresAtUtc: ago(10) };
+  eq(computeLiveState([expired], NOW).source, 'none', 'a 70 min crowd vote past its 60 min lifetime is no vote');
 });
 
 run('a recent "closed" status beats crowd votes for 90 minutes', () => {

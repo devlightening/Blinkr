@@ -158,7 +158,8 @@
     "OfferEnded": "Over",
     "NewOpening": "New opening",
     "QueueLong": "Long queue",
-    "Opened": "Opened"
+    "Opened": "Opened",
+    "Notice": "Notice"
   },
   "trust": {
     "verified": "Location verified",

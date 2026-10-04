@@ -2,13 +2,15 @@ import {
   NOTE_MAX, buildPostBody, canSubmit, initialQuick, quickReducer, quickStateFor, tileFor, TILE_TYPE, TILE_VALUES, type QuickTile,
 } from '../src/live/quickSignal';
 import { SIGNAL_CATALOG } from '../src/signalCatalog';
+import { signalValueLabel } from '../src/productPresentation';
+import { TILE_AUTO_VALUE } from '../src/live/quickSignal';
 
 function check(value: unknown, message: string) { if (!value) throw new Error(message); }
 const eq = (actual: unknown, expected: unknown, message: string) => check(JSON.stringify(actual) === JSON.stringify(expected), `${message}: got ${JSON.stringify(actual)}, want ${JSON.stringify(expected)}`);
 const run = (name: string, fn: () => void) => { fn(); console.log('PASS', name); };
 
-const PLACE = { placeId: 'p_123', name: 'Soulmate Kafe' };
-const FIX = { latitude: 37.07, longitude: 36.24, accuracyMeters: 12 };
+const PLACE = { placeId: 'p_123', name: 'Soulmate Kafe', latitude: 37.0702, longitude: 36.2411 };
+const FIX = { latitude: 37.07, longitude: 36.24, accuracyMeters: 0.4 };
 const SERVER_TYPES = ['GeneralObservation', 'Crowd', 'Queue', 'Event', 'Offer', 'NewOpening', 'TemporaryStatus'];
 
 run('two taps: tile + value -> ready', () => {
@@ -77,4 +79,20 @@ run('"Hâlâ böyle" / "Değişti" start on the right tile and value', () => {
   eq([again.tile, again.value, again.step], ['Crowd', 'Busy', 'ready'], 'same value, case-insensitive');
   eq(quickStateFor('Queue', 'weird').step, 'value', 'unknown value -> pick again');
   eq(quickStateFor(null, null), initialQuick, 'nothing');
+});
+
+run('every sent value has a human label (auto values too), so no raw "Notice" reaches a screen', () => {
+  for (const tile of Object.keys(TILE_TYPE) as QuickTile[]) {
+    for (const value of [...TILE_VALUES[tile], ...(TILE_AUTO_VALUE[tile] ? [TILE_AUTO_VALUE[tile]!] : [])]) {
+      const label = signalValueLabel(TILE_TYPE[tile], value);
+      check(label.length > 0 && label !== value, `${tile}: ${value} -> "${label}"`);
+    }
+  }
+});
+
+run('the post is placed at the place, the device fix is only evidence; accuracy never 0', () => {
+  const body = buildPostBody(quickReducer(quickReducer(initialQuick, { t: 'pickTile', tile: 'Crowd' }), { t: 'pickValue', value: 'Calm' }), PLACE, FIX);
+  eq([body.latitude, body.longitude], [PLACE.latitude, PLACE.longitude], 'post coordinates are the place');
+  eq([body.observationLatitude, body.observationLongitude], [FIX.latitude, FIX.longitude], 'observation is the device');
+  eq([body.accuracyMeters, body.observationAccuracyMeters], [1, 1], 'accuracy clamped to >= 1');
 });

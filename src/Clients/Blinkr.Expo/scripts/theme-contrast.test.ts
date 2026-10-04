@@ -101,7 +101,8 @@ guard('both semantic palettes have the same shape', JSON.stringify(Object.keys(s
 guard('every semantic colour is a real colour string', [...Object.values(semanticColors.dark), ...Object.values(semanticColors.light)].every((value) => typeof value === 'string' && value.length > 0));
 guard('live palettes follow the mode and cover the same kinds', (() => { applyThemeMode('dark'); const d = liveColors.calm; applyThemeMode('light'); return d === liveColorsDark.calm && liveColors.calm === liveColorsLight.calm
   && JSON.stringify(Object.keys(liveColorsDark).sort()) === JSON.stringify(Object.keys(liveColorsLight).sort()); })());
-guard('a state colour is not an action colour', Object.values(liveColorsLight).every((v) => v !== lightColors.primary && v !== lightColors.danger));
+// Dark crowded/busy deliberately share the brand rose/sun values (design pack); the tables stay separate so either can move.
+guard('light state colours never equal the light action colours', Object.values(liveColorsLight).every((v) => v !== lightColors.primary && v !== lightColors.danger));
 guard('withAlpha turns a token hex into rgba and leaves anything else alone', withAlpha('#FF6B6B', 0.5) === 'rgba(255, 107, 107, 0.5)' && withAlpha('rgba(1, 2, 3, 1)', 0.5) === 'rgba(1, 2, 3, 1)');
 guard('sun appears only as flare/onCreate tokens (create/send)', Object.entries(lightColors).filter(([, v]) => v === '#FFC83D').every(([k]) => k === 'flare'));
 

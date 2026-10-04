@@ -109,25 +109,27 @@ export function tileFor(type: SignalType | null | undefined, value: string | nul
   return (Object.keys(TILE_TYPE) as QuickTile[]).find((tile) => TILE_TYPE[tile] === type) ?? null;
 }
 
-export type PlaceRef = { placeId: string; name: string };
+export type PlaceRef = { placeId: string; name: string; latitude: number; longitude: number };
 export type DeviceFix = { latitude: number; longitude: number; accuracyMeters: number };
 
 /**
- * The POST /api/posts body (media is attached by the share outbox after upload). The exact position only goes to the
- * server as observation evidence; the post is published at the place centre (`PlaceCenter`).
+ * The POST /api/posts body (media is attached by the share outbox after upload). The post's own coordinates are the
+ * place's; the exact device position goes only as observation evidence, so it is never what gets published.
  */
 export function buildPostBody(s: QuickState, place: PlaceRef, fix: DeviceFix): Omit<CreateSignalInput, 'media'> {
   if (!canSubmit(s) || !s.tile) throw new Error('QUICK_SIGNAL_NOT_READY');
   const type = TILE_TYPE[s.tile];
+  // The server rejects an accuracy of 0.
+  const accuracy = Math.max(1, Math.round(fix.accuracyMeters));
   return {
     title: '',
     content: s.note.trim(),
-    latitude: fix.latitude,
-    longitude: fix.longitude,
-    accuracyMeters: fix.accuracyMeters,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    accuracyMeters: accuracy,
     observationLatitude: fix.latitude,
     observationLongitude: fix.longitude,
-    observationAccuracyMeters: fix.accuracyMeters,
+    observationAccuracyMeters: accuracy,
     placeId: place.placeId,
     locationName: place.name,
     signalType: type,
