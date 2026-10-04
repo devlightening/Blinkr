@@ -98,8 +98,8 @@ public sealed class PlaceCollectionService
             if (collection.Items.Count >= PlaceCollectionRules.MaxItems)
                 throw new CollectionException(CollectionException.ItemsLimit, $"Bir koleksiyonda en fazla {PlaceCollectionRules.MaxItems} yer olabilir.");
             item = new PlaceCollectionItem { CollectionId = collection.Id, PlaceId = placeId, Position = collection.Items.Count == 0 ? 0 : collection.Items.Max(i => i.Position) + 1 };
+            // Tracking the item fixes up collection.Items itself; adding it there too listed it twice.
             _db.PlaceCollectionItems.Add(item);
-            collection.Items.Add(item);
         }
         item.Name = Clip(name!.Trim(), SavedPlaceRules.MaxNameLength);
         item.Category = string.IsNullOrWhiteSpace(category) ? null : Clip(category.Trim(), SavedPlaceRules.MaxCategoryLength);

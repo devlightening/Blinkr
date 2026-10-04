@@ -107,6 +107,18 @@ foreach ($candidate in @($nearby.Json)) {
     if (@($detail.Json.recentSignals).Count -eq 0 -and -not $detail.Json.currentState.signalType) { $fresh.Add($candidate) }
 }
 if ($fresh.Count -lt 9) { throw "Need 9 quiet catalog places near $Lat,$Lon (found $($fresh.Count)). Import the catalog or pass -Lat/-Lon." }
+# The rhythm checks need a place with no 8-week history either; "quiet now" is not enough after earlier runs.
+$unseen = @($fresh | Where-Object { (Invoke-Api -Method GET -Path "/api/places/$($_.id)/rhythm").Json.observations -eq 0 })[0]
+if (-not $unseen) {
+    foreach ($candidate in @($nearby.Json)) {
+        if ($fresh.Contains($candidate)) { continue }
+        $detail = Invoke-Api -Method GET -Path "/api/places/$($candidate.id)"
+        if (@($detail.Json.recentSignals).Count -ne 0 -or $detail.Json.currentState.signalType) { continue }
+        if ((Invoke-Api -Method GET -Path "/api/places/$($candidate.id)/rhythm").Json.observations -eq 0) { $unseen = $candidate; $fresh[8] = $candidate; break }
+    }
+}
+if (-not $unseen) { throw "No catalog place near $Lat,$Lon without rhythm history. Pass other -Lat/-Lon." }
+[void]$fresh.Remove($unseen); $fresh.Insert(0, $unseen)
 $place = $fresh[0]; $placeQ = $fresh[1]; $extra = @($fresh[2..8])
 Write-Host "Using places $($place.id) and $($placeQ.id)"
 
