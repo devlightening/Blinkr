@@ -14,6 +14,7 @@ public sealed class PlacesController : ControllerBase
 {
     private readonly IPlaceRepository _repository;
     private readonly ICurrentPlaceStateCalculator _stateCalculator;
+    private readonly IOpeningHoursCalculator _openingHoursCalculator;
     private readonly IPlaceDiscoveryService _discoveryService;
     private readonly IPlaceDiscoveryRefreshQueue _refreshQueue;
     private readonly ILogger<PlacesController> _logger;
@@ -22,6 +23,7 @@ public sealed class PlacesController : ControllerBase
     public PlacesController(
         IPlaceRepository repository,
         ICurrentPlaceStateCalculator stateCalculator,
+        IOpeningHoursCalculator openingHoursCalculator,
         IPlaceDiscoveryService discoveryService,
         IPlaceDiscoveryRefreshQueue refreshQueue,
         IOptions<PlaceDiscoveryOptions> discoveryOptions,
@@ -29,6 +31,7 @@ public sealed class PlacesController : ControllerBase
     {
         _repository = repository;
         _stateCalculator = stateCalculator;
+        _openingHoursCalculator = openingHoursCalculator;
         _discoveryService = discoveryService;
         _refreshQueue = refreshQueue;
         _discoveryOptions = discoveryOptions.Value;
@@ -305,20 +308,23 @@ public sealed class PlacesController : ControllerBase
             .Select(p => new NearbyPlaceDto(p.Id, p.Name, p.Category, p.Latitude, p.Longitude, p.DisplayAddress,
                 DistanceMeters(lat, lon, p.Latitude, p.Longitude), p.CurrentState,
                 byId[p.Id].ExternalProvider,
-                byId[p.Id].ExternalId))
+                byId[p.Id].ExternalId,
+                p.OpeningHours))
             .OrderBy(p => p.DistanceMeters)
             .ToArray();
     }
 
     private PlaceDetailDto ToDetail(PlaceDocument place, IReadOnlyList<PlaceSignalDocument> signals) =>
         new(place.Id, place.Name, place.Category, place.Latitude, place.Longitude, place.DisplayAddress, place.Source,
-            _stateCalculator.Calculate(signals, DateTime.UtcNow), signals.Take(20).Select(ToRecentSignal).ToArray(), place.GeometryWkt);
+            _stateCalculator.Calculate(signals, DateTime.UtcNow), signals.Take(20).Select(ToRecentSignal).ToArray(), place.GeometryWkt,
+            _openingHoursCalculator.Calculate(place.OpeningHours, DateTime.UtcNow));
 
     private PlaceSummaryDto ToSummary(PlaceDocument place, IReadOnlyList<PlaceSignalDocument> signals) =>
         new(place.Id, place.Name, place.Category, place.Latitude, place.Longitude, place.DisplayAddress,
             _stateCalculator.Calculate(signals, DateTime.UtcNow),
             signals.Count(s => s.CreatedAtUtc > DateTime.UtcNow.AddHours(-3)),
-            signals.Count > 0 ? signals.Max(s => s.CreatedAtUtc) : null);
+            signals.Count > 0 ? signals.Max(s => s.CreatedAtUtc) : null,
+            _openingHoursCalculator.Calculate(place.OpeningHours, DateTime.UtcNow));
 
     private static RecentSignalDto ToRecentSignal(PlaceSignalDocument signal) =>
         new(signal.PostId, signal.Title, signal.Text, signal.SignalType, signal.SignalValue, signal.CreatedAtUtc,

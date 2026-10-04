@@ -196,20 +196,29 @@ public sealed class ListConversationsHandler : IRequestHandler<ListConversations
         var unread = await _messages.CountUnreadAsync(ids, q.UserId, ct);
         var preferences = await _preferences.GetManyAsync(q.UserId, ids, ct);
 
-        // A snap as the latest message needs its state (waiting / opened / expired) for the list; text does not.
-        var snapIds = list.Where(c => c.LastMessageKind == "snap" && c.LastMessageId is not null).Select(c => c.LastMessageId!).ToList();
-        var snaps = snapIds.Count == 0
+        // Snap state and a shared Place live on the message. Read every relevant latest message in one query, never
+        // one query per conversation; the Place's current state itself remains owned by PlaceService and the client.
+        var detailIds = list
+            .Where(c => c.LastMessageId is not null && c.LastMessageKind is "snap" or "place" or "meetup")
+            .Select(c => c.LastMessageId!)
+            .Distinct()
+            .ToList();
+        var details = detailIds.Count == 0
             ? new Dictionary<string, ChatMessage>()
-            : (await _messages.GetManyAsync(snapIds, ct)).Where(m => m.Id is not null).ToDictionary(m => m.Id!);
+            : (await _messages.GetManyAsync(detailIds, ct)).Where(m => m.Id is not null).ToDictionary(m => m.Id!);
         var now = DateTime.UtcNow;
 
         return list.Select(c =>
         {
-            string? state = c.LastMessageId is not null && snaps.TryGetValue(c.LastMessageId, out var message) && message.Snap is not null
+            var message = c.LastMessageId is not null ? details.GetValueOrDefault(c.LastMessageId) : null;
+            string? state = message?.Snap is not null
                 ? message.Snap.EffectiveState(now)
                 : null;
+            var place = message?.Place is null
+                ? null
+                : new PlaceShareDto(message.Place.PlaceId, message.Place.Name, message.Place.Category);
             var preference = c.Id is not null ? preferences.GetValueOrDefault(c.Id) : null;
-            return c.ToDto(q.UserId, c.Id is not null ? unread.GetValueOrDefault(c.Id) : 0, state, preference);
+            return c.ToDto(q.UserId, c.Id is not null ? unread.GetValueOrDefault(c.Id) : 0, state, preference, place);
         }).ToList();
     }
 }

@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { listFriends, searchPlaces, searchUsers } from '../../api';
 import { orderPeople, relationLabel } from '../../friends';
 import { liveA11yLabel, stateLabel } from '../../live/liveLabels';
-import { isEstimated, liveStateFromCurrent, matchesNowFilters, type LiveState, type NowFilter } from '../../live/liveState';
+import { isEstimated, liveStateFromPlace, matchesNowFilters, type LiveState, type NowFilter } from '../../live/liveState';
 import { distanceMeters } from '../../nearbyRequestOwnership';
 import { formatCategory, formatDistance } from '../../presentation';
 import { friendlyError } from '../../productPresentation';
@@ -63,6 +63,12 @@ function Highlighted({ text, query }: { text: string; query: string }) {
 
 const WALKING_METERS = 1000;
 
+const searchStatePriority = (state: LiveState) => {
+  if (state.kind === 'closed') return 2;
+  if (state.source === 'none') return 1;
+  return 0;
+};
+
 function ResultRow({ place, state, distance, query, onPress }: { place: BlinkrPlace; state: LiveState; distance: number; query: string; onPress: () => void }) {
   const meta = [formatCategory(place.category), Number.isFinite(distance) ? formatDistance(distance) : '', place.displayAddress].filter(Boolean).join(' · ');
   return (
@@ -117,8 +123,9 @@ export function MapSearchOverlay({ auth, origin, onClose, onSelectPlace, onSelec
   const shown = useMemo(() => {
     const now = Date.now();
     return results
-      .map((entry) => ({ ...entry, state: liveStateFromCurrent(entry.place.currentState, now) }))
-      .filter((entry) => matchesNowFilters(entry.state, nowFilters) && (!walking || entry.distanceMeters <= WALKING_METERS));
+      .map((entry, rankIndex) => ({ ...entry, rankIndex, state: liveStateFromPlace(entry.place, now) }))
+      .filter((entry) => matchesNowFilters(entry.state, nowFilters) && (!walking || entry.distanceMeters <= WALKING_METERS))
+      .sort((a, b) => searchStatePriority(a.state) - searchStatePriority(b.state) || a.rankIndex - b.rankIndex);
   }, [results, nowFilters, walking]);
   const [place, setPlace] = useState<(Origin & { label: string }) | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -369,6 +376,11 @@ export function MapSearchOverlay({ auth, origin, onClose, onSelectPlace, onSelec
               </ScrollView>
             ) : null}
             {results.length > 0 && shown.length === 0 ? <Text style={styles.hint}>{tx('map:search.noneMatch', 'Bu filtrelere uyan yer yok.')}</Text> : null}
+            {shown.length > 0 ? (
+              <Text accessibilityRole="header" style={styles.resultSummary}>
+                {tx('map:search.resultSummary', '{{n}} yer · “{{query}}” · açık olanlar önce', { n: shown.length, query: query.trim() })}
+              </Text>
+            ) : null}
             {shown.map(({ place: item, state, distanceMeters: meters }, index) => {
               const tier = distanceTier(meters);
               const startsTier = index === 0 || distanceTier(shown[index - 1].distanceMeters) !== tier;
@@ -426,6 +438,7 @@ const styles = StyleSheet.create({
   clearText: { ...typography.label, color: colors.textSecondary, fontWeight: '500' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   hint: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.sm },
+  resultSummary: { ...typography.label, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md },
   row: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: 60, paddingVertical: spacing.sm },
   tile: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.md, height: 40, justifyContent: 'center', width: 40 },
   rowCopy: { flex: 1, gap: 1 },

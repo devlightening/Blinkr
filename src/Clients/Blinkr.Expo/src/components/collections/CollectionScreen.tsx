@@ -8,7 +8,7 @@ import { deleteCollection, getCollection, getSharedCollection, removeCollectionI
 import { collectionLink, collectionShareText, itemCountLabel, validTitle, type CollectionDetail, type CollectionItem } from '../../collections';
 import { success } from '../../haptics';
 import { formatCategory } from '../../presentation';
-import { liveStateFromCurrent } from '../../live/liveState';
+import { liveStateFromPlace } from '../../live/liveState';
 import { usePlacesLive } from '../../usePlacesLive';
 import { categoryTone, colors, radii, sizes, spacing, typography } from '../../theme';
 import type { AuthResponse, BlinkrPlace } from '../../types';
@@ -193,7 +193,7 @@ export function CollectionScreen({ auth, target, refresh = {}, onBack, onOpenPla
           {data.items.length === 0 ? (
             <Text style={styles.hint}>{mine ? tx('profile:collections.emptyMine', 'Bir yerin sayfasında "Koleksiyona ekle" ile buraya yer ekle.') : tx('profile:collections.empty', 'Bu listede henüz yer yok.')}</Text>
           ) : data.items.map((item) => {
-            const state = liveStateFromCurrent(live[item.placeId]?.currentState, Date.now());
+            const state = liveStateFromPlace(live[item.placeId], Date.now());
             const tone = categoryTone(item.category);
             return (
               <View key={item.placeId} style={styles.row}>

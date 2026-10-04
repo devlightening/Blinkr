@@ -48,6 +48,16 @@ export type CurrentPlaceState = {
   activeSignalCount?: number;
 };
 
+/** Server-evaluated catalogue hours. `isOpenNow: null` means the raw OSM rule was too complex to trust. */
+export type PlaceOpeningHours = {
+  raw: string;
+  isOpenNow?: boolean | null;
+  nextOpenAtUtc?: string | null;
+  nextCloseAtUtc?: string | null;
+  timeZoneId: string;
+  nextOpenLocalTime?: string | null;
+};
+
 export type RecentSignal = {
   publicationTrust?: string | null;
   authorName?: string | null;
@@ -74,6 +84,7 @@ export type BlinkrPlace = {
   distanceMeters?: number;
   source?: string | null;
   currentState?: CurrentPlaceState | null;
+  openingHours?: PlaceOpeningHours | null;
   recentSignals?: RecentSignal[];
 };
 
@@ -282,7 +293,7 @@ export type Conversation = {
   /** Messages from the other person that this user has not read yet (server-computed). */
   unreadCount?: number;
   /** "snap" when the latest message is a view-once photo/video; absent on older servers (= text). */
-  lastMessageKind?: 'text' | 'snap';
+  lastMessageKind?: 'text' | 'snap' | 'signal' | 'place' | 'meetup' | 'unsent';
   /** For a snap: waiting ("sent"), "opened" or "expired". */
   lastMessageState?: SnapState | null;
   /** Id of the latest message; lets the list open a waiting snap without loading the conversation. */
@@ -292,6 +303,8 @@ export type Conversation = {
   pinnedAtUtc?: string | null;
   /** Doc S5: muted by me: no unread dot on the tab bar, and (once push exists) no push for it. */
   isMuted?: boolean;
+  /** Present when the latest item is a Place or meetup card; current state is resolved in one Place batch. */
+  lastMessagePlace?: PlaceShare | null;
 };
 
 /** Doc B1: a catalog place shared in chat. No coordinates and nothing about where the sender is. */

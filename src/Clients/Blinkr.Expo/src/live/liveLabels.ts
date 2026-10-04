@@ -10,7 +10,9 @@ export function stateLabel(s: LiveState): string {
     case 'calm': return isQueue(s) ? tx('live:stateCalmQueue', 'Sıra yok') : tx('live:stateCalm', 'Açık · Sakin');
     case 'busy': return isQueue(s) ? tx('live:stateBusyQueue', 'Kısa sıra') : tx('live:stateBusy', 'Hareketli');
     case 'crowded': return isQueue(s) ? tx('live:stateCrowdedQueue', 'Uzun sıra') : tx('live:stateCrowded', 'Kalabalık');
-    case 'closed': return hours ? tx('live:stateClosedHours', 'Kapalı · saate göre') : tx('live:stateClosed', 'Kapalı');
+    case 'closed': return hours && s.nextOpenLocalTime
+      ? tx('live:stateOpensAt', "{{time}}'da açılır", { time: s.nextOpenLocalTime })
+      : hours ? tx('live:stateClosedHours', 'Kapalı · saate göre') : tx('live:stateClosed', 'Kapalı');
     case 'event': return tx('live:stateEvent', 'Etkinlik');
     case 'deal': return (s.signalType ?? '').toLowerCase() === 'newopening' ? tx('live:stateNew', 'Yeni açılış') : tx('live:stateDeal', 'Fırsat');
     case 'info': return hours ? tx('live:stateHours', 'Açık · saate göre') : tx('live:stateOpen', 'Açık');

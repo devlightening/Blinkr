@@ -19,6 +19,8 @@ type Props = {
   reloadKey?: number;
   onOpen: (item: StoryTrayItem, all: StoryTrayItem[]) => void;
   onAdd: () => void;
+  /** `mine` renders only the reusable "Hikayen" item so another horizontal tray can own scrolling. */
+  mode?: 'all' | 'mine';
 };
 
 /** Instagram-sized ring (a 68 pt ring read as a secondary feature). */
@@ -30,7 +32,7 @@ const ITEM = 84;
  * stories and a quiet one for watched. While loading it holds its place with soft rings so the feed below does not
  * jump; when stories cannot be loaded the tray simply stays out of the way.
  */
-export function StoryTray({ auth, refresh = {}, reloadKey = 0, onOpen, onAdd }: Props) {
+export function StoryTray({ auth, refresh = {}, reloadKey = 0, onOpen, onAdd, mode = 'all' }: Props) {
   const { t } = useTranslation('feed');
   const [items, setItems] = useState<StoryTrayItem[] | null>(null);
 
@@ -44,6 +46,14 @@ export function StoryTray({ auth, refresh = {}, reloadKey = 0, onOpen, onAdd }: 
   }, [auth.userId, auth.token, reloadKey]);
 
   if (items === null) {
+    if (mode === 'mine') {
+      return (
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.item} testID="story-mine-loading">
+          <View style={styles.placeholderRing} />
+          <View style={styles.placeholderName} />
+        </View>
+      );
+    }
     return (
       <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.row, styles.placeholderRow]} testID="story-tray-loading">
         {[0, 1, 2, 3, 4].map((i) => (
@@ -59,43 +69,44 @@ export function StoryTray({ auth, refresh = {}, reloadKey = 0, onOpen, onAdd }: 
   const others = items.filter((item) => !item.isMine);
   const ordered = [mine, ...others];
 
+  const renderItem = (item: StoryTrayItem) => {
+    const ring = trayRing(item);
+    const label = item.isMine ? (ring === 'add' ? t('stories.add') : t('stories.yours')) : ring === 'unseen' ? t('stories.unseen', { name: item.authorName }) : t('stories.seen', { name: item.authorName });
+    return (
+      <AnimatedPressable
+        accessibilityLabel={label}
+        accessibilityRole="button"
+        key={item.authorId}
+        onPress={() => (ring === 'add' ? onAdd() : onOpen(item, ordered.filter((x) => x.storyCount > 0)))}
+        pressScale={0.94}
+        style={styles.item}
+      >
+        <View>
+          <GradientRing hidden={ring === 'add'} seen={ring === 'seen'} size={RING} testID={`story-ring-${ring}`} thickness={3}>
+            <Avatar avatarKey={item.isMine ? auth.avatarKey : undefined} seed={item.authorId} userId={item.authorId} size={RING - 12} />
+          </GradientRing>
+          {item.isMine && ring === 'add' ? (
+            <View style={styles.plus}>
+              <LinearGradient colors={gradients.brand} end={gradientDirection.end} start={gradientDirection.start} style={styles.plusFill} />
+              <View style={styles.plusIcon}><Plus color={colors.white} size={14} strokeWidth={3} /></View>
+            </View>
+          ) : item.isMine ? (
+            <AnimatedPressable accessibilityLabel={t('stories.add')} accessibilityRole="button" hitSlop={8} onPress={onAdd} pressScale={0.9} style={styles.plus} testID="story-add">
+              <LinearGradient colors={gradients.brand} end={gradientDirection.end} start={gradientDirection.start} style={styles.plusFill} />
+              <View style={styles.plusIcon}><Plus color={colors.white} size={14} strokeWidth={3} /></View>
+            </AnimatedPressable>
+          ) : null}
+        </View>
+        <Text numberOfLines={1} style={[styles.name, ring === 'unseen' && styles.nameUnseen]}>{item.isMine ? t('stories.yours') : item.authorName}</Text>
+      </AnimatedPressable>
+    );
+  };
+
+  if (mode === 'mine') return renderItem(mine);
+
   return (
     <ScrollView accessibilityLabel={t('stories.trayLabel')} contentContainerStyle={styles.row} horizontal showsHorizontalScrollIndicator={false} style={styles.scroll} testID="story-tray">
-      {ordered.map((item) => {
-        const ring = trayRing(item);
-        const label = item.isMine ? (ring === 'add' ? t('stories.add') : t('stories.yours')) : ring === 'unseen' ? t('stories.unseen', { name: item.authorName }) : t('stories.seen', { name: item.authorName });
-        return (
-          <AnimatedPressable
-            accessibilityLabel={label}
-            accessibilityRole="button"
-            key={item.authorId}
-            onPress={() => (ring === 'add' ? onAdd() : onOpen(item, ordered.filter((x) => x.storyCount > 0)))}
-            pressScale={0.94}
-            style={styles.item}
-          >
-            {/* Instagram: brand-gradient ring for unseen, flat grey for watched, none + a gradient "+" for adding. */}
-            <View>
-              <GradientRing hidden={ring === 'add'} seen={ring === 'seen'} size={RING} testID={`story-ring-${ring}`} thickness={3}>
-                <Avatar avatarKey={item.isMine ? auth.avatarKey : undefined} seed={item.authorId} userId={item.authorId} size={RING - 12} />
-              </GradientRing>
-              {item.isMine && ring === 'add' ? (
-                // No story yet: the whole item adds one, the "+" is only its picture.
-                <View style={styles.plus}>
-                  <LinearGradient colors={gradients.brand} end={gradientDirection.end} start={gradientDirection.start} style={styles.plusFill} />
-                  <View style={styles.plusIcon}><Plus color={colors.white} size={14} strokeWidth={3} /></View>
-                </View>
-              ) : item.isMine ? (
-                // With a story: the picture watches it and the "+" adds another (it used to hide behind a long press).
-                <AnimatedPressable accessibilityLabel={t('stories.add')} accessibilityRole="button" hitSlop={8} onPress={onAdd} pressScale={0.9} style={styles.plus} testID="story-add">
-                  <LinearGradient colors={gradients.brand} end={gradientDirection.end} start={gradientDirection.start} style={styles.plusFill} />
-                  <View style={styles.plusIcon}><Plus color={colors.white} size={14} strokeWidth={3} /></View>
-                </AnimatedPressable>
-              ) : null}
-            </View>
-            <Text numberOfLines={1} style={[styles.name, ring === 'unseen' && styles.nameUnseen]}>{item.isMine ? t('stories.yours') : item.authorName}</Text>
-          </AnimatedPressable>
-        );
-      })}
+      {ordered.map(renderItem)}
     </ScrollView>
   );
 }

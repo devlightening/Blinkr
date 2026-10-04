@@ -13,7 +13,7 @@ import { cardText, type CardMedia } from '../../signalCard';
 import { signalValueLabel } from '../../productPresentation';
 import { liveA11yLabel, stateLabel } from '../../live/liveLabels';
 import { postLiveState } from '../../live/postState';
-import { colors, liveColors, liveRingSize, radii, shadowSoft, signalColors, spacing, typography } from '../../theme';
+import { colors, liveColors, liveRingSize, radii, shadowSoft, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { LiveRing } from '../live/LiveRing';
 import { StatusPill } from '../live/StatusPill';
@@ -46,6 +46,8 @@ type Props = {
   playing?: boolean;
   /** The comments sheet shows play/pause, scrubbing and sound on the video; the feed shows a quiet muted loop. */
   videoControls?: 'minimal' | 'full';
+  /** Resolved in one parent-level Place batch; avoids one network request per feed card. */
+  placeCategory?: string | null;
 };
 
 /** The caption folds after this many lines until "devamı" is tapped. */
@@ -60,7 +62,7 @@ const CAPTION_LINES = 2;
 /** Two taps within this many ms on a text post = a like (the same window as the photo carousel). */
 const TEXT_DOUBLE_TAP_MS = 280;
 
-export function FeedCard({ item, myUserId, onLike, onReact, onDoubleTap, onMention, onHashtag, onOpenThread, onOpenAuthor, onShowOnMap, onShare, hideActions = false, playing = false, videoControls = 'minimal' }: Props) {
+export function FeedCard({ item, myUserId, onLike, onReact, onDoubleTap, onMention, onHashtag, onOpenThread, onOpenAuthor, onShowOnMap, onShare, hideActions = false, playing = false, videoControls = 'minimal', placeCategory }: Props) {
   const { t, i18n } = useTranslation('feed');
   const lang = i18n.language === 'en' ? 'en' : 'tr';
   const [width, setWidth] = useState(0);
@@ -84,7 +86,6 @@ export function FeedCard({ item, myUserId, onLike, onReact, onDoubleTap, onMenti
     lastTextTap.current = now;
     textTimer.current = setTimeout(() => onOpenThread(item), onDoubleTap && likeable ? TEXT_DOUBLE_TAP_MS : 0);
   };
-  const tone = signalColors[item.signalType] ?? colors.mint;
   const value = signalValueLabel(item.signalType, item.signalValue);
   const text = cardText(item.title, item.content, item.signalType);
   const media: CardMedia[] = item.media.filter((m) => m.url).map((m) => ({ url: m.url, thumbnailUrl: m.thumbnailUrl ?? null, type: m.type === 'Video' ? 'Video' : 'Image', width: m.width ?? null, height: m.height ?? null }));
@@ -106,12 +107,16 @@ export function FeedCard({ item, myUserId, onLike, onReact, onDoubleTap, onMenti
   const authorInLabel = placeTitle && authorLabel ? `, ${authorLabel}` : '';
   const authorAction = placeTitle && authorTappable && item.placeId && onShowOnMap;
 
-  const badge = (
+  // The state is shown once, in one colour: the header pill. Without a live state (an observation, an expired or
+  // unverified post) a quiet grey chip still says what kind of signal this is.
+  const badge = liveState && !item.sensitive ? null : (
     <View style={styles.typeRow}>
-      <View style={[styles.typeBadge, { backgroundColor: `${tone}24` }]}>
-        <SignalSymbol color={tone} size={14} type={item.signalType} />
-        <Text style={[styles.typeText, { color: tone }]}>{signalLabels[item.signalType] ?? 'Sinyal'}{value ? ` · ${value}` : ''}</Text>
-      </View>
+      {liveState ? null : (
+        <View style={[styles.typeBadge, { backgroundColor: colors.surfaceElevated }]}>
+          <SignalSymbol color={colors.textSecondary} size={14} type={item.signalType} />
+          <Text style={[styles.typeText, { color: colors.textSecondary }]}>{signalLabels[item.signalType] ?? 'Sinyal'}{value ? ` · ${value}` : ''}</Text>
+        </View>
+      )}
       {item.sensitive ? (
         <View style={styles.sensitive} testID="feed-sensitive">
           <ShieldAlert color={colors.textSecondary} size={12} />
@@ -136,7 +141,7 @@ export function FeedCard({ item, myUserId, onLike, onReact, onDoubleTap, onMenti
           testID={`feed-head-${item.id}`}
         >
           <LiveRing freshness={liveState?.freshness ?? 0} kind={liveState?.kind ?? 'unknown'} size={liveRingSize.card}>
-            <PlaceSymbol color={liveState ? liveColors[liveState.kind] : colors.textSecondary} size={20} />
+            <PlaceSymbol category={placeCategory} color={liveState ? liveColors[liveState.kind] : colors.textSecondary} size={20} />
           </LiveRing>
           <View style={styles.authorCopy}>
             <Text numberOfLines={1} style={styles.authorName}>{title}</Text>

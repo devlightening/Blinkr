@@ -31,6 +31,7 @@ import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
 import { SkeletonList } from '../ui/BlinkrSkeleton';
 import { FeedCard } from './FeedCard';
 import { NowAroundStrip } from './NowAroundStrip';
+import { usePlacesLive } from '../../usePlacesLive';
 import { HashtagSearch } from './HashtagSearch';
 import { ShareToChatSheet } from '../chat/ShareToChatSheet';
 import { signalTarget } from '../../shareTarget';
@@ -176,6 +177,11 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
   }, [hashtagRequest]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const current: Which = hashtag ? 'hashtag' : tab === 'following' ? 'following' : 'nearby';
+  const feedPlaceIds = useMemo(
+    () => [...new Set(feeds[current].items.map((item) => item.placeId).filter((id): id is string => Boolean(id)))],
+    [current, feeds],
+  );
+  const feedPlaces = usePlacesLive(feedPlaceIds);
   const nearbyPlaceIds = useMemo(
     () => [...new Set(feeds.nearby.items.map((item) => item.placeId).filter((id): id is string => Boolean(id)))].slice(0, 12),
     [feeds.nearby.items],
@@ -279,9 +285,16 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
   // Instagram: the stories row sits at the top of the feed and scrolls away with it, so the posts get the screen.
   const feedTop = (which: Which) => (which === 'hashtag' ? null : (
     <View>
-      <StoryTray auth={auth} onAdd={() => setStoryCamera(true)} onOpen={(item, all) => setStoryView({ authors: all, start: item.authorId })} refresh={refresh.current} reloadKey={trayKey} />
+      {which === 'nearby' ? (
+        <NowAroundStrip
+          leading={<StoryTray auth={auth} mode="mine" onAdd={() => setStoryCamera(true)} onOpen={(item, all) => setStoryView({ authors: all, start: item.authorId })} refresh={refresh.current} reloadKey={trayKey} />}
+          onOpenPlace={onOpenPlace}
+          placeIds={nearbyPlaceIds}
+        />
+      ) : (
+        <StoryTray auth={auth} onAdd={() => setStoryCamera(true)} onOpen={(item, all) => setStoryView({ authors: all, start: item.authorId })} refresh={refresh.current} reloadKey={trayKey} />
+      )}
       {storyNotice ? <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{storyNotice}</Text> : null}
-      {which === 'nearby' ? <NowAroundStrip onOpenPlace={onOpenPlace} placeIds={nearbyPlaceIds} /> : null}
       {which === 'following' ? <Text style={styles.subtitle}>{t('discover.subtitleFollowing')}</Text> : null}
     </View>
   ));
@@ -362,6 +375,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
             onOpenAuthor={(target) => { if (target.authorId) setPerson({ id: target.authorId, userName: target.authorName }); }}
             onReact={(target, reaction) => { void react(target, reaction); }}
             onOpenThread={setThread}
+            placeCategory={item.placeId ? feedPlaces[item.placeId]?.category : null}
             onShare={(target) => setSharing(signalShareOf(target))}
             onShowOnMap={(target) => { void showOnMap(target); }}
           />
@@ -385,7 +399,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
             <SignalThreadPanel
               contextLine={[thread.anonymous ? null : thread.authorName, thread.content || thread.title].filter(Boolean).join(': ') || undefined}
               auth={auth}
-              header={<FeedCard hideActions item={thread} playing videoControls="full" myUserId={auth.userId} onHashtag={openHashtag} onLike={() => {}} onMention={(m) => { setThread(null); setPerson({ id: m.userId, userName: m.userName }); }} onOpenThread={() => {}} />}
+              header={<FeedCard hideActions item={thread} playing videoControls="full" myUserId={auth.userId} onHashtag={openHashtag} onLike={() => {}} onMention={(m) => { setThread(null); setPerson({ id: m.userId, userName: m.userName }); }} onOpenThread={() => {}} placeCategory={thread.placeId ? feedPlaces[thread.placeId]?.category : null} />}
               onClose={() => setThread(null)}
               onHashtag={openHashtag}
               onMention={(m) => { setThread(null); setPerson({ id: m.userId, userName: m.userName }); }}

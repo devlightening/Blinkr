@@ -38,6 +38,16 @@ export type LiveState = {
   /** The signal behind the state, for wording ("Yeni açılış", "Geçici durum"). */
   signalType: string | null;
   signalValue: string | null;
+  /** Only for a closed opening-hours estimate; already expressed in the Place's local time by the server. */
+  nextOpenLocalTime?: string | null;
+};
+
+export type OpeningHoursEstimate = {
+  isOpenNow?: boolean | null;
+  nextOpenAtUtc?: string | null;
+  nextCloseAtUtc?: string | null;
+  timeZoneId?: string | null;
+  nextOpenLocalTime?: string | null;
 };
 
 export const WINDOW_MINUTES = 180;
@@ -99,7 +109,7 @@ export function ageParts(min: number): AgeParts {
 const ageMin = (atUtc: string, nowMs: number) => Math.max(0, (nowMs - Date.parse(atUtc)) / 60000);
 
 const NONE: LiveState = {
-  kind: 'unknown', level: null, freshness: 0, ageMinutes: null, confirmations: 0, isStale: true, source: 'none', signalType: null, signalValue: null,
+  kind: 'unknown', level: null, freshness: 0, ageMinutes: null, confirmations: 0, isStale: true, source: 'none', signalType: null, signalValue: null, nextOpenLocalTime: null,
 };
 
 /**
@@ -118,9 +128,11 @@ export function openByHours(hours: string | null | undefined, now: Date): boolea
   return c >= from && c < to;
 }
 
-function byHours(hoursOpen: boolean | null): LiveState {
+function byHours(hours: boolean | OpeningHoursEstimate | null): LiveState {
+  const hoursOpen = typeof hours === 'boolean' ? hours : hours?.isOpenNow;
+  const nextOpenLocalTime = typeof hours === 'object' ? hours?.nextOpenLocalTime ?? null : null;
   if (hoursOpen === true) return { ...NONE, kind: 'info', isStale: false, source: 'hours' };
-  if (hoursOpen === false) return { ...NONE, kind: 'closed', isStale: false, source: 'hours' };
+  if (hoursOpen === false) return { ...NONE, kind: 'closed', isStale: false, source: 'hours', nextOpenLocalTime };
   return NONE;
 }
 
@@ -131,7 +143,7 @@ export function liveStateFromCurrent(
     observedAtUtc?: string | null; expiresAtUtc?: string | null; activeSignalCount?: number | null;
   } | null | undefined,
   nowMs: number,
-  hoursOpen: boolean | null = null,
+  hoursOpen: boolean | OpeningHoursEstimate | null = null,
 ): LiveState {
   if (!current?.signalType || !current.observedAtUtc || current.freshness === 'NONE') return byHours(hoursOpen);
   if (current.expiresAtUtc && Date.parse(current.expiresAtUtc) <= nowMs) return byHours(hoursOpen);
@@ -146,8 +158,16 @@ export function liveStateFromCurrent(
   };
 }
 
+/** The one entry point screens use for a Place: verified live state wins, catalogue hours are only a fallback. */
+export function liveStateFromPlace(
+  place: { currentState?: Parameters<typeof liveStateFromCurrent>[0]; openingHours?: OpeningHoursEstimate | null } | null | undefined,
+  nowMs: number,
+): LiveState {
+  return liveStateFromCurrent(place?.currentState, nowMs, place?.openingHours ?? null);
+}
+
 /** Client-side fallback from raw signals (see the note at the top: not the server's weighting). */
-export function computeLiveState(signals: LiveSignal[], nowMs: number, hoursOpen: boolean | null = null): LiveState {
+export function computeLiveState(signals: LiveSignal[], nowMs: number, hoursOpen: boolean | OpeningHoursEstimate | null = null): LiveState {
   const live = signals.filter((s) => s.verified && Number.isFinite(Date.parse(s.atUtc)) && ageMin(s.atUtc, nowMs) <= WINDOW_MINUTES
     && !(s.expiresAtUtc && Date.parse(s.expiresAtUtc) <= nowMs));
 

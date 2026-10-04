@@ -1,4 +1,4 @@
-import { kindFromSignal, liveStateFromCurrent, matchesNowFilters, type LiveKind, type NowFilter } from './live/liveState';
+import { kindFromSignal, liveStateFromPlace, matchesNowFilters, type LiveKind, type NowFilter } from './live/liveState';
 import { isFresh } from './productPresentation';
 import type { BlinkrPlace, CoordinateSignal } from './types';
 
@@ -48,7 +48,7 @@ export function filterByNow(
   if (filters.size === 0) return { places: [...selection.places], signals: [...selection.signals] };
   const signalKind: Partial<Record<NowFilter, LiveKind>> = { calm: 'calm', event: 'event', deal: 'deal' };
   return {
-    places: selection.places.filter((place) => matchesNowFilters(liveStateFromCurrent(place.currentState, now), filters)),
+    places: selection.places.filter((place) => matchesNowFilters(liveStateFromPlace(place, now), filters)),
     signals: selection.signals.filter((signal) => {
       const kind = kindFromSignal(signal.signalType, signal.signalValue);
       return [...filters].some((f) => signalKind[f] !== undefined && signalKind[f] === kind);

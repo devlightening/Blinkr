@@ -7,7 +7,8 @@ public sealed record DiscoveredPlace(
     string Category,
     double Latitude,
     double Longitude,
-    string? DisplayAddress);
+    string? DisplayAddress,
+    string? OpeningHours = null);
 
 public enum PlaceDiscoveryStatus
 {
@@ -40,7 +41,8 @@ public sealed record NearbyPlaceDto(
     double DistanceMeters,
     CurrentPlaceStateDto CurrentState,
     string? ExternalProvider = null,
-    string? ExternalId = null);
+    string? ExternalId = null,
+    OpeningHoursDto? OpeningHours = null);
 
 public sealed class PlaceDiscoveryOptions
 {

@@ -1,6 +1,6 @@
 import {
   clusterMix, compareByLiveness, computeLiveState, freshnessFromAge, ageParts, kindFromSignal, levelFromSignal,
-  liveRenderKey, liveStateFromCurrent, liveStateKey, matchesNowFilters, openByHours, shouldPulse, type LiveSignal, type NowFilter,
+  liveRenderKey, liveStateFromCurrent, liveStateFromPlace, liveStateKey, matchesNowFilters, openByHours, shouldPulse, type LiveSignal, type NowFilter,
 } from '../src/live/liveState';
 
 function check(value: unknown, message: string) { if (!value) throw new Error(message); }
@@ -59,6 +59,10 @@ run('server summary -> ring: verified, unexpired, within 3 h; anything else is n
   eq(liveStateFromCurrent({ signalType: 'GeneralObservation', signalValue: null, freshness: 'FRESH', observedAtUtc: ago(2) }, NOW).source, 'none', 'observation alone has no state');
   const hours = liveStateFromCurrent(null, NOW, true);
   eq([hours.kind, hours.source], ['info', 'hours'], 'falls back to hours (dashed)');
+  const scheduled = liveStateFromPlace({ currentState: null, openingHours: { isOpenNow: false, nextOpenLocalTime: '09:00' } }, NOW);
+  eq([scheduled.kind, scheduled.source, scheduled.nextOpenLocalTime], ['closed', 'hours', '09:00'], 'place hours preserve the next local opening time');
+  const liveWins = liveStateFromPlace({ currentState: { signalType: 'Crowd', signalValue: 'Calm', freshness: 'FRESH', observedAtUtc: ago(4) }, openingHours: { isOpenNow: false } }, NOW);
+  eq([liveWins.kind, liveWins.source], ['calm', 'live'], 'verified live state wins over catalogue hours');
 });
 
 run('client fallback: verified only, one vote per person, fresh beats old, ties go cautious', () => {

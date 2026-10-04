@@ -1,6 +1,6 @@
 import { formatCategory } from './presentation';
 import { liveA11yLabel } from './live/liveLabels';
-import { liveStateFromCurrent, type LiveState } from './live/liveState';
+import { liveStateFromPlace, type LiveState } from './live/liveState';
 import type { BlinkrPlace, ChatMessage, PlaceShare } from './types';
 import { tx } from './i18n/tx';
 
@@ -29,7 +29,7 @@ export type PlaceCard = {
   /** The live name from the place service when known; the sender's snapshot otherwise. */
   name: string;
   category: string;
-  /** The ring: the same `liveStateFromCurrent` every screen uses, so the bubble never disagrees with the map. */
+  /** The ring: the same Place state resolver every screen uses, so the bubble never disagrees with the map. */
   state: LiveState;
   /** True once the place service has answered for this place (so "no live info" is a fact, not a guess). */
   known: boolean;
@@ -43,7 +43,7 @@ export type PlaceCard = {
 export const placeCard = (share: PlaceShare, place: BlinkrPlace | null | undefined, nowMs: number = Date.now()): PlaceCard => ({
   name: place?.name || share.name,
   category: formatCategory(place?.category ?? share.category),
-  state: liveStateFromCurrent(place?.currentState, nowMs),
+  state: liveStateFromPlace(place, nowMs),
   known: Boolean(place),
 });
 

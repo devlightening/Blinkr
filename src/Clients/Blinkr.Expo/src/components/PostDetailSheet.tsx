@@ -12,7 +12,7 @@ import type { ReportReasonId } from '../friends';
 import { placeSensitivity } from '../placeSafety';
 import { recheckSignal, trustLabel } from '../productPresentation';
 import { liveA11yLabel, stateLabel, stateSummary, trustLine } from '../live/liveLabels';
-import { isEstimated, liveStateFromCurrent } from '../live/liveState';
+import { isEstimated, liveStateFromPlace } from '../live/liveState';
 import { AnimatedPressable } from './AnimatedPressable';
 import { ReportPanel } from './ReportPanel';
 import { ShareToChatPanel } from './chat/ShareToChatSheet';
@@ -208,7 +208,7 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
 
   const distance = place ? formatDistance(place.distanceMeters) : '';
   // The ring comes from the server's verified summary only (the same rule as every other screen).
-  const live = liveStateFromCurrent(state, Date.now());
+  const live = liveStateFromPlace(place, Date.now());
   const hasLive = live.source === 'live';
   const estimated = isEstimated(live);
 

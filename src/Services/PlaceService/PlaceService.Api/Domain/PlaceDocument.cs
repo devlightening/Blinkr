@@ -16,6 +16,9 @@ public sealed class PlaceDocument
     public string? GeometryWkt { get; set; }
     public GeoJsonPoint<GeoJson2DGeographicCoordinates> Location { get; set; } = null!;
     public string? DisplayAddress { get; set; }
+    /// <summary>Raw OSM opening_hours value. It is only presented as an estimate when the server can parse it safely.</summary>
+    [BsonIgnoreIfNull]
+    public string? OpeningHours { get; set; }
     public string Source { get; set; } = "Manual";
     [BsonIgnoreIfNull]
     public string? ExternalProvider { get; set; }

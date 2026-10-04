@@ -31,7 +31,7 @@ import { MapSearchOverlay } from './map/MapSearchOverlay';
 import { UserProfileSheet } from './friends/UserProfileSheet';
 import { selectMapData, filterByNow, type MapLayer } from '../mapSelection';
 import { clusterMapPoints, regionToZoom, zoomToLongitudeDelta, type ClusterBucket, type RenderableMapCluster } from '../mapClusters';
-import { compareByLiveness, liveRenderKey, liveStateFromCurrent, liveStateKey, type LiveState, type NowFilter } from '../live/liveState';
+import { compareByLiveness, liveRenderKey, liveStateFromPlace, liveStateKey, type LiveState, type NowFilter } from '../live/liveState';
 import { pinTagParts } from '../live/liveLabels';
 import { NearbyNowSheet, type NearbyNowItem } from './live/NearbyNowSheet';
 import { QuickSignalSheet, type QuickMedia, type QuickNoPlaceReason, type QuickPresence } from './live/QuickSignalSheet';
@@ -186,7 +186,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
   const placeStates = useMemo(() => {
     const next = new Map<string, LiveState>();
     for (const place of places) {
-      const state = liveStateFromCurrent(place.currentState, now);
+      const state = liveStateFromPlace(place, now);
       const previous = liveCache.current.get(place.id);
       next.set(place.id, previous && liveStateKey(previous) === liveStateKey(state) ? previous : state);
     }
@@ -231,6 +231,12 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
     })
     .sort(compareByLiveness)
     .slice(0, NEARBY_NOW_MAX), [visiblePlaces, placeStates, region]);
+  const nearbyAreaName = useMemo(() => {
+    const address = nearbyNow.find((item) => item.place.displayAddress?.trim())?.place.displayAddress;
+    if (!address) return null;
+    const parts = address.split(',').map((part) => part.trim()).filter(Boolean);
+    return parts.slice(Math.max(0, parts.length - 2)).join(', ');
+  }, [nearbyNow]);
   const [nearbyNowHeight, setNearbyNowHeight] = useState(0);
 
   const visibleItemCount = visiblePlaces.length + visibleSignals.length;
@@ -1168,7 +1174,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
         userName={auth.userName}
       />
 
-      {showNearbyNow ? <NearbyNowSheet bottom={bottomBarClearance(insets.bottom)} items={nearbyNow} onHeight={setNearbyNowHeight} onOpen={openPlaceDetailAfterTouch} onShowList={onShowList} /> : null}
+      {showNearbyNow ? <NearbyNowSheet areaName={nearbyAreaName} bottom={bottomBarClearance(insets.bottom)} items={nearbyNow} onHeight={setNearbyNowHeight} onOpen={openPlaceDetailAfterTouch} onShowList={onShowList} /> : null}
       {!isComposerOpen ? <ShareProgressChip bottom={bottomBarClearance(insets.bottom) + 8 + nowOffset} items={outbox.items} onDiscard={outbox.discard} onRetry={outbox.retry} /> : null}
       {(success || error) && (
         <Animated.View entering={FadeIn.duration(motion.base)} style={[styles.toast, error ? styles.errorToast : styles.successToast, { bottom: bottomBarClearance(insets.bottom) + 8 + nowOffset + (outbox.items.length > 0 ? 60 : 0) }]}>
@@ -1198,7 +1204,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
                 id: quickPlace.id,
                 name: quickPlace.name,
                 category: quickPlace.category,
-                state: liveStateFromCurrent(quickPlace.currentState, now),
+                state: liveStateFromPlace(quickPlace, now),
               } : null}
               presence={quickPresence}
               submitting={quickSending}

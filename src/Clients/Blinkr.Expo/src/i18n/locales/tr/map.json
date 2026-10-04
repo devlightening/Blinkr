@@ -29,6 +29,7 @@
     "walk": "Yürüme mesafesi",
     "minChars": "Aramak için en az {{n}} harf yaz.",
     "noneMatch": "Bu filtrelere uyan yer yok.",
+    "resultSummary": "{{n}} yer · “{{query}}” · açık olanlar önce",
     "legendSolid": "Dolu halka: yerinde doğrulanmış canlı bilgi; halka boşaldıkça bilgi eskir."
   },
   "scan": {

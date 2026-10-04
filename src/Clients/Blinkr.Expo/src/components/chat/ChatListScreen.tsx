@@ -4,7 +4,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ban, Bell, BellOff, Camera, CheckCheck, Flag, MessageCircle, Pin, PinOff, Search, SquarePen, UserPlus, UserRound, WifiOff, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { blockUser, getUsersBatch, listBlocks, listConversations, listFriends, markConversationRead, searchUsers, sendReport, startConversation, updateConversationPreferences } from '../../api';
+import { blockUser, getUsersBatch, listBlocks, listConversations, listFriendRequests, listFriends, markConversationRead, searchUsers, sendReport, startConversation, updateConversationPreferences } from '../../api';
 import { MAX_PINNED, PEOPLE_QUERY_MIN, canMarkRead, filterConversations, hasAttentionUnread, orderConversations, otherPeople, pinnedCount, unreadBadge } from '../../chatList';
 import { success } from '../../haptics';
 import { formatAge } from '../../presentation';
@@ -15,12 +15,13 @@ import { Sheet } from '../Sheet';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
 import { SkeletonList } from '../ui/BlinkrSkeleton';
 import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
+import { SegmentedControl } from '../ui/BlinkrSegmentedControl';
 import { bottomBarClearance } from '../ui/BlinkrBottomBar';
 import { FriendsScreen } from '../friends/FriendsScreen';
 import { UserProfileSheet } from '../friends/UserProfileSheet';
 import { UserSearchSheet } from './UserSearchSheet';
 import { ConversationScreen } from './ConversationScreen';
-import { colors, motion, radii, sizes, spacing, typography } from '../../theme';
+import { colors, liveColors, motion, radii, sizes, spacing, typography } from '../../theme';
 import type { AuthResponse, BlinkrPlace, Conversation, Friend, UserSummary } from '../../types';
 import { Avatar } from '../Avatar';
 import { conversationLabel, conversationStatus } from '../../snapPresentation';
@@ -32,6 +33,10 @@ import { tx } from '../../i18n/tx';
 import { pollIntervalMs } from '../../realtimePolicy';
 import { useRealtimeEvent, useRealtimeLive } from '../../useRealtime';
 import { PushScreen, type PushScreenHandle } from '../ui/PushScreen';
+import { usePlacesLive } from '../../usePlacesLive';
+import { liveStateFromPlace } from '../../live/liveState';
+import { stateLabel } from '../../live/liveLabels';
+import { PlaceSymbol } from '../PlaceSymbol';
 
 const POLL_INTERVAL_MS = 8000;
 const BLOCKS_MAX_AGE_MS = 5 * 60_000;
@@ -74,6 +79,8 @@ type Props = {
 
 /** The row's long-press menu (doc S4) walks through these views inside one sheet. */
 type MenuView = 'actions' | 'confirmBlock' | 'report';
+type ChatTab = 'messages' | 'snap' | 'requests';
+type FriendsTab = 'add' | 'requests';
 
 /**
  * The chat list, laid out like Snapchat's (doc §3.2): my avatar, search, add friend and new chat on the top row with
@@ -91,11 +98,19 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
   const [blockedIds, setBlockedIds] = useState<Set<string>>(() => new Set());
   const [profileUser, setProfileUser] = useState<UserSummary | null>(null);
   const conversations = useMemo(() => orderConversations(allConversations.filter((item) => !blockedIds.has(item.otherUserId))), [allConversations, blockedIds]);
+  const lastPlaceIds = useMemo(
+    () => [...new Set(conversations.map((item) => item.lastMessagePlace?.placeId).filter((id): id is string => Boolean(id)))],
+    [conversations],
+  );
+  const lastPlaces = usePlacesLive(lastPlaceIds);
   const [isLoading, setLoading] = useState(true);
   const [isRefreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [chatTab, setChatTab] = useState<ChatTab>('messages');
+  const [friendRequestCount, setFriendRequestCount] = useState(0);
   const [isNewMessageOpen, setNewMessageOpen] = useState(false);
   const [isFriendsOpen, setFriendsOpen] = useState(false);
+  const [friendsInitialTab, setFriendsInitialTab] = useState<FriendsTab>('add');
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
   const [flow, setFlow] = useState<SnapFlowRequest | null>(null);
   const [viewing, setViewing] = useState<{ conversation: Conversation; messageId: string } | null>(null);
@@ -121,6 +136,14 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
   // retried on every poll; it is tried again the next time the screen is opened.
   const requestedNames = useRef(new Set<string>());
   const refreshHandlers = useMemo(() => ({ onAuthRefresh: onAuthChange, onSessionExpired }), [onAuthChange, onSessionExpired]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    listFriendRequests(auth, controller.signal, refreshHandlers)
+      .then((requests) => { if (!controller.signal.aborted) setFriendRequestCount(requests.incoming.length); })
+      .catch(() => { /* Conversation loading remains independent from the request badge. */ });
+    return () => controller.abort();
+  }, [auth.token, auth.userId, refreshHandlers]);
 
   const rememberUser = useCallback((user: UserSummary) => {
     userNameCache.set(user.id, user.userName);
@@ -350,10 +373,11 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
       {isFriendsOpen ? (
         <FriendsScreen
           auth={auth}
-          initialTab="add"
+          initialTab={friendsInitialTab}
           onAuthChange={onAuthChange}
-          onBack={() => setFriendsOpen(false)}
-          onMessage={(user) => { setFriendsOpen(false); void openConversationWith(user); }}
+          onBack={() => { setFriendsOpen(false); if (chatTab === 'requests') setChatTab('messages'); }}
+          onCountsChange={(counts) => setFriendRequestCount(counts.incoming)}
+          onMessage={(user) => { setFriendsOpen(false); setChatTab('messages'); void openConversationWith(user); }}
           onSessionExpired={onSessionExpired}
         />
       ) : null}
@@ -404,10 +428,17 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
 
   const conversationPage = useRef<PushScreenHandle>(null);
   const shown = useMemo(
-    () => (isSearching ? filterConversations(conversations, (id) => (userNameCache.has(id) ? { userName: userNameCache.get(id), displayName: userDisplayCache.get(id) } : undefined), query) : conversations),
+    () => {
+      const byTab = !isSearching && chatTab === 'snap'
+        ? conversations.filter((item) => item.lastMessageKind === 'snap')
+        : conversations;
+      return isSearching
+        ? filterConversations(byTab, (id) => (userNameCache.has(id) ? { userName: userNameCache.get(id), displayName: userDisplayCache.get(id) } : undefined), query)
+        : byTab;
+    },
     // `names` changes whenever the caches learn someone new.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [conversations, isSearching, query, names],
+    [chatTab, conversations, isSearching, query, names],
   );
   const others = useMemo(() => otherPeople(people, conversations, auth.userId), [people, conversations, auth.userId]);
   const searchActive = isSearching && query.trim().length > 0;
@@ -417,6 +448,16 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
     const status = conversationStatus(item, auth.userId);
     const when = formatAge(item.lastMessageAtUtc);
     const badge = unreadBadge(item.unreadCount);
+    const placeSnapshot = item.lastMessagePlace;
+    const resolvedPlace = placeSnapshot ? lastPlaces[placeSnapshot.placeId] : undefined;
+    const placeState = placeSnapshot ? liveStateFromPlace(resolvedPlace, Date.now()) : null;
+    const placeName = resolvedPlace?.name || placeSnapshot?.name;
+    const placeStateText = placeState
+      ? placeState.source === 'none' ? tx('chat:place.noLive', 'Güncel bilgi yok') : stateLabel(placeState)
+      : '';
+    const rowLabel = badge
+      ? `${conversationLabel(name, status, when)}. ${tx('chat:list.unreadA11y', '{{count}} okunmamış', { count: item.unreadCount ?? 0 })}`
+      : conversationLabel(name, status, when);
     const openRow = () => {
       closeSearch();
       // Like Snapchat: a waiting snap opens straight into the viewer; everything else opens the conversation.
@@ -428,7 +469,7 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
         <View style={styles.row}>
           <AnimatedPressable
             accessibilityHint={tx('chat:list.menuHint', 'Seçenekler için basılı tut')}
-            accessibilityLabel={badge ? `${conversationLabel(name, status, when)}. ${tx('chat:list.unreadA11y', '{{count}} okunmamış', { count: item.unreadCount ?? 0 })}` : conversationLabel(name, status, when)}
+            accessibilityLabel={placeName ? `${rowLabel}. ${placeName}. ${placeStateText}` : rowLabel}
             accessibilityRole="button"
             delayLongPress={350}
             onLongPress={() => openMenu(item)}
@@ -446,6 +487,13 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
                 <SnapStatusIcon filled={status.filled} icon={status.icon} tone={status.tone} />
                 <Text numberOfLines={1} style={[styles.status, { color: status.tone === 'quiet' ? colors.textSecondary : statusColor(status.tone) }, status.filled && styles.statusNew]}>{status.label}</Text>
               </View>
+              {placeSnapshot && placeName && placeState ? (
+                <View style={styles.placeLine} testID={`conversation-place-${item.id}`}>
+                  <PlaceSymbol category={resolvedPlace?.category ?? placeSnapshot.category} color={placeState.source === 'none' ? colors.textSecondary : liveColors[placeState.kind]} size={13} />
+                  <Text numberOfLines={1} style={styles.placeName}>{placeName}</Text>
+                  <Text numberOfLines={1} style={[styles.placeState, { color: placeState.source === 'none' ? colors.textSecondary : liveColors[placeState.kind] }]}>· {placeStateText}</Text>
+                </View>
+              ) : null}
             </View>
             <View style={styles.rowEnd}>
               <Text style={styles.when}>{when}</Text>
@@ -511,7 +559,7 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
       </View>
       <Text accessibilityRole="header" style={styles.title}>{tx('chat:list.title', 'Sohbet')}</Text>
       <View style={[styles.headerSide, styles.headerRight]}>
-        <AnimatedPressable accessibilityLabel={tx('chat:list.addFriend', 'Arkadaş ekle')} accessibilityRole="button" onPress={() => { closeSearch(); setFriendsOpen(true); }} pressScale={0.95} style={styles.headerButton}>
+        <AnimatedPressable accessibilityLabel={tx('chat:list.addFriend', 'Arkadaş ekle')} accessibilityRole="button" onPress={() => { closeSearch(); setFriendsInitialTab('add'); setFriendsOpen(true); }} pressScale={0.95} style={styles.headerButton}>
           <UserPlus color={colors.text} size={20} />
         </AnimatedPressable>
         <AnimatedPressable accessibilityLabel={tx('chat:list.newMessage', 'Yeni mesaj')} accessibilityRole="button" onPress={() => setNewMessageOpen(true)} pressScale={0.95} style={[styles.headerButton, styles.newButton]}>
@@ -549,6 +597,27 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
       </View>
     ) : null}
 
+    {!isSearching ? (
+      <View style={styles.tabs}>
+        <SegmentedControl<ChatTab>
+          accessibilityLabel={tx('chat:list.tabsA11y', 'Sohbet görünümü')}
+          onChange={(next) => {
+            setChatTab(next);
+            if (next === 'requests') {
+              setFriendsInitialTab('requests');
+              setFriendsOpen(true);
+            }
+          }}
+          options={[
+            { value: 'messages', label: tx('chat:list.tabMessages', 'Mesajlar') },
+            { value: 'snap', label: tx('chat:list.tabSnap', 'Snap') },
+            { value: 'requests', label: friendRequestCount > 0 ? tx('chat:list.tabRequestsCount', 'İstekler · {{count}}', { count: friendRequestCount }) : tx('chat:list.tabRequests', 'İstekler') },
+          ]}
+          value={chatTab}
+        />
+      </View>
+    ) : null}
+
     {isLoading ? (
       <SkeletonList rows={6} style={styles.skeleton} />
     ) : error ? (
@@ -570,7 +639,7 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
       ) : (
         <View style={styles.centerFill}>
           <BlinkrEmptyState
-            action={{ label: tx('chat:list.addFriend', 'Arkadaş ekle'), onPress: () => setFriendsOpen(true), icon: <UserPlus color={colors.ink} size={18} /> }}
+            action={{ label: tx('chat:list.addFriend', 'Arkadaş ekle'), onPress: () => { setFriendsInitialTab('add'); setFriendsOpen(true); }, icon: <UserPlus color={colors.ink} size={18} /> }}
             description={tx('chat:list.emptyHint', 'Bir kullanıcı bul ve konuşmaya başla.')}
             icon={<MessageCircle color={colors.textSecondary} size={26} />}
             title={tx('chat:list.empty', 'Henüz mesajın yok')}
@@ -580,6 +649,15 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
     ) : (
       <FlatList
         ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListEmptyComponent={chatTab === 'snap' ? (
+          <BlinkrEmptyState
+            action={{ label: tx('chat:list.sendSnap', 'Snap gönder'), onPress: () => setFlow({ mode: 'compose' }), icon: <Camera color={colors.ink} size={18} /> }}
+            description={tx('chat:list.emptySnapHint', 'Son Snap konuşmaların burada görünür.')}
+            icon={<Camera color={colors.textSecondary} size={28} />}
+            style={styles.emptyTab}
+            title={tx('chat:list.emptySnap', 'Henüz Snap yok')}
+          />
+        ) : null}
         ListFooterComponent={searchFooter}
         contentContainerStyle={[styles.list, { paddingBottom: bottomBarClearance(insets.bottom) + spacing.lg }]}
         data={shown}
@@ -704,11 +782,13 @@ const styles = StyleSheet.create({
   headerButton: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 38, justifyContent: 'center', width: 38 },
   newButton: { backgroundColor: colors.primaryTint },
   title: { ...typography.title, color: colors.text, textAlign: 'center' },
+  tabs: { paddingBottom: spacing.sm, paddingHorizontal: spacing.lg },
   searchRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, paddingBottom: spacing.sm, paddingHorizontal: spacing.lg },
   searchField: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, flex: 1, flexDirection: 'row', gap: spacing.sm, height: 40, paddingHorizontal: spacing.md },
   searchInput: { ...typography.body, color: colors.text, flex: 1, paddingVertical: 0 },
   cancel: { ...typography.callout, color: colors.primary, fontWeight: '600' },
   centerFill: { flex: 1, justifyContent: 'center' },
+  emptyTab: { marginTop: spacing.xl },
   skeleton: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   list: { paddingTop: spacing.xs },
   separator: { backgroundColor: colors.border, height: StyleSheet.hairlineWidth, marginLeft: spacing.lg + AVATAR_SIZE + ROW_GAP },
@@ -721,6 +801,9 @@ const styles = StyleSheet.create({
   name: { ...typography.heading, flexShrink: 1, color: colors.text, fontSize: 16, fontWeight: '500', lineHeight: 21 },
   nameUnread: { fontWeight: '700' },
   statusLine: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+  placeLine: { alignItems: 'center', flexDirection: 'row', gap: 4, minWidth: 0 },
+  placeName: { ...typography.micro, color: colors.textSecondary, flexShrink: 1, maxWidth: '48%' },
+  placeState: { ...typography.micro, flexShrink: 1, fontWeight: '700' },
   status: { ...typography.caption, flexShrink: 1 },
   statusNew: { fontWeight: '700' },
   when: { ...typography.caption, color: colors.textSecondary },

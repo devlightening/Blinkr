@@ -25,6 +25,16 @@ PlaceSignalDocument Signal(string? trust, string value) => new() { PostId = Guid
 var calculator = new CurrentPlaceStateCalculator();
 Check(calculator.Calculate([Signal("NEARBY_PLACE_POST", "Busy")], now).ActiveSignalCount == 0, "nearby excluded from live state");
 Check(calculator.Calculate([Signal(null, "Busy")], now).ActiveSignalCount == 0, "legacy unproven events fail closed");
+
+var hours = new OpeningHoursCalculator();
+var monday0830Utc = new DateTime(2026, 10, 5, 5, 30, 0, DateTimeKind.Utc); // 08:30 in Turkey
+Check(hours.Calculate("Mo-Fr 08:00-18:00; Sa 10:00-14:00; Su off", monday0830Utc)?.IsOpenNow == true, "weekly opening hours are open in place time");
+var monday1900Utc = new DateTime(2026, 10, 5, 16, 0, 0, DateTimeKind.Utc); // 19:00 in Turkey
+var nextOpen = hours.Calculate("Mo-Fr 08:00-18:00; Sa 10:00-14:00; Su off", monday1900Utc);
+Check(nextOpen?.IsOpenNow == false && nextOpen.NextOpenAtUtc == new DateTime(2026, 10, 6, 5, 0, 0, DateTimeKind.Utc), "closed hours include the next opening instant");
+Check(hours.Calculate("18:00-02:00", new DateTime(2026, 10, 4, 22, 0, 0, DateTimeKind.Utc))?.IsOpenNow == true, "overnight opening hours span midnight");
+Check(hours.Calculate("24/7", now)?.IsOpenNow == true, "24/7 is always open");
+Check(hours.Calculate("Mo-Fr sunrise-sunset", now)?.IsOpenNow is null, "unsupported hours remain unknown rather than guessed");
 var state = calculator.Calculate([Signal("VERIFIED_LIVE", "Calm"), Signal("NEARBY_PLACE_POST", "Busy")], now);
 Check(state.ActiveSignalCount == 1 && state.SignalValue == "Calm", "verified state unaffected by nearby content");
 

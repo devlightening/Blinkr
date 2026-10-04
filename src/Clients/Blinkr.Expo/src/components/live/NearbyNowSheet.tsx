@@ -18,8 +18,10 @@ const CARD_WIDTH = 288;
  * "Yakınında şu an" (v4 brief §3.1): a low panel over the map with the places that have live information in view,
  * fresh first, then nearest (the caller sorts). It folds down to its header so the map stays usable.
  */
-export const NearbyNowSheet = memo(function NearbyNowSheet({ items, bottom, onOpen, onShowList, onHeight }: {
+export const NearbyNowSheet = memo(function NearbyNowSheet({ items, areaName, bottom, onOpen, onShowList, onHeight }: {
   items: NearbyNowItem[]; bottom: number; onOpen: (place: BlinkrPlace) => void; onShowList?: () => void;
+  /** Short catalogue address (for example "Fatih, Osmaniye"); exact device coordinates are never shown. */
+  areaName?: string | null;
   /** Toasts and the share chip sit above the panel. */
   onHeight?: (height: number) => void;
 }) {
@@ -41,7 +43,11 @@ export const NearbyNowSheet = memo(function NearbyNowSheet({ items, bottom, onOp
         >
           <View style={styles.titleText}>
             <Text numberOfLines={1} style={styles.title}>{tx('live:nearbyNow', 'Yakınında şu an')}</Text>
-            <Text numberOfLines={1} style={styles.subtitle}>{tx('live:nearbyCount', '{{n}} yer canlı', { n: items.length })}</Text>
+            <Text numberOfLines={1} style={styles.subtitle}>
+              {areaName
+                ? tx('live:nearbyAreaCount', '{{area}} · {{n}} yer canlı', { area: areaName, n: items.length })
+                : tx('live:nearbyCount', '{{n}} yer canlı', { n: items.length })}
+            </Text>
           </View>
           {folded ? <ChevronUp color={colors.textSecondary} size={20} /> : <ChevronDown color={colors.textSecondary} size={20} />}
         </AnimatedPressable>

@@ -9,7 +9,7 @@ import { badgeText } from '../friends';
 import { formatCategory } from '../presentation';
 import { friendlyError } from '../productPresentation';
 import { listSavedPlaces, toPlace, type SavedPlace } from '../savedPlaces';
-import { compareByLiveness, liveStateFromCurrent } from '../live/liveState';
+import { compareByLiveness, liveStateFromPlace } from '../live/liveState';
 import { usePlacesLive } from '../usePlacesLive';
 import { fromAuthoredPost } from '../signalCard';
 import { categoryTone, colors, radii, shadowSoft, sizes, spacing, typography } from '../theme';
@@ -32,6 +32,7 @@ import { BlinkrButton } from './ui/BlinkrButton';
 import { bottomBarClearance } from './ui/BlinkrBottomBar';
 import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
 import { SkeletonList } from './ui/BlinkrSkeleton';
+import { GradientRing } from './ui/GradientRing';
 import { tx } from '../i18n/tx';
 import { displayLocale } from '../i18n/locale';
 import { profileCompletion, type CompletionStep } from '../profileCompletion';
@@ -250,7 +251,7 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
     <View style={styles.card}>
       <Text style={styles.cardHint}>{t('saved.synced')}</Text>
       {saved
-        .map((place, index) => ({ place, index, state: liveStateFromCurrent(savedPlaces[place.id]?.currentState, Date.now()) }))
+        .map((place, index) => ({ place, index, state: liveStateFromPlace(savedPlaces[place.id], Date.now()) }))
         .sort((x, y) => compareByLiveness(x, y) || x.index - y.index)
         .map(({ place, state }) => {
         return (
@@ -317,7 +318,9 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
 
         <View style={styles.identityTop}>
           <AnimatedPressable accessibilityLabel={tx('profile:photo.change', 'Profil fotoğrafını değiştir')} accessibilityRole="button" onPress={() => setEditOpen(true)} pressScale={0.97} style={styles.avatarButton}>
-            <Avatar avatarKey={auth.avatarKey} photoVersion={photoVersion} seed={auth.userId} userId={auth.userId} size={AVATAR} />
+            <GradientRing gapColor={colors.background} size={AVATAR_FRAME} thickness={3}>
+              <Avatar avatarKey={auth.avatarKey} photoVersion={photoVersion} seed={auth.userId} userId={auth.userId} size={AVATAR} />
+            </GradientRing>
             <View style={styles.avatarEdit}><Pencil color={colors.ink} size={12} strokeWidth={2.6} /></View>
           </AnimatedPressable>
           <View style={styles.stats}>
@@ -455,6 +458,7 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
 }
 
 const AVATAR = 84;
+const AVATAR_FRAME = AVATAR + 8;
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.background, flex: 1 },
@@ -470,7 +474,7 @@ const styles = StyleSheet.create({
   handle: { ...typography.headline, color: colors.text, flexShrink: 1 },
   iconButton: { alignItems: 'center', height: sizes.touch, justifyContent: 'center', width: sizes.touch },
   identityTop: { alignItems: 'center', flexDirection: 'row', gap: spacing.lg, marginTop: spacing.xs },
-  avatarButton: { height: AVATAR, width: AVATAR },
+  avatarButton: { height: AVATAR_FRAME, width: AVATAR_FRAME },
   avatarEdit: { alignItems: 'center', backgroundColor: colors.primary, borderColor: colors.background, borderRadius: radii.pill, borderWidth: 2, bottom: 0, height: 26, justifyContent: 'center', position: 'absolute', right: 0, width: 26 },
   stats: { alignItems: 'center', flex: 1, flexDirection: 'row', justifyContent: 'space-around' },
   stat: { alignItems: 'center', gap: 1, minWidth: 64 },

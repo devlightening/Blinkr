@@ -29,6 +29,7 @@
     "walk": "Walking distance",
     "minChars": "Type at least {{n}} letters to search.",
     "noneMatch": "No place matches these filters.",
+    "resultSummary": "{{n}} places · “{{query}}” · open first",
     "legendSolid": "Solid ring: live information verified on site; the ring empties as it gets older."
   },
   "scan": {

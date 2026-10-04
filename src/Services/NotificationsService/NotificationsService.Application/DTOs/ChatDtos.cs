@@ -12,7 +12,8 @@ public record ConversationDto(
     string? LastMessageId = null,
     bool IsPinned = false,
     DateTime? PinnedAtUtc = null,
-    bool IsMuted = false
+    bool IsMuted = false,
+    PlaceShareDto? LastMessagePlace = null
 );
 
 /// <summary>My own settings for one conversation after a change (doc S3/S5).</summary>

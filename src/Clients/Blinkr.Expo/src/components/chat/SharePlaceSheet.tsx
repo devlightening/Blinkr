@@ -5,7 +5,7 @@ import { Bookmark, CalendarClock, Search } from 'lucide-react-native';
 import { foldSearchText } from '../../placeSearch';
 import { formatCategory } from '../../presentation';
 import { listSavedPlaces, type SavedPlace } from '../../savedPlaces';
-import { liveStateFromCurrent } from '../../live/liveState';
+import { liveStateFromPlace } from '../../live/liveState';
 import { usePlacesLive } from '../../usePlacesLive';
 import { categoryTone, colors, radii, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
@@ -71,7 +71,7 @@ export function SharePlaceSheet({ userId, onPick, onPropose }: { userId: string;
       ) : (
         <ScrollView keyboardShouldPersistTaps="handled" style={styles.list}>
           {shown.map((place) => {
-            const state = liveStateFromCurrent(live[place.id]?.currentState, Date.now());
+            const state = liveStateFromPlace(live[place.id], Date.now());
             const tone = categoryTone(place.category);
             return (
               <View key={place.id} style={styles.rowWrap}>

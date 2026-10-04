@@ -223,6 +223,9 @@ public sealed class PlaceRepository : IPlaceRepository
                 .Set(p => p.UpdatedAtUtc, now)
                 .Set(p => p.IsActive, true)
                 .SetOnInsert(p => p.CreatedAtUtc, now);
+            update = string.IsNullOrWhiteSpace(discovered.OpeningHours)
+                ? update.Unset(p => p.OpeningHours)
+                : update.Set(p => p.OpeningHours, discovered.OpeningHours.Trim());
 
             await _places.UpdateOneAsync(filter, update, new UpdateOptions { IsUpsert = true }, ct);
             var place = await _places.Find(filter).FirstOrDefaultAsync(ct);

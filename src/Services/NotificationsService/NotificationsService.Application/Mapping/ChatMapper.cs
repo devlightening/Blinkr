@@ -5,7 +5,7 @@ namespace NotificationsService.Application.Mapping;
 
 public static class ChatMapper
 {
-    public static ConversationDto ToDto(this Conversation c, Guid viewerId, int unreadCount = 0, string? lastMessageState = null, ConversationPreference? preference = null) =>
+    public static ConversationDto ToDto(this Conversation c, Guid viewerId, int unreadCount = 0, string? lastMessageState = null, ConversationPreference? preference = null, PlaceShareDto? lastMessagePlace = null) =>
         new(
             c.Id ?? string.Empty,
             c.ParticipantIds.FirstOrDefault(p => p != viewerId),
@@ -18,7 +18,8 @@ public static class ChatMapper
             c.LastMessageId,
             preference?.IsPinned ?? false,
             preference?.PinnedAtUtc,
-            preference?.IsMuted ?? false
+            preference?.IsMuted ?? false,
+            lastMessagePlace
         );
 
     public static ConversationPreferencesDto ToDto(this ConversationPreference p) => new(p.ConversationId, p.IsPinned, p.PinnedAtUtc, p.IsMuted);

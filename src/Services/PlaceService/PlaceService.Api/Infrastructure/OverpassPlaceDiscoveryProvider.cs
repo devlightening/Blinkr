@@ -91,7 +91,15 @@ public sealed class OverpassPlaceDiscoveryProvider : IPlaceDiscoveryProvider
         var category = ReadPrimaryCategory(element.Tags);
         var address = BuildAddress(element.Tags);
 
-        return new DiscoveredPlace("osm", $"{element.Type}/{element.Id}", name, NormalizeCategory(category), lat.Value, lon.Value, address);
+        return new DiscoveredPlace(
+            "osm",
+            $"{element.Type}/{element.Id}",
+            name,
+            NormalizeCategory(category),
+            lat.Value,
+            lon.Value,
+            address,
+            element.Tags.GetValueOrDefault("opening_hours"));
     }
 
     private static string ReadPrimaryCategory(IReadOnlyDictionary<string, string> tags)
