@@ -4,6 +4,7 @@ using PlaceService.Api.Application;
 using PlaceService.Api.Domain;
 using MongoDB.Driver;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
 using NetTopologySuite.IO;
 using System.Net.Http.Json;
 
@@ -17,6 +18,8 @@ Check(!At(900).IsAllowed, "900m browse only");
 Check(At(230, 35).TrustLevel == "VERIFIED_LIVE", "35m accuracy tolerance");
 Check(!At(100, 2000).IsAllowed, "2000m accuracy rejected");
 Check(At(280, 150).TrustLevel == "NEARBY_PLACE_POST", "accuracy allowance capped at 50m");
+var forwardCompatiblePlace = BsonSerializer.Deserialize<PlaceDocument>(new BsonDocument("FutureCatalogField", true));
+Check(forwardCompatiblePlace is not null, "place documents ignore additive catalog fields");
 Check(At(500, 0, "POLYGON ((-0.01 -0.01, 0.01 -0.01, 0.01 0.01, -0.01 0.01, -0.01 -0.01))").TrustLevel == "VERIFIED_LIVE", "inside polygon, distant centroid");
 Check(At(500, 0, "broken").TrustLevel == "NEARBY_PLACE_POST", "malformed geometry point fallback");
 Check(At(500, 0, "POLYGON ((-0.02 -0.02, 0.02 -0.02, 0.02 0.02, -0.02 0.02, -0.02 -0.02), (-0.01 -0.01, -0.01 0.01, 0.01 0.01, 0.01 -0.01, -0.01 -0.01))").TrustLevel != "VERIFIED_LIVE", "polygon hole is not presence");

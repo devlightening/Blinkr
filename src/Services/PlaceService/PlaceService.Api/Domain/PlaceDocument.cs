@@ -4,6 +4,7 @@ using MongoDB.Driver.GeoJsonObjectModel;
 
 namespace PlaceService.Api.Domain;
 
+[BsonIgnoreExtraElements]
 public sealed class PlaceDocument
 {
     [BsonId]

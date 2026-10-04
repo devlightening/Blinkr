@@ -11,6 +11,7 @@
     <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/CurrentPlaceStateCalculator.cs" Link="CurrentPlaceStateCalculator.cs" />
     <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/OpeningHoursCalculator.cs" Link="OpeningHoursCalculator.cs" />
     <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/PlaceDtos.cs" Link="PlaceDtos.cs" />
+    <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Domain/PlaceDocument.cs" Link="PlaceDocument.cs" />
     <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Domain/PlaceSignalDocument.cs" Link="PlaceSignalDocument.cs" />
     <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/PlaceStateChangeDetector.cs" Link="PlaceStateChangeDetector.cs" />
     <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/PlaceRhythmCalculator.cs" Link="PlaceRhythmCalculator.cs" />
