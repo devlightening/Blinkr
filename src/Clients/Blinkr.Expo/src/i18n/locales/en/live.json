@@ -42,7 +42,7 @@
   "tagNew": "New opening",
   "ctaHere": "You are here? Drop a signal",
   "summaryCalm": "Relaxed right now, easy to find a spot.",
-  "summaryBusy": "Lively, but you can still find a spot.",
+  "summaryBusy": "Lively right now.",
   "summaryCrowded": "Crowded right now, expect a wait.",
   "summaryCalmQueue": "No queue right now.",
   "summaryBusyQueue": "A short queue.",
@@ -57,5 +57,6 @@
   "summaryHoursClosed": "Looks closed by opening hours.",
   "summaryNone": "No live info yet. Be the first to report.",
   "lastInfo": "last update {{ago}}",
-  "trustLineN": "{{n}} people reported on site · last update {{ago}}"
+  "trustLineN": "{{n}} people reported on site · last update {{ago}}",
+  "summaryNoneOld": "No live info right now; older reports are below."
 }

@@ -42,7 +42,7 @@
   "tagNew": "Yeni açılış",
   "ctaHere": "Buradasın? Sinyal bırak",
   "summaryCalm": "Şu an rahat, yer bulunur.",
-  "summaryBusy": "Hareketli ama yer bulunur.",
+  "summaryBusy": "Şu an hareketli.",
   "summaryCrowded": "Şu an kalabalık, bekleme olabilir.",
   "summaryCalmQueue": "Şu an sıra yok.",
   "summaryBusyQueue": "Kısa bir sıra var.",
@@ -57,5 +57,6 @@
   "summaryHoursClosed": "Çalışma saatine göre kapalı görünüyor.",
   "summaryNone": "Henüz canlı bilgi yok. İlk sen bildir.",
   "lastInfo": "son bilgi {{ago}}",
-  "trustLineN": "{{n}} kişi yerinde bildirdi · son bilgi {{ago}}"
+  "trustLineN": "{{n}} kişi yerinde bildirdi · son bilgi {{ago}}",
+  "summaryNoneOld": "Şu an canlı bilgi yok; aşağıda eski bildirimler var."
 }

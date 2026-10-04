@@ -31,7 +31,8 @@ import { MapSearchOverlay } from './map/MapSearchOverlay';
 import { UserProfileSheet } from './friends/UserProfileSheet';
 import { selectMapData, filterByNow, type MapLayer } from '../mapSelection';
 import { clusterMapPoints, regionToZoom, zoomToLongitudeDelta, type ClusterBucket, type RenderableMapCluster } from '../mapClusters';
-import { compareByLiveness, liveRenderKey, liveStateFromCurrent, type LiveState, type NowFilter } from '../live/liveState';
+import { compareByLiveness, liveRenderKey, liveStateFromCurrent, liveStateKey, type LiveState, type NowFilter } from '../live/liveState';
+import { pinTagParts } from '../live/liveLabels';
 import { NearbyNowSheet, type NearbyNowItem } from './live/NearbyNowSheet';
 import { lifetimeFraction } from '../markerGeometry';
 import { freshnessOpacity } from '../productPresentation';
@@ -174,14 +175,14 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(timer); }, []);
 
-  // One ring state per place, reused while its render key is unchanged so memoised markers skip re-rendering.
+  // One ring state per place, reused while nothing it shows has changed, so memoised markers and cards skip re-rendering.
   const liveCache = useRef(new Map<string, LiveState>());
   const placeStates = useMemo(() => {
     const next = new Map<string, LiveState>();
     for (const place of places) {
       const state = liveStateFromCurrent(place.currentState, now);
       const previous = liveCache.current.get(place.id);
-      next.set(place.id, previous && liveRenderKey(previous) === liveRenderKey(state) ? previous : state);
+      next.set(place.id, previous && liveStateKey(previous) === liveStateKey(state) ? previous : state);
     }
     liveCache.current = next;
     return next;
@@ -957,7 +958,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
         initialRegion={focusPlace ? { latitude: focusPlace.latitude, longitude: focusPlace.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 } : ISTANBUL_REGION}
         // Android: setting padding before Google Maps is ready crashes natively ("setMapPadding ... null object
         // reference" - seen on an emulator whose Maps module loads slowly), so it waits for onMapReady.
-        mapPadding={mapReady ? { top: chromeTop, right: 14, bottom: bottomBarClearance(insets.bottom), left: 14 } : undefined}
+        mapPadding={mapReady ? { top: chromeTop, right: 14, bottom: bottomBarClearance(insets.bottom) + nowOffset, left: 14 } : undefined}
         onMapReady={() => setMapReady(true)}
         onRegionChangeComplete={handleRegionChangeComplete}
         pitchEnabled={false}
@@ -985,7 +986,12 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
           const state = place ? placeStates.get(place.id) : undefined;
           if (place && state) {
             const tag = selected || showPinTags;
-            return <BlinkrPlaceMarker key={`${item.id}:${liveRenderKey(state)}:${selected ? 1 : 0}:${tag ? 1 : 0}`} onPlace={openPlaceDetailAfterTouch} place={place} selected={selected} showTag={tag} state={state} />;
+            // The key is the picture: ring look, the word and (when the tag is drawn) its age, the selection. A quiet pin
+            // draws no tag, so crossing the tag zoom does not remount it.
+            const parts = pinTagParts(state);
+            const drawn = tag && parts.state.length > 0;
+            const look = `${liveRenderKey(state)}.${parts.state}.${drawn ? parts.age : '-'}.${selected ? 1 : 0}`;
+            return <BlinkrPlaceMarker key={`${item.id}:${look}`} onPlace={openPlaceDetailAfterTouch} place={place} selected={selected} showTag={tag} state={state} />;
           }
           const signal = markerLookup.signals.get(item.id);
           if (!signal) return null;

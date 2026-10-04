@@ -353,14 +353,14 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
 
             <View style={styles.statusCard}>
               <StatusPill estimated={estimated} kind={live.kind} label={stateLabel(live)} size="lg" />
-              <Text style={styles.statusSummary}>{stateSummary(live)}</Text>
+              <Text style={styles.statusSummary}>{stateSummary(live, recentSignals.length > 0)}</Text>
               {hasLive ? (
                 <View style={styles.trustRow}>
                   <ShieldCheck color={liveColors[live.kind]} size={18} />
                   <Text style={styles.trustText}>{trustLine(live)}</Text>
                 </View>
               ) : null}
-              {recheck && onRecheck ? (
+              {recheck && onRecheck && hasLive ? (
                 <View style={styles.recheck}>
                   <Text style={styles.recheckTitle}>{tx('signal:verify.question', 'Hâlâ böyle mi?')}</Text>
                   <Text style={styles.recheckHint}>{tx('signal:place.recheckHint', 'Buradaysan cevabın bu yerin canlı durumunu güncel tutar.')}</Text>

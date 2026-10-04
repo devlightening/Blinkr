@@ -1,6 +1,6 @@
 import {
   clusterMix, compareByLiveness, computeLiveState, freshnessFromAge, ageParts, kindFromSignal, levelFromSignal,
-  liveRenderKey, liveStateFromCurrent, matchesNowFilters, openByHours, shouldPulse, type LiveSignal, type NowFilter,
+  liveRenderKey, liveStateFromCurrent, liveStateKey, matchesNowFilters, openByHours, shouldPulse, type LiveSignal, type NowFilter,
 } from '../src/live/liveState';
 
 function check(value: unknown, message: string) { if (!value) throw new Error(message); }
@@ -127,4 +127,11 @@ run('render key changes with the ring step only; lists put fresh live first, the
     { id: 'near-old', state: at(150), distanceMeters: 50 },
   ].sort(compareByLiveness).map((r) => r.id);
   eq(rows, ['far-fresh', 'near-old', 'near-none'], 'order');
+});
+
+run('state key changes whenever anything shown changes (age in minutes, reporters, the signal), the render key only with the ring', () => {
+  const at = (min: number, n = 2, value = 'Calm') => liveStateFromCurrent({ signalType: 'Crowd', signalValue: value, freshness: 'FRESH', observedAtUtc: ago(min), activeSignalCount: n }, NOW);
+  check(liveRenderKey(at(4)) === liveRenderKey(at(5)) && liveStateKey(at(4)) !== liveStateKey(at(5)), 'age');
+  check(liveStateKey(at(4, 2)) !== liveStateKey(at(4, 3)), 'reporters');
+  eq(liveStateKey(at(4)), liveStateKey(at(4)), 'stable for the same data');
 });

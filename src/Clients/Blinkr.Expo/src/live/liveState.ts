@@ -223,11 +223,12 @@ export function matchesNowFilters(s: LiveState, active: ReadonlySet<NowFilter>):
   return false;
 }
 
-/**
- * A marker's bitmap only changes when its kind, source or ring step changes (tenths of the arc). Used as the marker
- * `key` with tracksViewChanges={false}, so the 60 s freshness tick redraws only the markers that actually changed.
- */
+/** The ring's look: kind, source and ring step (tenths of the arc). Part of a map marker's key. */
 export const liveRenderKey = (s: LiveState) => `${s.kind}.${s.source}.${Math.round(s.freshness * 10)}`;
+
+/** Everything a card or label can show (age in whole minutes, reporters, the signal behind the word). */
+export const liveStateKey = (s: LiveState) =>
+  `${liveRenderKey(s)}.${s.ageMinutes === null ? '' : Math.round(s.ageMinutes)}.${s.confirmations}.${s.signalType ?? ''}.${s.signalValue ?? ''}`;
 
 /** Lists: live and fresh first (fresher first), then the rest by distance. */
 export function compareByLiveness(a: { state: LiveState; distanceMeters?: number | null }, b: { state: LiveState; distanceMeters?: number | null }): number {

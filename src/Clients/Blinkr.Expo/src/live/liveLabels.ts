@@ -62,12 +62,13 @@ export function liveA11yLabel(name: string, s: LiveState): string {
 }
 
 /** One sentence under the state pill on the place page. No live info says so and invites the first report. */
-export function stateSummary(s: LiveState): string {
+/** `hasHistory`: older signals are listed below, so "be the first" would be untrue. */
+export function stateSummary(s: LiveState, hasHistory = false): string {
   const hours = s.source === 'hours';
-  if (s.source === 'none') return tx('live:summaryNone', 'Henüz canlı bilgi yok. İlk sen bildir.');
+  if (s.source === 'none') return hasHistory ? tx('live:summaryNoneOld', 'Şu an canlı bilgi yok; aşağıda eski bildirimler var.') : tx('live:summaryNone', 'Henüz canlı bilgi yok. İlk sen bildir.');
   switch (s.kind) {
     case 'calm': return isQueue(s) ? tx('live:summaryCalmQueue', 'Şu an sıra yok.') : tx('live:summaryCalm', 'Şu an rahat, yer bulunur.');
-    case 'busy': return isQueue(s) ? tx('live:summaryBusyQueue', 'Kısa bir sıra var.') : tx('live:summaryBusy', 'Hareketli ama yer bulunur.');
+    case 'busy': return isQueue(s) ? tx('live:summaryBusyQueue', 'Kısa bir sıra var.') : tx('live:summaryBusy', 'Şu an hareketli.');
     case 'crowded': return isQueue(s) ? tx('live:summaryCrowdedQueue', 'Uzun bir sıra var, bekleme olabilir.') : tx('live:summaryCrowded', 'Şu an kalabalık, bekleme olabilir.');
     case 'closed': return hours ? tx('live:summaryHoursClosed', 'Çalışma saatine göre kapalı görünüyor.') : tx('live:summaryClosed', 'Şu an kapalı görünüyor.');
     case 'event': return tx('live:summaryEvent', 'Şu an bir etkinlik var.');
