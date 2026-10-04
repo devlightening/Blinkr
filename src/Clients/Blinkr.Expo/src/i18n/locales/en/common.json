@@ -191,8 +191,8 @@
   "tabs": {
     "profileDot": "{{label}}, friend request waiting",
     "chatDot": "{{label}}, unread messages",
-    "createHint": "Opens the camera. Hold for a text-only signal.",
-    "create": "Share a new signal"
+    "create": "Share a new signal",
+    "createHintQuick": "Opens a quick signal. Press and hold for a camera post."
   },
   "anonymous": "Anonymous"
 }

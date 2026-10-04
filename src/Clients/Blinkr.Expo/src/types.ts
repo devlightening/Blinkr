@@ -356,4 +356,5 @@ export const ISTANBUL_REGION: Region = {
 };
 
 /** What the centre (+) button asked for: tap = camera, long press = text-only composer (sinyal-mvp-plan P5.1). */
-export type ShareMode = 'camera' | 'text';
+/** (+) tap = quick signal (v4); long press = camera-first post; `text` = the full composer without media. */
+export type ShareMode = 'quick' | 'camera' | 'text';

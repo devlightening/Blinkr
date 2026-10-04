@@ -17,7 +17,7 @@ type Props = {
   active: BlinkrTab;
   onTab: (tab: BlinkrTab) => void;
   /** (+) tap opens the camera; a long press opens the text-only composer (sinyal-mvp-plan P5.1). */
-  onShare: (mode: 'camera' | 'text') => void;
+  onShare: (mode: 'quick' | 'camera') => void;
   /** Shows the red dot on Sohbet. Only pass true when a real unread message exists. */
   chatUnread?: boolean;
   /** Shows the dot on Profil. Only pass true while a friend request really waits for an answer. */
@@ -84,14 +84,14 @@ export function BlinkrBottomBar({ active, onTab, onShare, chatUnread = false, pr
         <TabItem active={active === 'nearby'} onPress={() => onTab('nearby')} tab="nearby" />
         <View style={styles.cameraSlot}>
           <AnimatedPressable
-            accessibilityHint={tx('common:tabs.createHint', 'Kamera açılır. Basılı tutarsan yalnız yazılı sinyal.')}
+            accessibilityHint={tx('common:tabs.createHintQuick', 'Hızlı sinyal açılır. Basılı tutarsan kamerayla gönderi.')}
             accessibilityLabel={tx('common:tabs.create', 'Yeni sinyal paylaş')}
             accessibilityRole="button"
             aria-disabled={shareDisabled}
             disabled={shareDisabled}
             delayLongPress={350}
-            onLongPress={() => onShare('text')}
-            onPress={() => onShare('camera')}
+            onLongPress={() => onShare('camera')}
+            onPress={() => onShare('quick')}
             pressScale={0.95}
             style={[styles.camera, shareDisabled && styles.cameraDisabled]}
             testID="tab-create"

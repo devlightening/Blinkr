@@ -149,7 +149,7 @@ export default function App() {
     setSavedPlacesSession(auth ? { auth, refresh: { onAuthRefresh: (next) => { void acceptAuth(next); }, onSessionExpired: () => { void logout(); } } } : null);
   }, [auth, acceptAuth, logout]);
 
-  const openShare = useCallback((mode: ShareMode = 'camera') => {
+  const openShare = useCallback((mode: ShareMode = 'quick') => {
     setActiveTab('map');
     setShareRequested(mode);
   }, []);
@@ -312,9 +312,9 @@ export default function App() {
                       openWith={chatTarget}
                     />
                   ) : tab === 'nearby' ? (
-                    <DiscoverScreen auth={auth} hashtagRequest={hashtagRequest} onHashtagHandled={() => setHashtagRequest(null)} onAuthChange={acceptAuth} onCreateSignal={() => openShare('camera')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOpenSignal={openNearbySignal} onOverlayOpenChange={setDiscoverOverlayOpen} />
+                    <DiscoverScreen auth={auth} hashtagRequest={hashtagRequest} onHashtagHandled={() => setHashtagRequest(null)} onAuthChange={acceptAuth} onCreateSignal={() => openShare('quick')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOpenSignal={openNearbySignal} onOverlayOpenChange={setDiscoverOverlayOpen} />
                   ) : tab === 'profile' ? (
-                    <ProfileScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={() => openShare('camera')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOpenCollectionHandled={clearCollectionRequest} onOpenUserHandled={clearProfileRequest} openCollectionToken={collectionRequest} onOverlayOpenChange={setProfileOverlayOpen} onRequestsChange={onRequestsChange} openUserId={profileRequest} />
+                    <ProfileScreen auth={auth} onAuthChange={acceptAuth} onCreateSignal={() => openShare('quick')} onLogout={logout} onMessageUser={openChatWith} onOpenPlace={openSavedPlace} onOpenCollectionHandled={clearCollectionRequest} onOpenUserHandled={clearProfileRequest} openCollectionToken={collectionRequest} onOverlayOpenChange={setProfileOverlayOpen} onRequestsChange={onRequestsChange} openUserId={profileRequest} />
                   ) : null}
                   swipeEnabled={!((activeTab === 'chat' && chatConversationOpen) || (activeTab === 'profile' && profileOverlayOpen) || (activeTab === 'nearby' && discoverOverlayOpen))}
                 />

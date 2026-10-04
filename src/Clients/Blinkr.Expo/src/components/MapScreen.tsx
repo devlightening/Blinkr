@@ -34,6 +34,12 @@ import { clusterMapPoints, regionToZoom, zoomToLongitudeDelta, type ClusterBucke
 import { compareByLiveness, liveRenderKey, liveStateFromCurrent, liveStateKey, type LiveState, type NowFilter } from '../live/liveState';
 import { pinTagParts } from '../live/liveLabels';
 import { NearbyNowSheet, type NearbyNowItem } from './live/NearbyNowSheet';
+import { QuickSignalSheet, type QuickMedia } from './live/QuickSignalSheet';
+import { buildPostBody, quickStateFor, TILE_AUTO_VALUE, TILE_TYPE, type QuickState } from '../live/quickSignal';
+import { oldestCapture } from '../galleryCapture';
+import { SIGNAL_CATALOG } from '../signalCatalog';
+import { Sheet } from './Sheet';
+import { BlinkrSheetPanel } from './ui/BlinkrSheetPanel';
 import { lifetimeFraction } from '../markerGeometry';
 import { freshnessOpacity } from '../productPresentation';
 import { tx } from '../i18n/tx';
@@ -877,12 +883,100 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
     }
   };
 
+  // v4 step 6: (+) opens the two-tap quick signal. The place comes from the position - the nearest place within 100 m,
+  // the same rule as the camera chip - and, without one, the full composer's place picker takes over.
+  const [quick, setQuick] = useState<{ place: BlinkrPlace | null; initial: QuickState | null; key: number } | null>(null);
+  const [quickError, setQuickError] = useState<string | null>(null);
+  const [quickSending, setQuickSending] = useState(false);
+  const startQuick = (place: BlinkrPlace | null = null, initial: QuickState | null = null) => {
+    closeDetailSheet();
+    setQuickError(null);
+    setQuick({ place, initial, key: Date.now() });
+    if (place) return;
+    composerGeneration.current += 1;
+    setComposerArea(null);
+    nearbyOwner.current.reset();
+    // Asking here is fine: the person just pressed (+) to share where they are.
+    Location.getForegroundPermissionsAsync()
+      .then(async (permission) => {
+        const granted = permission.status === 'granted' ? permission : permission.canAskAgain ? await Location.requestForegroundPermissionsAsync() : permission;
+        setCanAskLocationAgain(granted.canAskAgain);
+        if (granted.status !== 'granted') { setLocationReadiness('permission-required'); return; }
+        await selectComposerArea('device', null, 'COMPOSER_OPEN');
+      })
+      .catch(() => setLocationReadiness('unavailable'));
+  };
+  const closeQuick = () => {
+    if (quickSending) return;
+    setQuick(null);
+    composerGeneration.current += 1;
+    nearbyRequest.current?.abort();
+    nearbyOwner.current.reset();
+  };
+  const quickPlace = quick ? quick.place ?? cameraPlace?.place ?? null : null;
+  const quickLocating = Boolean(quick && !quick.place && !cameraPlace?.place
+    && locationReadiness !== 'permission-required' && locationReadiness !== 'unavailable'
+    && (!composerArea || nearbyStatus === 'LOADING'));
+  // "Değiştir" / "Yer seç": the full composer with its place picker, keeping the chosen type and value.
+  const quickToComposer = (state: QuickState) => {
+    const given = quick?.place ?? null;
+    setQuick(null);
+    const initial = state.tile ? { type: TILE_TYPE[state.tile], value: state.value ?? TILE_AUTO_VALUE[state.tile] ?? null } : null;
+    openComposer(given, initial, !given);
+  };
+  const submitQuick = async (state: QuickState, media: QuickMedia[]) => {
+    const place = quickPlace;
+    if (!place || submissionInFlight.current) return;
+    submissionInFlight.current = true;
+    setQuickSending(true);
+    setQuickError(null);
+    try {
+      // A fresh fix: the server decides trust from where the person really is; the post itself sits at the place.
+      const position = await getFreshDeviceLocation();
+      const body = buildPostBody(state, { placeId: place.id, name: place.name, latitude: place.latitude, longitude: place.longitude },
+        { latitude: position.coords.latitude, longitude: position.coords.longitude, accuracyMeters: position.coords.accuracy ?? 50 });
+      const item: OutboxItem = {
+        id: newOutboxId(),
+        createdAtUtc: new Date().toISOString(),
+        attempts: 0,
+        nextAttemptAt: 0,
+        status: 'pending',
+        story: false,
+        snapFriendIds: [],
+        media: media.map((m) => ({ localUri: m.uri, kind: m.kind, mimeType: m.mimeType, fileName: m.fileName })),
+        input: {
+          ...body,
+          // The server needs a title or a text: a photo-only signal carries its type name, which lists hide (cardText).
+          title: body.content ? '' : SIGNAL_CATALOG[body.signalType].label,
+          mediaCapturedAtUtc: oldestCapture(media.map((m) => m.capturedAt))?.toISOString() ?? null,
+        },
+      };
+      await outbox.enqueue(item);
+      setQuick(null);
+      composerGeneration.current += 1;
+      nearbyRequest.current?.abort();
+      nearbyOwner.current.reset();
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const target = { latitude: place.latitude, longitude: place.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 };
+      currentRegion.current = target;
+      setRegion(target);
+      mapRef.current?.animateToRegion(target, 350);
+    } catch (err) {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setQuickError(friendlyError(err, tx('map:errors.shareFailed', 'Paylaşım tamamlanamadı. Tekrar dene.')));
+    } finally {
+      submissionInFlight.current = false;
+      setQuickSending(false);
+    }
+  };
+
   useEffect(() => {
     if (!shareRequested) return;
     const mode = shareRequested;
     onShareHandled?.();
     if (isCreating) return;
     if (mode === 'text') startSignalOnly();
+    else if (mode === 'quick') startQuick(null);
     else startCamera();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shareRequested]);
@@ -942,7 +1036,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusSignal]);
 
-  const overlayOpen = isComposerOpen || searchOpen || cameraOpen || Boolean(selectedPlace) || Boolean(selectedSignal) || Boolean(searchProfileUser) || Boolean(cardView);
+  const overlayOpen = isComposerOpen || Boolean(quick) || searchOpen || cameraOpen || Boolean(selectedPlace) || Boolean(selectedSignal) || Boolean(searchProfileUser) || Boolean(cardView);
   const showNearbyNow = !overlayOpen && nearbyNow.length > 0;
   const nowOffset = showNearbyNow ? nearbyNowHeight : 0;
   useEffect(() => { onOverlayOpenChange?.(overlayOpen); }, [overlayOpen, onOverlayOpenChange]);
@@ -1040,6 +1134,29 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
         </Animated.View>
       )}
 
+      {quick ? (
+        <Sheet onClose={closeQuick}>
+          <BlinkrSheetPanel maxHeightRatio={0.94}>
+            <QuickSignalSheet
+              error={quickError}
+              initial={quick.initial}
+              key={quick.key}
+              locating={quickLocating}
+              onChangePlace={quickToComposer}
+              onClose={closeQuick}
+              onSubmit={(state, media) => { void submitQuick(state, media); }}
+              place={quickPlace ? {
+                name: quickPlace.name,
+                category: quickPlace.category,
+                distanceMeters: quick.place ? null : quickPlace.distanceMeters ?? null,
+                state: liveStateFromCurrent(quickPlace.currentState, now),
+              } : null}
+              submitting={quickSending}
+            />
+          </BlinkrSheetPanel>
+        </Sheet>
+      ) : null}
+
       {isComposerOpen && <SignalComposer
         area={composerArea}
         auth={auth}
@@ -1096,7 +1213,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
           onChanged={(card) => { const target = placeForCard(card); setCardView(null); openComposer(target, { type: card.signalType, value: null }); }}
           onClose={() => { cardRequest.current?.abort(); setCardView(null); }}
           onConfirm={confirmFromCard}
-          onCreateSignal={cardView.place ? () => { const target = cardView.place; setCardView(null); openComposer(target); } : undefined}
+          onCreateSignal={cardView.place ? () => { const target = cardView.place; setCardView(null); startQuick(target as BlinkrPlace); } : undefined}
           onDeleted={() => { void loadPlaces(currentRegion.current, true, mapLayer === 'places'); }}
           onOpenAuthor={(user) => { setCardView(null); setSearchProfileUser({ id: user.id, userName: user.userName }); }}
           onOpenHashtag={onOpenHashtag}
@@ -1110,9 +1227,9 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
         onClose={closeDetailSheet}
         onOpenHashtag={onOpenHashtag}
         onOpenPerson={(user) => setSearchProfileUser({ id: user.id, userName: user.userName })}
-        onCreateSignal={() => openComposer(selectedDetail ?? selectedPlace)}
+        onCreateSignal={() => startQuick(selectedDetail ?? selectedPlace)}
         // Confirming goes straight to the last step with the same value; "changed" asks for the new value.
-        onRecheck={(mode, current) => openComposer(selectedDetail ?? selectedPlace, { type: current.type, value: mode === 'confirm' ? current.value : null })}
+        onRecheck={(mode, current) => startQuick(selectedDetail ?? selectedPlace, quickStateFor(current.type, mode === 'confirm' ? current.value : null))}
         auth={auth}
         refresh={{ onAuthRefresh: onAuthChange, onSessionExpired: onLogout }}
         onReportSignal={async (postId, reason, note) => { await sendReport(auth, { targetType: 'signal', targetId: postId, reason, note }, { onAuthRefresh: onAuthChange, onSessionExpired: onLogout }); }}

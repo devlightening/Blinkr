@@ -191,8 +191,8 @@
   "tabs": {
     "profileDot": "{{label}}, bekleyen arkadaş isteği var",
     "chatDot": "{{label}}, okunmamış mesaj var",
-    "createHint": "Kamera açılır. Basılı tutarsan yalnız yazılı sinyal.",
-    "create": "Yeni sinyal paylaş"
+    "create": "Yeni sinyal paylaş",
+    "createHintQuick": "Hızlı sinyal açılır. Basılı tutarsan kamerayla gönderi."
   },
   "anonymous": "Anonim"
 }

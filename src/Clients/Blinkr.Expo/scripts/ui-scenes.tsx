@@ -52,6 +52,8 @@ import { MarkerVisual } from '../src/components/MapMarkerVisuals';
 import { ClusterRing } from '../src/components/live/ClusterRing';
 import { LivePin } from '../src/components/live/LivePin';
 import { NearbyNowSheet } from '../src/components/live/NearbyNowSheet';
+import { QuickSignalSheet } from '../src/components/live/QuickSignalSheet';
+import { quickStateFor } from '../src/live/quickSignal';
 import { liveStateFromCurrent, type NowFilter } from '../src/live/liveState';
 import { MapTopChrome } from '../src/components/map/MapTopChrome';
 import { DiscoverScreen } from '../src/components/feed/DiscoverScreen';
@@ -140,7 +142,7 @@ function Kit() {
         <BlinkrErrorState description="Sinyaller yüklenemedi. Bağlantını kontrol edip tekrar dene." onRetry={() => {}} />
       </ScrollView>
       <Toast message={toast} onHide={() => setToast(null)} tone="success" />
-      <BlinkrBottomBar active={tab} chatUnread me={{ userId: 'u-me', avatarKey: '253' }} onShare={(mode) => setTaps(taps + (mode === 'text' ? 100 : 10))} onTab={setTab} />
+      <BlinkrBottomBar active={tab} chatUnread me={{ userId: 'u-me', avatarKey: '253' }} onShare={(mode) => setTaps(taps + (mode === 'camera' ? 100 : 10))} onTab={setTab} />
     </View>
   );
 }
@@ -552,7 +554,20 @@ function LiveRings() {
   );
 }
 
-const scenes: Record<string, () => React.JSX.Element> = { liveRings: LiveRings, liveSearch: LiveSearch, pendingDeletion: PendingDeletion, onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, card: CardScene, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, discover: Discover, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
+function QuickScene() {
+  const params = new URLSearchParams(globalThis.location?.search ?? '');
+  const state = liveStateFromCurrent({ signalType: 'Crowd', signalValue: 'Calm', freshness: 'FRESH', observedAtUtc: iso(6), activeSignalCount: 2 }, Date.now());
+  const initial = params.has('picked') ? quickStateFor('Crowd', 'Calm') : null;
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1, justifyContent: 'flex-end' }}>
+      <BlinkrSheetPanel maxHeightRatio={0.94}>
+        <QuickSignalSheet initial={initial} locating={false} onChangePlace={() => {}} onClose={() => {}} onSubmit={() => {}} submitting={false}
+          place={params.has('noplace') ? null : { name: 'Soulmate Kafe', category: 'CAFE', distanceMeters: 12, state }} />
+      </BlinkrSheetPanel>
+    </View>
+  );
+}
+const scenes: Record<string, () => React.JSX.Element> = { quick: QuickScene, liveRings: LiveRings, liveSearch: LiveSearch, pendingDeletion: PendingDeletion, onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, card: CardScene, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, discover: Discover, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
 
 export function SceneHost({ name }: { name: string }) {
   const Scene = scenes[name];
