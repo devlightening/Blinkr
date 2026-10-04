@@ -2,13 +2,11 @@ import { Coffee, Layers3, MessageCircle, Radio } from 'lucide-react-native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { tx } from '../../i18n/tx';
+import type { NowFilter } from '../../live/liveState';
 import type { MapLayer } from '../../mapSelection';
-import { MAP_FILTER_TYPES } from '../../mapTypeFilter';
-import { SIGNAL_CATALOG } from '../../signalCatalog';
 import { colors, radii, shadowSoft, spacing, typography } from '../../theme';
-import type { SignalType } from '../../types';
 import { AnimatedPressable } from '../AnimatedPressable';
-import { SignalSymbol } from '../SignalSymbol';
+import { NowChips } from '../live/NowChips';
 
 const layers = [
   { key: 'all', label: tx('map:layer.all', 'Tümü'), Icon: Layers3 },
@@ -18,19 +16,20 @@ const layers = [
 ] as const;
 
 /**
- * One floating row of chips over the map (reworked for a calmer, Snap Map-like top): the four layers first - the
- * chosen one is a solid dark pill, the way Snapchat marks the active choice - then, after a hairline, the signal-type
- * filters (multi-select, tinted when on). Each chip floats on its own with a soft shadow; there is no bar behind them,
- * so the map shows through.
+ * One floating row of chips over the map: the "Şimdi" chips first (Açık şimdi · Sakin · Etkinlik · Fırsat, v4 brief §3.1 -
+ * what the map is for), then, after a hairline, the four layers - the chosen one is a solid dark pill. Each chip floats on its own with
+ * a soft shadow; there is no bar behind them, so the map shows through.
  */
-export function MapFilterRow({ layer, onLayerChange, activeTypes, onToggleType }: {
+export function MapFilterRow({ layer, onLayerChange, nowFilters, onToggleNow }: {
   layer: MapLayer;
   onLayerChange: (layer: MapLayer) => void;
-  activeTypes: ReadonlySet<SignalType>;
-  onToggleType: (type: SignalType) => void;
+  nowFilters: ReadonlySet<NowFilter>;
+  onToggleNow: (id: NowFilter) => void;
 }) {
   return (
     <ScrollView contentContainerStyle={styles.content} horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} style={styles.row}>
+      <NowChips active={nowFilters} onToggle={onToggleNow} />
+      <View style={styles.divider} />
       <View accessibilityRole="tablist" style={styles.group}>
         {layers.map(({ key, label, Icon }) => {
           const selected = layer === key;
@@ -43,21 +42,6 @@ export function MapFilterRow({ layer, onLayerChange, activeTypes, onToggleType }
           );
         })}
       </View>
-      {layer !== 'places' ? (
-        <>
-          <View style={styles.divider} />
-          {MAP_FILTER_TYPES.map((type) => {
-            const entry = SIGNAL_CATALOG[type];
-            const selected = activeTypes.has(type);
-            return (
-              <AnimatedPressable accessibilityLabel={entry.label} accessibilityRole="button" aria-selected={selected} key={type} onPress={() => onToggleType(type)} pressScale={0.95} style={[styles.chip, selected && { backgroundColor: entry.tone }]}>
-                <SignalSymbol color={selected ? colors.ink : entry.tone} size={15} type={type} />
-                <Text numberOfLines={1} style={[styles.label, { color: selected ? colors.ink : colors.text }]}>{entry.label}</Text>
-              </AnimatedPressable>
-            );
-          })}
-        </>
-      ) : null}
     </ScrollView>
   );
 }

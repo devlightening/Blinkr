@@ -24,17 +24,24 @@ import { ShareProgressChip } from './map/ShareProgressChip';
 import { suggestCameraPlace } from '../cameraPlace';
 import { track } from '../analytics';
 import { friendlyError } from '../productPresentation';
-import { BlinkrMapMarker, BlinkrClusterMarker } from './BlinkrMapMarker';
+import { BlinkrClusterMarker, BlinkrPlaceMarker, BlinkrSignalMarker } from './BlinkrMapMarker';
 import { bottomBarClearance } from './ui/BlinkrBottomBar';
 import { MapTopChrome } from './map/MapTopChrome';
 import { MapSearchOverlay } from './map/MapSearchOverlay';
 import { UserProfileSheet } from './friends/UserProfileSheet';
-import { selectMapData, filterBySignalTypes, type MapLayer } from '../mapSelection';
-import { loadTypeFilter, saveTypeFilter } from '../mapTypeFilterStorage';
-import { clusterMapPoints, zoomToLongitudeDelta, type RenderableMapCluster } from '../mapClusters';
+import { selectMapData, filterByNow, type MapLayer } from '../mapSelection';
+import { clusterMapPoints, regionToZoom, zoomToLongitudeDelta, type ClusterBucket, type RenderableMapCluster } from '../mapClusters';
+import { compareByLiveness, liveRenderKey, liveStateFromCurrent, type LiveState, type NowFilter } from '../live/liveState';
+import { NearbyNowSheet, type NearbyNowItem } from './live/NearbyNowSheet';
+import { lifetimeFraction } from '../markerGeometry';
+import { freshnessOpacity } from '../productPresentation';
 import { tx } from '../i18n/tx';
 
 const MAX_MAP_PINS = 300;
+const PIN_TAG_ZOOM = 15;
+const NEARBY_NOW_MAX = 12;
+const clusterBucket = (state: LiveState | undefined): ClusterBucket =>
+  state?.source === 'live' && (state.kind === 'calm' || state.kind === 'busy' || state.kind === 'crowded') ? state.kind : 'other';
 import {
   NearbyRequestOwnership,
   type NearbyOrigin,
@@ -151,13 +158,11 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
   const [cameraOpen, setCameraOpen] = useState(false);
   const [composerInitialSignal, setComposerInitialSignal] = useState<{ type: SignalType; value: string | null } | null>(null);
   const [mapLayer, setMapLayer] = useState<MapLayer>('all');
-  const [activeTypeFilter, setActiveTypeFilter] = useState<Set<SignalType>>(new Set());
-  useEffect(() => { loadTypeFilter().then(setActiveTypeFilter); }, []);
-  const toggleTypeFilter = useCallback((type: SignalType) => {
-    setActiveTypeFilter((current) => {
+  const [nowFilters, setNowFilters] = useState<ReadonlySet<NowFilter>>(new Set());
+  const toggleNowFilter = useCallback((id: NowFilter) => {
+    setNowFilters((current) => {
       const next = new Set(current);
-      if (next.has(type)) next.delete(type); else next.add(type);
-      void saveTypeFilter(next);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   }, []);
@@ -165,12 +170,26 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
   // changing dependency re-ran that effect (permission check + recentre) on every filter change.
   const mapLayerRef = useRef<MapLayer>('all');
   mapLayerRef.current = mapLayer;
+  // Freshness falls with time: once a minute the rings are recomputed; only markers whose picture changed redraw.
   const [now, setNow] = useState(Date.now());
-  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(timer); }, []);
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(timer); }, []);
+
+  // One ring state per place, reused while its render key is unchanged so memoised markers skip re-rendering.
+  const liveCache = useRef(new Map<string, LiveState>());
+  const placeStates = useMemo(() => {
+    const next = new Map<string, LiveState>();
+    for (const place of places) {
+      const state = liveStateFromCurrent(place.currentState, now);
+      const previous = liveCache.current.get(place.id);
+      next.set(place.id, previous && liveRenderKey(previous) === liveRenderKey(state) ? previous : state);
+    }
+    liveCache.current = next;
+    return next;
+  }, [places, now]);
 
   const { places: visiblePlaces, signals: visibleSignals } = useMemo(
-    () => filterBySignalTypes(mapLayer, selectMapData(mapLayer, places, signals, now), activeTypeFilter),
-    [mapLayer, places, signals, now, activeTypeFilter],
+    () => filterByNow(selectMapData(mapLayer, places, signals, now), nowFilters, now),
+    [mapLayer, places, signals, now, nowFilters],
   );
 
   const markerLookup = useMemo(() => ({
@@ -185,6 +204,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
       kind: 'place' as const,
       latitude: place.latitude,
       longitude: place.longitude,
+      bucket: clusterBucket(placeStates.get(place.id)),
     })),
     ...visibleSignals.map((signal) => ({
       id: `signal:${signal.postId}`,
@@ -192,7 +212,19 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
       latitude: signal.latitude,
       longitude: signal.longitude,
     })),
-  ].slice(0, MAX_MAP_PINS), region), [region, visiblePlaces, visibleSignals]);
+  ].slice(0, MAX_MAP_PINS), region), [region, visiblePlaces, visibleSignals, placeStates]);
+  // Pin tags ("Sakin · 4 dk") show from street level; the selected pin always shows its tag.
+  const showPinTags = regionToZoom(region) >= PIN_TAG_ZOOM;
+
+  // "Yakınında şu an": places in view with live information, fresh first, then nearest to the map centre.
+  const nearbyNow = useMemo<NearbyNowItem[]>(() => visiblePlaces
+    .flatMap((place): NearbyNowItem[] => {
+      const state = placeStates.get(place.id);
+      return state?.source === 'live' ? [{ place, state, distanceMeters: distanceMeters(region, place) }] : [];
+    })
+    .sort(compareByLiveness)
+    .slice(0, NEARBY_NOW_MAX), [visiblePlaces, placeStates, region]);
+  const [nearbyNowHeight, setNearbyNowHeight] = useState(0);
 
   const visibleItemCount = visiblePlaces.length + visibleSignals.length;
 
@@ -910,6 +942,8 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
   }, [focusSignal]);
 
   const overlayOpen = isComposerOpen || searchOpen || cameraOpen || Boolean(selectedPlace) || Boolean(selectedSignal) || Boolean(searchProfileUser) || Boolean(cardView);
+  const showNearbyNow = !overlayOpen && nearbyNow.length > 0;
+  const nowOffset = showNearbyNow ? nearbyNowHeight : 0;
   useEffect(() => { onOverlayOpenChange?.(overlayOpen); }, [overlayOpen, onOverlayOpenChange]);
 
   const chromeTop = insets.top + 140;
@@ -940,10 +974,24 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
         toolbarEnabled={false}
         userInterfaceStyle={getThemeMode()}
       >
-        {mapItems.map(item => item.type === 'cluster'
-          ? <BlinkrClusterMarker key={item.id} latitude={item.latitude} longitude={item.longitude} count={item.pointCount} onPress={() => (item.memberIds?.length ? openClusterCards(item) : expandCluster(item))} />
-          : <BlinkrMapMarker key={item.id} place={markerLookup.places.get(item.id)} signal={markerLookup.signals.get(item.id)} now={now}
-              selected={item.id === `place:${selectedPlace?.id}` || item.id === `signal:${selectedSignal?.postId}` || item.id === cardView?.key} onPlace={openPlaceDetailAfterTouch} onSignal={openSignalDetailAfterTouch} />)}
+        {mapItems.map((item) => {
+          if (item.type === 'cluster') {
+            const { calm, busy, crowded, other } = item.mix;
+            return <BlinkrClusterMarker count={item.pointCount} key={`${item.id}:${calm}.${busy}.${crowded}.${other}`} latitude={item.latitude} longitude={item.longitude} mix={item.mix}
+              onPress={() => (item.memberIds?.length ? openClusterCards(item) : expandCluster(item))} />;
+          }
+          const selected = item.id === `place:${selectedPlace?.id}` || item.id === `signal:${selectedSignal?.postId}` || item.id === cardView?.key;
+          const place = markerLookup.places.get(item.id);
+          const state = place ? placeStates.get(place.id) : undefined;
+          if (place && state) {
+            const tag = selected || showPinTags;
+            return <BlinkrPlaceMarker key={`${item.id}:${liveRenderKey(state)}:${selected ? 1 : 0}:${tag ? 1 : 0}`} onPlace={openPlaceDetailAfterTouch} place={place} selected={selected} showTag={tag} state={state} />;
+          }
+          const signal = markerLookup.signals.get(item.id);
+          if (!signal) return null;
+          const look = `${Math.round(lifetimeFraction(signal.createdAtUtc, signal.expiresAt, now) * 10)}.${freshnessOpacity(signal.createdAtUtc, now)}`;
+          return <BlinkrSignalMarker key={`${item.id}:${look}:${selected ? 1 : 0}`} now={now} onSignal={openSignalDetailAfterTouch} selected={selected} signal={signal} />;
+        })}
       </MapView>
 
       {!isLoading && !error && visibleItemCount === 0 && !isComposerOpen && !selectedPlace && !selectedSignal && (
@@ -955,8 +1003,8 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
       )}
 
       <MapTopChrome
-        activeTypeFilter={activeTypeFilter}
-        onToggleTypeFilter={(type) => { toggleTypeFilter(type); Haptics.selectionAsync(); }}
+        nowFilters={nowFilters}
+        onToggleNow={(id) => { toggleNowFilter(id); Haptics.selectionAsync(); }}
         isLoading={isLoading}
         layer={mapLayer}
         onLayerChange={(layer) => { setMapLayer(layer); Haptics.selectionAsync(); }}
@@ -972,9 +1020,10 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
         userName={auth.userName}
       />
 
-      {!isComposerOpen ? <ShareProgressChip bottom={bottomBarClearance(insets.bottom) + 8} items={outbox.items} onDiscard={outbox.discard} onRetry={outbox.retry} /> : null}
+      {showNearbyNow ? <NearbyNowSheet bottom={bottomBarClearance(insets.bottom)} items={nearbyNow} onHeight={setNearbyNowHeight} onOpen={openPlaceDetailAfterTouch} onShowList={onShowList} /> : null}
+      {!isComposerOpen ? <ShareProgressChip bottom={bottomBarClearance(insets.bottom) + 8 + nowOffset} items={outbox.items} onDiscard={outbox.discard} onRetry={outbox.retry} /> : null}
       {(success || error) && (
-        <Animated.View entering={FadeIn.duration(motion.base)} style={[styles.toast, error ? styles.errorToast : styles.successToast, { bottom: bottomBarClearance(insets.bottom) + 8 + (outbox.items.length > 0 ? 60 : 0) }]}>
+        <Animated.View entering={FadeIn.duration(motion.base)} style={[styles.toast, error ? styles.errorToast : styles.successToast, { bottom: bottomBarClearance(insets.bottom) + 8 + nowOffset + (outbox.items.length > 0 ? 60 : 0) }]}>
           {error ? <Wifi color={colors.danger} size={18} /> : <CheckCircle2 color={colors.mint} size={18} />}
           <Text style={[styles.toastText, error && styles.errorToastText]} numberOfLines={3}>
             {error || success}

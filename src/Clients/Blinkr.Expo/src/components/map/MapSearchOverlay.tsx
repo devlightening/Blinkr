@@ -6,8 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { listFriends, searchPlaces, searchUsers } from '../../api';
 import { orderPeople, relationLabel } from '../../friends';
-import { liveA11yLabel } from '../../live/liveLabels';
-import { liveStateFromCurrent } from '../../live/liveState';
+import { liveA11yLabel, stateLabel } from '../../live/liveLabels';
+import { isEstimated, liveStateFromCurrent, matchesNowFilters, type LiveState, type NowFilter } from '../../live/liveState';
 import { distanceMeters } from '../../nearbyRequestOwnership';
 import { formatCategory, formatDistance } from '../../presentation';
 import { friendlyError } from '../../productPresentation';
@@ -22,6 +22,7 @@ import type { AuthResponse, BlinkrPlace, UserSummary } from '../../types';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
 import { PlaceStatusCard } from '../live/PlaceStatusCard';
+import { NowChips } from '../live/NowChips';
 import { BlinkrChip } from '../ui/BlinkrChip';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
 import { SegmentedControl } from '../ui/BlinkrSegmentedControl';
@@ -60,8 +61,9 @@ function Highlighted({ text, query }: { text: string; query: string }) {
   );
 }
 
-function ResultRow({ place, distance, query, onPress }: { place: BlinkrPlace; distance: number; query: string; onPress: () => void }) {
-  const state = useMemo(() => liveStateFromCurrent(place.currentState, Date.now()), [place.currentState]);
+const WALKING_METERS = 1000;
+
+function ResultRow({ place, state, distance, query, onPress }: { place: BlinkrPlace; state: LiveState; distance: number; query: string; onPress: () => void }) {
   const meta = [formatCategory(place.category), Number.isFinite(distance) ? formatDistance(distance) : '', place.displayAddress].filter(Boolean).join(' · ');
   return (
     <PlaceStatusCard
@@ -72,6 +74,7 @@ function ResultRow({ place, distance, query, onPress }: { place: BlinkrPlace; di
       meta={meta}
       name={place.name}
       nameNode={<Highlighted query={query} text={place.name} />}
+      noInfoLabel={state.source === 'none' ? stateLabel(state) : undefined}
       onPress={onPress}
       state={state}
       trailing={null}
@@ -103,6 +106,20 @@ export function MapSearchOverlay({ auth, origin, onClose, onSelectPlace, onSelec
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<Status>('idle');
   const [results, setResults] = useState<RankedPlace[]>([]);
+  const [nowFilters, setNowFilters] = useState<ReadonlySet<NowFilter>>(new Set());
+  const [walking, setWalking] = useState(false);
+  const toggleNow = useCallback((id: NowFilter) => setNowFilters((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  }), []);
+  // One ring state per result (computed once per result list), then the "Şimdi" / walking filters.
+  const shown = useMemo(() => {
+    const now = Date.now();
+    return results
+      .map((entry) => ({ ...entry, state: liveStateFromCurrent(entry.place.currentState, now) }))
+      .filter((entry) => matchesNowFilters(entry.state, nowFilters) && (!walking || entry.distanceMeters <= WALKING_METERS));
+  }, [results, nowFilters, walking]);
   const [place, setPlace] = useState<(Origin & { label: string }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recents, setRecents] = useState<RecentSearch[]>([]);
@@ -345,19 +362,32 @@ export function MapSearchOverlay({ auth, origin, onClose, onSelectPlace, onSelec
         ) : (
           <>
             {status === 'loading' && results.length === 0 ? <ActivityIndicator accessibilityLabel={tx('common:actions.searching', 'Aranıyor')} color={colors.primary} style={styles.loading} /> : null}
-            {results.map(({ place: item, distanceMeters: meters }, index) => {
+            {results.length > 0 ? (
+              <ScrollView contentContainerStyle={styles.filterRow} horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+                <NowChips active={nowFilters} onToggle={toggleNow} />
+                <BlinkrChip label={tx('map:search.walk', 'Yürüme mesafesi')} onPress={() => setWalking((v) => !v)} selected={walking} />
+              </ScrollView>
+            ) : null}
+            {results.length > 0 && shown.length === 0 ? <Text style={styles.hint}>{tx('map:search.noneMatch', 'Bu filtrelere uyan yer yok.')}</Text> : null}
+            {shown.map(({ place: item, state, distanceMeters: meters }, index) => {
               const tier = distanceTier(meters);
-              const startsTier = index === 0 || distanceTier(results[index - 1].distanceMeters) !== tier;
+              const startsTier = index === 0 || distanceTier(shown[index - 1].distanceMeters) !== tier;
               // Section titles only appear when the results really span more than one distance band.
-              const showTitle = startsTier && (tier > 0 || results.some((entry) => distanceTier(entry.distanceMeters) !== tier));
+              const showTitle = startsTier && (tier > 0 || shown.some((entry) => distanceTier(entry.distanceMeters) !== tier));
               return (
                 <View key={item.id}>
                   {showTitle ? <Text style={styles.tierTitle}>{TIER_TITLES[tier]}</Text> : null}
-                  <ResultRow distance={meters} onPress={() => choose(item)} place={item} query={query} />
+                  <ResultRow distance={meters} onPress={() => choose(item)} place={item} query={query} state={state} />
                 </View>
               );
             })}
-            {results.length > 0 ? <Text style={styles.legend}>{tx('live:legendLive', 'Dolu halka doğrulanmış canlı bilgi; kesikli çizgi saate göre tahmin.')}</Text> : null}
+            {shown.length > 0 ? (
+              <Text style={styles.legend}>
+                {shown.some((entry) => isEstimated(entry.state))
+                  ? tx('live:legendLive', 'Dolu halka doğrulanmış canlı bilgi; kesikli çizgi saate göre tahmin.')
+                  : tx('map:search.legendSolid', 'Dolu halka: yerinde doğrulanmış canlı bilgi; halka boşaldıkça bilgi eskir.')}
+              </Text>
+            ) : null}
             {place ? (
               <SimpleRow
                 icon={<MapPin color={colors.primary} size={18} />}
@@ -402,6 +432,8 @@ const styles = StyleSheet.create({
   name: { ...typography.bodyStrong, color: colors.text, fontWeight: '400' },
   nameMatch: { fontWeight: '700' },
   sub: { ...typography.caption, color: colors.textSecondary },
+  filterScroll: { marginHorizontal: -spacing.lg, marginBottom: spacing.sm },
+  filterRow: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: 4 },
   legend: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.sm },
   loading: { marginTop: spacing.xl },
   tierTitle: { ...typography.label, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md },

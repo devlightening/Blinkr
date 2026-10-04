@@ -4,7 +4,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 
 import type { MapLayer } from '../../mapSelection';
 import { colors, motion, radii, shadowFloat, shadowSoft, sizes, spacing, typography } from '../../theme';
-import type { SignalType } from '../../types';
+import type { NowFilter } from '../../live/liveState';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { HeaderAvatar } from '../ui/BlinkrHeader';
 import { MapFilterRow } from './MapLayerBar';
@@ -16,10 +16,9 @@ type Props = {
   avatarKey?: string | null;
   layer: MapLayer;
   onLayerChange: (layer: MapLayer) => void;
-  /** Multi-select type filter (04 §1.2); empty means no filter. Hidden on the `places` (Yerler)
-   * layer since that layer lists the whole catalogue regardless of activity type. */
-  activeTypeFilter: ReadonlySet<SignalType>;
-  onToggleTypeFilter: (type: SignalType) => void;
+  /** "Şimdi" chips (v4 brief §3.1), multi-select; empty means no filter. */
+  nowFilters: ReadonlySet<NowFilter>;
+  onToggleNow: (id: NowFilter) => void;
   onOpenProfile: () => void;
   /** Opens the full-screen tx('map:search.placeholder', 'Nereye gidiyorsun?') search. */
   onOpenSearch: () => void;
@@ -41,7 +40,7 @@ type Props = {
 };
 
 /** Header, layer filter and the scan / locate row that float over the map. */
-export function MapTopChrome({ userId, userName, avatarKey, layer, onLayerChange, activeTypeFilter, onToggleTypeFilter, onOpenProfile, onOpenSearch, scanAvailable, isLoading, onScan, onLocate, onShowList, topInset }: Props) {
+export function MapTopChrome({ userId, userName, avatarKey, layer, onLayerChange, nowFilters, onToggleNow, onOpenProfile, onOpenSearch, scanAvailable, isLoading, onScan, onLocate, onShowList, topInset }: Props) {
   return (
     <View pointerEvents="box-none" style={[styles.overlay, { paddingTop: Math.max(topInset, spacing.sm) }]}>
       <View style={styles.searchBar}>
@@ -51,7 +50,7 @@ export function MapTopChrome({ userId, userName, avatarKey, layer, onLayerChange
         </AnimatedPressable>
         <HeaderAvatar avatarKey={avatarKey} onPress={onOpenProfile} userId={userId} userName={userName} />
       </View>
-      <MapFilterRow activeTypes={activeTypeFilter} layer={layer} onLayerChange={onLayerChange} onToggleType={onToggleTypeFilter} />
+      <MapFilterRow layer={layer} nowFilters={nowFilters} onLayerChange={onLayerChange} onToggleNow={onToggleNow} />
 
       <View pointerEvents="box-none" style={styles.scanRow}>
         {scanAvailable ? (

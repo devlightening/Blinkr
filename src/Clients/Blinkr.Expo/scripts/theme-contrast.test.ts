@@ -61,6 +61,7 @@ for (const mode of ['light', 'dark'] as ThemeMode[]) {
     check(mode, `live ${kind} text on canvas`, tone, colors.background);
     check(mode, `live ${kind} text on surfaceElevated`, tone, colors.surfaceElevated);
     check(mode, `live ${kind} text on its pill`, tone, blend(tone, colors.surface, liveTones.pillAlpha));
+    check(mode, `live ${kind} text on its selected chip`, tone, blend(tone, colors.surface, liveTones.chipAlpha));
     check(mode, `live ${kind} ring on canvas (graphic)`, tone, colors.background, 3);
   }
 }

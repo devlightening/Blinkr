@@ -26,7 +26,10 @@
     "addressHint": "Adres veya bölge · haritayı oraya taşı",
     "noResultsHint": "Yazımı kontrol et ya da daha kısa bir ad dene. Tüm Türkiye'de aradık.",
     "noResults": "Sonuç bulunamadı",
-    "clearShort": "Temizle"
+    "clearShort": "Temizle",
+    "walk": "Yürüme mesafesi",
+    "noneMatch": "Bu filtrelere uyan yer yok.",
+    "legendSolid": "Dolu halka: yerinde doğrulanmış canlı bilgi; halka boşaldıkça bilgi eskir."
   },
   "scan": {
     "action": "Bu alanı tara",
@@ -107,6 +110,7 @@
   },
   "a11y": {
     "cluster": "{{count}} sinyal ve yer, yakınlaştır",
+    "clusterMix": "{{count}} yer: {{calm}} sakin, {{busy}} hareketli, {{crowded}} kalabalık. Yakınlaştır",
     "showList": "Liste olarak göster"
   },
   "placesUnavailable": "Yerler şu an yenilenemedi; son bilinen durum gösteriliyor.",
@@ -187,5 +191,10 @@
     "fading": "teyit gerekiyor",
     "fadingLine": "teyit gerekiyor · {{line}}",
     "howToVote": "Burada konumda doğrulanmış bir sinyal bıraktıktan sonra sen de bilgi verebilirsin."
+  },
+  "now": {
+    "expand": "Yakınındaki canlı yerleri göster",
+    "fold": "Yakınındaki canlı yerleri gizle",
+    "list": "Liste"
   }
 }

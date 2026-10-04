@@ -26,7 +26,10 @@
     "addressHint": "Address or area · move the map there",
     "noResultsHint": "Check the spelling or try a shorter name. We searched all of Turkey.",
     "noResults": "No results",
-    "clearShort": "Clear"
+    "clearShort": "Clear",
+    "walk": "Walking distance",
+    "noneMatch": "No place matches these filters.",
+    "legendSolid": "Solid ring: live information verified on site; the ring empties as it gets older."
   },
   "scan": {
     "action": "Scan this area",
@@ -107,6 +110,7 @@
   },
   "a11y": {
     "cluster": "{{count}} signals and places, zoom in",
+    "clusterMix": "{{count}} places: {{calm}} quiet, {{busy}} lively, {{crowded}} crowded. Zoom in",
     "showList": "Show as list"
   },
   "placesUnavailable": "Places could not be refreshed right now; showing the last known state.",
@@ -187,5 +191,10 @@
     "fading": "needs confirming",
     "fadingLine": "needs confirming · {{line}}",
     "howToVote": "Once you drop a signal verified on site here, you can add info too."
+  },
+  "now": {
+    "expand": "Show live places nearby",
+    "fold": "Hide live places nearby",
+    "list": "List"
   }
 }

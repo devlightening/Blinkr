@@ -1,32 +1,78 @@
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Marker } from 'react-native-maps';
-import { PLACE_PIN, SIGNAL_BUBBLE, anchorOf } from '../markerGeometry';
-import { ClusterVisual, MarkerVisual } from './MapMarkerVisuals';
-import type { BlinkrPlace, CoordinateSignal } from '../types';
-import { clusterLabel, placePinLabel, signalPinLabel } from '../markerA11y';
 
-const PLACE_ANCHOR = anchorOf(PLACE_PIN);
+import { liveA11yLabel, pinTagParts } from '../live/liveLabels';
+import type { LiveState } from '../live/liveState';
+import type { ClusterMix } from '../mapClusters';
+import { SIGNAL_BUBBLE, anchorOf, livePinAnchor } from '../markerGeometry';
+import { clusterMixLabel, signalPinLabel } from '../markerA11y';
+import type { BlinkrPlace, CoordinateSignal } from '../types';
+import { ClusterRing } from './live/ClusterRing';
+import { LivePin } from './live/LivePin';
+import { MarkerVisual } from './MapMarkerVisuals';
+
 const SIGNAL_ANCHOR = anchorOf(SIGNAL_BUBBLE);
 
 /**
- * Native marker wrappers. There is deliberately no `title`: on iOS it would open the system's white
- * callout bubble over our own detail sheet. See `MapMarkerVisuals` for the look. Pins and bubbles are
- * anchored by their tip, so the tip sits exactly on the coordinate; clusters are centred.
+ * A marker's view is snapshotted into a bitmap. It tracks changes only until its SVG has drawn (Android can snapshot an
+ * empty frame otherwise), then stops: from there on nothing redraws it unless its `key` changes. The caller keys every
+ * marker by what its picture shows (state, ring step, selection, tag), so the 60 s freshness tick redraws only the
+ * markers whose picture actually changed.
  */
-export const BlinkrMapMarker = memo(function BlinkrMapMarker({ place, signal, selected, now, onPlace, onSignal }: {
-  place?: BlinkrPlace; signal?: CoordinateSignal; selected: boolean; now: number;
-  onPlace: (place: BlinkrPlace) => void; onSignal: (signal: CoordinateSignal) => void;
+const SETTLE_MS = 700;
+function useSettledTracking() {
+  const [tracks, setTracks] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setTracks(false), SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, []);
+  return tracks;
+}
+
+/* No `title` on any marker: on iOS it would open the system's white callout over our own sheet. */
+
+export const BlinkrPlaceMarker = memo(function BlinkrPlaceMarker({ place, state, selected, showTag, onPlace }: {
+  place: BlinkrPlace; state: LiveState; selected: boolean; showTag: boolean; onPlace: (place: BlinkrPlace) => void;
 }) {
-  const anchor = place ?? signal;
-  if (!anchor) return null;
-  return <Marker accessibilityLabel={place ? placePinLabel(place, now) : signal ? signalPinLabel(signal) : undefined} accessibilityRole="button" anchor={place ? PLACE_ANCHOR : SIGNAL_ANCHOR} coordinate={{ latitude: anchor.latitude, longitude: anchor.longitude }}
-    onPress={() => place ? onPlace(place) : signal && onSignal(signal)} zIndex={selected ? 45 : place ? 20 : 30}>
-    <MarkerVisual now={now} place={place} selected={selected} signal={signal} />
-  </Marker>;
+  const tracks = useSettledTracking();
+  // Same rule as LivePin: a tag is drawn only when the state has a word, and the anchor must know it.
+  const tag = (selected || showTag) && pinTagParts(state).state.length > 0;
+  return (
+    <Marker
+      accessibilityLabel={liveA11yLabel(place.name, state)} accessibilityRole="button" anchor={livePinAnchor(state.source === 'none', selected, tag)}
+      coordinate={{ latitude: place.latitude, longitude: place.longitude }} onPress={() => onPlace(place)}
+      tracksViewChanges={tracks} zIndex={selected ? 45 : state.source === 'live' ? 25 : 20}
+    >
+      <LivePin category={place.category} selected={selected} showTag={tag} state={state} />
+    </Marker>
+  );
 });
 
-export const BlinkrClusterMarker = memo(function BlinkrClusterMarker({ latitude, longitude, count, onPress }: { latitude: number; longitude: number; count: number; onPress: () => void }) {
-  return <Marker accessibilityLabel={clusterLabel(count)} accessibilityRole="button" anchor={{ x: 0.5, y: 0.5 }} coordinate={{ latitude, longitude }} onPress={onPress} zIndex={50}>
-    <ClusterVisual count={count} />
-  </Marker>;
+export const BlinkrSignalMarker = memo(function BlinkrSignalMarker({ signal, selected, now, onSignal }: {
+  signal: CoordinateSignal; selected: boolean; now: number; onSignal: (signal: CoordinateSignal) => void;
+}) {
+  const tracks = useSettledTracking();
+  return (
+    <Marker
+      accessibilityLabel={signalPinLabel(signal)} accessibilityRole="button" anchor={SIGNAL_ANCHOR}
+      coordinate={{ latitude: signal.latitude, longitude: signal.longitude }} onPress={() => onSignal(signal)}
+      tracksViewChanges={tracks} zIndex={selected ? 45 : 30}
+    >
+      <MarkerVisual now={now} selected={selected} signal={signal} />
+    </Marker>
+  );
+});
+
+export const BlinkrClusterMarker = memo(function BlinkrClusterMarker({ latitude, longitude, count, mix, onPress }: {
+  latitude: number; longitude: number; count: number; mix: ClusterMix; onPress: () => void;
+}) {
+  const tracks = useSettledTracking();
+  return (
+    <Marker
+      accessibilityLabel={clusterMixLabel(count, mix)} accessibilityRole="button" anchor={{ x: 0.5, y: 0.5 }}
+      coordinate={{ latitude, longitude }} onPress={onPress} tracksViewChanges={tracks} zIndex={50}
+    >
+      <ClusterRing count={count} mix={mix} size={count >= 10 ? 58 : 52} />
+    </Marker>
+  );
 });

@@ -1,9 +1,9 @@
 /**
  * Geometry of the map markers, kept apart from the drawing so it can be tested.
  *
- * Place pin:  a teardrop with a sharp tip (a clear anchor point: the tip is the exact location).
- * Signal bubble: a round speech bubble with a small tail, for signals that are not tied to a Place.
- * Both are drawn in a 56-unit design space with a 6-unit margin for the glow, and anchored by their tip.
+ * Signal bubble: a round speech bubble with a small tail, for signals that are not tied to a Place, drawn in a 56-unit
+ * design space with a 6-unit margin for the glow and anchored by its tip. Place pins (LivePin) are a ring with an
+ * optional tag below it, anchored at the ring's centre.
  */
 export type MarkerGeometry = {
   /** Whole marker including the margin, in design units. */
@@ -19,10 +19,8 @@ export type MarkerGeometry = {
   pad: number;
 };
 
-export const PLACE_PIN: MarkerGeometry = { width: 68, height: 80, tipX: 28, tipY: 66, headX: 28, headY: 26, headRadius: 22, pad: 6 };
 export const SIGNAL_BUBBLE: MarkerGeometry = { width: 68, height: 74, tipX: 28, tipY: 62, headX: 28, headY: 28, headRadius: 24, pad: 6 };
 
-export const PLACE_PIN_PATH = 'M28 66 C28 66 6 44 6 26 A22 22 0 1 1 50 26 C50 44 28 66 28 66 Z';
 export const SIGNAL_BUBBLE_PATH = 'M28 62 L18.4 50 A24 24 0 1 1 37.6 50 Z';
 
 /** react-native-maps anchor (0..1 of the marker view) that puts the tip exactly on the coordinate. */
@@ -31,9 +29,18 @@ export const anchorOf = (geometry: MarkerGeometry) => ({
   y: (geometry.tipY + geometry.pad) / geometry.height,
 });
 
-/** Markers without live activity are drawn smaller so a crowded viewport stays readable. */
-export const COMPACT_SCALE = 0.78;
-export const markerScale = (compact: boolean) => (compact ? COMPACT_SCALE : 1);
+/** LivePin layout (pt): padding around the ring, the tag below it, ring sizes. */
+export const LIVE_PIN = { pad: 6, tagGap: 4, tagHeight: 20, quiet: 32, normal: 44, selected: 52 } as const;
+
+/** Ring diameter: the selected pin grows; a catalogue place with nothing to say stays small. */
+export const livePinSize = (quiet: boolean, selected: boolean) => (selected ? LIVE_PIN.selected : quiet ? LIVE_PIN.quiet : LIVE_PIN.normal);
+
+/** Marker anchor at the ring's centre, wherever the optional tag below makes the view end. */
+export const livePinAnchor = (quiet: boolean, selected: boolean, showTag: boolean) => {
+  const size = livePinSize(quiet, selected);
+  const height = LIVE_PIN.pad * 2 + size + (showTag ? LIVE_PIN.tagGap + LIVE_PIN.tagHeight : 0);
+  return { x: 0.5, y: (LIVE_PIN.pad + size / 2) / height };
+};
 
 const THREE_HOURS = 3 * 60 * 60_000;
 
@@ -57,8 +64,5 @@ export const ringDash = (fraction: number, radius: number) => {
   const shown = circumference * Math.min(1, Math.max(0, Number.isFinite(fraction) ? fraction : 0));
   return `${shown.toFixed(2)} ${circumference.toFixed(2)}`;
 };
-
-/** Heat halo behind a cluster: grows with the count but stays bounded (the marker view is a fixed size). */
-export const clusterHaloRadius = (count: number) => 26 + Math.min(14, Math.round(Math.log2(Math.max(1, count)) * 3));
 
 export const clusterLabel = (count: number) => (count > 99 ? '99+' : String(count));

@@ -1,5 +1,4 @@
-import { selectMapData, filterBySignalTypes } from '../src/mapSelection';
-import { parseTypeFilter, serializeTypeFilter } from '../src/mapTypeFilter';
+import { selectMapData, filterByNow } from '../src/mapSelection';
 import type { BlinkrPlace, CoordinateSignal } from '../src/types';
 
 const assert = {
@@ -60,35 +59,23 @@ const before = JSON.stringify(places);
 selectMapData('places', places, signals, now).places.pop();
 assert.equal(JSON.stringify(places), before);
 
-// filterBySignalTypes: an empty/missing selection is "no filter" - every type still shows.
-const typedPlaces = [
-  place('crowd-place', { currentState: { activeSignalCount: 1, observedAtUtc: minutesAgo(5), expiresAtUtc: inMinutes(60), signalType: 'Crowd' } }),
-  place('queue-place', { currentState: { activeSignalCount: 1, observedAtUtc: minutesAgo(5), expiresAtUtc: inMinutes(60), signalType: 'Queue' } }),
-  place('typeless-place', { currentState: { activeSignalCount: 1, observedAtUtc: minutesAgo(5), expiresAtUtc: inMinutes(60) } }),
+// filterByNow: no chip = no filter; a place matches by its ring state, a coordinate signal by its own type.
+const nowPlaces = [
+  place('calm-place', { currentState: { activeSignalCount: 2, freshness: 'FRESH', observedAtUtc: minutesAgo(5), expiresAtUtc: inMinutes(55), signalType: 'Crowd', signalValue: 'Calm' } }),
+  place('closed-place', { currentState: { activeSignalCount: 1, freshness: 'FRESH', observedAtUtc: minutesAgo(5), expiresAtUtc: inMinutes(170), signalType: 'TemporaryStatus', signalValue: 'Closed' } }),
+  place('quiet-catalogue'),
 ];
-const typedSignals = [
-  { ...signal('crowd-signal', 5), signalType: 'Crowd' as const },
-  { ...signal('event-signal', 5), signalType: 'Event' as const },
+const nowSignals = [
+  { ...signal('event-signal', 5), signalType: 'Event' as const, signalValue: 'Started' },
+  { ...signal('crowd-signal', 5), signalType: 'Crowd' as const, signalValue: 'Busy' },
 ];
-let selection = { places: typedPlaces, signals: typedSignals };
-assert.deepEqual(ids(filterBySignalTypes('all', selection, null).places), ids(typedPlaces));
-assert.deepEqual(ids(filterBySignalTypes('all', selection, new Set()).places), ids(typedPlaces));
-
-// A real filter keeps only matching types, and drops a Place with no signal type at all.
-let filtered = filterBySignalTypes('all', selection, new Set(['Crowd']));
-assert.deepEqual(ids(filtered.places), ['crowd-place']);
-assert.deepEqual(ids(filtered.signals), ['crowd-signal']);
-
-// The `places` (Yerler) layer is catalogue browsing, not an activity filter - it is left untouched.
-filtered = filterBySignalTypes('places', selection, new Set(['Crowd']));
-assert.deepEqual(ids(filtered.places), ids(typedPlaces));
-
-// mapTypeFilter persistence: round-trips, and drops anything that is not a real SignalType.
-assert.deepEqual(Array.from(parseTypeFilter('Crowd,Queue')).sort(), ['Crowd', 'Queue']);
-assert.deepEqual(Array.from(parseTypeFilter('Crowd,Bogus,Queue')).sort(), ['Crowd', 'Queue']);
-assert.deepEqual(Array.from(parseTypeFilter(null)), []);
-assert.deepEqual(Array.from(parseTypeFilter('')), []);
-assert.equal(serializeTypeFilter(new Set(['Crowd', 'Queue'])).split(',').sort().join(','), 'Crowd,Queue');
-assert.equal(serializeTypeFilter(new Set()), '');
+const nowSelection = { places: nowPlaces, signals: nowSignals };
+assert.deepEqual(ids(filterByNow(nowSelection, new Set(), now).places), ids(nowPlaces));
+let nowFiltered = filterByNow(nowSelection, new Set(['open']), now);
+assert.deepEqual(ids(nowFiltered.places), ['calm-place']);
+assert.deepEqual(ids(nowFiltered.signals), []);
+nowFiltered = filterByNow(nowSelection, new Set(['calm', 'event']), now);
+assert.deepEqual(ids(nowFiltered.places), ['calm-place']);
+assert.deepEqual(ids(nowFiltered.signals), ['event-signal']);
 
 console.log('map selection tests passed');

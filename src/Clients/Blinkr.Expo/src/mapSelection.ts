@@ -1,5 +1,6 @@
+import { kindFromSignal, liveStateFromCurrent, matchesNowFilters, type LiveKind, type NowFilter } from './live/liveState';
 import { isFresh } from './productPresentation';
-import type { BlinkrPlace, CoordinateSignal, SignalType } from './types';
+import type { BlinkrPlace, CoordinateSignal } from './types';
 
 export type MapLayer = 'all' | 'live' | 'places' | 'signals';
 
@@ -36,27 +37,21 @@ export function selectMapData(
 }
 
 /**
- * Filters an already-selected map result down to specific signal types (04 §1.2's "tip çipleri":
- * Doluluk, Bekleme, Geçici durum, Etkinlik, Fırsat, Yeni açılış, Gözlem — the plan's own "Trafik"/
- * "Hava" chips are not applied here, Blinkr's SignalType enum has no such values and this never
- * invents one). An empty or missing selection means no filter — every type shows, same as before this
- * existed. A catalogue Place with no active signal type is dropped once a filter is active, since there
- * is nothing to say it matches; the `places` layer (which lists the whole catalogue regardless of
- * activity) is left untouched, since the filter is about activity type, not catalogue browsing.
+ * The "Şimdi" chips (v4 brief §3.1): a Place stays when its ring state matches any active chip; a coordinate signal
+ * (no Place, so no opening state) stays when its own type matches Sakin / Etkinlik / Fırsat. No chip = no filter.
  */
-export function filterBySignalTypes(
-  layer: MapLayer,
+export function filterByNow(
   selection: { places: readonly BlinkrPlace[]; signals: readonly CoordinateSignal[] },
-  activeTypes: ReadonlySet<SignalType> | null | undefined,
+  filters: ReadonlySet<NowFilter>,
+  now: number,
 ): { places: BlinkrPlace[]; signals: CoordinateSignal[] } {
-  if (!activeTypes || activeTypes.size === 0 || layer === 'places') {
-    return { places: [...selection.places], signals: [...selection.signals] };
-  }
+  if (filters.size === 0) return { places: [...selection.places], signals: [...selection.signals] };
+  const signalKind: Partial<Record<NowFilter, LiveKind>> = { calm: 'calm', event: 'event', deal: 'deal' };
   return {
-    places: selection.places.filter((place) => {
-      const type = place.currentState?.signalType;
-      return type ? activeTypes.has(type) : false;
+    places: selection.places.filter((place) => matchesNowFilters(liveStateFromCurrent(place.currentState, now), filters)),
+    signals: selection.signals.filter((signal) => {
+      const kind = kindFromSignal(signal.signalType, signal.signalValue);
+      return [...filters].some((f) => signalKind[f] !== undefined && signalKind[f] === kind);
     }),
-    signals: selection.signals.filter((signal) => activeTypes.has(signal.signalType)),
   };
 }

@@ -1,10 +1,10 @@
 import './ui-theme-boot';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Coffee, Layers3, MessageCircle, Radio, Users } from 'lucide-react-native';
 import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { BlinkrBottomBar, type BlinkrTab } from '../src/components/ui/BlinkrBottomBar';
+import { BlinkrBottomBar, type BlinkrTab, bottomBarClearance } from '../src/components/ui/BlinkrBottomBar';
 import { BlinkrButton } from '../src/components/ui/BlinkrButton';
 import { BlinkrCard } from '../src/components/ui/BlinkrCard';
 import { BlinkrChip } from '../src/components/ui/BlinkrChip';
@@ -48,7 +48,11 @@ import { conversations, nearby, area as composerArea } from './ui-fixtures';
 import { SignalComposer } from '../src/components/SignalComposer';
 import { PendingDeletionScreen } from '../src/components/account/PendingDeletionScreen';
 import { AuthScreen } from '../src/components/AuthScreen';
-import { ClusterVisual, MarkerVisual } from '../src/components/MapMarkerVisuals';
+import { MarkerVisual } from '../src/components/MapMarkerVisuals';
+import { ClusterRing } from '../src/components/live/ClusterRing';
+import { LivePin } from '../src/components/live/LivePin';
+import { NearbyNowSheet } from '../src/components/live/NearbyNowSheet';
+import { liveStateFromCurrent, type NowFilter } from '../src/live/liveState';
 import { MapTopChrome } from '../src/components/map/MapTopChrome';
 import { DiscoverScreen } from '../src/components/feed/DiscoverScreen';
 import type { MapLayer } from '../src/mapSelection';
@@ -147,7 +151,7 @@ const mediaOf = (hue: number, id: string) => ({ mediaId: id, mediaType: 'Image',
 const iso = (minutesAgo: number) => new Date(Date.now() - minutesAgo * 60_000).toISOString();
 const detailPlace: BlinkrPlace = {
   id: 'scene-place', name: 'Örnek Lokanta', category: 'RESTAURANT', latitude: 37.07, longitude: 36.25, distanceMeters: 120,
-  currentState: { signalType: 'Crowd', signalValue: 'Busy', freshness: 'FRESH', confidence: 'MEDIUM', activeSignalCount: 2 },
+  currentState: { signalType: 'Crowd', signalValue: 'Busy', freshness: 'FRESH', confidence: 'MEDIUM', activeSignalCount: 2, observedAtUtc: iso(2) },
   recentSignals: [
     { postId: 's1', title: 'Çok kalabalık', text: 'Hafta sonu gibi, yer bulmak zor.', signalType: 'Crowd', createdAtUtc: iso(2), publicationTrust: 'VERIFIED_LIVE', authorName: 'deniz', media: [mediaOf(150, 'm1'), mediaOf(30, 'm2'), mediaOf(260, 'm3'), mediaOf(200, 'm4'), mediaOf(340, 'm5')] },
     { postId: 's2', title: 'Müzik var', text: 'Atmosfer şahane.', signalType: 'Event', createdAtUtc: iso(8), publicationTrust: 'NEARBY_PLACE_POST', authorName: null },
@@ -189,25 +193,28 @@ function CardScene() {
 function Detail() {
   const [answer, setAnswer] = useState('');
   const stale = typeof location !== 'undefined' && location.search.includes('stale');
-  const place = stale ? { ...detailPlace, currentState: { ...detailPlace.currentState, freshness: 'STALE' } } : detailPlace;
+  // ?calm = a relaxed place with three reporters; ?none = no live info; ?auth = signed in (action row with Haber ver / Yere sor).
+  const search = typeof location !== 'undefined' ? location.search : '';
+  const calm: BlinkrPlace = { ...detailPlace, category: 'CAFE', name: 'Soulmate Kafe', currentState: { signalType: 'Crowd', signalValue: 'Calm', freshness: 'FRESH', confidence: 'HIGH', activeSignalCount: 3, observedAtUtc: iso(4) } };
+  const base: BlinkrPlace = search.includes('calm') ? calm : search.includes('none') ? { ...detailPlace, currentState: undefined } : detailPlace;
+  const place: BlinkrPlace = stale ? { ...base, currentState: { ...base.currentState, freshness: 'STALE' } } : base;
   return (
     <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
-      <PostDetailSheet isLoading={false} onClose={() => {}} onCreateSignal={() => {}} onRecheck={(mode, signal) => setAnswer(`${mode}:${signal.type}:${signal.value}`)} place={place} userId="scene" />
+      <PostDetailSheet auth={search.includes('auth') ? qaAuth : null} isLoading={false} onClose={() => {}} onCreateSignal={() => {}} onRecheck={(mode, signal) => setAnswer(`${mode}:${signal.type}:${signal.value}`)} place={place} userId="scene" />
       <Text accessibilityLabel="answer" style={{ height: 0, opacity: 0, position: 'absolute' }}>{answer}</Text>
     </View>
   );
 }
 
 // --- Map chrome + markers over a flat stand-in for the base map (react-native-maps has no web build) ---
-const at = (place: Partial<BlinkrPlace> & { category: string }, left: number, top: number, extra: { selected?: boolean; live?: boolean; type?: SignalType } = {}) => (
-  <View key={`${place.category}-${left}-${top}`} style={{ left, position: 'absolute', top }}>
-    <MarkerVisual
-      now={Date.now()}
-      place={{ id: place.category + left, name: place.category, latitude: 0, longitude: 0, category: place.category, lastActivityUtc: iso(3), currentState: extra.live ? { activeSignalCount: 2, signalType: extra.type ?? 'Crowd', signalValue: 'Busy', freshness: 'FRESH' } : null }}
-      selected={Boolean(extra.selected)}
-    />
-  </View>
-);
+const at = (place: Partial<BlinkrPlace> & { category: string }, left: number, top: number, extra: { selected?: boolean; type?: SignalType; value?: string; age?: number; tag?: boolean } = {}) => {
+  const state = liveStateFromCurrent(extra.type ? { activeSignalCount: 2, signalType: extra.type, signalValue: extra.value ?? 'Calm', freshness: 'FRESH', observedAtUtc: iso(extra.age ?? 4) } : null, Date.now());
+  return (
+    <View key={`${place.category}-${left}-${top}`} style={{ left, position: 'absolute', top }}>
+      <LivePin category={place.category} selected={Boolean(extra.selected)} showTag={extra.tag ?? true} state={state} />
+    </View>
+  );
+};
 const bubble = (type: SignalType, left: number, top: number, ageMinutes: number, selected = false) => (
   <View key={`sig-${type}-${left}-${top}`} style={{ left, position: 'absolute', top }}>
     <MarkerVisual
@@ -217,9 +224,15 @@ const bubble = (type: SignalType, left: number, top: number, ageMinutes: number,
     />
   </View>
 );
+const nowItems = [
+  { id: 'n1', name: 'Soulmate Kafe', category: 'CAFE', type: 'Crowd', value: 'Calm', age: 4, d: 120 },
+  { id: 'n2', name: 'Osmaniye Stadyumu', category: 'SPORT', type: 'Event', value: 'Started', age: 12, d: 640 },
+  { id: 'n3', name: 'Merkez Eczanesi', category: 'PHARMACY', type: 'Queue', value: 'Over15', age: 25, d: 300 },
+].map((p) => ({ place: { id: p.id, name: p.name, category: p.category, latitude: 0, longitude: 0 }, distanceMeters: p.d,
+  state: liveStateFromCurrent({ signalType: p.type, signalValue: p.value, freshness: 'FRESH', observedAtUtc: iso(p.age), activeSignalCount: 3 }, Date.now()) }));
 function MapChrome() {
   const [layer, setLayer] = useState<MapLayer>('all');
-  const [typeFilter, setTypeFilter] = useState<Set<SignalType>>(new Set());
+  const [nowFilters, setNowFilters] = useState<Set<NowFilter>>(new Set(['open']));
   const [tab, setTab] = useState<BlinkrTab>('map');
   // A stand-in for the base map in the active theme (the real app styles Google/Apple maps the same way, mapDarkStyle.ts).
   const dark = getThemeMode() === 'dark';
@@ -231,29 +244,26 @@ function MapChrome() {
       <View style={{ backgroundColor: water, bottom: 120, height: 110, left: -20, position: 'absolute', right: -20, transform: [{ rotate: '-6deg' }] }} />
       <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} pointerEvents="none">
         {[
-          <View key="c12" style={{ left: 120, position: 'absolute', top: 250 }}><ClusterVisual count={12} /></View>,
-          <View key="c5" style={{ left: 280, position: 'absolute', top: 290 }}><ClusterVisual count={5} /></View>,
-          <View key="c3" style={{ left: 30, position: 'absolute', top: 520 }}><ClusterVisual count={3} /></View>,
-          <View key="c120" style={{ left: 250, position: 'absolute', top: 560 }}><ClusterVisual count={120} /></View>,
-          at({ category: 'RESTAURANT' }, 190, 320, { live: true, type: 'Crowd' }),
-          at({ category: 'RESTAURANT' }, 165, 430, { selected: true, live: true, type: 'Queue' }),
-          at({ category: 'CAFE' }, 230, 440),
-          at({ category: 'PHARMACY' }, 95, 470, { live: true, type: 'Queue' }),
-          at({ category: 'BAR' }, 30, 380, { live: true, type: 'Event' }),
-          at({ category: 'SPORT' }, 130, 590),
-          at({ category: 'SHOP' }, 20, 330),
-          at({ category: 'TOURISM' }, 290, 200),
-          at({ category: 'PARK' }, 90, 230, { live: true, type: 'TemporaryStatus' }),
+          <View key="c11" style={{ left: 30, position: 'absolute', top: 240 }}><ClusterRing count={11} mix={{ calm: 6, busy: 3, crowded: 2, other: 0 }} size={58} /></View>,
+          <View key="c3" style={{ left: 170, position: 'absolute', top: 200 }}><ClusterRing count={3} mix={{ calm: 2, busy: 1, crowded: 0, other: 0 }} /></View>,
+          <View key="c120" style={{ left: 300, position: 'absolute', top: 600 }}><ClusterRing count={120} mix={{ calm: 30, busy: 20, crowded: 10, other: 60 }} size={58} /></View>,
+          at({ category: 'CAFE' }, 120, 300, { type: 'Crowd', value: 'Calm', age: 4, selected: true }),
+          at({ category: 'PHARMACY' }, 230, 220, { type: 'TemporaryStatus', value: 'Open', age: 9 }),
+          at({ category: 'SHOP' }, 40, 380, { type: 'Crowd', value: 'Busy', age: 12 }),
+          at({ category: 'RESTAURANT' }, 200, 420, { type: 'Crowd', value: 'Moderate', age: 22 }),
+          at({ category: 'SPORT' }, 260, 320, { type: 'Event', value: 'Started', age: 30 }),
+          at({ category: 'SUPERMARKET' }, 70, 500, { type: 'Queue', value: 'None', age: 140 }),
+          at({ category: 'SHOP' }, 300, 500, { tag: false }),
           bubble('GeneralObservation', 300, 400, 6),
           bubble('Offer', 320, 470, 80),
           bubble('Event', 200, 520, 165),
         ]}
       </View>
       <MapTopChrome
-        activeTypeFilter={typeFilter}
-        onToggleTypeFilter={(type) => setTypeFilter((current) => {
+        nowFilters={nowFilters}
+        onToggleNow={(id) => setNowFilters((current) => {
           const next = new Set(current);
-          if (next.has(type)) next.delete(type); else next.add(type);
+          if (next.has(id)) next.delete(id); else next.add(id);
           return next;
         })}
         isLoading={false}
@@ -268,6 +278,7 @@ function MapChrome() {
         userId="scene"
         userName="alper"
       />
+      <NearbyNowSheet bottom={bottomBarClearance(0)} items={nowItems} onOpen={() => {}} onShowList={() => {}} />
       <BlinkrBottomBar active={tab} chatUnread me={{ userId: 'u-me', avatarKey: '253' }} onShare={() => {}} onTab={setTab} />
     </View>
   );
@@ -338,6 +349,20 @@ function MapSearch() {
       <Text accessibilityLabel="chosen" style={{ height: 0, opacity: 0, position: 'absolute' }}>{chosen}</Text>
     </View>
   );
+}
+// Canlı Halka step 3: the search results typed as "kafe" (calm, busy, crowded, no info, closed) and the legend.
+function LiveSearch() {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const input = document.querySelector('input');
+      if (!input) return;
+      const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      set?.call(input, 'kafe');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, []);
+  return <MapSearch />;
 }
 function Nearby() {
   const [tab, setTab] = useState<BlinkrTab>('nearby');
@@ -527,7 +552,7 @@ function LiveRings() {
   );
 }
 
-const scenes: Record<string, () => React.JSX.Element> = { liveRings: LiveRings, pendingDeletion: PendingDeletion, onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, card: CardScene, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, discover: Discover, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
+const scenes: Record<string, () => React.JSX.Element> = { liveRings: LiveRings, liveSearch: LiveSearch, pendingDeletion: PendingDeletion, onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, card: CardScene, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, discover: Discover, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
 
 export function SceneHost({ name }: { name: string }) {
   const Scene = scenes[name];
