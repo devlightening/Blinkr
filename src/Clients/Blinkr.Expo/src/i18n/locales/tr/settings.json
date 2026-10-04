@@ -87,7 +87,8 @@
     "developer": "Geliştirici",
     "about": "Hakkında",
     "permissions": "İzinler",
-    "data": "Cihazdaki veriler"
+    "data": "Veriler",
+    "privacySafety": "Gizlilik ve güvenlik"
   },
   "account": {
     "username": "Kullanıcı adı",

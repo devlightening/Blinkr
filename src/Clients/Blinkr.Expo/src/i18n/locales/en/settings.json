@@ -87,7 +87,8 @@
     "developer": "Developer",
     "about": "About",
     "permissions": "Permissions",
-    "data": "On this device"
+    "data": "Data",
+    "privacySafety": "Privacy and safety"
   },
   "account": {
     "username": "Username",

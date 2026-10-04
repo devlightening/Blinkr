@@ -283,5 +283,13 @@
     "new": "Yeni koleksiyon",
     "examplePlaceholder": "Örn. Ders çalışmalık kafeler",
     "emptyHint": "Yerleri listelerde topla (\"Hafta sonu kahvaltı\"); istersen bağlantıyla paylaş. Her yer açıldığında şu anki durumunu gösterir."
+  },
+  "guide": {
+    "title": "Yerel rehber",
+    "subtitle": "Yerinde doğrulanmış katkıların",
+    "signals": "Konumda",
+    "signalsHint": "Yerindeyken paylaştığın, sunucunun doğruladığı sinyaller",
+    "places": "Yer",
+    "placesHint": "Doğrulanmış sinyal bıraktığın farklı yerler"
   }
 }

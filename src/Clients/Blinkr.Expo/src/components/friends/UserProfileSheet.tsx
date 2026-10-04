@@ -21,7 +21,7 @@ import { TrustLine } from '../profile/TrustLine';
 import { ReportPanel } from '../ReportPanel';
 import { Sheet } from '../Sheet';
 import { SignalCardModal } from '../signal/SignalCardModal';
-import { SignalGridTile } from '../SignalGridTile';
+import { SignalTile } from '../live/SignalTile';
 import { BlinkrButton } from '../ui/BlinkrButton';
 import { bottomBarClearance } from '../ui/BlinkrBottomBar';
 import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
@@ -159,7 +159,7 @@ export function UserProfileSheet({ auth, user, onAuthChange, onSessionExpired, o
     </View>
   ) : posts && posts.length > 0 ? (
     <View style={styles.grid} testID="person-grid">
-      {posts.map((post) => <SignalGridTile key={post.id} onPress={() => setOpenPost(post)} post={post} size={tileSize} />)}
+      {posts.map((post) => <SignalTile key={post.id} onPress={() => setOpenPost(post)} post={post} size={tileSize} />)}
     </View>
   ) : (
     <View style={styles.noSignals}>

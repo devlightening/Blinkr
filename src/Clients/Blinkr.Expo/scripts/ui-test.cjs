@@ -143,7 +143,7 @@ async function main() {
     await page.screenshot({ path: path.join(out, 'profile.png') });
     await page.goto(url + '?scene=profile&noposts');
     await expect(page.getByText('Henüz sinyal paylaşmadın')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'İlk sinyalini bırak' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'İlk sinyalini bırak' }).first()).toBeVisible();
     await page.goto(url + '?scene=profile&postsfail');
     await expect(page.getByText('Sinyallerin yüklenemedi. Tekrar dene.')).toBeVisible();
     await expect(page.getByText('Network request failed')).toHaveCount(0);
@@ -1089,16 +1089,16 @@ async function main() {
     // Saved places show how they are doing right now: only fresh verified activity, live places first, failures change nothing.
     await page.goto(url + '?scene=profile');
     await page.getByRole('tab', { name: 'Yerler · 3' }).click();
-    await expect(page.getByText(/^Canlı · Doluluk · Kalabalık/)).toBeVisible();
-    await expect(page.getByText(/^Canlı · Bekleme · 15 dk üzeri/)).toBeVisible();
-    await expect(page.getByText(/^Canlı · /)).toHaveCount(2);
+    await expect(page.getByText('Kalabalık', { exact: true })).toBeVisible();
+    await expect(page.getByText('Uzun sıra', { exact: true })).toBeVisible();
+    await expect(page.getByText(/^(Kalabalık|Uzun sıra|Sakin|Açık · Sakin)$/)).toHaveCount(2);
     const savedOrder = await page.getByLabel(/haritada aç/).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label').split(',')[0]));
     if (savedOrder[savedOrder.length - 1] !== 'Kent Müzesi') throw new Error('The place with only a stale state should come last: ' + savedOrder.join('|'));
     await page.waitForTimeout(250); await page.screenshot({ path: path.join(out, 'profile-live.png') });
     await page.goto(url + '?scene=profile&nolive');
     await page.getByRole('tab', { name: 'Yerler · 3' }).click();
     await expect(page.getByLabel(/haritada aç/)).toHaveCount(3);
-    await expect(page.getByText(/^Canlı · /)).toHaveCount(0);
+    await expect(page.getByText(/^(Kalabalık|Uzun sıra)$/)).toHaveCount(0);
     await page.goto(url + '?scene=profile&livefail');
     await page.getByRole('tab', { name: 'Yerler · 3' }).click();
     await expect(page.getByLabel(/haritada aç/)).toHaveCount(3);

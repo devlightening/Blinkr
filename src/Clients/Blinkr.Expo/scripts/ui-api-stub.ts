@@ -173,6 +173,7 @@ export const getPlacesByIds = async (ids: string[]) => {
   const placeCardStates: typeof states = {
     'pc-calm': { signalType: 'Crowd', signalValue: 'Calm', freshness: 'FRESH', activeSignalCount: 3, observedAtUtc: new Date(Date.now() - 4 * 60_000).toISOString() },
     'pc-crowd': { signalType: 'Crowd', signalValue: 'Busy', freshness: 'FRESH', activeSignalCount: 2, observedAtUtc: new Date(Date.now() - 9 * 60_000).toISOString() },
+    kent: { signalType: 'Queue', signalValue: 'Over15', freshness: 'FRESH', activeSignalCount: 2, observedAtUtc: new Date(Date.now() - 6 * 60_000).toISOString() },
     'pc-closed': { signalType: 'TemporaryStatus', signalValue: 'Closed', freshness: 'RECENT', activeSignalCount: 1, observedAtUtc: new Date(Date.now() - 40 * 60_000).toISOString() },
   };
   const names: Record<string, string> = { 'pc-calm': 'Soulmate Kafe', 'pc-crowd': 'Moka Coffee', 'pc-none': 'Köşe Kahve', 'pc-closed': 'Çınar Kahve' };
@@ -482,7 +483,7 @@ export const withdrawQuestion = async () => undefined;
 export const listPlaceWatches = async () => [];
 export const watchPlace = async () => undefined;
 export const unwatchPlace = async () => undefined;
-export const listCollections = async () => ({ items: [] });
+export const listCollections = async () => [];
 export const createCollection = async () => undefined;
 export const getCollection = async () => undefined;
 export const getSharedCollection = async () => undefined;
@@ -490,6 +491,6 @@ export const updateCollection = async () => undefined;
 export const deleteCollection = async () => undefined;
 export const putCollectionItem = async () => undefined;
 export const removeCollectionItem = async () => undefined;
-export const getAuthorTrust = async () => ({ verifiedSignals: 0, verifiedPlaces: 0 });
+export const getAuthorTrust = async () => (flag('notrust') ? { verifiedSignals: 0, verifiedPlaces: 0 } : { verifiedSignals: 214, verifiedPlaces: 12 });
 export const respondToMeetup = async () => undefined;
 export const updateConversationPreferences = async () => undefined;

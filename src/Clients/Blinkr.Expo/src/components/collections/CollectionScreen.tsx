@@ -2,19 +2,20 @@ import * as Clipboard from 'expo-clipboard';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Link2, Lock, Radio, RefreshCw, Share2, Trash2, X } from 'lucide-react-native';
+import { ArrowLeft, Link2, Lock, RefreshCw, Share2, Trash2, X } from 'lucide-react-native';
 
 import { deleteCollection, getCollection, getSharedCollection, removeCollectionItem, updateCollection } from '../../api';
 import { collectionLink, collectionShareText, itemCountLabel, validTitle, type CollectionDetail, type CollectionItem } from '../../collections';
 import { success } from '../../haptics';
 import { formatCategory } from '../../presentation';
-import { savedLiveStatus } from '../../savedLive';
+import { liveStateFromCurrent } from '../../live/liveState';
 import { usePlacesLive } from '../../usePlacesLive';
 import { categoryTone, colors, radii, sizes, spacing, typography } from '../../theme';
 import type { AuthResponse, BlinkrPlace } from '../../types';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { Avatar } from '../Avatar';
 import { PlaceSymbol } from '../PlaceSymbol';
+import { LiveStateLine } from '../live/LiveStateLine';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
 import { PushScreen, type PushScreenHandle } from '../ui/PushScreen';
 import { tx } from '../../i18n/tx';
@@ -192,7 +193,7 @@ export function CollectionScreen({ auth, target, refresh = {}, onBack, onOpenPla
           {data.items.length === 0 ? (
             <Text style={styles.hint}>{mine ? tx('profile:collections.emptyMine', 'Bir yerin sayfasında "Koleksiyona ekle" ile buraya yer ekle.') : tx('profile:collections.empty', 'Bu listede henüz yer yok.')}</Text>
           ) : data.items.map((item) => {
-            const status = savedLiveStatus(live[item.placeId]);
+            const state = liveStateFromCurrent(live[item.placeId]?.currentState, Date.now());
             const tone = categoryTone(item.category);
             return (
               <View key={item.placeId} style={styles.row}>
@@ -201,7 +202,7 @@ export function CollectionScreen({ auth, target, refresh = {}, onBack, onOpenPla
                   <View style={styles.rowCopy}>
                     <Text numberOfLines={1} style={styles.rowTitle}>{item.name}</Text>
                     <Text numberOfLines={1} style={styles.rowSub}>{formatCategory(item.category)}</Text>
-                    {status ? <View style={styles.liveLine}><Radio color={colors.primary} size={12} /><Text numberOfLines={1} style={styles.liveText}>{status.headline}</Text></View> : null}
+                    <LiveStateLine state={state} />
                     {item.note ? <Text numberOfLines={2} style={styles.note}>{item.note}</Text> : null}
                   </View>
                 </AnimatedPressable>
@@ -268,7 +269,5 @@ const styles = StyleSheet.create({
   rowCopy: { flex: 1 },
   rowTitle: { ...typography.bodyStrong, color: colors.text },
   rowSub: { ...typography.caption, color: colors.textSecondary },
-  liveLine: { alignItems: 'center', flexDirection: 'row', gap: 4, marginTop: 1 },
-  liveText: { ...typography.label, color: colors.primary, flexShrink: 1 },
   note: { ...typography.caption, color: colors.text, fontStyle: 'italic', marginTop: 2 },
 });

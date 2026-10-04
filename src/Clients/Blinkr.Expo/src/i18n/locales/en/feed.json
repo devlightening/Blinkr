@@ -40,7 +40,10 @@
     "more": "more",
     "allComments_one": "View {{count}} comment",
     "allComments_other": "View all {{count}} comments",
-    "locationTitle": "We could not find your location"
+    "locationTitle": "We could not find your location",
+    "nowAround": "Around you now",
+    "nowAroundHint": "{{km}} km · freshest first",
+    "nowAroundA11y": "Shows it on the map"
   },
   "stories": {
     "yours": "Your story",

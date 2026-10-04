@@ -1,4 +1,4 @@
-import { EyeOff, MapPin, MessageCircle, Radio, Send, ShieldAlert } from 'lucide-react-native';
+import { MapPin, MessageCircle, Radio, Send, ShieldAlert } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
@@ -11,9 +11,13 @@ import { HEART as HEART_EMOJI, reactionStateOf } from '../../reactions';
 import type { Mention } from '../../richText';
 import { cardText, type CardMedia } from '../../signalCard';
 import { signalValueLabel } from '../../productPresentation';
-import { colors, radii, shadowSoft, signalColors, spacing, typography } from '../../theme';
+import { liveA11yLabel, stateLabel } from '../../live/liveLabels';
+import { postLiveState } from '../../live/postState';
+import { colors, liveColors, liveRingSize, radii, shadowSoft, signalColors, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
-import { Avatar } from '../Avatar';
+import { LiveRing } from '../live/LiveRing';
+import { StatusPill } from '../live/StatusPill';
+import { PlaceSymbol } from '../PlaceSymbol';
 import { SignalSymbol } from '../SignalSymbol';
 import { MediaCarousel } from '../signal/MediaCarousel';
 import { ReactionBurst } from '../ui/ReactionBurst';
@@ -89,6 +93,15 @@ export function FeedCard({ item, myUserId, onLike, onReact, onDoubleTap, onMenti
   const likeable = canLikeFeedItem(item, myUserId);
   const freshness = freshnessTier(item.createdAtUtc, item.expiresAtUtc);
   const authorLabel = item.anonymous ? t('discover.anonymous') : item.authorName;
+  // State-first header: the place, and what THIS post reported about it. Only a server-verified post can wear a live ring.
+  const reported = item.verified ? postLiveState(item, Date.now()) : null;
+  const liveState = reported && reported.source === 'live' ? reported : null;
+  const placeTitle = item.locationName || null;
+  const title = placeTitle ?? authorLabel;
+  const authorTappable = !item.anonymous && Boolean(onOpenAuthor);
+  const headMeta = [formatAge(item.createdAtUtc), distance].filter(Boolean).join(' · ');
+  const openHead = () => { if (item.placeId && onShowOnMap) onShowOnMap(item); else onOpenAuthor?.(item); };
+  const headTappable = Boolean((item.placeId && onShowOnMap) || authorTappable);
 
   const badge = (
     <View style={styles.typeRow}>
@@ -109,26 +122,35 @@ export function FeedCard({ item, myUserId, onLike, onReact, onDoubleTap, onMenti
     <View onLayout={(e) => setWidth(Math.round(e.nativeEvent.layout.width))} style={[styles.card, item.expired && styles.expired]} testID={`feed-card-${item.id}`}>
       <View style={styles.head}>
         <AnimatedPressable
+          accessibilityLabel={liveState ? liveA11yLabel(title, liveState) : `${title}. ${headMeta}`}
           accessibilityRole="button"
-          disabled={item.anonymous || !onOpenAuthor}
-          onPress={() => onOpenAuthor?.(item)}
+          disabled={!headTappable}
+          onPress={openHead}
           pressScale={0.98}
           style={styles.author}
+          testID={`feed-head-${item.id}`}
         >
-          {item.anonymous
-            ? <View style={styles.anonAvatar}><EyeOff color={colors.textSecondary} size={16} /></View>
-            : <Avatar seed={item.authorId ?? item.id} userId={item.authorId} size={32} />}
+          <LiveRing freshness={liveState?.freshness ?? 0} kind={liveState?.kind ?? 'unknown'} size={liveRingSize.card}>
+            <PlaceSymbol color={liveState ? liveColors[liveState.kind] : colors.textSecondary} size={20} />
+          </LiveRing>
           <View style={styles.authorCopy}>
-            <Text numberOfLines={1} style={styles.authorName}>{authorLabel}</Text>
+            <Text numberOfLines={1} style={styles.authorName}>{title}</Text>
             <Text numberOfLines={1} style={styles.meta}>
-              {[item.locationName, formatAge(item.createdAtUtc), distance].filter(Boolean).join(' · ')}
+              {placeTitle ? (
+                <>
+                  <Text accessibilityRole={authorTappable ? 'link' : undefined} onPress={authorTappable ? () => onOpenAuthor?.(item) : undefined} style={authorTappable ? styles.authorLink : undefined}>{authorLabel}</Text>
+                  {headMeta ? ` · ${headMeta}` : ''}
+                </>
+              ) : headMeta}
             </Text>
           </View>
         </AnimatedPressable>
         {/* One freshness rule (plan-devam A8): "Canlı" only for a server-verified signal under 15 minutes. */}
-        {freshness === 'live' && item.verified
-          ? <View style={styles.live}><Radio color={colors.primary} size={12} /><Text style={styles.liveText}>{t(freshnessLabelKey(freshness, true))}</Text></View>
-          : <Text style={styles.meta}>{t(freshnessLabelKey(item.expired ? 'expired' : freshness, Boolean(item.verified)))}</Text>}
+        {liveState
+          ? <StatusPill kind={liveState.kind} label={stateLabel(liveState)} style={styles.pill} />
+          : freshness === 'live' && item.verified
+            ? <View style={styles.live}><Radio color={colors.primary} size={12} /><Text style={styles.liveText}>{t(freshnessLabelKey(freshness, true))}</Text></View>
+            : <Text style={styles.meta}>{t(freshnessLabelKey(item.expired ? 'expired' : freshness, Boolean(item.verified)))}</Text>}
       </View>
 
       <View style={styles.bodyHost}>
@@ -207,8 +229,9 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: radii.lg, gap: spacing.sm, overflow: 'hidden', padding: spacing.lg, ...shadowSoft },
   expired: { opacity: 0.6 },
   head: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  author: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: spacing.sm, minHeight: 44 },
-  anonAvatar: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 32, justifyContent: 'center', width: 32 },
+  author: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: spacing.md, minHeight: 44 },
+  authorLink: { color: colors.text, fontWeight: '600' },
+  pill: { alignSelf: 'center', flexShrink: 0 },
   authorCopy: { flex: 1 },
   authorName: { ...typography.bodyStrong, color: colors.text },
   meta: { ...typography.caption, color: colors.textSecondary },

@@ -5,11 +5,12 @@ import { Bookmark, CalendarClock, Search } from 'lucide-react-native';
 import { foldSearchText } from '../../placeSearch';
 import { formatCategory } from '../../presentation';
 import { listSavedPlaces, type SavedPlace } from '../../savedPlaces';
-import { savedLiveStatus } from '../../savedLive';
+import { liveStateFromCurrent } from '../../live/liveState';
 import { usePlacesLive } from '../../usePlacesLive';
 import { categoryTone, colors, radii, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { PlaceSymbol } from '../PlaceSymbol';
+import { LiveStateLine } from '../live/LiveStateLine';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
 import { MeetupTimePicker } from './MeetupTimePicker';
 import { tx } from '../../i18n/tx';
@@ -70,7 +71,7 @@ export function SharePlaceSheet({ userId, onPick, onPropose }: { userId: string;
       ) : (
         <ScrollView keyboardShouldPersistTaps="handled" style={styles.list}>
           {shown.map((place) => {
-            const status = savedLiveStatus(live[place.id]);
+            const state = liveStateFromCurrent(live[place.id]?.currentState, Date.now());
             const tone = categoryTone(place.category);
             return (
               <View key={place.id} style={styles.rowWrap}>
@@ -84,7 +85,7 @@ export function SharePlaceSheet({ userId, onPick, onPropose }: { userId: string;
                   <View style={[styles.tile, { backgroundColor: `${tone}26` }]}><PlaceSymbol category={place.category} color={tone} size={18} /></View>
                   <View style={styles.copy}>
                     <Text numberOfLines={1} style={styles.name}>{place.name}</Text>
-                    <Text numberOfLines={1} style={[styles.sub, status && styles.subLive]}>{status ? status.headline : formatCategory(place.category)}</Text>
+                    {state.source === 'live' ? <LiveStateLine state={state} /> : <Text numberOfLines={1} style={styles.sub}>{formatCategory(place.category)}</Text>}
                   </View>
                 </AnimatedPressable>
                 {onPropose ? (
@@ -117,5 +118,4 @@ const styles = StyleSheet.create({
   copy: { flex: 1 },
   name: { ...typography.bodyStrong, color: colors.text },
   sub: { ...typography.caption, color: colors.textSecondary },
-  subLive: { color: colors.primary },
 });

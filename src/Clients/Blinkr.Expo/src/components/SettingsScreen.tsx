@@ -184,16 +184,9 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
             <Row icon={<Text style={styles.glyph}>✉</Text>} title={tx('settings:account.email', 'E-posta')} value={auth.email} />
             <Row icon={<KeyRound color={colors.text} size={18} />} onPress={() => setPage('password')} title={tx('settings:password.title', 'Şifreyi değiştir')} />
             <Row icon={<MonitorSmartphone color={colors.text} size={18} />} onPress={() => setPage('sessions')} title={t('pages.sessions')} />
-            <Row icon={<Download color={colors.text} size={18} />} onPress={() => setPage('data')} title={t('pages.data')} />
-            <Row icon={<Trash2 color={colors.danger} size={18} />} onPress={() => setPage('delete')} title={t('pages.delete')} />
           </View>
 
-          <Text style={styles.section}>{tx('settings:sections.safety', 'Güvenlik')}</Text>
-          <View style={styles.group}>
-            <Row icon={<UserX color={colors.text} size={18} />} onPress={() => setPage('blocked')} title={tx('settings:blocked.title', 'Engellenen kişiler')} value={blocked ? String(blocked.length) : undefined} />
-          </View>
-
-          <Text style={styles.section}>{tx('settings:sections.privacy', 'Gizlilik')}</Text>
+          <Text style={styles.section}>{tx('settings:sections.privacySafety', 'Gizlilik ve güvenlik')}</Text>
           <View style={styles.group}>
             <View style={styles.row}>
               <View style={styles.noteCopy}>
@@ -213,6 +206,9 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
               <Switch accessibilityLabel={t('privacy.analyticsTitle')} onValueChange={(value) => { setShareUsage(value); saveAnalyticsConsent(value); }} testID="analytics-switch" trackColor={{ false: colors.border, true: colors.primary }} value={shareUsage} />
             </View>
           </View>
+          <View style={styles.group}>
+            <Row icon={<UserX color={colors.text} size={18} />} onPress={() => setPage('blocked')} title={tx('settings:blocked.title', 'Engellenen kişiler')} value={blocked ? String(blocked.length) : undefined} />
+          </View>
           <View style={styles.note}>
             <ShieldCheck color={colors.primary} size={18} />
             <View style={styles.noteCopy}>
@@ -231,11 +227,6 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
             <Row icon={<ImageIcon color={colors.text} size={18} />} onPress={openSystemSettings} title={tx('settings:permissions.photos', 'Fotoğraflar')} value={permissionLabel(permissions.photos)} />
           </View>
           <Text style={styles.noteText}>{tx('settings:permissions.hint', 'Konum yalnızca sinyal paylaşırken ve yakındakileri görürken kullanılır; kesin konumun kimseye gösterilmez.')}</Text>
-
-          <Text style={styles.section}>{tx('settings:sections.data', 'Cihazdaki veriler')}</Text>
-          <View style={styles.group}>
-            <Row icon={<History color={colors.text} size={18} />} onPress={searchesCleared ? undefined : () => { void clearRecentSearches(auth.userId).then(() => setSearchesCleared(true)); }} title={tx('settings:data.clearSearches', 'Arama geçmişini temizle')} value={searchesCleared ? tx('settings:data.cleared', 'Temizlendi') : undefined} />
-          </View>
 
           {/* plan-devam B3: Sistem / Açık / Koyu. Choosing one reloads the app so every surface, the map included, repaints. */}
           {/* plan-devam G3: Sistem / Türkçe / English. Choosing one reloads the app so every label is rebuilt in it. */}
@@ -269,6 +260,13 @@ export function SettingsScreen({ auth, onAuthChange, onSessionExpired, onBack, o
               value={theme.preference}
             />
             <Text style={styles.noteText}>{t('appearance.hint')}</Text>
+          </View>
+
+          <Text style={styles.section}>{tx('settings:sections.data', 'Veriler')}</Text>
+          <View style={styles.group}>
+            <Row icon={<History color={colors.text} size={18} />} onPress={searchesCleared ? undefined : () => { void clearRecentSearches(auth.userId).then(() => setSearchesCleared(true)); }} title={tx('settings:data.clearSearches', 'Arama geçmişini temizle')} value={searchesCleared ? tx('settings:data.cleared', 'Temizlendi') : undefined} />
+            <Row icon={<Download color={colors.text} size={18} />} onPress={() => setPage('data')} title={t('pages.data')} />
+            <Row icon={<Trash2 color={colors.danger} size={18} />} danger onPress={() => setPage('delete')} title={t('pages.delete')} />
           </View>
 
           {__DEV__ ? (

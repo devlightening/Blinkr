@@ -1,15 +1,16 @@
 import { Archive, Bookmark, Camera, ChevronRight, Lock, Pencil, Radio, Settings, Share2, UserPlus, Users } from 'lucide-react-native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getMyPosts, getMyProfile, getPlacesByIds } from '../api';
+import { getMyPosts, getMyProfile } from '../api';
 import { badgeText } from '../friends';
-import { formatAge, formatCategory } from '../presentation';
+import { formatCategory } from '../presentation';
 import { friendlyError } from '../productPresentation';
 import { listSavedPlaces, toPlace, type SavedPlace } from '../savedPlaces';
-import { liveLookupIds, mergeLive, orderSavedByLive, type SavedLive } from '../savedLive';
+import { compareByLiveness, liveStateFromCurrent } from '../live/liveState';
+import { usePlacesLive } from '../usePlacesLive';
 import { fromAuthoredPost } from '../signalCard';
 import { categoryTone, colors, radii, shadowSoft, sizes, spacing, typography } from '../theme';
 import type { AuthoredPost, AuthResponse, BlinkrPlace, UserSummary } from '../types';
@@ -21,9 +22,10 @@ import { FollowListSheet, type FollowListTab } from './friends/FollowListSheet';
 import { FriendsScreen } from './friends/FriendsScreen';
 import { UserProfileSheet } from './friends/UserProfileSheet';
 import { PlaceSymbol } from './PlaceSymbol';
+import { LiveStateLine } from './live/LiveStateLine';
 import { SignalArchiveScreen } from './SignalArchiveScreen';
 import { SignalCardModal } from './signal/SignalCardModal';
-import { SignalGridTile } from './SignalGridTile';
+import { SignalTile } from './live/SignalTile';
 import { GRID_GAP, PROFILE_RECENT, gridTileSize } from '../profileGrid';
 import { SettingsScreen } from './SettingsScreen';
 import { BlinkrButton } from './ui/BlinkrButton';
@@ -37,7 +39,7 @@ import { GridSkeleton } from './profile/GridSkeleton';
 import { ProfileCompletionCard } from './profile/ProfileCompletionCard';
 import { ProfileTabs, type ProfileTab } from './profile/ProfileTabs';
 import { ShareProfileSheet } from './profile/ShareProfileSheet';
-import { TrustLine } from './profile/TrustLine';
+import { LocalGuideCard } from './profile/LocalGuideCard';
 import { CollectionsSection } from './collections/CollectionsSection';
 import { CollectionScreen, type CollectionTarget } from './collections/CollectionScreen';
 
@@ -106,7 +108,6 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [openPost, setOpenPost] = useState<AuthoredPost | null>(null);
   const [avatarOpen, setAvatarOpen] = useState(false);
-  const [live, setLive] = useState<Record<string, SavedLive | undefined>>({});
   const postsRequest = useRef<AbortController | null>(null);
 
   const loadSaved = useCallback(async () => {
@@ -155,17 +156,10 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
     } catch { /* keep the previous numbers */ }
   }, [auth, onAuthChange, onLogout, onRequestsChange]);
 
-  // How the saved places are doing right now. A failed lookup keeps whatever was shown; it never blanks the list.
-  const loadLive = useCallback(async (places: SavedPlace[]) => {
-    const ids = liveLookupIds(places);
-    if (ids.length === 0) return;
-    let found: BlinkrPlace[] | null = null;
-    try { found = await getPlacesByIds(ids); } catch { found = null; }
-    setLive((current) => mergeLive(current, found, ids));
-  }, []);
+  // How the saved places are doing right now (one batched read, refreshed once a minute); a failure keeps what is shown.
+  const savedPlaces = usePlacesLive(useMemo(() => (saved ?? []).map((place) => place.id), [saved]));
 
   useEffect(() => { void loadSaved(); }, [loadSaved]);
-  useEffect(() => { if (saved && saved.length > 0) void loadLive(saved); }, [saved, loadLive]);
   useEffect(() => { void loadProfile(); }, [auth.userId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { void loadPosts(); return () => postsRequest.current?.abort(); }, [auth.userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -225,7 +219,7 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
   ) : (
     <View style={styles.signals}>
       <View style={styles.grid}>
-        {posts.map((post) => <SignalGridTile key={post.id} onPress={() => setOpenPost(post)} post={post} size={tileSize} />)}
+        {posts.map((post) => <SignalTile key={post.id} onPress={() => setOpenPost(post)} post={post} size={tileSize} />)}
       </View>
       {total !== null && total > posts.length ? (
         <BlinkrButton
@@ -255,8 +249,10 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
   ) : (
     <View style={styles.card}>
       <Text style={styles.cardHint}>{t('saved.synced')}</Text>
-      {orderSavedByLive(saved, live).map((place) => {
-        const status = live[place.id];
+      {saved
+        .map((place, index) => ({ place, index, state: liveStateFromCurrent(savedPlaces[place.id]?.currentState, Date.now()) }))
+        .sort((x, y) => compareByLiveness(x, y) || x.index - y.index)
+        .map(({ place, state }) => {
         return (
           <AnimatedPressable
             accessibilityLabel={tx('profile:me.openPlaceA11y', '{{name}}, haritada aç', { name: place.name })}
@@ -270,12 +266,7 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
             <View style={styles.rowCopy}>
               <Text numberOfLines={1} style={styles.rowTitle}>{place.name}</Text>
               <Text numberOfLines={1} style={styles.rowSub}>{formatCategory(place.category)}</Text>
-              {status ? (
-                <View style={styles.liveLine}>
-                  <Radio color={colors.primary} size={12} />
-                  <Text numberOfLines={1} style={styles.liveText}>{tx('profile:me.liveLine', 'Canlı · {{headline}}', { headline: status.headline })}{status.observedAtUtc ? ` · ${formatAge(status.observedAtUtc)}` : ''}</Text>
-                </View>
-              ) : null}
+              <LiveStateLine state={state} />
             </View>
             <ChevronRight color={colors.textSecondary} size={18} />
           </AnimatedPressable>
@@ -338,7 +329,6 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
 
         <View style={styles.about}>
           {displayName ? <Text numberOfLines={1} style={styles.displayName} testID="profile-display-name">{displayName}</Text> : null}
-          <TrustLine auth={auth} refresh={{ onAuthRefresh: onAuthChange, onSessionExpired: onLogout }} userId={auth.userId} />
           {bio
             ? <Text style={styles.bio}>{bio}</Text>
             : (
@@ -355,6 +345,8 @@ export function ProfileScreen({ auth, onAuthChange, onLogout, onOpenPlace, onCre
             <UserPlus color={colors.text} size={18} />
           </AnimatedPressable>
         </View>
+
+        <LocalGuideCard auth={auth} refresh={{ onAuthRefresh: onAuthChange, onSessionExpired: onLogout }} userId={auth.userId} />
 
         {completion && !completion.complete ? <ProfileCompletionCard completion={completion} onStep={onCompletionStep} /> : null}
 
@@ -504,8 +496,6 @@ const styles = StyleSheet.create({
   rowCopy: { flex: 1 },
   rowTitle: { ...typography.bodyStrong, color: colors.text },
   rowSub: { ...typography.caption, color: colors.textSecondary },
-  liveLine: { alignItems: 'center', flexDirection: 'row', gap: 4, marginTop: 1 },
-  liveText: { ...typography.label, color: colors.primary, flexShrink: 1 },
   loading: { paddingBottom: spacing.xl, paddingTop: spacing.md },
   inline: { gap: spacing.md, paddingVertical: spacing.lg },
   error: { ...typography.body, color: colors.danger },

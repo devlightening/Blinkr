@@ -1,6 +1,6 @@
 import * as Location from 'expo-location';
 import { Bell, ChevronLeft, Compass, Hash, MapPin, Users, WifiOff } from 'lucide-react-native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Linking, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,6 +30,7 @@ import { SegmentedControl } from '../ui/BlinkrSegmentedControl';
 import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
 import { SkeletonList } from '../ui/BlinkrSkeleton';
 import { FeedCard } from './FeedCard';
+import { NowAroundStrip } from './NowAroundStrip';
 import { HashtagSearch } from './HashtagSearch';
 import { ShareToChatSheet } from '../chat/ShareToChatSheet';
 import { signalTarget } from '../../shareTarget';
@@ -175,6 +176,10 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
   }, [hashtagRequest]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const current: Which = hashtag ? 'hashtag' : tab === 'following' ? 'following' : 'nearby';
+  const nearbyPlaceIds = useMemo(
+    () => [...new Set(feeds.nearby.items.map((item) => item.placeId).filter((id): id is string => Boolean(id)))].slice(0, 12),
+    [feeds.nearby.items],
+  );
 
   // V2-6: only the most visible card plays its video; a card on screen for a second counts as a view.
   const [playingId, setPlayingId] = useState<string | null>(null);
@@ -276,7 +281,8 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
     <View>
       <StoryTray auth={auth} onAdd={() => setStoryCamera(true)} onOpen={(item, all) => setStoryView({ authors: all, start: item.authorId })} refresh={refresh.current} reloadKey={trayKey} />
       {storyNotice ? <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{storyNotice}</Text> : null}
-      <Text style={styles.subtitle}>{which === 'nearby' ? t('discover.subtitleNearby') : t('discover.subtitleFollowing')}</Text>
+      {which === 'nearby' ? <NowAroundStrip onOpenPlace={onOpenPlace} placeIds={nearbyPlaceIds} /> : null}
+      {which === 'following' ? <Text style={styles.subtitle}>{t('discover.subtitleFollowing')}</Text> : null}
     </View>
   ));
 

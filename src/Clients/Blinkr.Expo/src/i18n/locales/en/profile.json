@@ -283,5 +283,13 @@
     "new": "New collection",
     "examplePlaceholder": "e.g. Cafes to study in",
     "emptyHint": "Gather places in lists (\"Weekend breakfast\") and share them by link if you like. Each place shows how it is right now when opened."
+  },
+  "guide": {
+    "title": "Local guide",
+    "subtitle": "Contributions verified on site",
+    "signals": "On site",
+    "signalsHint": "Signals you shared while at the place, verified by the server",
+    "places": "Places",
+    "placesHint": "Different places where you left a verified signal"
   }
 }

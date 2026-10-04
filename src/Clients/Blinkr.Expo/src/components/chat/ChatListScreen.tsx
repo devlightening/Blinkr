@@ -445,11 +445,17 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
               <View style={styles.statusLine}>
                 <SnapStatusIcon filled={status.filled} icon={status.icon} tone={status.tone} />
                 <Text numberOfLines={1} style={[styles.status, { color: status.tone === 'quiet' ? colors.textSecondary : statusColor(status.tone) }, status.filled && styles.statusNew]}>{status.label}</Text>
-                <Text style={styles.when}>· {when}</Text>
               </View>
             </View>
-            {item.isPinned ? <Pin accessibilityLabel={tx('chat:list.pinnedA11y', 'Sabitlendi')} color={colors.textSecondary} size={15} testID={`pinned-${item.id}`} /> : null}
-            {badge ? <View style={[styles.badge, item.isMuted && styles.badgeMuted]} testID={`unread-${item.id}`}><Text style={[styles.badgeText, item.isMuted && styles.badgeTextMuted]}>{badge}</Text></View> : null}
+            <View style={styles.rowEnd}>
+              <Text style={styles.when}>{when}</Text>
+              {item.isPinned || badge ? (
+                <View style={styles.rowMarks}>
+                  {item.isPinned ? <Pin accessibilityLabel={tx('chat:list.pinnedA11y', 'Sabitlendi')} color={colors.textSecondary} size={15} testID={`pinned-${item.id}`} /> : null}
+                  {badge ? <View style={[styles.badge, item.isMuted && styles.badgeMuted]} testID={`unread-${item.id}`}><Text style={[styles.badgeText, item.isMuted && styles.badgeTextMuted]}>{badge}</Text></View> : null}
+                </View>
+              ) : null}
+            </View>
           </AnimatedPressable>
           <AnimatedPressable accessibilityLabel={tx('chat:list.snapToA11y', '{{name}} kişisine Snap gönder', { name })} accessibilityRole="button" hitSlop={6} onPress={() => setFlow({ mode: 'reply', conversationId: item.id })} pressScale={0.95} style={styles.cameraButton}>
             <Camera color={colors.textSecondary} size={18} />
@@ -709,6 +715,8 @@ const styles = StyleSheet.create({
   row: { alignItems: 'center', flexDirection: 'row', minHeight: 68, paddingRight: spacing.md },
   rowMain: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: ROW_GAP, minHeight: 68, paddingLeft: spacing.lg, paddingRight: spacing.sm, paddingVertical: spacing.sm },
   rowBody: { flex: 1, gap: 2 },
+  rowEnd: { alignItems: 'flex-end', gap: 4, justifyContent: 'center' },
+  rowMarks: { alignItems: 'center', flexDirection: 'row', gap: 6 },
   nameLine: { alignItems: 'center', flexDirection: 'row', gap: 6 },
   name: { ...typography.heading, flexShrink: 1, color: colors.text, fontSize: 16, fontWeight: '500', lineHeight: 21 },
   nameUnread: { fontWeight: '700' },

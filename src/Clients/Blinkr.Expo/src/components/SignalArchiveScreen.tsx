@@ -12,7 +12,7 @@ import { colors, radii, sizes, spacing, typography } from '../theme';
 import type { AuthoredPost, AuthResponse } from '../types';
 import { AnimatedPressable } from './AnimatedPressable';
 import { PostRow } from './PostRow';
-import { SignalGridTile } from './SignalGridTile';
+import { SignalTile } from './live/SignalTile';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { SegmentedControl } from './ui/BlinkrSegmentedControl';
 import { PushScreen, type PushScreenHandle } from './ui/PushScreen';
@@ -119,7 +119,7 @@ export function SignalArchiveScreen({ auth, onAuthChange, onLogout, onBack, onOp
         ) : (
           <View style={[view === 'grid' ? styles.grid : styles.list, loading && styles.dimmed]}>
             {items.map((post) => (view === 'grid'
-              ? <SignalGridTile key={post.id} onPress={() => onOpenPost(post)} post={post} size={tileSize} />
+              ? <SignalTile key={post.id} onPress={() => onOpenPost(post)} post={post} size={tileSize} />
               : <AnimatedPressable accessibilityRole="button" key={post.id} onPress={() => onOpenPost(post)} pressScale={0.99}><PostRow post={post} /></AnimatedPressable>))}
           </View>
         )}

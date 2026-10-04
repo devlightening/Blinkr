@@ -40,7 +40,10 @@
     "more": "devamı",
     "allComments_one": "{{count}} yorumu gör",
     "allComments_other": "{{count}} yorumun tümünü gör",
-    "locationTitle": "Konumun bulunamadı"
+    "locationTitle": "Konumun bulunamadı",
+    "nowAround": "Şimdi çevrende",
+    "nowAroundHint": "{{km}} km · en tazesi önce",
+    "nowAroundA11y": "Haritada gösterir"
   },
   "stories": {
     "yours": "Hikayen",
