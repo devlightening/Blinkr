@@ -197,5 +197,13 @@
     "expand": "Show live places nearby",
     "fold": "Hide live places nearby",
     "list": "List"
+  },
+  "primer": {
+    "title": "What is happening around you?",
+    "body": "Use your location to see how places near you are right now: crowds, queues and more.",
+    "privacy": "Your exact location is never shown to anyone and is not tracked in the background.",
+    "allow": "Use my location",
+    "settings": "Allow location in Settings",
+    "later": "Not now"
   }
 }

@@ -30,9 +30,8 @@ type Props = {
 };
 
 const tabIcons = { chat: MessageCircle, map: MapIcon, nearby: Compass, profile: UserRound } as const;
-// "nearby" still points at the existing Yakında screen for now (sinyal-mvp-plan 00_START_HERE §1: Keşfet
-// "şimdilik mevcut 'Yakında' ekranını gösterir"); only the tab's own label has moved to the plan's name.
-// Maps to common.json's tab.* keys (P1.4): the first real, end-to-end i18n usage in the app.
+// The "nearby" key is historical: the tab opens Keşfet (`feed/DiscoverScreen`, which embeds the Yakında list).
+// Maps to common.json's tab.* keys (P1.4).
 const tabLabelKeys: Record<BlinkrTab, string> = { chat: 'tab.chat', map: 'tab.map', nearby: 'tab.explore', profile: 'tab.profile' };
 
 function TabItem({ tab, active, unread, me, onPress }: { tab: BlinkrTab; active: boolean; unread?: boolean; me?: Props['me']; onPress: () => void }) {

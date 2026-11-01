@@ -615,6 +615,19 @@ async function main() {
     await page.goto(url + '?scene=onboarding');
     await page.getByRole('button', { name: 'Tanıtımı atla' }).click();
     await expect(page.getByLabel('chosen')).toHaveText('done');
+    // Location primer (plan Faz 1.2): says what the permission is for before the system prompt; settings when the
+    // system will not ask again; "Şimdi değil" hides it.
+    await page.goto(url + '?scene=primer');
+    await expect(page.getByRole('heading', { name: 'Çevrende şu an ne oluyor?' })).toBeVisible();
+    await expect(page.getByText('Kesin konumun kimseye gösterilmez ve arka planda izlenmez.')).toBeVisible();
+    await page.waitForTimeout(250); await page.screenshot({ path: path.join(out, 'location-primer.png') });
+    await page.getByRole('button', { name: 'Konumumu kullan' }).click();
+    await expect(page.getByLabel('chosen')).toHaveText('allow');
+    await page.goto(url + '?scene=primer&denied');
+    await page.getByRole('button', { name: 'Ayarlarda konuma izin ver' }).click();
+    await expect(page.getByLabel('chosen')).toHaveText('settings');
+    await page.getByRole('button', { name: 'Şimdi değil' }).click();
+    await expect(page.getByTestId('location-primer')).toHaveCount(0);
     // Settings: real facts only; the blocked list can be undone; failures are friendly.
     await page.goto(url + '?scene=settings');
     await expect(page.getByRole('heading', { name: 'Ayarlar' })).toBeVisible();

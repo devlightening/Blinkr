@@ -197,5 +197,13 @@
     "expand": "Yakınındaki canlı yerleri göster",
     "fold": "Yakınındaki canlı yerleri gizle",
     "list": "Liste"
+  },
+  "primer": {
+    "title": "Çevrende şu an ne oluyor?",
+    "body": "Yakınındaki yerlerin şu anki durumunu, kalabalığı ve sırayı görmek için konumunu kullan.",
+    "privacy": "Kesin konumun kimseye gösterilmez ve arka planda izlenmez.",
+    "allow": "Konumumu kullan",
+    "settings": "Ayarlarda konuma izin ver",
+    "later": "Şimdi değil"
   }
 }

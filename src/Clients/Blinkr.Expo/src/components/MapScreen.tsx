@@ -20,6 +20,7 @@ import { createSignal, getNearbyPlaces, getPlace, getUnifiedMapBounds, previewPr
 import { useShareOutbox, type SharedResult } from '../shareOutbox';
 import { newOutboxId, type OutboxItem } from '../shareQueue';
 import { ShareProgressChip } from './map/ShareProgressChip';
+import { LocationPrimer } from './map/LocationPrimer';
 import { suggestCameraPlace } from '../cameraPlace';
 import { track } from '../analytics';
 import { friendlyError } from '../productPresentation';
@@ -153,6 +154,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
   const [composerError, setComposerError] = useState<string | null>(null);
   const [locationReadiness, setLocationReadiness] = useState<LocationReadiness>('checking');
   const [canAskLocationAgain, setCanAskLocationAgain] = useState(true);
+  const [primerDismissed, setPrimerDismissed] = useState(false);
   const [mapDirty, setMapDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -611,10 +613,22 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') loadPlaces(region, true, mapLayer === 'places');
+      if (state !== 'active') return;
+      // Back from the device settings with location now allowed (LocationPrimer): go to the device right away.
+      if (locationReadiness === 'permission-required') {
+        Location.getForegroundPermissionsAsync()
+          .then(async (permission) => {
+            setCanAskLocationAgain(permission.canAskAgain);
+            if (permission.status === 'granted') await moveToDeviceLocation(false);
+            else await loadPlaces(region, true, mapLayer === 'places');
+          })
+          .catch(() => loadPlaces(region, true, mapLayer === 'places'));
+        return;
+      }
+      loadPlaces(region, true, mapLayer === 'places');
     });
     return () => subscription.remove();
-  }, [loadPlaces, mapLayer, region]);
+  }, [loadPlaces, locationReadiness, mapLayer, moveToDeviceLocation, region]);
 
   useEffect(() => {
     if (mapLayer !== 'places') {
@@ -1088,7 +1102,8 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
   }, [focusSignal]);
 
   const overlayOpen = isComposerOpen || Boolean(quick) || searchOpen || cameraOpen || Boolean(selectedPlace) || Boolean(selectedSignal) || Boolean(searchProfileUser) || Boolean(cardView);
-  const showNearbyNow = !overlayOpen && nearbyNow.length > 0;
+  const showLocationPrimer = !overlayOpen && !focusPlace && !primerDismissed && locationReadiness === 'permission-required';
+  const showNearbyNow = !overlayOpen && !showLocationPrimer && nearbyNow.length > 0;
   const nowOffset = showNearbyNow ? nearbyNowHeight : 0;
   useEffect(() => { onOverlayOpenChange?.(overlayOpen); }, [overlayOpen, onOverlayOpenChange]);
 
@@ -1147,7 +1162,17 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
         })}
       </MapView>
 
-      {!isLoading && !error && visibleItemCount === 0 && !isComposerOpen && !selectedPlace && !selectedSignal && (
+      {showLocationPrimer ? (
+        <LocationPrimer
+          bottom={bottomBarClearance(insets.bottom) + 12}
+          canAskAgain={canAskLocationAgain}
+          onAllow={() => moveToDeviceLocation(true).catch((err) => setError(friendlyError(err)))}
+          onDismiss={() => setPrimerDismissed(true)}
+          onOpenSettings={() => Linking.openSettings().catch(() => setError(tx('map:errors.settingsFailed', 'Cihaz ayarları açılamadı.')))}
+        />
+      ) : null}
+
+      {!showLocationPrimer && !isLoading && !error && visibleItemCount === 0 && !isComposerOpen && !selectedPlace && !selectedSignal && (
         <Animated.View entering={FadeIn.duration(motion.base)} style={[styles.emptyMap, { bottom: bottomBarClearance(insets.bottom) + 12 }]}>
           {/* plan-devam C11: one calm band instead of a count badge - what is here, and the next step. */}
           <Text style={styles.emptyMapText}>{i18n.t('map:empty.title')}</Text>

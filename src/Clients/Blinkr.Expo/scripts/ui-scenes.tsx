@@ -57,6 +57,7 @@ import { QuickSignalSheet } from '../src/components/live/QuickSignalSheet';
 import { quickStateFor } from '../src/live/quickSignal';
 import { liveStateFromCurrent, type NowFilter } from '../src/live/liveState';
 import { MapTopChrome } from '../src/components/map/MapTopChrome';
+import { LocationPrimer } from '../src/components/map/LocationPrimer';
 import { DiscoverScreen } from '../src/components/feed/DiscoverScreen';
 import type { MapLayer } from '../src/mapSelection';
 import { colors, getThemeMode, signalColors, typography } from '../src/theme';
@@ -571,7 +572,19 @@ function QuickScene() {
     </View>
   );
 }
-const scenes: Record<string, () => React.JSX.Element> = { quick: QuickScene, liveRings: LiveRings, liveSearch: LiveSearch, pendingDeletion: PendingDeletion, onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, card: CardScene, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, discover: Discover, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
+function PrimerScene() {
+  const denied = new URLSearchParams(globalThis.location?.search ?? '').has('denied');
+  const [chosen, setChosen] = useState('none');
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <Text accessibilityLabel="chosen">{chosen}</Text>
+      {chosen === 'later' ? null : (
+        <LocationPrimer bottom={96} canAskAgain={!denied} onAllow={() => setChosen('allow')} onDismiss={() => setChosen('later')} onOpenSettings={() => setChosen('settings')} />
+      )}
+    </View>
+  );
+}
+const scenes: Record<string, () => React.JSX.Element> = { primer: PrimerScene, quick: QuickScene, liveRings: LiveRings, liveSearch: LiveSearch, pendingDeletion: PendingDeletion, onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, card: CardScene, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, discover: Discover, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
 
 export function SceneHost({ name }: { name: string }) {
   const Scene = scenes[name];
