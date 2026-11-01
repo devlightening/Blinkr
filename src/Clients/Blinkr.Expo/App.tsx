@@ -173,7 +173,7 @@ export default function App() {
   // D-041: a shared collection link, opened on the Profil tab once signed in.
   const [collectionRequest, setCollectionRequest] = useState<string | null>(null);
   useEffect(() => {
-    const handle = (url: string | null) => {
+    const handle = (url: string | null | undefined) => {
       const link = parseAppLink(url);
       if (link?.kind === 'post') setPendingLink(link.postId);
       else if (link?.kind === 'user') setProfileRequest(link.userId);
