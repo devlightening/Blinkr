@@ -11,12 +11,14 @@ import {
   Text,
   View,
 } from 'react-native';
-import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import MapView, { Circle, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import i18n from 'i18next';
-import { createSignal, getNearbyPlaces, getPlace, getUnifiedMapBounds, previewPresence, getSignalContent, sendReport } from '../api';
+import { createSignal, getNearbyPlaces, getPlace, getPlaceHeat, getUnifiedMapBounds, previewPresence, getSignalContent, sendReport } from '../api';
+import { isEnabled } from '../flags';
+import { heatAlpha, heatRadiusMeters, isHeatView, showsHeatInsteadOfPins, type PlaceHeat } from '../mapHeat';
 import { useShareOutbox, type SharedResult } from '../shareOutbox';
 import { newOutboxId, type OutboxItem } from '../shareQueue';
 import { ShareProgressChip } from './map/ShareProgressChip';
@@ -56,7 +58,7 @@ import {
   type NearbySource,
   distanceMeters,
 } from '../nearbyRequestOwnership';
-import { colors, getThemeMode, media, motion, radii, shadow, shadowSoft, spacing, typography } from '../theme';
+import { colors, getThemeMode, media, motion, radii, shadow, shadowSoft, spacing, typography, withAlpha } from '../theme';
 import { mapDarkStyle, mapLightStyle } from '../mapDarkStyle';
 import { AnimatedPressable } from './AnimatedPressable';
 import type {
@@ -397,6 +399,22 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
     const timer = setTimeout(() => { void loadPlaces(region, true, mapLayer === 'places'); }, 400);
     return () => clearTimeout(timer);
   }, [mapDirty, isLoading, region, mapLayer, loadPlaces]);
+
+  // D-045 heat layer: from a district out, where verified things are happening now replaces the pins. The last answer
+  // stays drawn while the next one loads, and an empty or failed answer keeps the usual pins.
+  const heatView = isEnabled('heatLayer') && mapLayer !== 'places' && isHeatView(region);
+  const [heat, setHeat] = useState<PlaceHeat | null>(null);
+  useEffect(() => {
+    if (!heatView) { setHeat(null); return undefined; }
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      getPlaceHeat(getBounds(region), controller.signal)
+        .then((next) => { if (!controller.signal.aborted) setHeat(next); })
+        .catch(() => { if (!controller.signal.aborted) setHeat(null); });
+    }, 400);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [heatView, region]);
+  const heatInsteadOfPins = showsHeatInsteadOfPins(heatView, heat);
 
   const openClusterCards = useCallback((item: RenderableMapCluster) => {
     const ids = item.memberIds ?? [];
@@ -1135,7 +1153,17 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
         toolbarEnabled={false}
         userInterfaceStyle={getThemeMode()}
       >
-        {mapItems.map((item) => {
+        {heatInsteadOfPins && heat ? heat.cells.map((cell) => (
+          <Circle
+            center={{ latitude: cell.latitude, longitude: cell.longitude }}
+            fillColor={withAlpha(colors.primary, heatAlpha(cell.level))}
+            key={`heat:${cell.latitude}:${cell.longitude}:${cell.level}`}
+            radius={heatRadiusMeters(heat.cellDegrees)}
+            strokeColor={withAlpha(colors.primary, 0)}
+            strokeWidth={0}
+          />
+        )) : null}
+        {(heatInsteadOfPins ? [] : mapItems).map((item) => {
           if (item.type === 'cluster') {
             const { calm, busy, crowded, other } = item.mix;
             return <BlinkrClusterMarker count={item.pointCount} key={`${item.id}:${calm}.${busy}.${crowded}.${other}`} latitude={item.latitude} longitude={item.longitude} mix={item.mix}

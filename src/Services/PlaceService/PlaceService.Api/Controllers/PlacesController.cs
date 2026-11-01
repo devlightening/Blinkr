@@ -85,6 +85,28 @@ public sealed class PlacesController : ControllerBase
         return Ok(rhythm.Calculate(signals, now));
     }
 
+    /// <summary>
+    /// GET /api/places/heat?minLat=&amp;minLon=&amp;maxLat=&amp;maxLon= - the heat layer (D-045): where verified things are
+    /// happening right now inside the bounds, as grid cells with a coarse level. A cell needs three different people;
+    /// nothing about places or people leaves the service. The same for everyone, so it may be cached briefly.
+    /// </summary>
+    [HttpGet("heat")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Heat([FromQuery] double minLat, [FromQuery] double minLon, [FromQuery] double maxLat, [FromQuery] double maxLon,
+        [FromServices] IPlaceHeatCalculator heat, CancellationToken ct)
+    {
+        if (minLat > maxLat || minLon > maxLon) return BadRequest("Invalid bounds.");
+        var validation = ValidateGeo(minLat, minLon) ?? ValidateGeo(maxLat, maxLon);
+        if (validation is not null) return BadRequest(validation);
+        // A country-sized view would mean one huge cell per region; the app asks for heat only up to city scale.
+        if (maxLat - minLat > 3 || maxLon - minLon > 3) return BadRequest("Bounds too large for the heat layer.");
+
+        var bounds = new HeatBounds(minLat, minLon, maxLat, maxLon);
+        var sources = await _repository.GetHeatSourcesAsync(bounds, DateTime.UtcNow - PlaceHeatCalculator.Window, ct);
+        Response.Headers.CacheControl = "public, max-age=60";
+        return Ok(heat.Calculate(sources, bounds));
+    }
+
     [HttpGet("{id:guid}/signals")]
     [AllowAnonymous]
     public async Task<IActionResult> Signals(Guid id, [FromQuery] int limit = 20, CancellationToken ct = default)

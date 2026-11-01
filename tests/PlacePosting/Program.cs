@@ -90,6 +90,21 @@ var lonely = crowd.Take(8).Append(RhythmAt(alice, "Calm", noon.AddHours(3))).ToL
 Check(rhythm.Calculate(lonely, noon.AddDays(1)).Days.First(d => d.Weekday == 1).Hours.First(h => h.Hour == 15).Level is null, "one person's hour is never shown (k-anonymity)");
 Check(rhythm.Calculate([.. crowd, RhythmAt(bob, "Calm", noon, "NEARBY_PLACE_POST")], noon.AddDays(1)).Observations == r2.Observations, "unverified signals never shape the rhythm");
 
+// D-045: the heat layer - fixed grid, a cell needs three different people, only a centre and a coarse level leave.
+var heat = new PlaceHeatCalculator();
+var city = new HeatBounds(37.00, 36.20, 37.12, 36.32); // ~13 km: 0.01° cells (~1.1 km)
+PlaceHeatSource HeatAt(double lat, double lon, string who) => new(lat, lon, who);
+Check(PlaceHeatCalculator.CellSizeFor(city) == 0.01 && PlaceHeatCalculator.CellSizeFor(new HeatBounds(37, 36, 37.01, 36.01)) == 0.0025, "cell size snaps to the ladder and never goes below ~250 m");
+var twoPeople = heat.Calculate([HeatAt(37.051, 36.251, "a"), HeatAt(37.052, 36.252, "b"), HeatAt(37.053, 36.253, "b")], city);
+Check(twoPeople.Cells.Count == 0, "two people in a cell are never shown (k-anonymity), repeats count once");
+var threePeople = heat.Calculate([HeatAt(37.051, 36.251, "a"), HeatAt(37.052, 36.252, "b"), HeatAt(37.053, 36.253, "c")], city);
+Check(threePeople.Cells.Count == 1 && threePeople.Cells[0].Level == 1 && threePeople.Cells[0].Latitude == 37.055 && threePeople.Cells[0].Longitude == 36.255, "three people light one cell at its centre, not at a place");
+var busyCell = heat.Calculate(Enumerable.Range(0, 12).Select(i => HeatAt(37.051, 36.251, $"p{i}")).ToList(), city);
+Check(busyCell.Cells.Single().Level == 3 && PlaceHeatCalculator.Level(6) == 2 && PlaceHeatCalculator.Level(5) == 1, "levels are coarse: 3-5, 6-11, 12+");
+var moved = heat.Calculate([HeatAt(37.051, 36.251, "a"), HeatAt(37.052, 36.252, "b"), HeatAt(37.053, 36.253, "c")], new HeatBounds(37.005, 36.205, 37.125, 36.325));
+Check(moved.Cells.Single() == threePeople.Cells.Single(), "panning keeps the same cell at the same place");
+Check(heat.Calculate([HeatAt(37.2, 36.25, "a"), HeatAt(37.2, 36.25, "b"), HeatAt(37.2, 36.25, "c")], city).Cells.Count == 0, "outside the bounds is not drawn");
+
 // D-040: facts fade - recent answers outweigh old ones, and forgotten ones disappear.
 var facts = new PlaceAttributeCalculator();
 PlaceAttributeVoteDocument Vote(Guid user, bool value, int daysAgo) => new() { PlaceId = Guid.NewGuid(), Key = "wifi", UserId = user, Value = value, VotedAtUtc = now.AddDays(-daysAgo) };

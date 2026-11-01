@@ -8,6 +8,7 @@ import { DISCOVER_PAGE_SIZE, DISCOVER_RADIUS_METERS, type DiscoverPage } from '.
 import type { Story, StoryTrayItem, StoryViewer } from './stories';
 import type { Mention } from './richText';
 import { authErrorKey } from './authErrors';
+import { readHeat } from './mapHeat';
 import type { SignalShare } from './chatExtras';
 import type { AppNotification } from './notifications';
 import type { PostDetailDto } from './signalCard';
@@ -675,6 +676,17 @@ export const unwatchPlace = (auth: AuthResponse, placeId: string, refresh: Refre
 /** D-037 "Yerin Ritmi": how busy a place usually is by weekday/hour, from verified signals only (public aggregate). */
 export const getPlaceRhythm = (placeId: string, signal?: AbortSignal) =>
   requestJson<import('./placeRhythm').PlaceRhythm>(`/api/places/${placeId}/rhythm`, { signal });
+
+/** D-045 heat layer: where verified things are happening now inside the bounds (aggregate cells, public). */
+export const getPlaceHeat = async (bounds: Bounds, signal?: AbortSignal) => {
+  const params = new URLSearchParams({
+    minLat: bounds.minLat.toString(),
+    minLon: bounds.minLng.toString(),
+    maxLat: bounds.maxLat.toString(),
+    maxLon: bounds.maxLng.toString(),
+  });
+  return readHeat(await requestJson<unknown>(`/api/places/heat?${params}`, { signal }));
+};
 
 /** Up to 20 places by id with their current state: how the places a person saved are doing right now. */
 export const getPlacesByIds = (ids: string[], signal?: AbortSignal) =>

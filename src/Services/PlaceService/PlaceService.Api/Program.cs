@@ -21,6 +21,7 @@ builder.Services.AddScoped<IPlaceRepository, PlaceRepository>();
 builder.Services.AddSingleton<ICurrentPlaceStateCalculator, CurrentPlaceStateCalculator>();
 builder.Services.AddSingleton<IOpeningHoursCalculator, OpeningHoursCalculator>();
 builder.Services.AddSingleton<IPlaceRhythmCalculator, PlaceRhythmCalculator>();
+builder.Services.AddSingleton<IPlaceHeatCalculator, PlaceHeatCalculator>();
 builder.Services.AddSingleton<PlaceStateChangeDetector>();
 builder.Services.AddScoped<IPlaceQuestionRepository, PlaceQuestionRepository>();
 builder.Services.AddScoped<PlaceQuestionService>();

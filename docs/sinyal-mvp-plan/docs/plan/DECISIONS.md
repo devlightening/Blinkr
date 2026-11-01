@@ -15,6 +15,12 @@
 
 ## Kararlar
 
+### D-045 — Isı katmanı: uzak zoom'da pin yerine "şu an nerede hareket var" (2026-11-01)
+- Bağlam: Faz 2.1, Snap Map Explore uyarlaması. Şehir ölçeğinde yüzlerce pin/küme okunmuyordu.
+- Karar: `GET /api/places/heat` (PlaceService) son 3 saatin doğrulanmış, süresi dolmamış sinyallerini yerlerinin konumunda sabit bir ızgaraya (≈250 m–35 km, merdiven) toplar; bir hücre en az 3 farklı kişiyle görünür (Yerin Ritmi'nin k-anonim kuralı), dışarı yalnız hücre merkezi + kaba seviye (1: 3–5, 2: 6–11, 3: 12+ kişi) çıkar. İstemci `latitude/longitudeDelta ≥ 0.08` iken ısıyı çizer ve pinleri gizler; ısı boşsa/başarısızsa pinler kalır. İlk feature flag `heatLayer` (`flagRules.ts`, varsayılan açık; `EXPO_PUBLIC_BLINKR_FLAGS=-heatLayer`).
+- Gerekçe: Mahremiyet (kişi/yer/sayı sızmaz), tazelik penceresi D-042 ile aynı, kaydırmada hücreler yerinde kalır.
+- Etki: `PlaceHeatCalculator`, `PlaceRepository.GetHeatSourcesAsync` + `ix_place_signals_trust_recent`, `mapHeat.ts`, `MapScreen`; testler `tests/PlacePosting`, `scripts/map-heat.test.ts`.
+
 ### D-044 — Ücretli hesap yok: geliştirme Expo Go ile sürer (2026-11-01)
 - Bağlam: Apple Developer üyeliği ve Sentry hesabı şimdilik alınmıyor.
 - Karar: EAS dev build, uzak push bildirimi ve Sentry ertelenir; yalnız Expo Go'da çalışan işler yapılır. Yeni native modül eklenmez (Expo Go'da olmayanlar kırılır).

@@ -26,6 +26,8 @@ public interface IPlaceRepository
     Task<IReadOnlyList<PlaceSignalDocument>> GetSignalsAsync(Guid placeId, int limit, CancellationToken ct);
     /// <summary>D-037: verified Crowd/Queue observations of one place since a time (expired ones included), for its rhythm.</summary>
     Task<IReadOnlyList<PlaceSignalDocument>> GetRhythmSignalsAsync(Guid placeId, DateTime sinceUtc, CancellationToken ct);
+    /// <summary>D-045: verified, still-active signals since a time, placed at their Place, inside the bounds (heat layer).</summary>
+    Task<IReadOnlyList<PlaceHeatSource>> GetHeatSourcesAsync(HeatBounds bounds, DateTime sinceUtc, CancellationToken ct);
     Task<IReadOnlyList<PlaceSignalDocument>> GetSignalsForPlacesAsync(IReadOnlyCollection<Guid> placeIds, int perPlaceLimit, CancellationToken ct);
     Task UpsertSignalAsync(PlaceSignalDocument signal, CancellationToken ct);
     /// <summary>Moves a signal out of (hidden) or back into (restored) the live collection; true when something moved.</summary>
@@ -274,6 +276,32 @@ public sealed class PlaceRepository : IPlaceRepository
             .SortByDescending(s => s.CreatedAtUtc).Limit(5000).ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<PlaceHeatSource>> GetHeatSourcesAsync(HeatBounds bounds, DateTime sinceUtc, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        var sf = Builders<PlaceSignalDocument>.Filter;
+        var filter = sf.Eq(s => s.PublicationTrust, "VERIFIED_LIVE")
+                     & sf.Gt(s => s.CreatedAtUtc, sinceUtc)
+                     & (sf.Eq(s => s.ExpiresAtUtc, null) | sf.Gt(s => s.ExpiresAtUtc, now));
+        // Only who and where: no text, media or names leave the database for this.
+        var projection = Builders<PlaceSignalDocument>.Projection
+            .Include(s => s.PostId).Include(s => s.PlaceId).Include(s => s.AuthorId).Include(s => s.CreatedAtUtc);
+        var signals = await _signals.Find(filter).Project<PlaceSignalDocument>(projection)
+            .SortByDescending(s => s.CreatedAtUtc).Limit(5000).ToListAsync(ct);
+        if (signals.Count == 0) return Array.Empty<PlaceHeatSource>();
+
+        var pf = Builders<PlaceDocument>.Filter;
+        var places = await _places.Find(pf.In(p => p.Id, signals.Select(s => s.PlaceId).Distinct()) & pf.Eq(p => p.IsActive, true) &
+                pf.Gte(p => p.Latitude, bounds.MinLat) & pf.Lte(p => p.Latitude, bounds.MaxLat) &
+                pf.Gte(p => p.Longitude, bounds.MinLon) & pf.Lte(p => p.Longitude, bounds.MaxLon))
+            .Project(p => new { p.Id, p.Latitude, p.Longitude }).ToListAsync(ct);
+        var where = places.ToDictionary(p => p.Id);
+        return signals
+            .Where(s => where.ContainsKey(s.PlaceId))
+            .Select(s => new PlaceHeatSource(where[s.PlaceId].Latitude, where[s.PlaceId].Longitude, s.AuthorId?.ToString() ?? s.PostId.ToString()))
+            .ToList();
+    }
+
     public async Task<IReadOnlyList<PlaceSignalDocument>> GetSignalsForPlacesAsync(IReadOnlyCollection<Guid> placeIds, int perPlaceLimit, CancellationToken ct)
     {
         if (placeIds.Count == 0) return Array.Empty<PlaceSignalDocument>();
@@ -356,7 +384,11 @@ public sealed class PlaceRepository : IPlaceRepository
             new CreateIndexModel<PlaceSignalDocument>(
                 // D-037: a place's history by time, for its weekly rhythm.
                 Builders<PlaceSignalDocument>.IndexKeys.Ascending(s => s.PlaceId).Descending(s => s.CreatedAtUtc),
-                new CreateIndexOptions { Name = "ix_place_signals_place_history" })
+                new CreateIndexOptions { Name = "ix_place_signals_place_history" }),
+            new CreateIndexModel<PlaceSignalDocument>(
+                // D-045: the heat layer reads every verified signal of the last three hours.
+                Builders<PlaceSignalDocument>.IndexKeys.Ascending(s => s.PublicationTrust).Descending(s => s.CreatedAtUtc),
+                new CreateIndexOptions { Name = "ix_place_signals_trust_recent" })
         }, ct);
 
         await _coverage.Indexes.CreateOneAsync(
