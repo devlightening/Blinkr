@@ -7,12 +7,13 @@ const run = (name: string, fn: () => void) => { fn(); console.log('PASS', name);
 const now = Date.parse('2026-09-23T12:00:00Z');
 const ago = (minutes: number) => new Date(now - minutes * 60_000).toISOString();
 
-run('tiers: live < 15 min, recent < 45 min, then old; expired and none', () => {
+run('tiers: live < 15 min, recent < 3 h (the server RECENT window), then old; expired and none', () => {
   check(freshnessTier(ago(0), null, now) === 'live', '0 min');
   check(freshnessTier(ago(14.9), null, now) === 'live', '14.9 min');
   check(freshnessTier(ago(15), null, now) === 'recent', '15 min');
-  check(freshnessTier(ago(44.9), null, now) === 'recent', '44.9 min');
-  check(freshnessTier(ago(45), null, now) === 'old', '45 min');
+  check(freshnessTier(ago(50), null, now) === 'recent', '50 min: still behind a live pin, never "Eski"');
+  check(freshnessTier(ago(179.9), null, now) === 'recent', '179.9 min');
+  check(freshnessTier(ago(180), null, now) === 'old', '180 min');
   check(freshnessTier(ago(5), ago(1), now) === 'expired', 'expired wins');
   check(freshnessTier(null, null, now) === 'none' && freshnessTier('not a date', null, now) === 'none', 'none');
 });
@@ -25,7 +26,7 @@ run('"Canlı" only for server-verified live observations; otherwise "Taze"', () 
 });
 
 run('opacity and confidence follow the same rule', () => {
-  check(freshnessOpacity(ago(5), now) === 1 && freshnessOpacity(ago(30), now) === 0.9 && freshnessOpacity(ago(90), now) === 0.65, 'opacity');
+  check(freshnessOpacity(ago(5), now) === 1 && freshnessOpacity(ago(30), now) === 0.9 && freshnessOpacity(ago(90), now) === 0.9 && freshnessOpacity(ago(200), now) === 0.65, 'opacity');
   check(confidenceKey('HIGH') === 'common:confidence.high' && confidenceKey('medium') === 'common:confidence.medium' && confidenceKey(null) === 'common:confidence.low', 'confidence');
 });
 

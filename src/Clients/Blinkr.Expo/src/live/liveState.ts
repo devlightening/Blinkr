@@ -11,6 +11,7 @@
  * Value names are the backend's (`signalCatalog.ts`): Crowd Calm | Moderate | Busy - note Busy means *crowded* -
  * Queue None | 5To15 | Over15. Legacy upper-case values (EMPTY, BUSY, LONG) still map. An unknown value is no vote.
  */
+import { LIVE_MINUTES, RECENT_MINUTES } from '../freshness';
 
 export type LiveKind = 'calm' | 'busy' | 'crowded' | 'closed' | 'event' | 'deal' | 'info' | 'unknown';
 export type LiveLevel = 0 | 1 | 2;
@@ -50,10 +51,10 @@ export type OpeningHoursEstimate = {
   nextOpenLocalTime?: string | null;
 };
 
-export const WINDOW_MINUTES = 180;
+export const WINDOW_MINUTES = RECENT_MINUTES;
 export const HALF_LIFE_MINUTES = 30;
 export const CLOSED_WINDOW_MINUTES = 90;
-export const PULSE_MAX_MINUTES = 15;
+export const PULSE_MAX_MINUTES = LIVE_MINUTES;
 
 const CROWD_LEVELS: Record<string, LiveLevel> = {
   calm: 0, empty: 0, quiet: 0,

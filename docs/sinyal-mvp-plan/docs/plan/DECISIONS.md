@@ -15,6 +15,17 @@
 
 ## Kararlar
 
+### D-043 — Ürün yönü: "yer önce, sosyal destek"; rakip mekanizmaları uyarlanır (2026-11-01)
+- Bağlam: Kullanıcı genel his, harita, sinyal oluşturma ve sosyal kısımlarda eksik görüyor; yön kararı istendi.
+- Seçenekler: A) yer önce, sosyal destek · B) tam sosyal medya · C) yalnız yer bilgisi
+- Karar: A. Waze (teyit, gizli itibar), Google Maps (normalde/şu an, k-anonim eşik, semt yoğunluğu), Snap Map (ısı katmanı, katmanlar, özel müdavim rozeti), Instagram Map (opt-in, gizli yerler) mekanizma düzeyinde uyarlanır; seri, açık sıralama, canlı arkadaş konumu ve zorunlu günlük bildirim yok.
+- Etki: Faz 0–6 yol haritası `docs/DURUM.md`'de.
+
+### D-042 — "Güncel" penceresi 45 dk'dan 3 saate (2026-11-01)
+- Bağlam: 50 dk'lık doğrulanmış bir sinyal haritada canlı halkayı (pencere 3 sa) ve sunucuda yer durumunu (RECENT, 3 sa) belirlerken Keşfet kartı ve listede "Eski" yazıyordu.
+- Karar: `freshness.ts` RECENT_MINUTES = 180; `liveState.ts` WINDOW_MINUTES ve PULSE_MAX_MINUTES değerlerini oradan alır. "Canlı" (15 dk, yalnız doğrulanmış) değişmedi.
+- Etki: Kart/liste etiketleri ve opaklık; `scripts/freshness.test.ts`.
+
 ### D-041 — "Koleksiyonlar": canlı durumlu yer listeleri, özel ya da bağlantıyla (2026-10-03)
 - Bağlam: Niş yol haritasının 6. maddesi. Instagram rehberleri gibi, ama her yer açıldığında şu anki durumunu gösterir.
 - Karar:

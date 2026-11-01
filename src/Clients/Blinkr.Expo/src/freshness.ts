@@ -4,16 +4,18 @@
  * asks this module, so a header can never say "1 taze sinyal" while a chip says "Canlı 0".
  *
  *   live    younger than 15 min
- *   recent  younger than 45 min
+ *   recent  younger than 3 h
  *   old     older, but not expired
  *   expired past its expiry time
  *   none    no observation time at all
  *
  * "Canlı" is only ever said about a live observation the server verified at the place (root CLAUDE.md §10.2:
- * trust is server-owned); an unverified live observation is "Taze".
+ * trust is server-owned); an unverified live observation is "Taze". "Güncel" lasts as long as the server still
+ * counts the signal toward the place's state (PlaceService RECENT, 3 h) and the Canlı Halka still draws it
+ * (`live/liveState.ts` WINDOW_MINUTES), so a card never says "Eski" about the signal behind a live pin.
  */
 export const LIVE_MINUTES = 15;
-export const RECENT_MINUTES = 45;
+export const RECENT_MINUTES = 180;
 
 export type FreshnessTier = 'live' | 'recent' | 'old' | 'expired' | 'none';
 
