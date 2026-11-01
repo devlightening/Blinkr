@@ -19,7 +19,7 @@ Blinkr'in basarisi ekranda gecirilen sureyle degil, yer kararinin kalitesi ve ku
 > **2026-09-22 pivot notu:** Kullanicinin bilincli kararıyla Blinkr, yukaridaki "yer karari" cekirdeginin
 > uzerine Snapchat (kamera-oncelikli paylasim, hikayeler, harita) ve Instagram (profil, takip/takipci,
 > yorum/tepki, kesfet akisi) tarzi bir sosyal katman ekleyerek genisliyor. Bu genisleme icin tam,
-> ayrintili yürütme plani `docs/sinyal-mvp-plan/` altindadir (kendi `CLAUDE.md`'si var; `docs/plan/00_START_HERE.md`'den baslar). §2.2'deki bazi maddeler bu pivotla bilincli olarak gevsetildi;
+> ayrintili yürütme plani `docs/sinyal-mvp-plan/` altindadir (`docs/plan/00_START_HERE.md`'den baslar). §2.2'deki bazi maddeler bu pivotla bilincli olarak gevsetildi;
 > hangileri ve hangi korumalarla, §2.3'te yazili. Bu genisleme calisirken bile asagidaki §3-27'de
 > tarif edilen mevcut mimari (EventStoreDB+Mongo CQRS/ES, .NET mikroservisleri, server-owned trust,
 > privacy-by-default) **degismedi**; `docs/sinyal-mvp-plan/docs/plan/DECISIONS.md` D-001 geregi
@@ -1171,39 +1171,11 @@ Her tartismada su cumleyi karar filtresi olarak kullan:
 
 Bir degisiklik bu amaci guclendiriyor, bilgiyi daha taze ve guvenilir yapiyor, mahremiyeti koruyor ve cekirdek donguyu daha dayanikli hale getiriyorsa Blinkr'in dogru yonundedir.
 
-## 28. Devam Paketi (plan-devam, 2026-09-23)
+## 28. Güncel Durum ve Devam (2026-11-01)
 
-> Bu paketteki `docs/plan/` referansları `docs/sinyal-mvp-plan/docs/plan/` klasörünü kasteder. Paket `docs/plan-devam/` altındadır; tek takip dosyası `docs/plan-devam/PROGRESS_DEVAM.md`.
-> mimari tanımları hâlâ oradadır. Bu paket **sıradaki işleri** ve **sırayı** tanımlar.
-
-### Şu an neredeyiz
-Faz 0–9 işlevsel olarak tamamlandı, Faz 10'un yarısı bitti (P10.1, P10.3, P10.4, P10.8, P10.9).
-Ancak kullanıcı uygulamayı elle test etti ve **plandaki bazı görsel/UX hedeflerinin koda yansımadığını**
-tespit etti. Ayrıntı: `docs/plan-devam/00_BURADAN_DEVAM.md`.
-
-### Yeni yürütme sırası
-```
-Faz A  Doğrulama ve temizlik      (test verisi, seed, gerçek hatalar)   ← ŞİMDİ BURADAN BAŞLA
-Faz B  Palet ve tema (D-006)      (uygulanmamış; şimdi uygulanacak)
-Faz C  Sinyal Kartı + harita      (Faz 3'ün eksik kalan görsel kısmı)
-Faz D  Kamera-öncelikli oluşturma (Faz 5'in eksik kalan kısmı)
-Faz E  Sohbet yenileme            (Faz 8'in eksik kalan kısmı)
-Faz F  Faz 10 kalanları           (P10.10, P10.7, P10.6)
-Faz G  Faz 11 + 12                (i18n, a11y, performans, analitik, QA, yayın)
-```
-
-### Bu paketin dosyaları
-| Dosya | İçerik |
-|---|---|
-| `docs/plan-devam/00_BURADAN_DEVAM.md` | Durum tespiti, neden bu sıra, çalışma kuralları |
-| `docs/plan-devam/01_FAZ_A_DOGRULAMA_TEMIZLIK.md` | A1–A9 |
-| `docs/plan-devam/02_FAZ_B_PALET_VE_TEMA.md` | B1–B11, kesin token değerleri |
-| `docs/plan-devam/03_FAZ_C_SINYAL_KARTI_VE_HARITA.md` | C1–C13 |
-| `docs/plan-devam/04_FAZ_D_OLUSTURMA_AKISI.md` | D1–D11 |
-| `docs/plan-devam/05_FAZ_E_SOHBET.md` | E1–E9 |
-| `docs/plan-devam/06_FAZ_F_FAZ10_KALANLARI.md` | F1–F7 |
-| `docs/plan-devam/07_FAZ_G_KAPANIS_I18N_QA_YAYIN.md` | G1–G14 |
-| `docs/plan-devam/PROGRESS_DEVAM.md` | Tek takip dosyası (bunu güncelle) |
+> Tek güncel durum dosyası: `docs/DURUM.md` (ne bitti, ne doğrulanmadı, sıradaki iş). Faz A–G (plan-devam) 2026-09-24'te tamamlandı;
+> kayıt: `docs/plan-devam/PROGRESS_DEVAM.md`. Kararlar: `docs/sinyal-mvp-plan/docs/plan/DECISIONS.md`.
+> Niş özellikler: `docs/blinkr-v3/NIS_OZELLIKLER.md`. v4 Canlı Halka: `docs/blinkr-v4/UYGULAMA_PLANI.md` + `BLINKR_REDESIGN_BRIEF.md`.
 
 ### Değişmeyen kurallar (mevcut CLAUDE.md'den)
 - Yerel IP kuralı: `src/Clients/Blinkr.Expo/src/api.ts` içindeki yerel IP commit'lenmez.
@@ -1212,7 +1184,7 @@ Faz G  Faz 11 + 12                (i18n, a11y, performans, analitik, QA, yayın)
 - Yeni her kullanıcı metni i18n (tr + en); renk/ölçü yalnızca `theme.ts` token'ları.
 - Secret / ücretli servis / veri silen migration dışında soru sorma; her sapma DECISIONS.md'ye.
 - Her faz sonunda: kabul betikleri + `typecheck` + testler + iOS/Android export, sonra
-  `PROGRESS_DEVAM.md` güncelle ve commit at.
+  `docs/DURUM.md` güncelle ve commit at.
 
 ### Ek kural (bu paketle gelir)
 **"Tamam" demek ekranda görünmek demektir.** Bir görevi kapatmadan önce ilgili ekranın simülatörde
