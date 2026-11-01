@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import i18n from 'i18next';
 import { createSignal, getNearbyPlaces, getPlace, getPlaceHeat, getUnifiedMapBounds, previewPresence, getSignalContent, sendReport } from '../api';
 import { isEnabled } from '../flags';
-import { heatAlpha, heatRadiusMeters, isHeatView, showsHeatInsteadOfPins, type PlaceHeat } from '../mapHeat';
+import { HEAT_MAX_DELTA, areaActivity, heatAlpha, heatRadiusMeters, isHeatView, showsHeatInsteadOfPins, type PlaceHeat } from '../mapHeat';
 import { useShareOutbox, type SharedResult } from '../shareOutbox';
 import { newOutboxId, type OutboxItem } from '../shareQueue';
 import { ShareProgressChip } from './map/ShareProgressChip';
@@ -401,11 +401,13 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
   }, [mapDirty, isLoading, region, mapLayer, loadPlaces]);
 
   // D-045 heat layer: from a district out, where verified things are happening now replaces the pins. The last answer
-  // stays drawn while the next one loads, and an empty or failed answer keeps the usual pins.
-  const heatView = isEnabled('heatLayer') && mapLayer !== 'places' && isHeatView(region);
+  // stays drawn while the next one loads, and an empty or failed answer keeps the usual pins. Closer in the same
+  // aggregate is still read, only to say how lively the area is (`areaActivity`, "Yakınında şu an" panel).
+  const heatAvailable = isEnabled('heatLayer') && mapLayer !== 'places' && Math.max(region.latitudeDelta, region.longitudeDelta) <= HEAT_MAX_DELTA;
+  const heatView = heatAvailable && isHeatView(region);
   const [heat, setHeat] = useState<PlaceHeat | null>(null);
   useEffect(() => {
-    if (!heatView) { setHeat(null); return undefined; }
+    if (!heatAvailable) { setHeat(null); return undefined; }
     const controller = new AbortController();
     const timer = setTimeout(() => {
       getPlaceHeat(getBounds(region), controller.signal)
@@ -413,8 +415,9 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
         .catch(() => { if (!controller.signal.aborted) setHeat(null); });
     }, 400);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [heatView, region]);
+  }, [heatAvailable, region]);
   const heatInsteadOfPins = showsHeatInsteadOfPins(heatView, heat);
+  const areaLevel = heatView ? null : areaActivity(heat);
 
   const openClusterCards = useCallback((item: RenderableMapCluster) => {
     const ids = item.memberIds ?? [];
@@ -1226,7 +1229,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
         userName={auth.userName}
       />
 
-      {showNearbyNow ? <NearbyNowSheet areaName={nearbyAreaName} bottom={bottomBarClearance(insets.bottom)} items={nearbyNow} onHeight={setNearbyNowHeight} onOpen={openPlaceDetailAfterTouch} onShowList={onShowList} /> : null}
+      {showNearbyNow ? <NearbyNowSheet areaLevel={areaLevel} areaName={nearbyAreaName} bottom={bottomBarClearance(insets.bottom)} items={nearbyNow} onHeight={setNearbyNowHeight} onOpen={openPlaceDetailAfterTouch} onShowList={onShowList} /> : null}
       {!isComposerOpen ? <ShareProgressChip bottom={bottomBarClearance(insets.bottom) + 8 + nowOffset} items={outbox.items} onDiscard={outbox.discard} onRetry={outbox.retry} /> : null}
       {(success || error) && (
         <Animated.View entering={FadeIn.duration(motion.base)} style={[styles.toast, error ? styles.errorToast : styles.successToast, { bottom: bottomBarClearance(insets.bottom) + 8 + nowOffset + (outbox.items.length > 0 ? 60 : 0) }]}>

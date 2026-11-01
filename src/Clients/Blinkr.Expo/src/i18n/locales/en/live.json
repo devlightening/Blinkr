@@ -35,7 +35,6 @@
   "chipEvent": "Events",
   "chipDeal": "Deals",
   "nearbyNow": "Nearby right now",
-  "nearbyAreaCount": "{{area}} · {{n}} live places",
   "nearbyCount": "{{n}} places live",
   "legendLive": "A filled ring is verified live info; a dashed line is an estimate from opening hours.",
   "hintShowOnMap": "Show on map",
@@ -62,5 +61,10 @@
   "trustLineN": "{{n}} people reported on site · last update {{ago}}",
   "summaryNoneOld": "No live info right now; older reports are below.",
   "tagObs": "Seen",
-  "tagEnded": "Ended"
+  "tagEnded": "Ended",
+  "areaActivity": {
+    "high": "the area is very lively",
+    "medium": "the area is lively",
+    "low": "some activity around"
+  }
 }

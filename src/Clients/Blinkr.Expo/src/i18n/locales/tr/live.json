@@ -35,7 +35,6 @@
   "chipEvent": "Etkinlik",
   "chipDeal": "Fırsat",
   "nearbyNow": "Yakınında şu an",
-  "nearbyAreaCount": "{{area}} · {{n}} yer canlı",
   "nearbyCount": "{{n}} yer canlı",
   "legendLive": "Dolu halka doğrulanmış canlı bilgi; kesikli çizgi saate göre tahmin.",
   "hintShowOnMap": "Haritada göster",
@@ -62,5 +61,10 @@
   "trustLineN": "{{n}} kişi yerinde bildirdi · son bilgi {{ago}}",
   "summaryNoneOld": "Şu an canlı bilgi yok; aşağıda eski bildirimler var.",
   "tagObs": "Gözlem",
-  "tagEnded": "Bitti"
+  "tagEnded": "Bitti",
+  "areaActivity": {
+    "high": "civar çok hareketli",
+    "medium": "civar hareketli",
+    "low": "civarda biraz hareket var"
+  }
 }

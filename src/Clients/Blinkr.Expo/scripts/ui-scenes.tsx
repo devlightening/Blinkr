@@ -236,6 +236,8 @@ const nowItems = [
 ].map((p) => ({ place: { id: p.id, name: p.name, category: p.category, latitude: 0, longitude: 0 }, distanceMeters: p.d,
   state: liveStateFromCurrent({ signalType: p.type, signalValue: p.value, freshness: 'FRESH', observedAtUtc: iso(p.age), activeSignalCount: 3 }, Date.now()) }));
 function MapChrome() {
+  // `area`: the panel title says how lively the area in view is (plan Faz 2.3).
+  const area = new URLSearchParams(globalThis.location?.search ?? '').has('area');
   const [layer, setLayer] = useState<MapLayer>('all');
   const [nowFilters, setNowFilters] = useState<Set<NowFilter>>(new Set(['open']));
   const [tab, setTab] = useState<BlinkrTab>('map');
@@ -285,7 +287,7 @@ function MapChrome() {
         userId="scene"
         userName="alper"
       />
-      <NearbyNowSheet bottom={bottomBarClearance(0)} items={nowItems} onOpen={() => {}} onShowList={() => {}} />
+      <NearbyNowSheet areaLevel={area ? 2 : null} areaName={area ? 'Fatih, Osmaniye' : null} bottom={bottomBarClearance(0)} items={nowItems} onOpen={() => {}} onShowList={() => {}} />
       <BlinkrBottomBar active={tab} chatUnread me={{ userId: 'u-me', avatarKey: '253' }} onShare={() => {}} onTab={setTab} />
     </View>
   );

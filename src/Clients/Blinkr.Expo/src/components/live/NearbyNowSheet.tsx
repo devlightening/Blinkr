@@ -4,6 +4,7 @@ import { FlatList, StyleSheet, Text, View } from 'react-native';
 
 import { tx } from '../../i18n/tx';
 import type { LiveState } from '../../live/liveState';
+import type { HeatLevel } from '../../mapHeat';
 import { formatCategory, formatDistance } from '../../presentation';
 import { colors, radii, shadowFloat, spacing, typography } from '../../theme';
 import type { BlinkrPlace } from '../../types';
@@ -14,14 +15,22 @@ export type NearbyNowItem = { place: BlinkrPlace; state: LiveState; distanceMete
 
 const CARD_WIDTH = 288;
 
+/** Activity, not crowding: the level counts people who reported, so it says "hareketli", never "kalabalık". */
+const activityWord = (level: HeatLevel) =>
+  level === 3 ? tx('live:areaActivity.high', 'civar çok hareketli')
+    : level === 2 ? tx('live:areaActivity.medium', 'civar hareketli')
+      : tx('live:areaActivity.low', 'civarda biraz hareket var');
+
 /**
  * "Yakınında şu an" (v4 brief §3.1): a low panel over the map with the places that have live information in view,
  * fresh first, then nearest (the caller sorts). It folds down to its header so the map stays usable.
  */
-export const NearbyNowSheet = memo(function NearbyNowSheet({ items, areaName, bottom, onOpen, onShowList, onHeight }: {
+export const NearbyNowSheet = memo(function NearbyNowSheet({ items, areaName, areaLevel = null, bottom, onOpen, onShowList, onHeight }: {
   items: NearbyNowItem[]; bottom: number; onOpen: (place: BlinkrPlace) => void; onShowList?: () => void;
   /** Short catalogue address (for example "Fatih, Osmaniye"); exact device coordinates are never shown. */
   areaName?: string | null;
+  /** How lively the area in view is (plan Faz 2.3, `mapHeat.areaActivity`); null says nothing, never "quiet". */
+  areaLevel?: HeatLevel | null;
   /** Toasts and the share chip sit above the panel. */
   onHeight?: (height: number) => void;
 }) {
@@ -44,9 +53,11 @@ export const NearbyNowSheet = memo(function NearbyNowSheet({ items, areaName, bo
           <View style={styles.titleText}>
             <Text numberOfLines={1} style={styles.title}>{tx('live:nearbyNow', 'Yakınında şu an')}</Text>
             <Text numberOfLines={1} style={styles.subtitle}>
-              {areaName
-                ? tx('live:nearbyAreaCount', '{{area}} · {{n}} yer canlı', { area: areaName, n: items.length })
-                : tx('live:nearbyCount', '{{n}} yer canlı', { n: items.length })}
+              {[
+                areaName,
+                areaLevel ? activityWord(areaLevel) : null,
+                tx('live:nearbyCount', '{{n}} yer canlı', { n: items.length }),
+              ].filter(Boolean).join(' · ')}
             </Text>
           </View>
           {folded ? <ChevronUp color={colors.textSecondary} size={20} /> : <ChevronDown color={colors.textSecondary} size={20} />}

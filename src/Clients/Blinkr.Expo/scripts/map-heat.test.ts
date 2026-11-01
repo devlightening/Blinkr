@@ -1,4 +1,4 @@
-import { heatAlpha, heatRadiusMeters, isHeatView, readHeat, showsHeatInsteadOfPins } from '../src/mapHeat';
+import { areaActivity, heatAlpha, heatRadiusMeters, isHeatView, readHeat, showsHeatInsteadOfPins } from '../src/mapHeat';
 import { parseFlagOverrides } from '../src/flagRules';
 
 function check(value: unknown, message: string) { if (!value) throw new Error(message); }
@@ -33,4 +33,9 @@ run('feature flags: "a,-b" switches flags on and off, unknown names are ignored'
   const parsed = parseFlagOverrides(' -heatLayer , nope ');
   check(parsed.heatLayer === false && !('nope' in parsed), 'off and unknown');
   check(parseFlagOverrides('heatLayer').heatLayer === true && Object.keys(parseFlagOverrides(null)).length === 0, 'on and empty');
+});
+
+run('area activity: the busiest cell in view, and silence without data', () => {
+  check(areaActivity(readHeat({ cellDegrees: 0.0025, cells: [{ latitude: 1, longitude: 1, level: 1 }, { latitude: 1, longitude: 2, level: 3 }] })) === 3, 'busiest cell');
+  check(areaActivity(readHeat({ cellDegrees: 0.0025, cells: [] })) === null && areaActivity(null) === null, 'no cells is not "quiet"');
 });

@@ -38,5 +38,12 @@ export const readHeat = (payload: unknown): PlaceHeat => {
   };
 };
 
+/**
+ * Area activity (plan Faz 2.3, after Google's area busyness), for the closer views where the heat is not drawn: the
+ * busiest cell in view. No cells means nothing is said - too few verified people is not the same as quiet.
+ */
+export const areaActivity = (heat: PlaceHeat | null): HeatLevel | null =>
+  heat && heat.cells.length > 0 ? (Math.max(...heat.cells.map((cell) => cell.level)) as HeatLevel) : null;
+
 /** Pins hide only when there is heat to show; an empty heat answer keeps the usual pins (never an empty map). */
 export const showsHeatInsteadOfPins = (heatView: boolean, heat: PlaceHeat | null) => heatView && Boolean(heat && heat.cells.length > 0);

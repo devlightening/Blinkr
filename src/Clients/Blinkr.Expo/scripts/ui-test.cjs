@@ -97,6 +97,11 @@ async function main() {
     await expect(page.getByText('Paylaşıldı', { exact: true })).toBeVisible();
     await page.screenshot({ path: path.join(out, 'kit.png') });
 
+    // Area activity (plan Faz 2.3): the panel says how lively the area is; without heat it says nothing about it.
+    await page.goto(url + '?scene=map&area');
+    await expect(page.getByText('Fatih, Osmaniye · civar hareketli · ', { exact: false })).toBeVisible();
+    await page.goto(url + '?scene=map');
+    await expect(page.getByText(/civar|hareket var/)).toHaveCount(0);
     // Map chrome: four layers, exactly one selected, tab bar present, scan + locate reachable.
     await page.goto(url + '?scene=map');
     await expect(page.getByRole('tab')).toHaveCount(4 + 4);
