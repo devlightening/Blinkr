@@ -486,13 +486,6 @@ public class CachedPostQueryService : IPostQueryService
         return (int)result.ModifiedCount;
     }
 
-    public async Task<int> SyncPostgresPostsToMongoAsync(CancellationToken cancellationToken = default)
-    {
-        // This would require access to PostgreSQL context, which is not available in this service
-        _logger.LogWarning("SyncPostgresPostsToMongoAsync not implemented in CachedPostQueryService");
-        return 0;
-    }
-
     // Direct query methods (no caching)
     private async Task<PagedResult<PostListDto>> QueryPostsDirectAsync(PostQuery query, CancellationToken cancellationToken)
     {

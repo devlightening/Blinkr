@@ -306,7 +306,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPostReadRepository, PostReadRepository>();
 
         // Query services (SOLID: each service handles one concern)
-        services.AddScoped<PostFeedQueryService>();
         services.AddScoped<PostSearchQueryService>();
         services.AddScoped<PostNearbyQueryService>();
 

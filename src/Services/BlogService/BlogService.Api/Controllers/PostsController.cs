@@ -362,14 +362,6 @@ public class PostsController : ControllerBase
         return Ok(result with { Items = result.Items.Where(Visible).Select(c => c with { Replies = c.Replies.Where(Visible).ToList() }).ToList() });
     }
 
-    [HttpGet]
-    [AllowAnonymous]
-    public async Task<IActionResult> GetPaged([FromQuery] GetPostsPagedQuery query)
-    {
-        var result = await _mediator.Send(query);
-        return Ok(result);
-    }
-
     /// <summary>
     /// GET /api/posts/nearby - Lightweight endpoint for mobile map
     /// Returns minimal DTO for map markers

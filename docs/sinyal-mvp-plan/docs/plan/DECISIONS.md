@@ -15,6 +15,11 @@
 
 ## Kararlar
 
+### D-044 — Ücretli hesap yok: geliştirme Expo Go ile sürer (2026-11-01)
+- Bağlam: Apple Developer üyeliği ve Sentry hesabı şimdilik alınmıyor.
+- Karar: EAS dev build, uzak push bildirimi ve Sentry ertelenir; yalnız Expo Go'da çalışan işler yapılır. Yeni native modül eklenmez (Expo Go'da olmayanlar kırılır).
+- Etki: Faz 0.3/0.4 ve Faz 1.1 (push) bekler; Faz 1'in diğer maddeleri ve Faz 2–5 devam eder. Uygulama içi bildirimler (SignalR + yoklama) olduğu gibi kalır.
+
 ### D-043 — Ürün yönü: "yer önce, sosyal destek"; rakip mekanizmaları uyarlanır (2026-11-01)
 - Bağlam: Kullanıcı genel his, harita, sinyal oluşturma ve sosyal kısımlarda eksik görüyor; yön kararı istendi.
 - Seçenekler: A) yer önce, sosyal destek · B) tam sosyal medya · C) yalnız yer bilgisi

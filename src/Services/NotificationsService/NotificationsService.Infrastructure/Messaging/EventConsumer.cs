@@ -434,9 +434,7 @@ public class PostCommentAddedNotificationConsumer : IConsumer<PostCommentAddedIn
             _log.LogInformation("👍 WS-07A: Processing post.liked - PostId={PostId}, LikerUserId={LikerUserId}", 
                 postId, likerUserId);
             
-            // TODO: Get post owner info from BlogService
-            // For now, we'll need to enhance the event with PostOwnerId
-            // Temporary solution: Skip if we can't determine post owner
+            // PostLikedIntegrationEvent carries postOwnerId; only events published before it did are skipped.
             if (!root.TryGetProperty("postOwnerId", out var postOwnerElement))
             {
                 _log.LogWarning("⚠️ WS-07A: post.liked event missing postOwnerId - skipping notification");
@@ -505,9 +503,7 @@ public class PostCommentAddedNotificationConsumer : IConsumer<PostCommentAddedIn
             _log.LogInformation("💬 WS-07A: Processing comment.created - PostId={PostId}, AuthorId={AuthorId}", 
                 postId, commentAuthorId);
             
-            // TODO: Get post owner info from BlogService
-            // For now, we'll need to enhance the event with PostOwnerId
-            // Temporary solution: Skip if we can't determine post owner
+            // PostCommentAddedIntegrationEvent carries postOwnerId; only events published before it did are skipped.
             if (!root.TryGetProperty("postOwnerId", out var postOwnerElement))
             {
                 _log.LogWarning("⚠️ WS-07A: comment.created event missing postOwnerId - skipping notification");
