@@ -1,6 +1,6 @@
 # Blinkr — Güncel Durum
 
-**Son güncelleme:** 2026-11-01 · **Dal:** `feat/blinkr-v4-device-fixes` · **Son commit:** 2026-10-04 `a079103`
+**Son güncelleme:** 2026-11-01 · **Dal:** `chore/faz0-zemin` (taban `feat/blinkr-v4-device-fixes`) · **Expo SDK 58** (RN 0.88)
 
 Yeni oturum buradan başlar. Mimari ve kurallar: `CLAUDE.md`. Kararlar: `docs/sinyal-mvp-plan/docs/plan/DECISIONS.md`.
 
@@ -22,13 +22,20 @@ Backend: .NET mikroservisleri + EventStoreDB (yazma) + MongoDB (okuma) + RabbitM
 **Düzeltilen:** `test:ui` hikâye adımı eskiydi (v4 tam hikâye çubuğunu "Yakın" sekmesinden "Takip" sekmesine taşımıştı); test güncellendi, uygulama kodu değişmedi.
 **Hâlâ cihazda doğrulanmadı:** iki cihazlı sinyal zinciri, sohbette sağa çekip yanıt, profilde QR, (+) hızlı sinyal, canlı halka pinleri, performans ölçümleri. Yer kataloğu coverage (Ankara/İstanbul/Osmaniye) DOWN görünüyordu; `scripts/test-place-catalog-coverage.ps1 -Strict` çalıştırılmadı.
 
-## Sıradaki işler
-1. Cihaz doğrulaması + katalog coverage kontrolü (yukarıda).
-2. Fiziksel iki cihaz kabul testi, performans ölçümleri (`PROGRESS_DEVAM.md` tablosu boş).
-3. Niş 5 Yerel rehber (açıklanabilir mahalle rozeti; sıralama/seri yok).
-4. Sinyal sabitleme (profil P5) — BlogService sahibi, ayrı `author_pins` koleksiyonu.
-5. Harita kromu (H5, H7, H6, H4).
-6. Yer kataloğunu Türkiye geneline genişletme.
+## Yol haritası (D-043: yer önce, sosyal destek)
+Rakip mekanizmaları uyarlanır, kopyalanmaz: Waze (teyit, gizli itibar), Google Maps (normalde/şu an, k-anonim eşik, semt yoğunluğu), Snap Map (ısı katmanı, katmanlar, özel müdavim rozeti), Instagram Map (opt-in, gizli yerler). **Yok:** seri, açık sıralama, canlı arkadaş konumu, zorunlu günlük bildirim.
+
+| Faz | İçerik | Durum |
+|---|---|---|
+| 0 Zemin | SDK 58 ✅ · app config tek kaynak + splash ✅ · tazelik tek kaynak (D-042) ✅ · `eas.json` + dev build ⏳ (Expo hesabı + Apple Developer gerekli) · Sentry ⏳ (DSN gerekli) · feature flag · backend TODO temizliği | Devam |
+| 1 Gerçek uygulama hissi | push bildirimi (Haber ver, Yere sor, mesaj, istek, yorum), konum izni öncesi değer kartı, iskelet/boş/hata tutarlılığı, açılış süresi, Keşfet sekmesi TODO | — |
+| 2 Harita | ısı katmanı (k-anonim), "normalde vs şu an", semt yoğunluğu, katman seçici, pin okunurluğu, asla boş harita | — |
+| 3 Sinyal | yakın yer istemi (uygulama açıkken, yer başına günde 1), "Hâlâ böyle mi?" öne çıkar, ≤ 2 dokunuş hızlı sinyal, "sinyalin N kişiye yardım etti" | — |
+| 4 Güven | gizli itibar puanı, Yerel rehber rozeti, özel müdavim rozeti, sahte konum önlemleri | — |
+| 5 Sosyal yere bağlanır | Keşfet yer gruplu, yer hikâyeleri, opt-in arkadaş etkinliği + gizli yerler, sohbet cilası | — |
+| 6 Operasyon | web moderasyon paneli, PostHog, katalog + açılış saatleri, destek e-postası, KVKK | — |
+
+Ayrıca bekleyenler: cihazda doğrulama ve katalog coverage (yukarıda), sinyal sabitleme (profil P5), harita kromu (H4–H7).
 
 ## Yayın öncesi açıklar
 Destek adresi `{{DESTEK_EPOSTA}}` · Sentry/PostHog anahtarları · `.env` izlemeden çıkarılmalı · görsel moderasyon ertelendi (D-015) · push bildirimi yok · EventStore kalıcı silme operasyonu · üretim dağıtımı başlamadı. Kontrol listesi: `docs/operations/release-checklist.md`.
