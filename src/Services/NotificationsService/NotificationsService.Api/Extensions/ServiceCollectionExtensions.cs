@@ -23,7 +23,47 @@ public static class ServiceCollectionExtensions
         services.AddControllers()
             .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
+        services.AddScoped<NotificationsService.Api.Filters.ChatExceptionFilter>();
+        services.AddScoped<NotificationsService.Api.Realtime.RealtimeChatFilter>();
+
         services.AddEndpointsApiExplorer();
+        return services;
+    }
+
+    /// <summary>The identity service owns blocks; chat asks it before a conversation, message or snap goes out.</summary>
+    public static IServiceCollection AddNotificationsBlockGuard(this IServiceCollection services, IConfiguration configuration)
+    {
+        var baseUrl = configuration["Services:IdentityBaseUrl"] ?? "http://localhost:5188";
+        services.AddHttpContextAccessor();
+        services.AddHttpClient(NotificationsService.Api.Services.IdentityBlockGuard.ClientName, client =>
+        {
+            client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromSeconds(3);
+        });
+        services.AddScoped<IBlockGuard, NotificationsService.Api.Services.IdentityBlockGuard>();
+        // S3: sending chat messages and snaps is limited per person (RateLimits:ChatPerMinute, 60 by default).
+        var chatPerMinute = Math.Clamp(configuration.GetValue("RateLimits:ChatPerMinute", 60), 1, 100_000);
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.OnRejected = async (context, ct) =>
+            {
+                context.HttpContext.Response.ContentType = "application/json";
+                await context.HttpContext.Response.WriteAsJsonAsync(new { code = "TOO_MANY_MESSAGES", message = "Çok hızlı mesaj gönderiyorsun. Biraz yavaşla." }, ct);
+            };
+            options.AddPolicy("chat-send", http => System.Threading.RateLimiting.RateLimitPartition.GetSlidingWindowLimiter(
+                http.User.FindFirst("sub")?.Value ?? http.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new System.Threading.RateLimiting.SlidingWindowRateLimiterOptions { PermitLimit = chatPerMinute, Window = TimeSpan.FromMinutes(1), SegmentsPerWindow = 6, QueueLimit = 0 }));
+        });
+        // V2-5 (D-028): the realtime hub; joining a signal's room asks BlogService whether the caller may read it.
+        services.AddSignalR();
+        services.AddSingleton<NotificationsService.Domain.Interfaces.IRealtimePublisher, NotificationsService.Api.Realtime.SignalRRealtimePublisher>();
+        services.AddHttpClient(NotificationsService.Api.Realtime.RealtimeHub.BlogClientName, client =>
+        {
+            client.BaseAddress = new Uri((configuration["Services:BlogBaseUrl"] ?? "http://localhost:5215").TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromSeconds(3);
+        });
+        services.AddSingleton<NotificationsService.Application.Handlers.TypingTracker>();
         return services;
     }
 
@@ -39,10 +79,30 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddNotificationsRepositories(this IServiceCollection services)
     {
-        services.AddScoped<INotificationRepository, MongoNotificationRepository>();
+        // V2-5 (D-028): every stored notification is also pushed to its owner over the realtime hub.
+        services.AddScoped<MongoNotificationRepository>();
+        services.AddScoped<INotificationRepository>(sp => new NotificationsService.Api.Realtime.RealtimeNotificationRepository(
+            sp.GetRequiredService<MongoNotificationRepository>(), sp.GetRequiredService<NotificationsService.Domain.Interfaces.IRealtimePublisher>()));
         services.AddScoped<IDeviceTokenRepository, MongoDeviceTokenRepository>();
         services.AddScoped<IConversationRepository, MongoConversationRepository>();
+        services.AddScoped<IConversationPreferenceRepository, MongoConversationPreferenceRepository>();
+        services.AddScoped<IPlaceWatchRepository, MongoPlaceWatchRepository>();
         services.AddScoped<IChatMessageRepository, MongoChatMessageRepository>();
+
+        return services;
+    }
+
+    /// <summary>Snaps: limits from the "Snaps" section, private disk storage and the cleanup job.</summary>
+    public static IServiceCollection AddNotificationsSnaps(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
+    {
+        var settings = configuration.GetSection("Snaps").Get<NotificationsService.Application.Snaps.SnapSettings>() ?? new NotificationsService.Application.Snaps.SnapSettings();
+        services.AddSingleton(settings);
+        services.AddSingleton<ISnapStorage>(new NotificationsService.Infrastructure.Storage.LocalSnapStorage(settings.StorageRoot, environment.ContentRootPath));
+        services.AddHostedService<NotificationsService.Api.Services.SnapCleanupService>();
+        // Stories (Faz 7) share the private snap storage; visibility comes from the identity service follow graph.
+        services.AddHttpContextAccessor();
+        services.AddScoped<NotificationsService.Api.Stories.FollowGraphClient>();
+        services.AddHostedService<NotificationsService.Api.Stories.StoryCleanupService>();
 
         return services;
     }
@@ -55,6 +115,14 @@ public static class ServiceCollectionExtensions
         {
             busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.EventConsumer.PostLikedNotificationConsumer>();
             busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.EventConsumer.PostCommentAddedNotificationConsumer>();
+            busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.UserFollowedNotificationConsumer>();
+            busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.FollowAcceptedNotificationConsumer>();
+            busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.ModerationNotificationConsumer>();
+            busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.PostMentionNotificationConsumer>();
+            busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.PostRealtimeConsumer>();
+            busCfg.AddConsumer<NotificationsService.Api.Consumers.UserDeletedConsumer>();
+            busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.PlaceWatchNotificationConsumer>();
+            busCfg.AddConsumer<NotificationsService.Infrastructure.Messaging.PlaceQuestionNotificationConsumer>();
 
             busCfg.UsingRabbitMq((ctx, cfg) =>
             {
@@ -130,6 +198,20 @@ public static class ServiceCollectionExtensions
 
                 options.Events = new JwtBearerEvents
                 {
+                    // A refresh token is not an access token (BLK-TOKENS-01).
+                    OnTokenValidated = ctx =>
+                    {
+                        if (!Shared.Auth.BlinkrJwtOptions.IsAccessToken(ctx.Principal)) ctx.Fail("Refresh tokens cannot be used as access tokens.");
+                        return Task.CompletedTask;
+                    },
+                    // V2-5: WebSockets cannot carry an Authorization header from a browser or React Native, so the hub
+                    // (and only the hub) reads the token from ?access_token=.
+                    OnMessageReceived = ctx =>
+                    {
+                        var token = ctx.Request.Query["access_token"].ToString();
+                        if (!string.IsNullOrEmpty(token) && ctx.HttpContext.Request.Path.StartsWithSegments("/hubs")) ctx.Token = token;
+                        return Task.CompletedTask;
+                    },
                     OnAuthenticationFailed = ctx =>
                     {
                         var logger = ctx.HttpContext.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("JwtBearer");

@@ -13,5 +13,8 @@ public record NotificationDto(
     bool IsRead,
     Guid? PostId,
     Guid? ActorUserId,
-    string? ActorUserName
+    string? ActorUserName,
+    /// <summary>V2-7: people in a grouped notification (1 when ungrouped) and the first two of them, newest first.</summary>
+    int ActorCount = 1,
+    IReadOnlyList<Guid>? ActorIds = null
 );

@@ -94,6 +94,11 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
                 throw new ArgumentException("PlaceId does not reference an active place.");
             }
 
+            if (hasMedia && SensitivePlacePolicy.BlocksMedia(place.Category))
+            {
+                throw new PlaceMediaNotAllowedException();
+            }
+
             var proximity = _placeProximityPolicy.Evaluate(new PlaceProximityRequest(
                 request.SignalType,
                 place.Latitude,
@@ -102,7 +107,7 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
                 request.ObservationLongitude,
                 request.ObservationAccuracyMeters,
                 place.GeometryWkt));
-            publicationTrust = proximity.TrustLevel;
+            publicationTrust = GalleryMediaPolicy.CapTrust(proximity.TrustLevel, hasMedia, request.MediaCapturedAtUtc, DateTime.UtcNow);
             _logger.LogInformation(
                 "[Blinkr Publish] anchorType=PLACE placeId={PlaceId} distanceMeters={DistanceMeters} proximityAllowed={ProximityAllowed}",
                 request.PlaceId,
@@ -124,7 +129,7 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
         {
             try
             {
-                _logger.LogDebug("🌍 Auto-geocoding location for lat={Lat}, lon={Lon}", request.Latitude.Value, request.Longitude.Value);
+                _logger.LogDebug("🌍 Auto-geocoding location name");
                 locationName = await _geocodingService.TryReverseAsync(request.Latitude.Value, request.Longitude.Value, ct);
                 if (!string.IsNullOrWhiteSpace(locationName))
                 {
@@ -132,13 +137,12 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
                 }
                 else
                 {
-                    _logger.LogWarning("🌍 Geocoding returned empty result for lat={Lat}, lon={Lon}", request.Latitude.Value, request.Longitude.Value);
+                    _logger.LogWarning("🌍 Geocoding returned an empty result");
                 }
             }
             catch (Exception geocodingEx)
             {
-                _logger.LogWarning(geocodingEx, "🌍 Geocoding failed for lat={Lat}, lon={Lon}, continuing without location name", 
-                    request.Latitude.Value, request.Longitude.Value);
+                _logger.LogWarning(geocodingEx, "🌍 Geocoding failed, continuing without location name");
                 // Continue without location name - don't fail post creation
             }
         }
@@ -184,7 +188,9 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, Guid>
             "Community",
             expiresAt,
             eventMedia,
-            publicationTrust);
+            publicationTrust,
+            GalleryMediaPolicy.IsOldGalleryMedia(hasMedia, request.MediaCapturedAtUtc, DateTime.UtcNow),
+            request.Mentions);
 
         try
         {

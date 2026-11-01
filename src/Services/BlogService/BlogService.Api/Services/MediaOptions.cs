@@ -7,6 +7,8 @@ public sealed class MediaOptions
     public long MaxVideoBytes { get; set; } = 80_000_000;
     public int PresignExpiryMinutes { get; set; } = 10;
     public int OrphanCleanupHours { get; set; } = 24;
+    /// <summary>How often the orphan cleanup runs. Only changed in controlled tests.</summary>
+    public int OrphanCleanupIntervalMinutes { get; set; } = 60;
     public string LocalStorageRoot { get; set; } = "artifacts/media";
     public string PublicBasePath { get; set; } = "/api/v1/media/public";
     public string[] AllowedImageContentTypes { get; set; } = { "image/jpeg", "image/png", "image/webp" };

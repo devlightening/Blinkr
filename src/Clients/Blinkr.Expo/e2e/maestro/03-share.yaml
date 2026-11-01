@@ -1,0 +1,14 @@
+# Scenario 3: (+) -> photo -> swipe a filter -> sticker -> Kullan -> type -> Gönder -> "Paylaşıldı".
+appId: ${APP_ID}
+---
+- launchApp
+- tapOn: "Yeni sinyal paylaş"
+- tapOn: "Fotoğraf çek"
+- swipe: { direction: LEFT }
+- tapOn: "Kalabalık çıkartması ekle"
+- tapOn: "Kullan"
+- assertVisible: "Yeni sinyal"
+- tapOn: "Doluluk"
+- tapOn: "Kalabalık"
+- tapOn: "Gönder"
+- assertVisible: "Paylaşılıyor…|Paylaşıldı.*"

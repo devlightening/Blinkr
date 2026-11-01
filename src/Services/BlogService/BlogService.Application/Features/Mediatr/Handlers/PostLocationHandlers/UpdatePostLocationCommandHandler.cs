@@ -40,8 +40,8 @@ public sealed class UpdatePostLocationCommandHandler
             await _repository.SaveAsync(post, cancellationToken);
 
             _logger.LogInformation(
-                "📍 PostLocationUpdated: PostId={PostId}, Lat={Lat}, Lon={Lon}, Name={Name}, Precision={Precision}",
-                command.PostId, lat, lon, locationName, command.Precision);
+                "📍 PostLocationUpdated: PostId={PostId}, Precision={Precision}",
+                command.PostId, command.Precision);
 
             return Unit.Value;
         }

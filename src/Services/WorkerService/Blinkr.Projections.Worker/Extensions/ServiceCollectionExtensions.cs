@@ -144,6 +144,32 @@ public static class ServiceCollectionExtensions
             Log.Information("✅ Configured endpoint post-comment-added for PostCommentAddedConsumer");
         });
 
+        cfg.ReceiveEndpoint("post-comment-liked", e =>
+        {
+            e.PrefetchCount = 32;
+            e.ConfigureConsumer<PostCommentLikedConsumer>(ctx);
+        });
+
+        cfg.ReceiveEndpoint("post-comment-unliked", e =>
+        {
+            e.PrefetchCount = 32;
+            e.ConfigureConsumer<PostCommentUnlikedConsumer>(ctx);
+        });
+
+        cfg.ReceiveEndpoint("post-comment-removed", e =>
+        {
+            e.PrefetchCount = 32;
+            e.ConfigureConsumer<PostCommentRemovedConsumer>(ctx);
+            Log.Information("✅ Configured endpoint post-comment-removed for PostCommentRemovedConsumer");
+        });
+
+        cfg.ReceiveEndpoint("post-moderation-changed", e =>
+        {
+            e.PrefetchCount = 16;
+            e.ConfigureConsumer<PostModerationChangedConsumer>(ctx);
+            Log.Information("✅ Configured endpoint post-moderation-changed for PostModerationChangedConsumer");
+        });
+
         cfg.ReceiveEndpoint("post-location-added", e =>
         {
             e.PrefetchCount = 32;

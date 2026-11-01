@@ -50,19 +50,16 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
             GeoJsonPoint<GeoJson2DGeographicCoordinates>? location = null;
             if (message.Latitude.HasValue && message.Longitude.HasValue)
             {
-                _logger.LogInformation("🗺️ Creating GeoJSON Point: Lat={Latitude}, Lon={Longitude}, Accuracy={AccuracyMeters}, Name={LocationName}", 
-                    message.Latitude.Value, message.Longitude.Value, message.AccuracyMeters, message.LocationName);
+                _logger.LogInformation("🗺️ Creating GeoJSON Point for PostId={PostId}", message.PostId);
                     
                 location = new GeoJsonPoint<GeoJson2DGeographicCoordinates>(
                     new GeoJson2DGeographicCoordinates(message.Longitude.Value, message.Latitude.Value));
                     
-                _logger.LogInformation("✅ GeoJSON Point created successfully: [{Lon}, {Lat}]", 
-                    location.Coordinates.Longitude, location.Coordinates.Latitude);
+                _logger.LogInformation("✅ GeoJSON Point created for PostId={PostId}", message.PostId);
             }
             else
             {
-                _logger.LogWarning("⚠️ No location data: Latitude={Latitude}, Longitude={Longitude}", 
-                    message.Latitude, message.Longitude);
+                _logger.LogWarning("⚠️ No location data for PostId={PostId}", message.PostId);
             }
 
             var mediaList = new List<Media>();
@@ -106,14 +103,18 @@ public class PostCreatedConsumer : IConsumer<IPostCreatedIntegrationEvent>
                 AudienceType = message.AudienceType ?? "Public",
                 IdentityDisclosure = message.IdentityDisclosure ?? "LimitedProfile",
                 LocationPrecision = message.LocationPrecision ?? "ApproximateArea",
+                PublicationTrust = message.PublicationTrust,
+                FromGallery = message.FromGallery,
                 SourceType = message.SourceType ?? "Community",
                 ExpiresAt = message.ExpiresAt,
-                Media = mediaList
+                Media = mediaList,
+                // V2-4 (D-027): hashtags are read from the text here; mentions arrive resolved from BlogService.
+                Hashtags = Shared.Events.Text.TextTags.Hashtags(message.Title, message.Content) is { Count: > 0 } tags ? tags.ToList() : null,
+                Mentions = message.Mentions is { Count: > 0 } mentions ? mentions.Select(m => new MentionEntry { UserId = m.UserId, UserName = m.UserName }).ToList() : null
             };
 
-            _logger.LogInformation("📝 Post data: Title={Title}, Content={Content}, AuthorId={AuthorId}, Location={Location}", 
-                newPost.Title, newPost.Content, newPost.AuthorId, 
-                location != null ? $"({location.Coordinates.Latitude}, {location.Coordinates.Longitude})" : "None");
+            _logger.LogInformation("📝 Post data: PostId={PostId}, AuthorId={AuthorId}, HasLocation={HasLocation}",
+                newPost.Id, newPost.AuthorId, location != null);
 
             var filter = Builders<PostDocument>.Filter.Eq(p => p.Id, newPost.Id);
 

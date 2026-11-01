@@ -1,0 +1,48 @@
+import { memo } from 'react';
+import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+
+import type { LiveKind } from '../../live/liveState';
+import { liveColors, liveTones, typography, withAlpha } from '../../theme';
+
+export type StatusPillProps = {
+  kind: LiveKind;
+  /** Already translated ("Açık · Sakin"). Colour never carries the meaning alone: the word is mandatory. */
+  label: string;
+  size?: 'sm' | 'lg';
+  /** No live confirmation, estimated from opening hours: a dashed outline instead of a fill. */
+  estimated?: boolean;
+  /** One line with an ellipsis, for narrow tiles; the default lets the word wrap to two lines at large text sizes. */
+  singleLine?: boolean;
+  /** e.g. `alignSelf: 'center'` when the pill sits in a row beside a ring. */
+  style?: StyleProp<ViewStyle>;
+};
+
+function StatusPillBase({ kind, label, size = 'sm', estimated = false, singleLine = false, style }: StatusPillProps) {
+  const color = liveColors[kind];
+  const large = size === 'lg';
+  return (
+    <View
+      accessible accessibilityRole="text" accessibilityLabel={label}
+      style={[
+        styles.base, large ? styles.large : styles.small,
+        estimated
+          ? { borderWidth: 1.5, borderStyle: 'dashed', borderColor: withAlpha(color, 0.55) }
+          : { backgroundColor: withAlpha(color, liveTones.pillAlpha) },
+        style,
+      ]}
+    >
+      <View style={[styles.dot, { backgroundColor: color }]} />
+      <Text ellipsizeMode="tail" numberOfLines={singleLine ? 1 : 2} style={[large ? typography.callout : typography.label, styles.text, { color }]}>{label}</Text>
+    </View>
+  );
+}
+
+export const StatusPill = memo(StatusPillBase);
+
+const styles = StyleSheet.create({
+  base: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', flexShrink: 1, maxWidth: '100%', borderRadius: 999, gap: 6 },
+  small: { minHeight: 24, paddingLeft: 8, paddingRight: 10, paddingVertical: 3 },
+  large: { minHeight: 30, paddingLeft: 12, paddingRight: 14, paddingVertical: 4 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  text: { flexShrink: 1, fontWeight: '700' },
+});

@@ -9,8 +9,14 @@ namespace PlaceService.Api.Infrastructure;
 public interface IPlaceRepository
 {
     Task<PlaceDocument?> GetAsync(Guid id, CancellationToken ct);
+    Task<IReadOnlyList<PlaceDocument>> GetManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
     Task<IReadOnlyList<PlaceDocument>> GetNearbyAsync(double lat, double lon, int radiusMeters, int limit, CancellationToken ct);
     Task<IReadOnlyList<PlaceDocument>> SearchAsync(string query, double lat, double lon, int radiusMeters, int limit, CancellationToken ct);
+    /// <summary>Places whose name words start with every given token, anywhere in the catalogue.</summary>
+    Task<IReadOnlyList<PlaceDocument>> SearchByTokensAsync(IReadOnlyList<string> tokens, int limit, CancellationToken ct);
+    /// <summary>Typo rescue: places near an origin having a name word that starts with a short prefix.</summary>
+    Task<IReadOnlyList<PlaceDocument>> SearchNearPrefixAsync(string prefix, double lat, double lon, int radiusMeters, int limit, CancellationToken ct);
+    Task<int> BackfillSearchTokensAsync(int batchSize, CancellationToken ct);
     Task<IReadOnlyList<PlaceDocument>> GetBoundsAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, CancellationToken ct);
     Task<IReadOnlyList<PlaceDocument>> GetActiveBoundsAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, CancellationToken ct);
     Task<PlaceDocument> CreateAsync(CreatePlaceRequest request, CancellationToken ct);
@@ -18,8 +24,15 @@ public interface IPlaceRepository
     Task<bool> HasFreshCoverageAsync(string key, TimeSpan ttl, CancellationToken ct);
     Task MarkCoverageAsync(string key, string provider, string status, int count, CancellationToken ct);
     Task<IReadOnlyList<PlaceSignalDocument>> GetSignalsAsync(Guid placeId, int limit, CancellationToken ct);
+    /// <summary>D-037: verified Crowd/Queue observations of one place since a time (expired ones included), for its rhythm.</summary>
+    Task<IReadOnlyList<PlaceSignalDocument>> GetRhythmSignalsAsync(Guid placeId, DateTime sinceUtc, CancellationToken ct);
+    /// <summary>D-045: verified, still-active signals since a time, placed at their Place, inside the bounds (heat layer).</summary>
+    Task<IReadOnlyList<PlaceHeatSource>> GetHeatSourcesAsync(HeatBounds bounds, DateTime sinceUtc, CancellationToken ct);
     Task<IReadOnlyList<PlaceSignalDocument>> GetSignalsForPlacesAsync(IReadOnlyCollection<Guid> placeIds, int perPlaceLimit, CancellationToken ct);
     Task UpsertSignalAsync(PlaceSignalDocument signal, CancellationToken ct);
+    /// <summary>Moves a signal out of (hidden) or back into (restored) the live collection; true when something moved.</summary>
+    Task<bool> SetSignalModeratedAsync(Guid postId, bool hidden, CancellationToken ct);
+    Task DeleteSignalAsync(Guid postId, CancellationToken ct);
     Task EnsureIndexesAsync(CancellationToken ct);
 }
 
@@ -27,18 +40,27 @@ public sealed class PlaceRepository : IPlaceRepository
 {
     private readonly IMongoCollection<PlaceDocument> _places;
     private readonly IMongoCollection<PlaceSignalDocument> _signals;
+    /// <summary>Signals hidden or removed by moderation: out of live state and signal lists until restored.</summary>
+    private readonly IMongoCollection<PlaceSignalDocument> _moderatedSignals;
     private readonly IMongoCollection<PlaceDiscoveryCoverageDocument> _coverage;
 
     public PlaceRepository(IMongoDatabase database)
     {
         _places = database.GetCollection<PlaceDocument>("places");
         _signals = database.GetCollection<PlaceSignalDocument>("place_signals");
+        _moderatedSignals = database.GetCollection<PlaceSignalDocument>("place_signals_moderated");
         _coverage = database.GetCollection<PlaceDiscoveryCoverageDocument>("place_discovery_coverage");
     }
 
     public async Task<PlaceDocument?> GetAsync(Guid id, CancellationToken ct)
     {
         return await _places.Find(p => p.Id == id && p.IsActive).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<PlaceDocument>> GetManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0) return Array.Empty<PlaceDocument>();
+        return await _places.Find(p => ids.Contains(p.Id) && p.IsActive).ToListAsync(ct);
     }
 
     public async Task<IReadOnlyList<PlaceDocument>> GetNearbyAsync(double lat, double lon, int radiusMeters, int limit, CancellationToken ct)
@@ -56,10 +78,49 @@ public sealed class PlaceRepository : IPlaceRepository
             var escaped = string.Concat(query.Trim().Select(c => c is 'i' or 'I' or 'İ' or 'ı'
                 ? "[iIİı]" : System.Text.RegularExpressions.Regex.Escape(c.ToString())));
             var pattern = new MongoDB.Bson.BsonRegularExpression(escaped, "i");
-            filter &= f.Regex(p => p.Name, pattern) | f.Regex(p => p.Category, pattern);
+            var byText = f.Regex(p => p.Name, pattern) | f.Regex(p => p.Category, pattern) | f.Regex(p => p.DisplayAddress, pattern);
+
+            // Folded name words: finds "Şifa" from "sifa" and "Soul Mate" from "soulmate". Words that were typed
+            // must each start a name word; documents the backfill has not reached yet still match by the regexes above.
+            var tokens = PlaceService.Api.Application.PlaceSearchText.QueryTokens(query);
+            filter &= tokens.Length == 0 ? byText : byText | TokenPrefixFilter(tokens);
         }
         // $nearSphere sorts before limit, so dense catalogs cannot hide the closest branch.
         return await _places.Find(filter).Limit(limit).ToListAsync(ct);
+    }
+
+    private static FilterDefinition<PlaceDocument> TokenPrefixFilter(IEnumerable<string> tokens) =>
+        Builders<PlaceDocument>.Filter.And(tokens.Select(token =>
+            Builders<PlaceDocument>.Filter.Regex("SearchTokens", new MongoDB.Bson.BsonRegularExpression("^" + System.Text.RegularExpressions.Regex.Escape(token)))));
+
+    public async Task<IReadOnlyList<PlaceDocument>> SearchByTokensAsync(IReadOnlyList<string> tokens, int limit, CancellationToken ct)
+    {
+        if (tokens.Count == 0) return Array.Empty<PlaceDocument>();
+        var filter = Builders<PlaceDocument>.Filter.Eq(p => p.IsActive, true) & TokenPrefixFilter(tokens);
+        return await _places.Find(filter).Limit(limit).ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<PlaceDocument>> SearchNearPrefixAsync(string prefix, double lat, double lon, int radiusMeters, int limit, CancellationToken ct)
+    {
+        if (prefix.Length < 2) return Array.Empty<PlaceDocument>();
+        var f = Builders<PlaceDocument>.Filter;
+        var filter = f.Eq(p => p.IsActive, true)
+            & f.NearSphere(p => p.Location, new GeoJsonPoint<GeoJson2DGeographicCoordinates>(new(lon, lat)), radiusMeters)
+            & TokenPrefixFilter(new[] { prefix });
+        return await _places.Find(filter).Limit(limit).ToListAsync(ct);
+    }
+
+    public async Task<int> BackfillSearchTokensAsync(int batchSize, CancellationToken ct)
+    {
+        var missing = await _places.Find(Builders<PlaceDocument>.Filter.Exists("SearchTokens", false)).Limit(batchSize).ToListAsync(ct);
+        if (missing.Count == 0) return 0;
+
+        // An empty list (not null) marks "seen", so a name without usable words is not visited again.
+        var writes = missing.Select(place => (WriteModel<PlaceDocument>)new UpdateOneModel<PlaceDocument>(
+            Builders<PlaceDocument>.Filter.Eq(p => p.Id, place.Id),
+            Builders<PlaceDocument>.Update.Set(p => p.SearchTokens, PlaceService.Api.Application.PlaceSearchText.NameTokens(place.Name)))).ToList();
+        await _places.BulkWriteAsync(writes, new BulkWriteOptions { IsOrdered = false }, ct);
+        return missing.Count;
     }
 
     private static double DistanceMeters(double lat1, double lon1, double lat2, double lon2)
@@ -116,7 +177,8 @@ public sealed class PlaceRepository : IPlaceRepository
             Source = string.IsNullOrWhiteSpace(request.Source) ? "Manual" : request.Source.Trim(),
             CreatedAtUtc = now,
             UpdatedAtUtc = now,
-            IsActive = true
+            IsActive = true,
+            SearchTokens = PlaceService.Api.Application.PlaceSearchText.NameTokens(request.Name)
         };
 
         await _places.InsertOneAsync(place, cancellationToken: ct);
@@ -163,6 +225,9 @@ public sealed class PlaceRepository : IPlaceRepository
                 .Set(p => p.UpdatedAtUtc, now)
                 .Set(p => p.IsActive, true)
                 .SetOnInsert(p => p.CreatedAtUtc, now);
+            update = string.IsNullOrWhiteSpace(discovered.OpeningHours)
+                ? update.Unset(p => p.OpeningHours)
+                : update.Set(p => p.OpeningHours, discovered.OpeningHours.Trim());
 
             await _places.UpdateOneAsync(filter, update, new UpdateOptions { IsUpsert = true }, ct);
             var place = await _places.Find(filter).FirstOrDefaultAsync(ct);
@@ -194,6 +259,47 @@ public sealed class PlaceRepository : IPlaceRepository
     public async Task<IReadOnlyList<PlaceSignalDocument>> GetSignalsAsync(Guid placeId, int limit, CancellationToken ct)
     {
         return await GetSignalsForPlacesAsync(new[] { placeId }, limit, ct);
+    }
+
+    public async Task<IReadOnlyList<PlaceSignalDocument>> GetRhythmSignalsAsync(Guid placeId, DateTime sinceUtc, CancellationToken ct)
+    {
+        var f = Builders<PlaceSignalDocument>.Filter;
+        var filter = f.Eq(s => s.PlaceId, placeId)
+                     & f.Gte(s => s.CreatedAtUtc, sinceUtc)
+                     & f.Eq(s => s.PublicationTrust, "VERIFIED_LIVE")
+                     & f.In(s => s.SignalType, new[] { "Crowd", "Queue" });
+        // Only what the rhythm needs: no text, media or names leave the database for this.
+        var projection = Builders<PlaceSignalDocument>.Projection
+            .Include(s => s.PostId).Include(s => s.PlaceId).Include(s => s.SignalType).Include(s => s.SignalValue)
+            .Include(s => s.PublicationTrust).Include(s => s.AuthorId).Include(s => s.CreatedAtUtc);
+        return await _signals.Find(filter).Project<PlaceSignalDocument>(projection)
+            .SortByDescending(s => s.CreatedAtUtc).Limit(5000).ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<PlaceHeatSource>> GetHeatSourcesAsync(HeatBounds bounds, DateTime sinceUtc, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        var sf = Builders<PlaceSignalDocument>.Filter;
+        var filter = sf.Eq(s => s.PublicationTrust, "VERIFIED_LIVE")
+                     & sf.Gt(s => s.CreatedAtUtc, sinceUtc)
+                     & (sf.Eq(s => s.ExpiresAtUtc, null) | sf.Gt(s => s.ExpiresAtUtc, now));
+        // Only who and where: no text, media or names leave the database for this.
+        var projection = Builders<PlaceSignalDocument>.Projection
+            .Include(s => s.PostId).Include(s => s.PlaceId).Include(s => s.AuthorId).Include(s => s.CreatedAtUtc);
+        var signals = await _signals.Find(filter).Project<PlaceSignalDocument>(projection)
+            .SortByDescending(s => s.CreatedAtUtc).Limit(5000).ToListAsync(ct);
+        if (signals.Count == 0) return Array.Empty<PlaceHeatSource>();
+
+        var pf = Builders<PlaceDocument>.Filter;
+        var places = await _places.Find(pf.In(p => p.Id, signals.Select(s => s.PlaceId).Distinct()) & pf.Eq(p => p.IsActive, true) &
+                pf.Gte(p => p.Latitude, bounds.MinLat) & pf.Lte(p => p.Latitude, bounds.MaxLat) &
+                pf.Gte(p => p.Longitude, bounds.MinLon) & pf.Lte(p => p.Longitude, bounds.MaxLon))
+            .Project(p => new { p.Id, p.Latitude, p.Longitude }).ToListAsync(ct);
+        var where = places.ToDictionary(p => p.Id);
+        return signals
+            .Where(s => where.ContainsKey(s.PlaceId))
+            .Select(s => new PlaceHeatSource(where[s.PlaceId].Latitude, where[s.PlaceId].Longitude, s.AuthorId?.ToString() ?? s.PostId.ToString()))
+            .ToList();
     }
 
     public async Task<IReadOnlyList<PlaceSignalDocument>> GetSignalsForPlacesAsync(IReadOnlyCollection<Guid> placeIds, int perPlaceLimit, CancellationToken ct)
@@ -232,6 +338,23 @@ public sealed class PlaceRepository : IPlaceRepository
             ct);
     }
 
+    public async Task<bool> SetSignalModeratedAsync(Guid postId, bool hidden, CancellationToken ct)
+    {
+        var (from, to) = hidden ? (_signals, _moderatedSignals) : (_moderatedSignals, _signals);
+        var signal = await from.Find(s => s.PostId == postId).FirstOrDefaultAsync(ct);
+        if (signal is null) return false;
+        // Target first, then source: a retry after a crash in between finishes the move instead of losing the signal.
+        await to.ReplaceOneAsync(s => s.PostId == postId, signal, new ReplaceOptions { IsUpsert = true }, ct);
+        await from.DeleteOneAsync(s => s.PostId == postId, ct);
+        return true;
+    }
+
+    public async Task DeleteSignalAsync(Guid postId, CancellationToken ct)
+    {
+        await _signals.DeleteOneAsync(s => s.PostId == postId, ct);
+        await _moderatedSignals.DeleteOneAsync(s => s.PostId == postId, ct);
+    }
+
     public async Task EnsureIndexesAsync(CancellationToken ct)
     {
         await _places.Indexes.CreateManyAsync(new[]
@@ -242,6 +365,9 @@ public sealed class PlaceRepository : IPlaceRepository
             new CreateIndexModel<PlaceDocument>(
                 Builders<PlaceDocument>.IndexKeys.Ascending(p => p.IsActive).Ascending(p => p.Category),
                 new CreateIndexOptions { Name = "ix_places_active_category" }),
+            new CreateIndexModel<PlaceDocument>(
+                Builders<PlaceDocument>.IndexKeys.Ascending("SearchTokens"),
+                new CreateIndexOptions { Name = "ix_places_search_tokens" }),
             new CreateIndexModel<PlaceDocument>(
                 Builders<PlaceDocument>.IndexKeys.Ascending(p => p.ExternalProvider).Ascending(p => p.ExternalId),
                 new CreateIndexOptions { Name = "ux_places_external_identity", Unique = true, Sparse = true })
@@ -254,7 +380,15 @@ public sealed class PlaceRepository : IPlaceRepository
                 new CreateIndexOptions { Name = "ix_place_signals_place_freshness" }),
             new CreateIndexModel<PlaceSignalDocument>(
                 Builders<PlaceSignalDocument>.IndexKeys.Ascending(s => s.ExpiresAtUtc),
-                new CreateIndexOptions { Name = "ix_place_signals_expires" })
+                new CreateIndexOptions { Name = "ix_place_signals_expires" }),
+            new CreateIndexModel<PlaceSignalDocument>(
+                // D-037: a place's history by time, for its weekly rhythm.
+                Builders<PlaceSignalDocument>.IndexKeys.Ascending(s => s.PlaceId).Descending(s => s.CreatedAtUtc),
+                new CreateIndexOptions { Name = "ix_place_signals_place_history" }),
+            new CreateIndexModel<PlaceSignalDocument>(
+                // D-045: the heat layer reads every verified signal of the last three hours.
+                Builders<PlaceSignalDocument>.IndexKeys.Ascending(s => s.PublicationTrust).Descending(s => s.CreatedAtUtc),
+                new CreateIndexOptions { Name = "ix_place_signals_trust_recent" })
         }, ct);
 
         await _coverage.Indexes.CreateOneAsync(

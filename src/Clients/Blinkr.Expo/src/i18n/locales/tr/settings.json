@@ -1,0 +1,146 @@
+{
+  "title": "Ayarlar",
+  "section": {
+    "account": "Hesap",
+    "security": "Güvenlik",
+    "privacy": "Gizlilik",
+    "about": "Hakkında",
+    "developer": "Geliştirici"
+  },
+  "blockedUsers": "Engellenen kişiler",
+  "version": "Sürüm",
+  "privacy": {
+    "privateTitle": "Gizli hesap",
+    "privateHint": "Açıksa yalnız onayladığın kişiler sinyal listeni ve takip listelerini görür. Haritadaki sinyallerin yine herkese açıktır.",
+    "privateFailed": "Ayar kaydedilemedi. Tekrar dene.",
+    "exact": "Kesin cihaz konumun diğer kullanıcılara gösterilmez; haritada yer merkezi ya da yaklaşık alan görünür.",
+    "anon": "Anonim paylaştığın sinyalleri yalnızca sen görürsün.",
+    "snaps": "Snap’ler bir kez izlenip kaybolur; fotoğraflardaki konum bilgisi silinir.",
+    "friends": "Arkadaşlık yalnızca birbirini bulmak ve mesajlaşmak içindir; konum paylaşmaz.",
+    "analyticsTitle": "Kullanım verilerini paylaş",
+    "analyticsHint": "Hangi ekranların kullanıldığını adsız olarak paylaşır; konum, e-posta ve yazdıkların asla gönderilmez. Varsayılan kapalı."
+  },
+  "appearance": {
+    "title": "Görünüm",
+    "system": "Sistem",
+    "light": "Açık",
+    "dark": "Koyu",
+    "hint": "Seçimin hemen uygulanır; uygulama bir saniyeliğine yeniden açılır."
+  },
+  "pages": {
+    "data": "Verilerimi iste",
+    "delete": "Hesabı sil",
+    "community": "Topluluk kuralları",
+    "terms": "Kullanım şartları",
+    "privacy": "Gizlilik politikası",
+    "sessions": "Oturumlar",
+    "password": "Şifreyi değiştir"
+  },
+  "legal": {
+    "updated": "Son güncelleme: {{date}}"
+  },
+  "deletion": {
+    "title": "Hesabın kalıcı olarak silinecek",
+    "points": {
+      "what": "Hesabın, sinyallerin, yorumların, beğenilerin, hikayelerin, snap'lerin ve yüklediğin medya silinir.",
+      "grace": "Silme 30 gün sonra yapılır. Bu sürede giriş yaparsan silmeyi geri alabilirsin.",
+      "chats": "Sohbetlerde mesajların silinir; karşı taraf seni \"Silinmiş kullanıcı\" olarak görür.",
+      "keep": "Silinen veriler geri getirilemez. İstersen önce Verilerimi iste ile bir kopyasını al."
+    },
+    "continue": "Devam et",
+    "passwordHint": "Onaylamak için şifreni gir.",
+    "password": "Şifre",
+    "confirm": "Hesabımı sil",
+    "back": "Geri",
+    "failed": "Hesap silinemedi. Tekrar dene."
+  },
+  "data": {
+    "body": "Hesabınla ilgili verilerinin bir kopyasını isteyebilirsin. Talebin kaydedilir ve kopya e-posta adresine gönderilir. 30 günde bir talep oluşturabilirsin.",
+    "ask": "Verilerimi iste",
+    "received": "Talebin alındı ({{date}}).",
+    "next": "Kopyan hazırlanınca e-posta adresine gönderilecek. Sorular için:",
+    "failed": "Talep gönderilemedi. Tekrar dene.",
+    "clearSearches": "Arama geçmişini temizle",
+    "cleared": "Temizlendi"
+  },
+  "pending": {
+    "title": "Hesabın silinmek üzere",
+    "body": "Hesabın ve paylaşımların {{date}} tarihinde kalıcı olarak silinecek.",
+    "hint": "Vazgeçtiysen silmeyi geri alabilirsin; hesabın olduğu gibi kalır.",
+    "cancel": "Silmeyi geri al",
+    "logout": "Çıkış yap",
+    "failed": "Geri alınamadı. Tekrar dene."
+  },
+  "blocked": {
+    "loadFailed": "Engellenen kişiler yüklenemedi. Tekrar dene.",
+    "unblockFailed": "Engel kaldırılamadı. Tekrar dene.",
+    "title": "Engellenen kişiler",
+    "emptyHint": "Engellediğin kişiler burada listelenir. Engelli biri seni bulamaz, sana istek ya da mesaj gönderemez.",
+    "empty": "Kimseyi engellemedin",
+    "unblockA11y": "{{name}} engelini kaldır",
+    "unblock": "Engeli kaldır"
+  },
+  "sections": {
+    "account": "Hesap",
+    "developer": "Geliştirici",
+    "about": "Hakkında",
+    "permissions": "İzinler",
+    "data": "Veriler",
+    "privacySafety": "Gizlilik ve güvenlik"
+  },
+  "account": {
+    "username": "Kullanıcı adı",
+    "email": "E-posta"
+  },
+  "dev": {
+    "preview": "Bileşen önizleme"
+  },
+  "about": {
+    "version": "Sürüm",
+    "attribution": "Yer verileri © OpenStreetMap katkıcıları (ODbL). Taban harita Apple Maps / Google Maps’e aittir; Blinkr işaretleri yalnızca Blinkr verisinden çizilir."
+  },
+  "language": {
+    "title": "Dil",
+    "system": "Sistem"
+  },
+  "sessions": {
+    "count_one": "{{count}} açık oturum",
+    "count_other": "{{count}} açık oturum",
+    "hint": "Hesabına giriş yapılmış her cihaz bir oturumdur. Tanımadığın bir oturum varsa diğer cihazlardan çıkış yap ve şifreni değiştir.",
+    "item": "Oturum {{index}}",
+    "since": "{{date}} tarihinden beri",
+    "signOutOthers": "Diğer cihazlardan çıkış yap",
+    "confirm": "Bu cihaz dışındaki tüm oturumlar kapanacak.",
+    "confirmYes": "Evet, çıkış yap",
+    "cancel": "Vazgeç",
+    "revoked_one": "{{count}} oturum kapatıldı.",
+    "revoked_other": "{{count}} oturum kapatıldı."
+  },
+  "password": {
+    "title": "Şifreyi değiştir",
+    "hint": "En az 8 karakter. Değiştirince diğer cihazlardaki oturumların kapanır; bu cihazda açık kalır.",
+    "current": "Mevcut şifre",
+    "new": "Yeni şifre",
+    "again": "Yeni şifre (tekrar)",
+    "save": "Şifreyi değiştir",
+    "tooShort": "Yeni şifre en az 8 karakter olmalı.",
+    "tooLong": "Yeni şifre en fazla 128 karakter olabilir.",
+    "mismatch": "Yeni şifreler aynı değil.",
+    "wrong": "Mevcut şifre doğru değil.",
+    "unchanged": "Yeni şifre eskisiyle aynı olamaz.",
+    "tooMany": "Çok fazla deneme yaptın. Biraz sonra tekrar dene.",
+    "failed": "Şifre değiştirilemedi. Tekrar dene.",
+    "done": "Şifren değişti",
+    "doneOthers": "Diğer cihazlardaki {{count}} oturum kapatıldı; bu cihazda oturumun açık.",
+    "doneAlone": "Bu cihazda oturumun açık."
+  },
+  "permissions": {
+    "location": "Konum",
+    "camera": "Kamera",
+    "photos": "Fotoğraflar",
+    "granted": "Açık",
+    "denied": "Kapalı",
+    "undetermined": "Sorulmadı",
+    "hint": "Konum yalnızca sinyal paylaşırken ve yakındakileri görürken kullanılır; kesin konumun kimseye gösterilmez."
+  }
+}

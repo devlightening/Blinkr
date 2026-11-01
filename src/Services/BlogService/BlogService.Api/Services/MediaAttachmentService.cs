@@ -21,11 +21,12 @@ public sealed class MediaAttachmentService : IMediaAttachmentService
 
     public async Task<MediaUploadAuthorization> CreateUploadAsync(Guid ownerUserId, CreateMediaUploadRequest request, CancellationToken ct)
     {
-        var mediaType = ResolveMediaType(request.ContentType);
+        var contentType = NormalizeContentType(request.ContentType);
+        var mediaType = ResolveMediaType(contentType);
         ValidateRequest(request, mediaType);
 
         var id = Guid.NewGuid();
-        var extension = GetSafeExtension(request.ContentType);
+        var extension = GetSafeExtension(contentType);
         var key = $"u/{ownerUserId:N}/{id:N}{extension}";
         var expiresAt = DateTime.UtcNow.AddMinutes(_options.PresignExpiryMinutes);
         var publicUrl = $"{_options.PublicBasePath}/{id}";
@@ -37,7 +38,7 @@ public sealed class MediaAttachmentService : IMediaAttachmentService
             MediaType = mediaType,
             ObjectKey = key,
             PublicUrl = publicUrl,
-            ContentType = request.ContentType,
+            ContentType = contentType,
             SizeBytes = request.SizeBytes,
             Width = request.Width,
             Height = request.Height,
@@ -54,7 +55,7 @@ public sealed class MediaAttachmentService : IMediaAttachmentService
             $"/api/v1/media/uploads/{id}/content",
             new DateTimeOffset(expiresAt, TimeSpan.Zero),
             publicUrl,
-            new Dictionary<string, string> { ["Content-Type"] = request.ContentType });
+            new Dictionary<string, string> { ["Content-Type"] = contentType });
     }
 
     public async Task MarkUploadedAsync(Guid ownerUserId, Guid mediaId, Stream content, string contentType, CancellationToken ct)
@@ -64,7 +65,8 @@ public sealed class MediaAttachmentService : IMediaAttachmentService
         if (doc.OwnerUserId != ownerUserId) throw new UnauthorizedAccessException("Media belongs to another user.");
         if (doc.Status != "PENDING") throw new InvalidOperationException("Media is not waiting for upload.");
         if (doc.ExpiresAtUtc <= DateTime.UtcNow) throw new InvalidOperationException("Upload authorization expired.");
-        if (!string.Equals(doc.ContentType, contentType, StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Content-Type does not match presign request.");
+        if (!UploadContentTypeAccepted(doc, contentType))
+            throw new ArgumentException("Content-Type does not match presign request.");
 
         var maxBytes = doc.MediaType == MediaType.Video ? _options.MaxVideoBytes : _options.MaxImageBytes;
 
@@ -123,6 +125,14 @@ public sealed class MediaAttachmentService : IMediaAttachmentService
         return docs.Select(x => new AttachedMedia(x.Id, x.PublicUrl, x.MediaType, x.ContentType, x.SizeBytes, x.Width, x.Height, x.DurationSeconds, x.ThumbnailUrl)).ToList();
     }
 
+    public async Task<int> DeleteAllForOwnerAsync(Guid ownerUserId, CancellationToken ct)
+    {
+        var docs = await _uploads.Find(x => x.OwnerUserId == ownerUserId).ToListAsync(ct);
+        foreach (var doc in docs) DeleteStoredObject(doc.ObjectKey);
+        await _uploads.DeleteManyAsync(x => x.OwnerUserId == ownerUserId, ct);
+        return docs.Count;
+    }
+
     public async Task<int> MarkExpiredOrphansAsync(TimeSpan olderThan, CancellationToken ct)
     {
         var cutoff = DateTime.UtcNow.Subtract(olderThan);
@@ -141,6 +151,32 @@ public sealed class MediaAttachmentService : IMediaAttachmentService
 
     private MediaUploadAuthorization ToAuthorization(MediaUploadDocument doc) =>
         new(doc.Id, $"/api/v1/media/uploads/{doc.Id}/content", new DateTimeOffset(doc.ExpiresAtUtc, TimeSpan.Zero), doc.PublicUrl, new Dictionary<string, string> { ["Content-Type"] = doc.ContentType });
+
+    /// <summary>
+    /// The presigned type and the PUT header can legitimately differ in spelling (image/jpg vs image/jpeg) or be
+    /// rewritten by a mobile HTTP stack (a Blob body carries its own type; some file URIs report none). The bytes
+    /// are still checked against the declared type by <see cref="SanitizeAndValidate"/>, so the header only has to
+    /// agree on the kind of media: an image upload must not arrive as a video, and vice versa.
+    /// </summary>
+    private bool UploadContentTypeAccepted(MediaUploadDocument doc, string headerContentType)
+    {
+        var declared = NormalizeContentType(doc.ContentType);
+        var actual = NormalizeContentType(headerContentType);
+        if (string.Equals(declared, actual, StringComparison.OrdinalIgnoreCase)) return true;
+        if (actual.Length == 0 || actual == "application/octet-stream") return true;
+
+        var sameKind = doc.MediaType == MediaType.Video
+            ? _options.AllowedVideoContentTypes.Contains(actual, StringComparer.OrdinalIgnoreCase)
+            : _options.AllowedImageContentTypes.Contains(actual, StringComparer.OrdinalIgnoreCase);
+        return sameKind;
+    }
+
+    private static string NormalizeContentType(string? contentType) => (contentType ?? string.Empty).Split(';')[0].Trim().ToLowerInvariant() switch
+    {
+        "image/jpg" or "image/pjpeg" => "image/jpeg",
+        "video/x-m4v" => "video/mp4",
+        var other => other
+    };
 
     private MediaType ResolveMediaType(string contentType)
     {
@@ -187,9 +223,64 @@ public sealed class MediaAttachmentService : IMediaAttachmentService
         };
         if (!valid) throw new ArgumentException("Uploaded bytes do not match the declared media type.");
 
-        return mediaType == MediaType.Image && contentType.Equals("image/jpeg", StringComparison.OrdinalIgnoreCase)
-            ? StripJpegAppMetadata(bytes)
-            : bytes;
+        if (mediaType != MediaType.Image) return bytes;
+        return contentType.ToLowerInvariant() switch
+        {
+            "image/jpeg" => StripJpegAppMetadata(bytes),
+            "image/png" => StripPngMetadata(bytes),
+            "image/webp" => StripWebpMetadata(bytes),
+            _ => bytes
+        };
+    }
+
+    /// <summary>
+    /// Drops PNG ancillary chunks that can carry location or personal text (eXIf, tEXt, iTXt, zTXt, tIME); keeps
+    /// the picture chunks untouched. Anything malformed is returned as uploaded (validation already passed).
+    /// </summary>
+    internal static byte[] StripPngMetadata(byte[] bytes)
+    {
+        if (bytes.Length < 8) return bytes;
+        using var output = new MemoryStream(bytes.Length);
+        output.Write(bytes, 0, 8);
+        var index = 8;
+        while (index + 12 <= bytes.Length)
+        {
+            var length = (bytes[index] << 24) | (bytes[index + 1] << 16) | (bytes[index + 2] << 8) | bytes[index + 3];
+            if (length < 0 || index + 12 + (long)length > bytes.Length) return bytes;
+            var type = Encoding.ASCII.GetString(bytes, index + 4, 4);
+            var drop = type is "eXIf" or "tEXt" or "iTXt" or "zTXt" or "tIME";
+            if (!drop) output.Write(bytes, index, length + 12);
+            index += length + 12;
+            if (type == "IEND") break;
+        }
+        return output.ToArray();
+    }
+
+    /// <summary>Drops the EXIF and XMP chunks of a WebP (RIFF) file and fixes the RIFF size.</summary>
+    internal static byte[] StripWebpMetadata(byte[] bytes)
+    {
+        if (bytes.Length < 12) return bytes;
+        using var body = new MemoryStream(bytes.Length);
+        var index = 12;
+        while (index + 8 <= bytes.Length)
+        {
+            var type = Encoding.ASCII.GetString(bytes, index, 4);
+            var size = bytes[index + 4] | (bytes[index + 5] << 8) | (bytes[index + 6] << 16) | (bytes[index + 7] << 24);
+            var padded = size + (size & 1);
+            if (size < 0 || index + 8 + (long)padded > bytes.Length) return bytes;
+            if (type is not ("EXIF" or "XMP ")) body.Write(bytes, index, 8 + padded);
+            index += 8 + padded;
+        }
+        var chunks = body.ToArray();
+        // VP8X flags byte (first byte of its payload): clear the EXIF (0x08) and XMP (0x04) bits for what was removed.
+        if (chunks.Length >= 9 && Encoding.ASCII.GetString(chunks, 0, 4) == "VP8X") chunks[8] = (byte)(chunks[8] & ~0x0C);
+        var riffSize = 4 + chunks.Length;
+        var output = new byte[8 + riffSize];
+        Encoding.ASCII.GetBytes("RIFF").CopyTo(output, 0);
+        BitConverter.GetBytes(riffSize).CopyTo(output, 4);
+        Encoding.ASCII.GetBytes("WEBP").CopyTo(output, 8);
+        chunks.CopyTo(output, 12);
+        return output;
     }
 
     private static bool LooksLikeIsoBaseMedia(byte[] bytes)

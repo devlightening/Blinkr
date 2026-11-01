@@ -19,8 +19,8 @@ public class PostNearbyQueryService
     public async Task<PagedResult<PostListDto>> GetNearbyAsync(NearbyQuery query, CancellationToken cancellationToken = default)
     {
         var q = query.Clamp();
-        _logger.LogInformation("📍 Nearby query: lat={Lat}, lon={Lon}, radius={Radius}m, sinceMin={SinceMin}, page={Page}",
-            q.Lat, q.Lon, q.RadiusMeters, q.SinceMinutes, q.Page);
+        _logger.LogInformation("📍 Nearby query: radius={Radius}m, sinceMin={SinceMin}, page={Page}",
+            q.RadiusMeters, q.SinceMinutes, q.Page);
 
         try
         {
@@ -65,8 +65,8 @@ public class PostNearbyQueryService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ Error in nearby query: lat={Lat}, lon={Lon}, radius={Radius}m",
-                q.Lat, q.Lon, q.RadiusMeters);
+            _logger.LogError(ex, "❌ Error in nearby query: radius={Radius}m",
+                q.RadiusMeters);
             throw;
         }
     }

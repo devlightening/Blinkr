@@ -56,8 +56,8 @@ public class PostLocationAddedConsumer : IConsumer<IPostLocationAddedIntegration
             else
             {
                 _logger.LogInformation(
-                    "📍 LocationAdded projected. PostId={PostId}, Lat={Lat}, Lon={Lon}, Name={Name}, Matched={Matched}, Modified={Modified}",
-                    message.PostId, message.Lat, message.Lon, message.Name, result.MatchedCount, result.ModifiedCount);
+                    "📍 LocationAdded projected. PostId={PostId}, Matched={Matched}, Modified={Modified}",
+                    message.PostId, result.MatchedCount, result.ModifiedCount);
             }
 
             await _inbox.MarkProcessedAsync(context, consumerName);

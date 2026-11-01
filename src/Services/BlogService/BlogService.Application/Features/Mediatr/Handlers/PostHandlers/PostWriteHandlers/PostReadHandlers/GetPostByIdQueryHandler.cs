@@ -12,10 +12,12 @@ public class GetPostByIdHandler : IRequestHandler<GetPostByIdQuery, PostResponse
 {
 
     private readonly IMongoCollection<PostDocument> _postsCollection;
+    private readonly IMongoDatabase _database;
 
     public GetPostByIdHandler(IMongoDatabase database) 
     {
         _postsCollection = database.GetCollection<PostDocument>("posts");
+        _database = database;
     }
 
     public async Task<PostResponseDto?> Handle(GetPostByIdQuery request, CancellationToken ct)
@@ -24,8 +26,9 @@ public class GetPostByIdHandler : IRequestHandler<GetPostByIdQuery, PostResponse
         var postDocument = await (await _postsCollection.FindAsync(p => p.Id == request.PostId, cancellationToken: ct)).FirstOrDefaultAsync(ct);
 
         if (postDocument is null) return null;
-        if ((!string.IsNullOrWhiteSpace(postDocument.AudienceType) && postDocument.AudienceType != "Public") ||
-            (postDocument.ExpiresAt.HasValue && postDocument.ExpiresAt <= DateTime.UtcNow))
+        // An expired signal still opens (the Takip feed and profile archive list it, marked expired); the map and live
+        // place state filter expiry in their own queries, so an expired signal is never shown as fresh.
+        if (!string.IsNullOrWhiteSpace(postDocument.AudienceType) && postDocument.AudienceType != "Public")
         {
             return null;
         }
@@ -46,6 +49,11 @@ public class GetPostByIdHandler : IRequestHandler<GetPostByIdQuery, PostResponse
         }
 
         var anonymous = postDocument.IdentityDisclosure == "AnonymousMap";
+        var isMine = request.RequestingUserId.HasValue && request.RequestingUserId.Value == postDocument.AuthorId;
+        // Only the author sees how many people looked at their card (plan-devam C12).
+        int? viewCount = isMine
+            ? (int)await _database.GetCollection<MongoDB.Bson.BsonDocument>("post_views").CountDocumentsAsync(new MongoDB.Bson.BsonDocument("PostId", postDocument.Id.ToString()), cancellationToken: ct)
+            : null;
 
         return new PostResponseDto
         {
@@ -58,6 +66,8 @@ public class GetPostByIdHandler : IRequestHandler<GetPostByIdQuery, PostResponse
             UpdatedAt = postDocument.UpdatedAtUtc,
             LikeCount = postDocument.LikeCount,
             CommentCount = postDocument.CommentCount,
+            IsLikedByCurrentUser = request.RequestingUserId.HasValue
+                && (postDocument.LikedByUserIds?.Contains(request.RequestingUserId.Value) ?? false),
             LocationName = postDocument.LocationName,
             Latitude = latitude,
             Longitude = longitude,
@@ -69,10 +79,21 @@ public class GetPostByIdHandler : IRequestHandler<GetPostByIdQuery, PostResponse
             LocationPrecision = postDocument.LocationPrecision,
             SourceType = postDocument.SourceType,
             ExpiresAt = postDocument.ExpiresAt,
+            PublicationTrust = postDocument.PublicationTrust,
+            FromGallery = postDocument.FromGallery,
+            IsMine = isMine,
+            ViewCount = viewCount,
+            ReactionCounts = BlogService.Application.Services.PostEngagement.ReactionCounts(postDocument),
+            MyReaction = BlogService.Application.Services.PostEngagement.MyReaction(postDocument, request.RequestingUserId),
+            Hashtags = postDocument.Hashtags ?? new List<string>(),
+            Mentions = BlogService.Application.Services.PostEngagement.Mentions(postDocument.Mentions),
             Media = postDocument.Media?.Select(m => new PostMediaDto
             {
                 Id = m.Id,
                 Url = m.Url,
+                ThumbnailUrl = m.ThumbnailUrl,
+                Width = m.Width,
+                Height = m.Height,
                 Type = Enum.TryParse<MediaType>(m.Type, true, out var mediaType) ? mediaType : default
             }).ToList() ?? new List<PostMediaDto>()
         };

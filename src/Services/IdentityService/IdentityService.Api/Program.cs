@@ -1,3 +1,5 @@
+using IdentityService.Api.Account;
+using MassTransit;
 using HealthChecks.UI.Client;
 using IdentityService.Application.Interfaces;
 using IdentityService.Infrastructure.Data;
@@ -48,12 +50,31 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddHttpClient();
 
+// Follow events for notifications (sinyal-mvp-plan Faz 9). Publishing is best effort: see FollowsController.
+builder.Services.AddMassTransit(bus =>
+{
+    bus.UsingRabbitMq((context, cfg) =>
+    {
+        var rabbit = builder.Configuration.GetSection("RabbitMq");
+        cfg.Host(rabbit["Host"] ?? "localhost", "/", h =>
+        {
+            h.Username(rabbit["User"] ?? "user");
+            h.Password(rabbit["Pass"] ?? "password");
+        });
+    });
+});
+
 // PostgreSQL DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // DI: Application <-> Infrastructure
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddSingleton<IdentityService.Api.Profile.ProfilePhotoStore>();
+builder.Services.AddAuthThrottle(builder.Configuration); // S3: sign-in / sign-up throttling
+builder.Services.AddScoped<IdentityService.Api.Moderation.ModerationService>();
+builder.Services.AddScoped<IdentityService.Api.Collections.PlaceCollectionService>();
+builder.Services.AddHostedService<IdentityService.Api.Account.AccountPurgeService>();
 
 // Authentication & Authorization: IdentityService is the sole JWT authority for the MVP.
 var jwtOptions = BlinkrJwtOptions.FromConfiguration(builder.Configuration, builder.Environment.EnvironmentName);
@@ -80,6 +101,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
         options.Events = new JwtBearerEvents
         {
+            // A refresh token is not an access token (BLK-TOKENS-01).
+            OnTokenValidated = ctx =>
+            {
+                if (!Shared.Auth.BlinkrJwtOptions.IsAccessToken(ctx.Principal)) ctx.Fail("Refresh tokens cannot be used as access tokens.");
+                return Task.CompletedTask;
+            },
             OnChallenge = context =>
             {
                 context.HandleResponse();
@@ -90,14 +117,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+// Moderation endpoints (Faz 10 P10.4). JwtBearer maps the "role" claim to ClaimTypes.Role on the way in, so the
+// policy accepts either type instead of relying on [Authorize(Roles)] with RoleClaimType = "role".
+builder.Services.AddAuthorization(options =>
+    options.AddPolicy(IdentityService.Api.Moderation.AdminModerationController.AdminPolicy, policy => policy
+        .RequireAuthenticatedUser()
+        .RequireAssertion(ctx => ctx.User.Claims.Any(c =>
+            (c.Type == BlinkrJwtOptions.RoleClaimType || c.Type == System.Security.Claims.ClaimTypes.Role) && c.Value == "Admin"))));
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>(
         "IdentityService-Postgres",
         failureStatus: HealthStatus.Unhealthy,
-        tags: new[] { "db", "postgres" })
-    .AddRedis("localhost:6379", name: "Redis", tags: new[] { "cache" });
+        tags: new[] { "db", "postgres", "ready" });
+// (No Redis check: Identity does not use Redis; a Redis outage must not mark sign-in unhealthy.)
 
 // ---------- Logging ----------
 builder.Host.UseSerilog((ctx, lc) => lc
@@ -122,6 +155,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseRouting();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -131,5 +165,8 @@ app.UseHealthChecks("/health", new HealthCheckOptions
 {
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 });
+// CLAUDE.md §21 P1: live = the process answers (no dependencies); ready = the dependencies it really uses.
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = r => r.Tags.Contains("ready"), ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse }).AllowAnonymous();
 
 app.Run();

@@ -1,7 +1,7 @@
+// Static config, permission texts and plugin options live in app.json; this file only adds the ids and the
+// values that come from the environment.
 module.exports = ({ config }) => ({
   ...config,
-  name: 'Blinkr',
-  slug: 'blinkr-expo',
   android: {
     ...config.android,
     package: 'com.blinkr.mobile',
@@ -22,12 +22,6 @@ module.exports = ({ config }) => ({
   ios: {
     ...config.ios,
     bundleIdentifier: 'com.blinkr.mobile',
-    infoPlist: {
-      ...config.ios?.infoPlist,
-      NSCameraUsageDescription: 'Blinkr sinyaline fotoğraf veya video eklemek için kamera erişimi kullanılır.',
-      NSMicrophoneUsageDescription: 'Blinkr video sinyali oluştururken ses kaydı için mikrofon erişimi kullanılır.',
-      NSPhotoLibraryUsageDescription: 'Blinkr sinyaline medya eklemek için fotoğraf arşivine erişilir.',
-    },
     config: {
       ...config.ios?.config,
       googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '',
@@ -40,7 +34,7 @@ module.exports = ({ config }) => ({
   plugins: [
     ...(config.plugins ?? []),
     'expo-secure-store',
-    'expo-image-picker',
+    'expo-localization',
     'expo-status-bar',
     'expo-video',
   ],

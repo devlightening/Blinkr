@@ -20,3 +20,11 @@ src/Clients/Blinkr.Expo/.expo/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+# Not needed by any .NET image; copying them made "COPY . ." take minutes.
+src/Clients/
+artifacts/
+.tmp/
+graphify-out/
+docs/
+.idea/
+.claude/

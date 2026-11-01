@@ -177,6 +177,7 @@ static bool TryCreatePlace(OsmGeo geo, Coordinate? coordinate, out PlaceDocument
         Location = new GeoJsonPoint<GeoJson2DGeographicCoordinates>(
             new GeoJson2DGeographicCoordinates(coordinate.Longitude, coordinate.Latitude)),
         DisplayAddress = BuildAddress(geo.Tags),
+        OpeningHours = NormalizeOptional(ReadTag(geo.Tags, "opening_hours")),
         Source = "External",
         ExternalProvider = "osm",
         ExternalId = $"{OsmObjectType(geo)}/{geo.Id.Value}",
@@ -271,6 +272,8 @@ static string? ReadTag(TagsCollectionBase? tags, string key)
     return null;
 }
 
+static string? NormalizeOptional(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
 static bool HasAnyTag(TagsCollectionBase? tags, params string[] keys) => keys.Any(key => ReadTag(tags, key) is not null);
 
 static bool IsMosque(TagsCollectionBase? tags) =>
@@ -315,6 +318,9 @@ static async Task<ImportWriteResult> UpsertAsync(IMongoCollection<PlaceDocument>
             .Set(p => p.UpdatedAtUtc, DateTime.UtcNow)
             .Set(p => p.IsActive, true)
             .SetOnInsert(p => p.CreatedAtUtc, DateTime.UtcNow);
+        update = string.IsNullOrWhiteSpace(place.OpeningHours)
+            ? update.Unset(p => p.OpeningHours)
+            : update.Set(p => p.OpeningHours, place.OpeningHours);
         if (place.GeometryWkt is not null)
             update = update.Set(p => p.GeometryWkt, place.GeometryWkt);
 
@@ -359,6 +365,8 @@ public sealed class PlaceDocument
     public string? GeometryWkt { get; set; }
     public GeoJsonPoint<GeoJson2DGeographicCoordinates> Location { get; set; } = null!;
     public string? DisplayAddress { get; set; }
+    [BsonIgnoreIfNull]
+    public string? OpeningHours { get; set; }
     public string Source { get; set; } = "External";
     [BsonIgnoreIfNull]
     public string? ExternalProvider { get; set; }

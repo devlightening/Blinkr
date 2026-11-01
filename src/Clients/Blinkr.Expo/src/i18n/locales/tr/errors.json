@@ -1,0 +1,47 @@
+{
+  "generic": "Şu anda bağlantı kurulamıyor. Lütfen tekrar dene.",
+  "networkRequestFailed": "Bağlantı kurulamadı. İnternetini kontrol edip tekrar dene.",
+  "engagement": {
+    "cannotLikeOwn": "Kendi sinyalini beğenemezsin.",
+    "commentEmpty": "Yorum boş olamaz.",
+    "commentTooLong": "Yorum en fazla 500 karakter olabilir.",
+    "commentForbidden": "Bu yorumu yalnız yazarı veya sinyalin sahibi silebilir.",
+    "notFound": "Bu sinyal artık yok ya da süresi doldu.",
+    "likeFailed": "Beğeni kaydedilemedi. Tekrar dene.",
+    "commentFailed": "Yorum gönderilemedi. Tekrar dene.",
+    "deleteFailed": "Yorum silinemedi. Tekrar dene.",
+    "loadFailed": "Yorumlar yüklenemedi.",
+    "tooManyMentions": "Bir paylaşımda en fazla 10 kişiden bahsedebilirsin.",
+    "invalidReaction": "Bu tepki kullanılamıyor."
+  },
+  "contentBlocked": "Bu içerik topluluk kurallarına uymuyor: tehdit, nefret söylemi ya da hedefli hakaret paylaşılamaz.",
+  "postingRestricted": "Topluluk kuralları nedeniyle şu an paylaşım yapamazsın. Kısıtlama bitince yeniden paylaşabilirsin.",
+  "accountSuspended": "Bu hesap topluluk kuralları nedeniyle askıya alındı ya da kapatıldı.",
+  "http": {
+    "401": "Oturumun sona erdi. Lütfen yeniden giriş yap.",
+    "403": "Bu işlemi yapmak için yetkin bulunmuyor.",
+    "404": "İstenen kayıt bulunamadı.",
+    "server": "Şu anda bağlantı kurulamıyor. Lütfen tekrar dene.",
+    "unreachable": "Sinyal servisine şu anda ulaşılamıyor. Backend servislerini kontrol edip tekrar dene.",
+    "generic": "İşlem tamamlanamadı. Lütfen tekrar dene.",
+    "noRefresh": "Oturum yenileme bilgisi bulunamadı.",
+    "timeout": "Bağlantı zaman aşımına uğradı. Tekrar dene.",
+    "mediaTimeout": "Medya dosyası okunamadı (zaman aşımı). Tekrar dene."
+  },
+  "auth": {
+    "INVALID_CREDENTIALS": "Kullanıcı adı, e-posta veya şifre hatalı.",
+    "INVALID_USERNAME": "Kullanıcı adı 3-30 karakter olmalı; harf, rakam, _ . ve - kullanılabilir.",
+    "USERNAME_TAKEN": "Bu kullanıcı adı alınmış. Başka bir ad dene.",
+    "INVALID_EMAIL": "Geçerli bir e-posta adresi gir.",
+    "EMAIL_TAKEN": "Bu e-posta ile zaten bir hesap var.",
+    "INVALID_PASSWORD": "Bir şifre gir.",
+    "PASSWORD_TOO_SHORT": "Şifre en az 8 karakter olmalı.",
+    "PASSWORD_TOO_LONG": "Şifre en fazla 128 karakter olabilir.",
+    "AGE_TOO_YOUNG": "Blinkr'ı kullanmak için en az 13 yaşında olmalısın.",
+    "BIRTH_YEAR_REQUIRED": "Doğum yılını gir.",
+    "INVALID_BIRTH_YEAR": "Geçerli bir doğum yılı gir.",
+    "TOO_MANY_ATTEMPTS": "Çok fazla deneme yaptın. Biraz sonra tekrar dene."
+  },
+  "tooManyMessages": "Çok hızlı mesaj gönderiyorsun. Biraz yavaşla.",
+  "tooManyRequests": "Çok hızlı işlem yapıyorsun. Biraz sonra tekrar dene."
+}

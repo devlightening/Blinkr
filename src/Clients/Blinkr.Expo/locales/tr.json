@@ -1,0 +1,10 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "Blinkr",
+    "NSLocationWhenInUseUsageDescription": "Blinkr, yakınındaki yerleri ve taze sinyalleri göstermek ve bir yerde sinyal paylaştığında orada olduğunu doğrulamak için konumunu kullanır. Kesin konumun kimseye gösterilmez.",
+    "NSCameraUsageDescription": "Blinkr, sinyaline, hikayene veya snap'ine fotoğraf ya da video çekmen için kamerayı kullanır.",
+    "NSMicrophoneUsageDescription": "Blinkr, video çekerken sesi kaydetmek için mikrofonu kullanır.",
+    "NSPhotoLibraryUsageDescription": "Blinkr, galerinden seçtiğin fotoğraf ve videoları paylaşabilmen için fotoğraf arşivine erişir. Fotoğraflardaki konum bilgisi silinir."
+  },
+  "android": {}
+}

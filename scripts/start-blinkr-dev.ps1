@@ -119,7 +119,8 @@ function Start-OwnedService {
 
     $stdout = Join-Path $logRoot "$($Service.Name).stdout.log"
     $stderr = Join-Path $logRoot "$($Service.Name).stderr.log"
-    $arguments = @("run", "--project", "`"$projectPath`"", "--urls", "`"$($Service.Urls)`"") -join " "
+    # Built beforehand, one at a time (see [4/6]): parallel dotnet run builds raced on the shared DLLs.
+    $arguments = @("run", "--no-build", "--project", "`"$projectPath`"", "--urls", "`"$($Service.Urls)`"") -join " "
     $process = Start-Process -FilePath "dotnet" -ArgumentList $arguments -WorkingDirectory $repoRoot -RedirectStandardOutput $stdout -RedirectStandardError $stderr -WindowStyle Hidden -PassThru
 
     Write-Host ("  ..  {0} starting on :{1} (PID {2})" -f $Service.Name, $Service.Port, $process.Id)
@@ -167,7 +168,22 @@ try {
     Assert-Prerequisite -Command "docker" -FriendlyName "Docker"
     Assert-DockerReady
     if (-not (Test-Path (Join-Path $repoRoot "docker-compose.yml"))) { throw "docker-compose.yml is missing." }
-    if (-not (Test-Path (Join-Path $repoRoot ".env"))) { throw ".env is missing; docker compose requires local dev variables." }
+    if (-not (Test-Path (Join-Path $repoRoot ".env"))) { throw ".env is missing; copy .env.example to .env and fill it in." }
+    # The Postgres password lives only in .env (not in git). The services get it the standard libpq way: PGPASSWORD for
+    # the processes started here, and %APPDATA%\postgresql\pgpass.conf so Visual Studio and dotnet-ef work too.
+    $pgUser = $null; $pgPassword = $null
+    foreach ($line in Get-Content (Join-Path $repoRoot ".env")) {
+        if ($line -match '^\s*POSTGRES_USER\s*=\s*(.+?)\s*$') { $pgUser = $Matches[1] }
+        if ($line -match '^\s*POSTGRES_PASSWORD\s*=\s*(.+?)\s*$') { $pgPassword = $Matches[1] }
+    }
+    if (-not $pgUser -or -not $pgPassword) { throw ".env must define POSTGRES_USER and POSTGRES_PASSWORD." }
+    $env:PGPASSWORD = $pgPassword
+    $pgPassDir = Join-Path $env:APPDATA "postgresql"
+    New-Item -ItemType Directory -Force -Path $pgPassDir | Out-Null
+    $pgPassFile = Join-Path $pgPassDir "pgpass.conf"
+    $entry = "localhost:5432:*:${pgUser}:" + ($pgPassword -replace '\\', '\\' -replace ':', '\:')
+    $kept = @(); if (Test-Path $pgPassFile) { $kept = @(Get-Content $pgPassFile | Where-Object { $_ -notlike "localhost:5432:`*:${pgUser}:*" }) }
+    Set-Content -Path $pgPassFile -Value (@($kept) + $entry) -Encoding ascii
     Write-Host "  OK  prerequisites" -ForegroundColor Green
 
     Write-Host "`n[2/6] Starting Docker infrastructure..." -ForegroundColor Cyan
@@ -184,6 +200,13 @@ try {
 
     Write-Host "`n[4/6] Starting application services..." -ForegroundColor Cyan
     $env:ASPNETCORE_ENVIRONMENT = "Development"
+    # Build every service that is not already running, one after another. Four parallel `dotnet run` builds fought over
+    # Shared/Shared.Events DLLs ("being used by another process") and a service randomly failed to start.
+    foreach ($service in ($services | Where-Object { $null -eq (Get-ListeningConnection -Port $_.Port) })) {
+        Write-Host ("  ..  building {0}" -f $service.Name)
+        & dotnet build (Join-Path $repoRoot $service.Project) -v q -nologo | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "$($service.Name) did not build; run: dotnet build $($service.Project)" }
+    }
     $state = Read-State
     foreach ($service in $services) {
         $state = Start-OwnedService -Service $service -CurrentState $state

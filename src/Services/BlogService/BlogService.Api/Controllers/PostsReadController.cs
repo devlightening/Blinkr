@@ -1,3 +1,4 @@
+using BlogService.Api.Extensions;
 using BlogService.Application.Services.Queries;
 using BlogService.Application.DTOs.PostDtos;
 using Microsoft.AspNetCore.Authorization;
@@ -18,11 +19,13 @@ public class PostsReadController : ControllerBase
 {
     private readonly IPostQueryService _queryService;
     private readonly ILogger<PostsReadController> _logger;
+    private readonly BlogService.Api.Services.ProfileVisibilityGuard _visibility;
 
-    public PostsReadController(IPostQueryService queryService, ILogger<PostsReadController> logger)
+    public PostsReadController(IPostQueryService queryService, ILogger<PostsReadController> logger, BlogService.Api.Services.ProfileVisibilityGuard visibility)
     {
         _queryService = queryService;
         _logger = logger;
+        _visibility = visibility;
     }
 
     /// <summary>
@@ -158,11 +161,11 @@ public class PostsReadController : ControllerBase
             }
             
             // Validate coordinates
-            _logger.LogInformation("🔍 Parsed coordinates: lat={Lat}, lon={Lon}, radius={Radius}", lat, lon, radius);
+            _logger.LogInformation("🔍 Nearby request: radius={Radius}", radius);
             
             if (lat is < -90 or > 90 || lon is < -180 or > 180)
             {
-                _logger.LogWarning("❌ Invalid coordinates provided: lat={Lat}, lon={Lon}", lat, lon);
+                _logger.LogWarning("❌ Invalid coordinates provided");
                 return BadRequest("Invalid latitude/longitude. Latitude must be between -90 and 90, longitude between -180 and 180.");
             }
             
@@ -185,8 +188,8 @@ public class PostsReadController : ControllerBase
             // Avoid double enumeration - use ICollection if available
             var hits = result.Items is ICollection<PostListDto> c ? c.Count : result.Items.Count();
             _logger.LogInformation(
-                "📍 Nearby posts retrieved: lat={Lat}, lon={Lon}, radius={Radius}m, page={Page}/{PageSize}, hits={Hits}",
-                lat, lon, radius, page, pageSize, hits);
+                "📍 Nearby posts retrieved: radius={Radius}m, page={Page}/{PageSize}, hits={Hits}",
+                radius, page, pageSize, hits);
 
             return Ok(result);
         }
@@ -275,11 +278,25 @@ public class PostsReadController : ControllerBase
         try
         {
             // Use the main query method with author filter
+            // Only the author sees their own anonymous posts; the response is then private.
+            var includeAnonymous = User.GetUserId() == authorId;
+            // The answer depends on who asks (private accounts, blocks), so it is never shared-cacheable.
+            Response.Headers.CacheControl = "private, no-store";
+            if (!includeAnonymous)
+            {
+                var visibility = await _visibility.CheckAsync(authorId, ct);
+                if (visibility == BlogService.Api.Services.ProfileVisibility.Unavailable)
+                    return StatusCode(StatusCodes.Status503ServiceUnavailable, new { code = "PROFILE_UNAVAILABLE" });
+                if (visibility == BlogService.Api.Services.ProfileVisibility.Hidden)
+                    return StatusCode(StatusCodes.Status403Forbidden, new { code = "PRIVATE_ACCOUNT" });
+            }
+
             var query = new PostQuery
             {
                 Page = page,
                 PageSize = pageSize,
                 AuthorId = authorId.ToString(),
+                IncludeAnonymousAuthored = includeAnonymous,
                 Sort = "createdAt:desc"
             };
 
@@ -301,5 +318,26 @@ public class PostsReadController : ControllerBase
             _logger.LogError(ex, "Error retrieving posts for author: {AuthorId}", authorId);
             return StatusCode(500, "An error occurred while retrieving author posts");
         }
+    }
+
+    /// <summary>
+    /// GET /api/posts-read/author/{id}/trust - design doc P6: { verifiedSignals, verifiedPlaces }, the author's signals
+    /// the server published as VERIFIED_LIVE and at how many places. Anonymous signals never count; no place names.
+    /// Same visibility as the author's list (a private account shows it only to approved followers).
+    /// </summary>
+    [HttpGet("author/{authorId:guid}/trust")]
+    [ProducesResponseType(typeof(AuthorTrustStats), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAuthorTrust(Guid authorId, [FromServices] IAuthorTrustQuery trust, CancellationToken ct = default)
+    {
+        Response.Headers.CacheControl = "private, no-store";
+        if (User.GetUserId() != authorId)
+        {
+            var visibility = await _visibility.CheckAsync(authorId, ct);
+            if (visibility == BlogService.Api.Services.ProfileVisibility.Unavailable)
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new { code = "PROFILE_UNAVAILABLE" });
+            if (visibility == BlogService.Api.Services.ProfileVisibility.Hidden)
+                return StatusCode(StatusCodes.Status403Forbidden, new { code = "PRIVATE_ACCOUNT" });
+        }
+        return Ok(await trust.GetAsync(authorId, ct));
     }
 }

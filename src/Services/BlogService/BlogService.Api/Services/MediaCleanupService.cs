@@ -18,14 +18,27 @@ public sealed class MediaCleanupService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromHours(1));
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(Math.Max(1, _options.OrphanCleanupIntervalMinutes)));
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
-            using var scope = _scopeFactory.CreateScope();
-            var service = scope.ServiceProvider.GetRequiredService<IMediaAttachmentService>();
-            var count = await service.MarkExpiredOrphansAsync(TimeSpan.FromHours(_options.OrphanCleanupHours), stoppingToken);
-            if (count > 0) _logger.LogInformation("Marked {Count} orphan media uploads as expired", count);
+            // This is housekeeping. An unreachable database (a Docker restart, a Mongo blip) must never
+            // escape: with BackgroundServiceExceptionBehavior=StopHost an unhandled exception here shuts
+            // the whole BlogService down, and the map and every post endpoint answer 502. The next tick retries.
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var service = scope.ServiceProvider.GetRequiredService<IMediaAttachmentService>();
+                var count = await service.MarkExpiredOrphansAsync(TimeSpan.FromHours(_options.OrphanCleanupHours), stoppingToken);
+                if (count > 0) _logger.LogInformation("Marked {Count} orphan media uploads as expired", count);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Orphan media cleanup failed; it will be retried on the next tick");
+            }
         }
     }
 }
-

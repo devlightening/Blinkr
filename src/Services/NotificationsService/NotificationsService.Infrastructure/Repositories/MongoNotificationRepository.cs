@@ -57,6 +57,44 @@ public class MongoNotificationRepository : INotificationRepository
     public Task InsertAsync(Notification n, CancellationToken ct) =>
         _notifs.InsertOneAsync(n, cancellationToken: ct);
 
+    public async Task<Notification?> UpsertGroupedAsync(Notification n, TimeSpan window, Func<IReadOnlyList<string>, int, string> bodyOf, CancellationToken ct)
+    {
+        var actor = n.ActorUserId ?? Guid.Empty;
+        var name = n.ActorUserName ?? string.Empty;
+        var now = DateTime.UtcNow;
+        var f = Builders<Notification>.Filter;
+        var open = f.Eq(x => x.UserId, n.UserId) & f.Eq(x => x.GroupKey, n.GroupKey) & f.Gte(x => x.CreatedAtUtc, now - window);
+        var existing = await _notifs.Find(open).SortByDescending(x => x.CreatedAtUtc).FirstOrDefaultAsync(ct);
+        if (existing is null)
+        {
+            n.ActorIds = actor == Guid.Empty ? new List<Guid>() : new List<Guid> { actor };
+            n.ActorNames = string.IsNullOrWhiteSpace(name) ? new List<string>() : new List<string> { name };
+            n.ActorCount = 1;
+            n.Content.Body = bodyOf(n.ActorNames, 1);
+            n.CreatedAtUtc = now;
+            await _notifs.InsertOneAsync(n, cancellationToken: ct);
+            return n;
+        }
+        if (actor != Guid.Empty && (existing.ActorIds ?? new List<Guid>()).Contains(actor)) return null;
+
+        var names = new List<string>();
+        if (!string.IsNullOrWhiteSpace(name)) names.Add(name);
+        names.AddRange((existing.ActorNames ?? new List<string>()).Where(x => x != name));
+        names = names.Take(3).ToList();
+        var count = Math.Max(1, existing.ActorCount) + 1;
+        var update = Builders<Notification>.Update
+            .AddToSet(x => x.ActorIds, actor)
+            .Set(x => x.ActorNames, names)
+            .Set(x => x.ActorCount, count)
+            .Set(x => x.ActorUserId, n.ActorUserId)
+            .Set(x => x.ActorUserName, n.ActorUserName)
+            .Set(x => x.Content.Body, bodyOf(names, count))
+            .Set(x => x.CreatedAtUtc, now)
+            .Set(x => x.ReadAtUtc, null);
+        return await _notifs.FindOneAndUpdateAsync(f.Eq(x => x.Id, existing.Id), update,
+            new FindOneAndUpdateOptions<Notification> { ReturnDocument = ReturnDocument.After }, ct);
+    }
+
     public async Task MarkReadAsync(IEnumerable<string> ids, Guid userId, CancellationToken ct)
     {
         var idList = ids.ToList();

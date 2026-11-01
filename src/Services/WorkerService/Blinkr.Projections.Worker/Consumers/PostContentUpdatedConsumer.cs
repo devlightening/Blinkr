@@ -56,6 +56,13 @@ public class PostContentUpdatedConsumer : IConsumer<PostContentUpdatedIntegratio
 
             var update = updateBuilder.Combine(updates);
             var result = await _postsCollection.UpdateOneAsync(filter, update);
+            // V2-4: the hashtags follow the text (title and text together, so read the post back).
+            var edited = await _postsCollection.Find(filter).Project(p => new { p.Title, p.Content }).FirstOrDefaultAsync();
+            if (edited is not null)
+            {
+                var tags = Shared.Events.Text.TextTags.Hashtags(edited.Title, edited.Content);
+                await _postsCollection.UpdateOneAsync(filter, tags.Count > 0 ? updateBuilder.Set(p => p.Hashtags, tags.ToList()) : updateBuilder.Unset(p => p.Hashtags));
+            }
 
             if (result.MatchedCount == 0)
             {

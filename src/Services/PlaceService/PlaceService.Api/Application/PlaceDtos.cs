@@ -17,7 +17,8 @@ public sealed record PlaceSummaryDto(
     string? DisplayAddress,
     CurrentPlaceStateDto CurrentState,
     int ActivityCount = 0,
-    DateTime? LastActivityUtc = null);
+    DateTime? LastActivityUtc = null,
+    OpeningHoursDto? OpeningHours = null);
 
 public sealed record PlaceDetailDto(
     Guid Id,
@@ -29,7 +30,20 @@ public sealed record PlaceDetailDto(
     string Source,
     CurrentPlaceStateDto CurrentState,
     IReadOnlyList<RecentSignalDto> RecentSignals,
-    string? GeometryWkt = null);
+    string? GeometryWkt = null,
+    OpeningHoursDto? OpeningHours = null);
+
+/// <summary>
+/// A conservative server-side interpretation of the catalogue's opening_hours value. Null IsOpenNow means that the
+/// raw value was preserved but was too complex to interpret safely; clients must not present an open/closed estimate.
+/// </summary>
+public sealed record OpeningHoursDto(
+    string Raw,
+    bool? IsOpenNow,
+    DateTime? NextOpenAtUtc,
+    DateTime? NextCloseAtUtc,
+    string TimeZoneId,
+    string? NextOpenLocalTime = null);
 
 public sealed record CurrentPlaceStateDto(
     string? SignalType,

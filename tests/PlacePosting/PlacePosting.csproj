@@ -5,8 +5,18 @@
     <PackageReference Include="NetTopologySuite" />
     <PackageReference Include="MongoDB.Driver" />
     <Compile Include="../../src/Services/BlogService/BlogService.Application/Services/PlaceProximityPolicy.cs" Link="PlaceProximityPolicy.cs" />
+    <Compile Include="../../src/Services/BlogService/BlogService.Application/Services/GalleryMediaPolicy.cs" Link="GalleryMediaPolicy.cs" />
+    <Compile Include="../../src/Services/BlogService/BlogService.Application/Services/DiscoverRanking.cs" Link="DiscoverRanking.cs" />
+    <Compile Include="../../src/Services/BlogService/BlogService.Application/Services/SensitivePlacePolicy.cs" Link="SensitivePlacePolicy.cs" />
     <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/CurrentPlaceStateCalculator.cs" Link="CurrentPlaceStateCalculator.cs" />
+    <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/OpeningHoursCalculator.cs" Link="OpeningHoursCalculator.cs" />
     <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/PlaceDtos.cs" Link="PlaceDtos.cs" />
+    <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Domain/PlaceDocument.cs" Link="PlaceDocument.cs" />
     <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Domain/PlaceSignalDocument.cs" Link="PlaceSignalDocument.cs" />
+    <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/PlaceStateChangeDetector.cs" Link="PlaceStateChangeDetector.cs" />
+    <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/PlaceRhythmCalculator.cs" Link="PlaceRhythmCalculator.cs" />
+    <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/PlaceHeatCalculator.cs" Link="PlaceHeatCalculator.cs" />
+    <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Application/PlaceAttributeCalculator.cs" Link="PlaceAttributeCalculator.cs" />
+    <Compile Include="../../src/Services/PlaceService/PlaceService.Api/Domain/PlaceAttributeVoteDocument.cs" Link="PlaceAttributeVoteDocument.cs" />
   </ItemGroup>
 </Project>

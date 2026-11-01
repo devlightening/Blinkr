@@ -64,6 +64,9 @@ public class PostLikedNotificationConsumer : IConsumer<PostLikedIntegrationEvent
             _log.LogInformation("WS-07A: Self-like detected - skipping notification | UserId={UserId} | PostId={PostId}", m.LikerUserId, m.PostId);
             return;
         }
+        // V2-4: changing the emoji of an existing reaction tells nobody again.
+        if (m.Replaces) return;
+        var reacted = !string.IsNullOrEmpty(m.Reaction) && m.Reaction != Shared.Events.Text.ReactionCatalog.Heart;
 
         var notification = new Notification
         {
@@ -75,13 +78,20 @@ public class PostLikedNotificationConsumer : IConsumer<PostLikedIntegrationEvent
             Content = new()
             {
                 Title = "Yeni beğeni",
-                Body = string.IsNullOrWhiteSpace(m.LikerUserName) ? "Gönderin beğenildi" : $"{m.LikerUserName} gönderini beğendi.",
+                Body = reacted
+                    ? (string.IsNullOrWhiteSpace(m.LikerUserName) ? $"Gönderine {m.Reaction} bırakıldı" : $"{m.LikerUserName} gönderine {m.Reaction} bıraktı.")
+                    : (string.IsNullOrWhiteSpace(m.LikerUserName) ? "Gönderin beğenildi" : $"{m.LikerUserName} gönderini beğendi."),
                 DeepLink = $"blinkr://posts/{m.PostId}"
             },
             CreatedAtUtc = m.OccurredAtUtc == default ? DateTime.UtcNow : m.OccurredAtUtc
         };
 
-        await _notifRepo.InsertAsync(notification, context.CancellationToken);
+        // V2-7 (D-029): reactions on the same signal within an hour are one row ("ayse, mert ve 3 kişi daha ...").
+        notification.GroupKey = $"reaction:{m.PostId}";
+        var single = notification.Content.Body;
+        var stored = await _notifRepo.UpsertGroupedAsync(notification, TimeSpan.FromHours(1),
+            (names, count) => count <= 1 ? single : NotificationsService.Domain.ValueObjects.GroupedText.Of(names, count, "gönderine tepki verdi."), context.CancellationToken);
+        if (stored is null) return; // this person is already in the group
         var tokens = await _tokenRepo.GetByUserIdsAsync(new[] { m.PostOwnerId }, context.CancellationToken);
         await _push.SendAsync(tokens, notification.Content.Title, notification.Content.Body, notification.Content.DeepLink, context.CancellationToken);
         _log.LogInformation("WS-07A: Created notification | Type={Type} | UserId={UserId} | PostId={PostId} | ActorUserId={ActorUserId}", notification.Type, notification.UserId, m.PostId, m.LikerUserId);
@@ -105,6 +115,11 @@ public class PostCommentAddedNotificationConsumer : IConsumer<PostCommentAddedIn
         var m = context.Message;
         _log.LogInformation("WS-07A: CommentAdded event received | PostId={PostId} | PostOwnerId={PostOwnerId} | CommentAuthorId={CommentAuthorId}", m.PostId, m.PostOwnerId, m.CommentAuthorId);
 
+        // V2-4: people mentioned in the comment (the post owner already gets the comment notification below).
+        await MentionNotifications.NotifyAsync(_notifRepo, _tokenRepo, _push, m.Mentions, m.CommentAuthorId, m.CommentAuthorName, m.AuthorHidden,
+            m.PostId, inComment: true, m.PostOwnerId == Guid.Empty || m.PostOwnerId == m.CommentAuthorId ? Array.Empty<Guid>() : new[] { m.PostOwnerId },
+            m.OccurredAtUtc, context.CancellationToken);
+
         if (m.PostOwnerId == Guid.Empty)
         {
             _log.LogWarning("WS-07A: PostCommentAddedIntegrationEvent has empty PostOwnerId. Skipping notification.");
@@ -122,11 +137,14 @@ public class PostCommentAddedNotificationConsumer : IConsumer<PostCommentAddedIn
         {
             UserId = m.PostOwnerId,
             Type = NotificationType.CommentCreated,
+            PostId = m.PostId,
+            ActorUserId = m.CommentAuthorId,
+            ActorUserName = string.IsNullOrWhiteSpace(m.CommentAuthorName) ? null : m.CommentAuthorName,
             Content = new()
             {
                 Title = "Yeni yorum",
                 Body = string.IsNullOrWhiteSpace(m.CommentAuthorName) ? trimmed : $"{m.CommentAuthorName}: {trimmed}",
-                DeepLink = $"post:{m.PostId}"
+                DeepLink = $"blinkr://posts/{m.PostId}"
             },
             CreatedAtUtc = m.OccurredAtUtc == default ? DateTime.UtcNow : m.OccurredAtUtc
         };
@@ -304,8 +322,7 @@ public class PostCommentAddedNotificationConsumer : IConsumer<PostCommentAddedIn
                 return;
             }
             
-            _log.LogInformation("📍 Processing proximity notifications for post {PostId} at ({Lat}, {Lon})", 
-                postId, lat, lon);
+            _log.LogInformation("📍 Processing proximity notifications for post {PostId}", postId);
             
             // Find nearby users (within 1km)
             var nearbyUsers = await FindNearbyUsersAsync(db, lat, lon, radiusMeters: 1000, ct);
@@ -417,9 +434,7 @@ public class PostCommentAddedNotificationConsumer : IConsumer<PostCommentAddedIn
             _log.LogInformation("👍 WS-07A: Processing post.liked - PostId={PostId}, LikerUserId={LikerUserId}", 
                 postId, likerUserId);
             
-            // TODO: Get post owner info from BlogService
-            // For now, we'll need to enhance the event with PostOwnerId
-            // Temporary solution: Skip if we can't determine post owner
+            // PostLikedIntegrationEvent carries postOwnerId; only events published before it did are skipped.
             if (!root.TryGetProperty("postOwnerId", out var postOwnerElement))
             {
                 _log.LogWarning("⚠️ WS-07A: post.liked event missing postOwnerId - skipping notification");
@@ -488,9 +503,7 @@ public class PostCommentAddedNotificationConsumer : IConsumer<PostCommentAddedIn
             _log.LogInformation("💬 WS-07A: Processing comment.created - PostId={PostId}, AuthorId={AuthorId}", 
                 postId, commentAuthorId);
             
-            // TODO: Get post owner info from BlogService
-            // For now, we'll need to enhance the event with PostOwnerId
-            // Temporary solution: Skip if we can't determine post owner
+            // PostCommentAddedIntegrationEvent carries postOwnerId; only events published before it did are skipped.
             if (!root.TryGetProperty("postOwnerId", out var postOwnerElement))
             {
                 _log.LogWarning("⚠️ WS-07A: comment.created event missing postOwnerId - skipping notification");

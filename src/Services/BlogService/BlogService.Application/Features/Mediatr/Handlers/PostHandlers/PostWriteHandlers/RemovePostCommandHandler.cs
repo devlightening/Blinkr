@@ -26,7 +26,7 @@ public class RemovePostCommandHandler : IRequestHandler<RemovePostCommand, bool>
         var userId = _currentUser.UserId ?? throw new UnauthorizedAccessException("Authentication required.");
 
         var post = await _eventStoreRepo.LoadAsync<PostAggregate>(request.Id, ct);
-        if (post.Id == Guid.Empty)
+        if (post.Version < 0) // no events = no such post (a new aggregate gets a random Id, never Guid.Empty)
         {
             return false;
         }

@@ -53,7 +53,7 @@ function Assert-True {
 function Register-User {
     $suffix = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
     $auth = Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/auth/register" -ExpectedStatus @(200) -Body @{
-        userName = "nearby_ux_$suffix"
+        userName = "e2e_nearby_ux_$suffix"
         email = "nearby_ux_$suffix@blinkr.local"
         password = "BlinkrSmoke!2026"
     }

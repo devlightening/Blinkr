@@ -1,0 +1,47 @@
+{
+  "generic": "Can't connect right now. Please try again.",
+  "networkRequestFailed": "Couldn't connect. Check your internet and try again.",
+  "engagement": {
+    "cannotLikeOwn": "You can't like your own signal.",
+    "commentEmpty": "A comment can't be empty.",
+    "commentTooLong": "A comment can be at most 500 characters.",
+    "commentForbidden": "Only the comment's author or the signal's owner can delete it.",
+    "notFound": "This signal is gone or has expired.",
+    "likeFailed": "Couldn't save your like. Try again.",
+    "commentFailed": "Couldn't send your comment. Try again.",
+    "deleteFailed": "Couldn't delete the comment. Try again.",
+    "loadFailed": "Couldn't load comments.",
+    "tooManyMentions": "You can mention at most 10 people in one post.",
+    "invalidReaction": "That reaction is not available."
+  },
+  "contentBlocked": "This doesn't follow the community rules: threats, hate speech and targeted insults can't be posted.",
+  "postingRestricted": "You can't post right now because of the community rules. You can post again when the limit ends.",
+  "accountSuspended": "This account has been suspended or closed because of the community rules.",
+  "http": {
+    "401": "Your session ended. Please sign in again.",
+    "403": "You're not allowed to do that.",
+    "404": "That item wasn't found.",
+    "server": "Can't connect right now. Please try again.",
+    "unreachable": "The signal service can't be reached right now. Try again shortly.",
+    "generic": "That didn't work. Please try again.",
+    "noRefresh": "Session refresh details are missing.",
+    "timeout": "The connection timed out. Try again.",
+    "mediaTimeout": "Couldn't read the media file (timed out). Try again."
+  },
+  "auth": {
+    "INVALID_CREDENTIALS": "Wrong user name, email or password.",
+    "INVALID_USERNAME": "User names are 3-30 characters: letters, digits, _ . and -.",
+    "USERNAME_TAKEN": "That user name is taken. Try another.",
+    "INVALID_EMAIL": "Enter a valid email address.",
+    "EMAIL_TAKEN": "There is already an account with this email.",
+    "INVALID_PASSWORD": "Enter a password.",
+    "PASSWORD_TOO_SHORT": "Passwords need at least 8 characters.",
+    "PASSWORD_TOO_LONG": "Passwords can be at most 128 characters.",
+    "AGE_TOO_YOUNG": "You need to be at least 13 to use Blinkr.",
+    "BIRTH_YEAR_REQUIRED": "Enter your birth year.",
+    "INVALID_BIRTH_YEAR": "Enter a valid birth year.",
+    "TOO_MANY_ATTEMPTS": "Too many attempts. Try again in a little while."
+  },
+  "tooManyMessages": "You are sending messages too fast. Slow down a little.",
+  "tooManyRequests": "Too many requests. Try again in a moment."
+}

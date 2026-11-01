@@ -18,6 +18,7 @@ namespace Shared.Events.Events.Blog
         public string? LocationName { get; set; }
         public Guid? PlaceId { get; set; }
         public string? PublicationTrust { get; set; }
+        public bool FromGallery { get; set; }
         public string? SignalType { get; set; }
         public string? SignalValue { get; set; }
         public string? AudienceType { get; set; }
@@ -26,6 +27,8 @@ namespace Shared.Events.Events.Blog
         public string? SourceType { get; set; }
         public DateTime? ExpiresAt { get; set; }
         public ICollection<PostMediaDto>? Media { get; set; }
+        /// <summary>V2-4: people @mentioned in the signal, resolved by BlogService.</summary>
+        public List<MentionedUser>? Mentions { get; set; }
     }
 
     public class PostMediaDto

@@ -1,7 +1,19 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 
-import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, CreateSignalInput, MediaKind, UnifiedMapResponse, PlacePresence, UserSummary } from './types';
+import type { AuthResponse, BlinkrPlace, Bounds, ChatMessage, Conversation, ConversationPreferences, CreateSignalInput, MeetupAnswer, PlaceShare, MediaKind, UnifiedMapResponse, PlacePresence, SnapOpenResult, UserSummary, AuthoredPost, Friend, FriendRequests, MyProfile, PublicProfile, Relation, BlockedUser, FollowPage, FollowRequestItem, FollowUser } from './types';
+import { resolveUploadContentType, safeUploadFileName } from './mediaContentType';
+import { COMMENT_PAGE_SIZE, type CommentPage, type CommentSort } from './engagement';
+import { DISCOVER_PAGE_SIZE, DISCOVER_RADIUS_METERS, type DiscoverPage } from './discoverFeed';
+import type { Story, StoryTrayItem, StoryViewer } from './stories';
+import type { Mention } from './richText';
+import { authErrorKey } from './authErrors';
+import { readHeat } from './mapHeat';
+import type { SignalShare } from './chatExtras';
+import type { AppNotification } from './notifications';
+import type { PostDetailDto } from './signalCard';
+import { i18n } from './i18n';
+import { tx } from './i18n/tx';
 
 type NearbyPlacesResponse = Array<BlinkrPlace & { distanceMeters?: number }> & {
   coverageState?: string | null;
@@ -45,17 +57,29 @@ let refreshInFlight: Promise<AuthResponse> | null = null;
 
 const readError = async (response: Response) => {
   const raw = await response.text();
-  if (response.status >= 500) return 'Şu anda bağlantı kurulamıyor. Lütfen tekrar dene.';
+  if (response.status >= 500) return tx('errors:http.server', 'Şu anda bağlantı kurulamıyor. Lütfen tekrar dene.');
 
   if (raw) {
     try {
       const payload = JSON.parse(raw) as {
+        code?: string;
         detail?: string;
         error?: string;
         errors?: Record<string, string[]>;
         message?: string;
         title?: string;
       };
+      // Refused by the server's text filter (Faz 10 P10.1): the app's own words, in the app's language.
+      if (payload.code === 'CONTENT_BLOCKED' || payload.error === 'CONTENT_BLOCKED') return i18n.t('errors:contentBlocked');
+      // Moderation sanctions (Faz 10 P10.4).
+      if (payload.code === 'POSTING_RESTRICTED') return i18n.t('errors:postingRestricted');
+      if (payload.code === 'ACCOUNT_SUSPENDED') return i18n.t('errors:accountSuspended');
+      // Sign-in / sign-up: the app's own words in the app's language, by code.
+      const authKey = authErrorKey(payload.code ?? payload.error);
+      if (authKey) return i18n.t(authKey);
+      // Rate limits (SECURITY S3): the app's own words.
+      if (payload.code === 'TOO_MANY_MESSAGES') return i18n.t('errors:tooManyMessages');
+      if (response.status === 429 && !payload.code && !payload.error) return i18n.t('errors:tooManyRequests');
       const validationMessages = Object.values(payload.errors ?? {}).flat().filter(Boolean);
       const message = validationMessages[0]
         || payload.detail
@@ -65,16 +89,16 @@ const readError = async (response: Response) => {
       if (message) return message.length > 240 ? `${message.slice(0, 237)}...` : message;
     } catch {
       if (response.status >= 500 || raw.includes('Grpc.Core') || raw.includes('Exception:')) {
-        return 'Sinyal servisine şu anda ulaşılamıyor. Backend servislerini kontrol edip tekrar dene.';
+        return tx('errors:http.unreachable', 'Sinyal servisine şu anda ulaşılamıyor. Backend servislerini kontrol edip tekrar dene.');
       }
       return raw.length > 240 ? `${raw.slice(0, 237)}...` : raw;
     }
   }
 
-  if (response.status === 401) return 'Oturumun sona erdi. Lütfen yeniden giriş yap.';
-  if (response.status === 403) return 'Bu işlemi yapmak için yetkin bulunmuyor.';
-  if (response.status === 404) return 'İstenen kayıt bulunamadı.';
-  return 'İşlem tamamlanamadı. Lütfen tekrar dene.';
+  if (response.status === 401) return tx('errors:http.401', 'Oturumun sona erdi. Lütfen yeniden giriş yap.');
+  if (response.status === 403) return tx('errors:http.403', 'Bu işlemi yapmak için yetkin bulunmuyor.');
+  if (response.status === 404) return tx('errors:http.404', 'İstenen kayıt bulunamadı.');
+  return tx('errors:http.generic', 'İşlem tamamlanamadı. Lütfen tekrar dene.');
 };
 
 export const toAbsoluteUrl = (url?: string | null) => {
@@ -103,7 +127,7 @@ export const clearAuth = async () => {
 };
 
 const refreshSession = async (auth: AuthResponse) => {
-  if (!auth.refreshToken) throw new Error('Oturum yenileme bilgisi bulunamadı.');
+  if (!auth.refreshToken) throw new Error(tx('errors:http.noRefresh', 'Oturum yenileme bilgisi bulunamadı.'));
   if (!refreshInFlight) {
     refreshInFlight = fetch(`${API_BASE_URL}/api/auth/refresh`, {
       method: 'POST',
@@ -164,7 +188,7 @@ const request = async (path: string, options: RequestOptions = {}, retrying = fa
         errorCode: err instanceof Error ? err.name : 'Unknown',
       });
     }
-    if (timedOut) throw new Error('Bağlantı zaman aşımına uğradı. Tekrar dene.');
+    if (timedOut) throw new Error(tx('errors:http.timeout', 'Bağlantı zaman aşımına uğradı. Tekrar dene.'));
     throw err;
   } finally {
     clearTimeout(timer);
@@ -189,15 +213,18 @@ const request = async (path: string, options: RequestOptions = {}, retrying = fa
   return response;
 };
 
+/** A failed response as an Error that also carries the HTTP status (the share outbox retries only 5xx/429, D9). */
+const httpError = async (response: Response) => Object.assign(new Error(await readError(response)), { status: response.status });
+
 const requestJson = async <T>(path: string, options: RequestOptions = {}) => {
   const response = await request(path, options);
-  if (!response.ok) throw new Error(await readError(response));
+  if (!response.ok) throw await httpError(response);
   return response.json() as Promise<T>;
 };
 
 export const authenticate = async (
   mode: 'login' | 'register',
-  input: { userName: string; email: string; password: string },
+  input: { userName: string; email: string; password: string; birthYear?: number | null },
 ) => {
   const body = mode === 'register'
     ? input
@@ -210,6 +237,41 @@ export const authenticate = async (
   await saveAuth(auth);
   return auth;
 };
+
+type AccountRefresh = { onAuthRefresh?: (auth: AuthResponse) => void; onSessionExpired?: () => void };
+
+/** plan-devam F3: ask for deletion (erased in 30 days; signing in before then offers to cancel). Ends every session. */
+export const requestAccountDeletion = (auth: AuthResponse, password: string, refresh: AccountRefresh = {}) =>
+  requestJson<{ deletionScheduledForUtc: string }>('/api/users/me/deletion', { auth, method: 'POST', body: { password }, onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
+
+export const cancelAccountDeletion = (auth: AuthResponse, refresh: AccountRefresh = {}) =>
+  requestJson<{ deletionScheduledForUtc: null }>('/api/users/me/deletion', { auth, method: 'DELETE', onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
+
+export type DataRequestInfo = { id: string; createdAtUtc: string; status: string };
+/** plan-devam F4: ask for a copy of my data (one per 30 days; a repeat returns the open request). */
+export const requestDataCopy = (auth: AuthResponse, refresh: AccountRefresh = {}) =>
+  requestJson<DataRequestInfo & { repeated: boolean }>('/api/users/me/data-requests', { auth, method: 'POST', onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
+
+/** SECURITY S6: my signed-in sessions, and "sign out of every other device" (this one stays signed in). */
+export type SessionInfo = { id: string; createdAtUtc: string; expiresAtUtc: string };
+export const getSessions = (auth: AuthResponse, refresh: AccountRefresh = {}) =>
+  requestJson<{ count: number; items: SessionInfo[] }>('/api/users/me/sessions', { auth, onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
+export const revokeOtherSessions = (auth: AuthResponse, refresh: AccountRefresh = {}) =>
+  requestJson<{ revoked: number }>('/api/users/me/sessions/revoke-others', { auth, method: 'POST', body: { refreshToken: auth.refreshToken }, onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
+
+/** Change my password (current one checked on the server); every other session ends, this one stays. Throws ApiCodeError. */
+export const changePassword = (auth: AuthResponse, currentPassword: string, newPassword: string, refresh: AccountRefresh = {}) =>
+  requestCoded<{ changed: boolean; sessionsEnded: number }>('/api/users/me/password', { auth, method: 'POST', body: { currentPassword, newPassword, refreshToken: auth.refreshToken }, onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
+
+export const getLatestDataRequest = (auth: AuthResponse, refresh: AccountRefresh = {}) =>
+  requestJson<{ latest: DataRequestInfo | null }>('/api/users/me/data-requests', { auth, onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
+
+export const setMyAvatar = (
+  auth: AuthResponse,
+  avatarKey: string | null,
+  onAuthRefresh?: (auth: AuthResponse) => void,
+  onSessionExpired?: () => void,
+) => requestJson<{ avatarKey: string | null }>('/api/users/me/avatar', { auth, body: { avatarKey }, method: 'PUT', onAuthRefresh, onSessionExpired });
 
 export const getPlacesInBounds = async (bounds: Bounds, signal?: AbortSignal) => {
   const params = new URLSearchParams({
@@ -237,11 +299,16 @@ export const getUnifiedMapBounds = async (bounds: Bounds, signal?: AbortSignal, 
     limit: '180',
   });
   if (includeCatalogPlaces) params.set('includeCatalogPlaces', 'true');
-  const payload = await requestJson<UnifiedMapResponse>(`/api/map/bounds?${params}`, { signal });
-  console.log('[Blinkr Map]', `Places: ${payload.places?.length ?? 0}`, `Signals: ${payload.signals?.length ?? 0}`);
+  const response = await request(`/api/map/bounds?${params}`, { signal });
+  if (!response.ok) throw await httpError(response);
+  const payload = await response.json() as UnifiedMapResponse;
+  // The server could not reach PlaceService: `places` is empty because it is missing, not because there are none.
+  const placesUnavailable = response.headers.get('x-blinkr-places') === 'unavailable';
+  console.log('[Blinkr Map]', `Places: ${payload.places?.length ?? 0}`, `Signals: ${payload.signals?.length ?? 0}`, placesUnavailable ? 'placesUnavailable' : '');
   return {
     places: payload.places ?? [],
     signals: payload.signals ?? [],
+    placesUnavailable,
   };
 };
 
@@ -268,8 +335,9 @@ export const getSignalContent = async (postId: string, signal?: AbortSignal) => 
   return { content: post.content, media: (post.media ?? []).map(item => ({ url: item.url, mediaType: item.type === 1 || item.type === 'Video' || item.mediaType === 'Video' ? 'Video' : 'Image' })) };
 };
 
-export const searchPlaces = (query: string, latitude: number, longitude: number, signal?: AbortSignal) =>
-  requestJson<BlinkrPlace[]>(`/api/places/search?${new URLSearchParams({ q: query, lat: String(latitude), lon: String(longitude) })}`, { signal });
+/** `radiusMeters` defaults to the server's 1.5 km (composer); the map's "where to?" search asks for up to 30 km. */
+export const searchPlaces = (query: string, latitude: number, longitude: number, signal?: AbortSignal, radiusMeters?: number, expand = false) =>
+  requestJson<BlinkrPlace[]>(`/api/places/search?${new URLSearchParams({ q: query, lat: String(latitude), lon: String(longitude), ...(radiusMeters ? { radiusMeters: String(radiusMeters) } : {}), ...(expand ? { expand: 'true' } : {}) })}`, { signal });
 
 export const previewPresence = (auth: AuthResponse, body: { placeId: string; latitude: number; longitude: number; accuracyMeters: number }, onAuthRefresh: (auth: AuthResponse) => void, onSessionExpired: () => void) =>
   requestJson<PlacePresence>('/api/posts/place-presence', { auth, body, method: 'POST', onAuthRefresh, onSessionExpired });
@@ -288,7 +356,7 @@ export const createSignal = async (
     onSessionExpired,
   });
 
-  if (!response.ok) throw new Error(await readError(response));
+  if (!response.ok) throw await httpError(response);
   const payload = await response.json();
   console.log('[Blinkr Publish]', {
     postId: payload.postId || payload.PostId,
@@ -304,6 +372,337 @@ export const createSignal = async (
 export const searchUsers = (auth: AuthResponse, query: string, signal?: AbortSignal) =>
   requestJson<UserSummary[]>(`/api/users/search?${new URLSearchParams({ q: query })}`, { auth, signal });
 
+/** Names and avatars of up to 50 people in one call (story tray, chat list); blocked or deleted people are left out. */
+export const getUsersBatch = (auth: AuthResponse, ids: string[], signal?: AbortSignal, refresh: { onAuthRefresh?: (auth: AuthResponse) => void; onSessionExpired?: () => void } = {}) =>
+  ids.length === 0 ? Promise.resolve([] as UserSummary[]) : requestJson<UserSummary[]>(`/api/users/batch?${new URLSearchParams({ ids: ids.slice(0, 50).join(',') })}`, { auth, signal, ...refresh });
+
+/** A person's published signals, newest first. Anonymous ones only ever come back to their own author. */
+export const getUserPosts = async (
+  auth: AuthResponse,
+  userId: string,
+  page: number,
+  pageSize: number,
+  signal?: AbortSignal,
+  onAuthRefresh?: (auth: AuthResponse) => void,
+  onSessionExpired?: () => void,
+) => {
+  const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  const response = await request(`/api/posts-read/author/${userId}?${query}`, { auth, onAuthRefresh, onSessionExpired, signal });
+  if (!response.ok) throw new Error(await readError(response));
+  const items = await response.json() as AuthoredPost[];
+  const total = Number(response.headers.get('X-Total-Count'));
+  return { items, total: Number.isFinite(total) ? total : items.length };
+};
+
+export const getMyPosts = (
+  auth: AuthResponse,
+  page: number,
+  pageSize: number,
+  signal?: AbortSignal,
+  onAuthRefresh?: (auth: AuthResponse) => void,
+  onSessionExpired?: () => void,
+) => getUserPosts(auth, auth.userId, page, pageSize, signal, onAuthRefresh, onSessionExpired);
+
+type Refresh = { onAuthRefresh?: (auth: AuthResponse) => void; onSessionExpired?: () => void };
+
+/** Doc P6: signals the server published as VERIFIED_LIVE and at how many places (never anonymous ones, no names). */
+export type AuthorTrust = { verifiedSignals: number; verifiedPlaces: number };
+export const getAuthorTrust = (auth: AuthResponse, userId: string, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<AuthorTrust>(`/api/posts-read/author/${userId}/trust`, { auth, signal, ...refresh });
+
+export const getMyProfile = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<MyProfile>('/api/users/me', { auth, signal, ...refresh });
+
+export const setMyBio = (auth: AuthResponse, bio: string | null, refresh: Refresh = {}) =>
+  requestJson<{ bio: string | null }>('/api/users/me/profile', { auth, body: { bio }, method: 'PUT', ...refresh });
+
+/** D-032: bio and display name together (an empty name clears it). */
+export const setMyProfile = (auth: AuthResponse, profile: { bio: string | null; displayName: string }, refresh: Refresh = {}) =>
+  requestJson<{ bio: string | null; displayName: string | null }>('/api/users/me/profile', { auth, body: profile, method: 'PUT', ...refresh });
+
+/** D-032: a new profile photo, as two JPEGs made on the phone (profile ~640 px, lists ~160 px). */
+export const setProfilePhoto = async (auth: AuthResponse, files: { largeUri: string; smallUri: string }, refresh: Refresh = {}) => {
+  const form = new FormData();
+  form.append('large', { uri: files.largeUri, name: 'large.jpg', type: 'image/jpeg' } as unknown as Blob);
+  form.append('small', { uri: files.smallUri, name: 'small.jpg', type: 'image/jpeg' } as unknown as Blob);
+  const response = await request('/api/users/me/photo', { auth, method: 'PUT', rawBody: form, timeoutMs: 60000, ...refresh });
+  if (!response.ok) throw new Error(await readError(response));
+  return (await response.json()) as { photoVersion: string };
+};
+export const removeProfilePhoto = async (auth: AuthResponse, refresh: Refresh = {}) => {
+  const response = await request('/api/users/me/photo', { auth, method: 'DELETE', ...refresh });
+  if (!response.ok) throw new Error(await readError(response));
+};
+/** The photo is read with the person's own token: the server applies the profile's block rule to it. */
+export const profilePhotoSource = (auth: AuthResponse, userId: string, version: string, large: boolean) => ({
+  uri: `${API_BASE_URL}/api/users/${userId}/photo?s=${large ? 'large' : 'small'}&v=${version}`,
+  headers: { Authorization: `Bearer ${auth.token}` },
+});
+
+export const getPublicProfile = (auth: AuthResponse, userId: string, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<PublicProfile>(`/api/users/${userId}`, { auth, signal, ...refresh });
+
+export const listFriends = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<Friend[]>('/api/friends', { auth, signal, ...refresh });
+
+export const listFriendRequests = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<FriendRequests>('/api/friends/requests', { auth, signal, ...refresh });
+
+type RelationResult = { userId: string; relation: Relation };
+
+export const sendFriendRequest = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<RelationResult>('/api/friends/requests', { auth, body: { userId }, method: 'POST', ...refresh });
+
+export const acceptFriendRequest = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<RelationResult>(`/api/friends/requests/${userId}/accept`, { auth, method: 'POST', ...refresh });
+
+export const declineFriendRequest = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<RelationResult>(`/api/friends/requests/${userId}/decline`, { auth, method: 'POST', ...refresh });
+
+export const cancelFriendRequest = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<RelationResult>(`/api/friends/requests/${userId}`, { auth, method: 'DELETE', ...refresh });
+
+export const listBlocks = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<BlockedUser[]>('/api/blocks', { auth, signal, ...refresh });
+
+export const blockUser = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<RelationResult>('/api/blocks', { auth, body: { userId }, method: 'POST', ...refresh });
+
+export const unblockUser = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<RelationResult>(`/api/blocks/${userId}`, { auth, method: 'DELETE', ...refresh });
+
+/** Reports are stored for moderation; the same report twice is answered the same calm way. */
+export const sendReport = (
+  auth: AuthResponse,
+  report: { targetType: 'user' | 'signal'; targetId: string; reason: string; note?: string },
+  refresh: Refresh = {},
+) => requestJson<{ reported: boolean }>('/api/reports', { auth, body: report, method: 'POST', ...refresh });
+
+/** In-app notifications (Faz 9). */
+export const listNotifications = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<{ items: AppNotification[]; nextCursor?: string | null }>('/api/notifications?pageSize=50', { auth, signal, ...refresh });
+export const getUnreadNotificationCount = async (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  (await requestJson<{ unreadCount: number }>('/api/notifications/unread-count', { auth, signal, ...refresh })).unreadCount;
+export const markAllNotificationsRead = async (auth: AuthResponse, refresh: Refresh = {}) => {
+  await request('/api/notifications/mark-read', { auth, body: { notificationIds: [] }, method: 'POST', ...refresh });
+};
+
+/** Stories (Faz 7): 24 h, author + accepted followers; the media is private and never cached. */
+export const listStoryTray = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<StoryTrayItem[]>('/api/stories/tray', { auth, signal, ...refresh });
+export const listUserStories = (auth: AuthResponse, userId: string, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<Story[]>(`/api/stories/users/${userId}`, { auth, signal, ...refresh });
+export const markStorySeen = async (auth: AuthResponse, storyId: string, refresh: Refresh = {}) => {
+  await request(`/api/stories/${storyId}/seen`, { auth, method: 'POST', ...refresh });
+};
+export const listStoryViewers = (auth: AuthResponse, storyId: string, refresh: Refresh = {}) =>
+  requestJson<StoryViewer[]>(`/api/stories/${storyId}/viewers`, { auth, ...refresh });
+/** V2-3: the story heart. Idempotent both ways; the author is told once, on the first like. */
+export const likeStory = async (auth: AuthResponse, storyId: string, liked: boolean, refresh: Refresh = {}) => {
+  const response = await request(`/api/stories/${storyId}/like`, { auth, method: liked ? 'POST' : 'DELETE', ...refresh });
+  if (!response.ok) throw new Error(await readError(response));
+};
+export const deleteStory = async (auth: AuthResponse, storyId: string, refresh: Refresh = {}) => {
+  const response = await request(`/api/stories/${storyId}`, { auth, method: 'DELETE', ...refresh });
+  if (!response.ok) throw new Error(await readError(response));
+};
+export const storyMediaSource = (auth: AuthResponse, storyId: string) => ({
+  uri: `${API_BASE_URL}/api/stories/${storyId}/content`,
+  headers: { Authorization: `Bearer ${auth.token}` },
+});
+export const postStory = async (
+  auth: AuthResponse,
+  media: LocalMedia,
+  options: { durationSeconds: number; caption?: string },
+  refresh: Refresh = {},
+) => {
+  const mediaType: MediaKind = media.type === 'video' ? 'Video' : 'Image';
+  const { blob, contentType } = await readLocalMedia(media, mediaType);
+  const query = new URLSearchParams({ durationSeconds: String(mediaType === 'Video' ? 0 : options.durationSeconds) });
+  if (options.caption) query.set('caption', options.caption);
+  const response = await request(`/api/stories?${query}`, { auth, headers: { 'Content-Type': contentType }, method: 'POST', rawBody: blob, timeoutMs: 90000, ...refresh });
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json() as Promise<Story>;
+};
+
+/** Keşfet (Faz 7): ranked live signals nearby, and what followed people shared this week. */
+export const getDiscoverNearby = (auth: AuthResponse, latitude: number, longitude: number, page = 1, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<DiscoverPage>(`/api/discover/nearby?${new URLSearchParams({ lat: String(latitude), lon: String(longitude), radiusMeters: String(DISCOVER_RADIUS_METERS), page: String(page), pageSize: String(DISCOVER_PAGE_SIZE) })}`, { auth, signal, ...refresh });
+export const getDiscoverFollowing = (auth: AuthResponse, page = 1, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<DiscoverPage>(`/api/discover/following?page=${page}&pageSize=${DISCOVER_PAGE_SIZE}`, { auth, signal, ...refresh });
+
+/** Saved places on the account (P6.8): the same on every device. */
+type SavedPlaceRow = { id: string; name: string; category?: string | null; latitude: number; longitude: number; savedAtUtc?: string };
+export const listServerSavedPlaces = (auth: AuthResponse, refresh: Refresh = {}) =>
+  requestJson<SavedPlaceRow[]>('/api/users/me/saved-places', { auth, ...refresh });
+export const putSavedPlace = (auth: AuthResponse, place: { id: string; name: string; category?: string | null; latitude: number; longitude: number }, refresh: Refresh = {}) =>
+  requestJson<{ placeId: string; saved: boolean }>(`/api/users/me/saved-places/${place.id}`, { auth, body: { name: place.name, category: place.category ?? null, latitude: place.latitude, longitude: place.longitude }, method: 'PUT', ...refresh });
+export const deleteSavedPlace = (auth: AuthResponse, placeId: string, refresh: Refresh = {}) =>
+  requestJson<{ placeId: string; saved: boolean }>(`/api/users/me/saved-places/${placeId}`, { auth, method: 'DELETE', ...refresh });
+export const importSavedPlaces = (auth: AuthResponse, items: Array<{ id: string; name: string; category?: string | null; latitude: number; longitude: number }>, refresh: Refresh = {}) =>
+  requestJson<SavedPlaceRow[]>('/api/users/me/saved-places/import', { auth, body: { items }, method: 'POST', ...refresh });
+
+/** Follows (D-009): follow a public account at once, a private one by request. */
+export const followUser = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<{ userId: string; follow: FollowUser['follow'] }>(`/api/follows/${userId}`, { auth, method: 'POST', ...refresh });
+export const unfollowUser = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<{ userId: string; follow: FollowUser['follow'] }>(`/api/follows/${userId}`, { auth, method: 'DELETE', ...refresh });
+export const listFollowers = (auth: AuthResponse, userId: string, page = 1, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<FollowPage>(`/api/users/${userId}/followers?page=${page}&pageSize=30`, { auth, signal, ...refresh });
+export const listFollowing = (auth: AuthResponse, userId: string, page = 1, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<FollowPage>(`/api/users/${userId}/following?page=${page}&pageSize=30`, { auth, signal, ...refresh });
+export const listFollowRequests = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<FollowRequestItem[]>('/api/follows/requests', { auth, signal, ...refresh });
+export const acceptFollowRequest = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<{ userId: string }>(`/api/follows/requests/${userId}/accept`, { auth, method: 'POST', ...refresh });
+export const declineFollowRequest = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<{ userId: string }>(`/api/follows/requests/${userId}/decline`, { auth, method: 'POST', ...refresh });
+export const removeFollower = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<{ userId: string }>(`/api/follows/followers/${userId}`, { auth, method: 'DELETE', ...refresh });
+export const setAccountPrivacy = (auth: AuthResponse, isPrivate: boolean, refresh: Refresh = {}) =>
+  requestJson<{ isPrivate: boolean }>('/api/users/me/privacy', { auth, body: { isPrivate }, method: 'PUT', ...refresh });
+
+/** Thrown when the server answers with a known `code` (e.g. `CANNOT_LIKE_OWN`), so the UI can show a translated message. */
+export class ApiCodeError extends Error {
+  constructor(public code: string, public status: number) { super(code); this.name = 'ApiCodeError'; }
+}
+
+const requestCoded = async <T>(path: string, options: RequestOptions = {}): Promise<T | null> => {
+  const response = await request(path, options);
+  if (!response.ok) {
+    const raw = await response.text();
+    let code: string | null = null;
+    try { code = (JSON.parse(raw) as { code?: string }).code ?? null; } catch { /* not JSON */ }
+    throw new ApiCodeError(code ?? (response.status === 404 ? "NOT_FOUND" : "UNKNOWN"), response.status);
+  }
+  if (response.status === 204) return null;
+  const text = await response.text();
+  return text ? (JSON.parse(text) as T) : null;
+};
+
+/** Sinyal Kartı (plan-devam Faz C): the full signal, trust, own-ness and, for the author, views. */
+export const getSignalDetail = (auth: AuthResponse | null, postId: string, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<PostDetailDto>(`/api/posts/${postId}`, { auth, signal, ...refresh });
+
+/** Cards looked at for at least a second, sent in batches (C12). Counted once per person, signal and day. */
+export const recordPostViews = async (auth: AuthResponse, postIds: string[], refresh: Refresh = {}) => {
+  if (postIds.length === 0) return;
+  await request('/api/posts/views', { auth, body: { postIds }, method: 'POST', ...refresh });
+};
+
+/** The author removes their own signal (the whole chain follows: PostDeleted). */
+export const deleteSignal = (auth: AuthResponse, postId: string, refresh: Refresh = {}) =>
+  requestCoded<null>(`/api/posts/${postId}`, { auth, method: 'DELETE', ...refresh });
+
+/** Likes and comments (engagement.ts has the contract). */
+export const getPostEngagement = (auth: AuthResponse | null, postId: string, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<{ likeCount: number; commentCount: number; isLikedByCurrentUser: boolean; authorId: string; reactionCounts?: Record<string, number>; myReaction?: string | null; mentions?: Mention[] }>(`/api/posts/${postId}`, { auth, signal, ...refresh });
+
+export const togglePostLike = async (auth: AuthResponse, postId: string, refresh: Refresh = {}) =>
+  (await requestCoded<{ liked: boolean }>(`/api/posts/${postId}/likes`, { auth, method: "POST", ...refresh }))?.liked ?? false;
+
+export const getPostComments = async (auth: AuthResponse | null, postId: string, page = 1, sort: CommentSort = "newest", signal?: AbortSignal, refresh: Refresh = {}) =>
+  (await requestCoded<CommentPage>(`/api/posts/${postId}/comments?${new URLSearchParams({ page: String(page), pageSize: String(COMMENT_PAGE_SIZE), sort })}`, { auth, signal, ...refresh }))!;
+
+export const addPostComment = async (auth: AuthResponse, postId: string, commentText: string, parentCommentId?: string | null, refresh: Refresh = {}) =>
+  (await requestCoded<{ commentId: string }>(`/api/posts/${postId}/comments`, { auth, body: { commentText, parentCommentId: parentCommentId ?? null }, method: "POST", ...refresh }))!.commentId;
+
+export const deletePostComment = (auth: AuthResponse, postId: string, commentId: string, refresh: Refresh = {}) =>
+  requestCoded<null>(`/api/posts/${postId}/comments/${commentId}`, { auth, method: "DELETE", ...refresh });
+
+/** V2-4 (D-027): my reaction (null or the same emoji again takes it back); the counts come from the server at once. */
+export const setPostReaction = async (auth: AuthResponse, postId: string, reaction: string | null, refresh: Refresh = {}) =>
+  (await requestCoded<{ reaction: string | null; counts: Record<string, number> }>(`/api/posts/${postId}/reactions`, { auth, body: { reaction }, method: "POST", ...refresh }))!;
+
+/** V2-4: toggle a comment like; answers the state afterwards. */
+export const togglePostCommentLike = async (auth: AuthResponse, postId: string, commentId: string, refresh: Refresh = {}) =>
+  (await requestCoded<{ liked: boolean; likeCount: number }>(`/api/posts/${postId}/comments/${commentId}/like`, { auth, method: "POST", ...refresh }))!;
+
+/** V2-4: public signals with a hashtag (last 7 days, newest first, never anonymous). */
+export const getHashtagFeed = (auth: AuthResponse, tag: string, page = 1, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<DiscoverPage>(`/api/discover/hashtag/${encodeURIComponent(tag)}?page=${page}&pageSize=${DISCOVER_PAGE_SIZE}`, { auth, signal, ...refresh });
+
+/** V2-4: hashtags starting with q, most used first. */
+export const searchHashtags = (auth: AuthResponse, q: string, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<Array<{ tag: string; postCount: number }>>(`/api/discover/hashtags/search?${new URLSearchParams({ q })}`, { auth, signal, ...refresh });
+
+/** D-041 "Koleksiyonlar": my place lists (owner only) and a list someone shared by link. */
+export const listCollections = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<import('./collections').CollectionSummary[]>('/api/users/me/collections', { auth, signal, ...refresh });
+export const getCollection = (auth: AuthResponse, id: string, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<import('./collections').CollectionDetail>(`/api/users/me/collections/${id}`, { auth, signal, ...refresh });
+/** 429 COLLECTION_LIMIT past 20, 422 CONTENT_BLOCKED. */
+export const createCollection = (auth: AuthResponse, body: { title: string; description?: string | null }, refresh: Refresh = {}) =>
+  requestJson<import('./collections').CollectionDetail>('/api/users/me/collections', { auth, body, method: 'POST', ...refresh });
+export const updateCollection = (auth: AuthResponse, id: string, body: { title?: string; description?: string; visibility?: import('./collections').CollectionVisibility; newLink?: boolean }, refresh: Refresh = {}) =>
+  requestJson<import('./collections').CollectionDetail>(`/api/users/me/collections/${id}`, { auth, body, method: 'PUT', ...refresh });
+export const deleteCollection = (auth: AuthResponse, id: string, refresh: Refresh = {}) =>
+  request(`/api/users/me/collections/${id}`, { auth, method: 'DELETE', ...refresh });
+/** Adds (or updates) a place; 429 COLLECTION_ITEMS_LIMIT past 50. */
+export const putCollectionItem = (auth: AuthResponse, id: string, place: { id: string; name: string; category?: string | null; latitude: number; longitude: number }, note: string | null = null, refresh: Refresh = {}) =>
+  requestJson<import('./collections').CollectionDetail>(`/api/users/me/collections/${id}/items/${place.id}`, { auth, body: { name: place.name, category: place.category ?? null, latitude: place.latitude, longitude: place.longitude, note }, method: 'PUT', ...refresh });
+export const removeCollectionItem = (auth: AuthResponse, id: string, placeId: string, refresh: Refresh = {}) =>
+  requestJson<import('./collections').CollectionDetail>(`/api/users/me/collections/${id}/items/${placeId}`, { auth, method: 'DELETE', ...refresh });
+/** A list shared by link; private lists, unknown links and blocks all answer 404. */
+export const getSharedCollection = (auth: AuthResponse, token: string, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<import('./collections').CollectionDetail>(`/api/collections/shared/${encodeURIComponent(token)}`, { auth, signal, ...refresh });
+
+/** D-040 "Yer özellikleri": facts about a place with how many and how recently; voters never returned. */
+export const getPlaceAttributes = (placeId: string, auth: AuthResponse | null, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<import('./placeAttributes').PlaceAttributes>(`/api/places/${placeId}/attributes`, { auth: auth ?? undefined, signal, ...refresh });
+/** 403 ATTRIBUTE_NOT_ELIGIBLE without a verified signal here in 30 days; null takes my answer back. */
+export const votePlaceAttribute = (auth: AuthResponse, placeId: string, key: import('./placeAttributes').AttributeKey, value: boolean | null, refresh: Refresh = {}) =>
+  requestJson<import('./placeAttributes').PlaceAttributes>(`/api/places/${placeId}/attributes/${key}`, { auth, body: { value }, method: 'PUT', ...refresh });
+
+/** D-039 "Yere sor": structured questions about a place; never says who asked (askedByMe only for the caller). */
+export const getPlaceQuestions = (placeId: string, auth: AuthResponse | null, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<import('./placeQuestions').PlaceQuestion[]>(`/api/places/${placeId}/questions`, { auth: auth ?? undefined, signal, ...refresh });
+export const getNearbyQuestions = (lat: number, lon: number, auth: AuthResponse | null, signal?: AbortSignal) =>
+  requestJson<import('./placeQuestions').PlaceQuestion[]>(`/api/places/questions/nearby?${new URLSearchParams({ lat: String(lat), lon: String(lon), radiusMeters: '1500' })}`, { auth: auth ?? undefined, signal });
+/** 409 QUESTION_LIMIT past three open questions. */
+export const askPlace = (auth: AuthResponse, placeId: string, kind: import('./placeQuestions').QuestionKind, refresh: Refresh = {}) =>
+  requestJson<import('./placeQuestions').PlaceQuestion>(`/api/places/${placeId}/questions`, { auth, body: { kind }, method: 'POST', ...refresh });
+export const withdrawQuestion = (auth: AuthResponse, placeId: string, kind: import('./placeQuestions').QuestionKind, refresh: Refresh = {}) =>
+  request(`/api/places/${placeId}/questions/${kind}`, { auth, method: 'DELETE', ...refresh });
+
+/** D-038 "Haber ver": my own place watches (only I ever read them). 409 WATCH_LIMIT past five. */
+export const listPlaceWatches = (auth: AuthResponse, signal?: AbortSignal, refresh: Refresh = {}) =>
+  requestJson<import('./placeWatch').PlaceWatchInfo[]>('/api/place-watches', { auth, signal, ...refresh });
+export const watchPlace = (auth: AuthResponse, placeId: string, body: { condition: import('./placeWatch').WatchCondition; placeName: string }, refresh: Refresh = {}) =>
+  requestJson<import('./placeWatch').PlaceWatchInfo>(`/api/place-watches/${placeId}`, { auth, body, method: 'PUT', ...refresh });
+export const unwatchPlace = (auth: AuthResponse, placeId: string, refresh: Refresh = {}) =>
+  request(`/api/place-watches/${placeId}`, { auth, method: 'DELETE', ...refresh });
+
+/** D-037 "Yerin Ritmi": how busy a place usually is by weekday/hour, from verified signals only (public aggregate). */
+export const getPlaceRhythm = (placeId: string, signal?: AbortSignal) =>
+  requestJson<import('./placeRhythm').PlaceRhythm>(`/api/places/${placeId}/rhythm`, { signal });
+
+/** D-045 heat layer: where verified things are happening now inside the bounds (aggregate cells, public). */
+export const getPlaceHeat = async (bounds: Bounds, signal?: AbortSignal) => {
+  const params = new URLSearchParams({
+    minLat: bounds.minLat.toString(),
+    minLon: bounds.minLng.toString(),
+    maxLat: bounds.maxLat.toString(),
+    maxLon: bounds.maxLng.toString(),
+  });
+  return readHeat(await requestJson<unknown>(`/api/places/heat?${params}`, { signal }));
+};
+
+/** Up to 20 places by id with their current state: how the places a person saved are doing right now. */
+export const getPlacesByIds = (ids: string[], signal?: AbortSignal) =>
+  requestJson<BlinkrPlace[]>(`/api/places/batch?${new URLSearchParams({ ids: ids.slice(0, 20).join(',') })}`, { signal });
+
+export const removeFriend = (auth: AuthResponse, userId: string, refresh: Refresh = {}) =>
+  requestJson<RelationResult>(`/api/friends/${userId}`, { auth, method: 'DELETE', ...refresh });
+
+export const getUser = (
+  auth: AuthResponse,
+  userId: string,
+  onAuthRefresh?: (auth: AuthResponse) => void,
+  onSessionExpired?: () => void,
+) =>
+  requestJson<UserSummary>(`/api/users/${userId}`, { auth, onAuthRefresh, onSessionExpired });
+
 export const listConversations = (
   auth: AuthResponse,
   onAuthRefresh?: (auth: AuthResponse) => void,
@@ -311,6 +710,15 @@ export const listConversations = (
 ) =>
   requestJson<{ items: Conversation[] }>('/api/chat/conversations', { auth, onAuthRefresh, onSessionExpired })
     .then((payload) => payload.items);
+
+/** Doc S3/S5: my own pin / mute for a conversation; an omitted field stays as it is. 409 PIN_LIMIT past three pins. */
+export const updateConversationPreferences = (
+  auth: AuthResponse,
+  conversationId: string,
+  change: { pinned?: boolean; muted?: boolean },
+  refresh: Refresh = {},
+) =>
+  requestJson<ConversationPreferences>(`/api/chat/conversations/${conversationId}/preferences`, { auth, body: change, method: 'PUT', ...refresh });
 
 export const startConversation = (
   auth: AuthResponse,
@@ -333,7 +741,7 @@ export const getMessages = (
   onAuthRefresh?: (auth: AuthResponse) => void,
   onSessionExpired?: () => void,
 ) =>
-  requestJson<{ items: ChatMessage[]; nextCursor?: string | null }>(`/api/chat/conversations/${conversationId}/messages`, {
+  requestJson<{ items: ChatMessage[]; nextCursor?: string | null; otherTyping?: boolean }>(`/api/chat/conversations/${conversationId}/messages`, {
     auth,
     onAuthRefresh,
     onSessionExpired,
@@ -346,14 +754,31 @@ export const sendMessage = (
   text: string,
   onAuthRefresh?: (auth: AuthResponse) => void,
   onSessionExpired?: () => void,
+  extras: { clientId?: string; signal?: SignalShare; place?: PlaceShare; meetup?: { atUtc: string }; replyToId?: string | null } = {},
 ) =>
   requestJson<ChatMessage>(`/api/chat/conversations/${conversationId}/messages`, {
     auth,
-    body: { text },
+    body: { text, ...(extras.clientId ? { clientId: extras.clientId } : {}), ...(extras.signal ? { signal: extras.signal } : {}), ...(extras.place ? { place: extras.place } : {}), ...(extras.meetup ? { meetup: extras.meetup } : {}), ...(extras.replyToId ? { replyToId: extras.replyToId } : {}) },
     method: 'POST',
     onAuthRefresh,
     onSessionExpired,
   });
+
+/** Doc B2: answer a meetup proposal; null takes the answer back. 410 MEETUP_CLOSED once it is well past. */
+export const respondToMeetup = (auth: AuthResponse, conversationId: string, messageId: string, answer: MeetupAnswer | null, refresh: Refresh = {}) =>
+  requestJson<ChatMessage>(`/api/chat/conversations/${conversationId}/messages/${messageId}/meetup`, { auth, body: { answer }, method: 'PUT', ...refresh });
+
+/** Take back my own text or shared signal (Faz 8). */
+export const unsendMessage = (auth: AuthResponse, conversationId: string, messageId: string, refresh: Refresh = {}) =>
+  requestJson<ChatMessage>(`/api/chat/conversations/${conversationId}/messages/${messageId}`, { auth, method: 'DELETE', ...refresh });
+
+/** Set (or with null clear) my reaction on a message. */
+export const reactToMessage = (auth: AuthResponse, conversationId: string, messageId: string, emoji: string | null, refresh: Refresh = {}) =>
+  requestJson<ChatMessage>(`/api/chat/conversations/${conversationId}/messages/${messageId}/reaction`, { auth, body: { emoji }, method: 'PUT', ...refresh });
+
+/** "I am typing" (plan-devam E4): the other person's next poll shows it for a few seconds. Best effort. */
+export const sendTyping = (auth: AuthResponse, conversationId: string, refresh: { onAuthRefresh?: (auth: AuthResponse) => void; onSessionExpired?: () => void } = {}) =>
+  request(`/api/chat/conversations/${conversationId}/typing`, { auth, method: 'POST', onAuthRefresh: refresh.onAuthRefresh, onSessionExpired: refresh.onSessionExpired });
 
 export const markConversationRead = (
   auth: AuthResponse,
@@ -362,6 +787,31 @@ export const markConversationRead = (
   onSessionExpired?: () => void,
 ) =>
   request(`/api/chat/conversations/${conversationId}/read`, { auth, method: 'POST', onAuthRefresh, onSessionExpired });
+
+type LocalMedia = { uri: string; fileName?: string | null; mimeType?: string | null; type?: string | null };
+
+/**
+ * Reads a picked/captured file into a Blob and settles ONE content type for it (picker, Blob and file extension
+ * disagree often enough to matter). The Blob is re-wrapped in that type because the HTTP stack sends a Blob body
+ * with the Blob's own type, which must not drift from what was declared to the server.
+ */
+const readLocalMedia = async (asset: LocalMedia, mediaType: MediaKind) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  let blob: Blob;
+  try {
+    const response = await fetch(asset.uri, { signal: controller.signal });
+    blob = await response.blob();
+  } catch (err) {
+    if (isDev) console.log('[Blinkr Media]', { failedStage: 'local-read', errorCode: err instanceof Error ? err.name : 'Unknown' });
+    throw controller.signal.aborted ? new Error(tx('errors:http.mediaTimeout', 'Medya dosyası okunamadı (zaman aşımı). Tekrar dene.')) : err;
+  } finally {
+    clearTimeout(timer);
+  }
+  const contentType = resolveUploadContentType(mediaType, asset.mimeType, blob.type, asset.fileName ?? asset.uri);
+  if (blob.type !== contentType) blob = new Blob([blob], { type: contentType });
+  return { blob, contentType };
+};
 
 export const uploadMedia = async (
   auth: AuthResponse,
@@ -376,13 +826,15 @@ export const uploadMedia = async (
   onSessionExpired?: () => void,
 ) => {
   const mediaType: MediaKind = asset.type === 'video' ? 'Video' : 'Image';
-  const contentType = asset.mimeType || (mediaType === 'Video' ? 'video/mp4' : 'image/jpeg');
-  const sizeBytes = Math.max(1, asset.fileSize ?? 1);
+
+  // Read the file first: a file that cannot be read must not leave a presign record behind.
+  const { blob, contentType } = await readLocalMedia(asset, mediaType);
+  const sizeBytes = Math.max(1, blob.size || asset.fileSize || 1);
   const presign = await requestJson<PresignResponse>('/api/v1/media/presign', {
     auth,
     body: {
       contentType,
-      fileName: asset.fileName || (mediaType === 'Video' ? 'blinkr-video.mp4' : 'blinkr-photo.jpg'),
+      fileName: safeUploadFileName(asset.fileName, mediaType, contentType),
       mediaType,
       sizeBytes,
     },
@@ -390,21 +842,6 @@ export const uploadMedia = async (
     onAuthRefresh,
     onSessionExpired,
   });
-
-  const localController = new AbortController();
-  const localTimer = setTimeout(() => localController.abort(), 10000);
-  let blob: Blob;
-  try {
-    const localResponse = await fetch(asset.uri, { signal: localController.signal });
-    blob = await localResponse.blob();
-  } catch (err) {
-    if (isDev) console.log('[Blinkr Media]', { mime: contentType, failedStage: 'local-read', errorCode: err instanceof Error ? err.name : 'Unknown' });
-    throw localController.signal.aborted
-      ? new Error('Medya dosyası okunamadı (zaman aşımı). Tekrar dene.')
-      : err;
-  } finally {
-    clearTimeout(localTimer);
-  }
 
   const uploadPath = presign.uploadUrl.startsWith('http')
     ? presign.uploadUrl.replace(API_BASE_URL, '')
@@ -423,7 +860,7 @@ export const uploadMedia = async (
     timeoutMs: 45000,
   });
 
-  if (!uploadResponse.ok) throw new Error(await readError(uploadResponse));
+  if (!uploadResponse.ok) throw await httpError(uploadResponse);
   if (isDev) console.log('[Blinkr Media]', { mediaId: presign.mediaId.slice(0, 8), mime: contentType, state: 'uploaded' });
 
   return {
@@ -432,3 +869,47 @@ export const uploadMedia = async (
     previewUrl: toAbsoluteUrl(presign.publicUrl),
   };
 };
+
+/**
+ * Sends a view-once photo or video into a conversation. The body is the raw media (its Content-Type is the media
+ * type); the timer and caption travel in the query. Videos always play to their end (timer 0).
+ */
+export const sendSnap = async (
+  auth: AuthResponse,
+  conversationId: string,
+  media: LocalMedia,
+  options: { durationSeconds: number; caption?: string },
+  onAuthRefresh?: (auth: AuthResponse) => void,
+  onSessionExpired?: () => void,
+) => {
+  const mediaType: MediaKind = media.type === 'video' ? 'Video' : 'Image';
+  const { blob, contentType } = await readLocalMedia(media, mediaType);
+  const query = new URLSearchParams({ durationSeconds: String(mediaType === 'Video' ? 0 : options.durationSeconds) });
+  if (options.caption) query.set('caption', options.caption);
+  const response = await request(`/api/chat/conversations/${conversationId}/snaps?${query}`, {
+    auth,
+    headers: { 'Content-Type': contentType },
+    method: 'POST',
+    onAuthRefresh,
+    onSessionExpired,
+    rawBody: blob,
+    timeoutMs: 90000,
+  });
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json() as Promise<ChatMessage>;
+};
+
+/** Opens a waiting snap for good (one time only). Fails with 410 once it was opened or has expired. */
+export const openSnap = (
+  auth: AuthResponse,
+  conversationId: string,
+  messageId: string,
+  onAuthRefresh?: (auth: AuthResponse) => void,
+  onSessionExpired?: () => void,
+) => requestJson<SnapOpenResult>(`/api/chat/conversations/${conversationId}/messages/${messageId}/open`, { auth, method: 'POST', onAuthRefresh, onSessionExpired });
+
+/** Where and how to load the media of an opened snap: only the recipient's token is accepted, and only briefly. */
+export const snapMediaSource = (auth: AuthResponse, contentUrl: string) => ({
+  uri: toAbsoluteUrl(contentUrl) as string,
+  headers: { Authorization: `Bearer ${auth.token}` },
+});

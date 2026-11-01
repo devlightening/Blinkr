@@ -35,7 +35,7 @@ function Assert-Truthy {
 function Register-User {
     $suffix = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
     $auth = Invoke-Json -Method POST -Url "$GatewayBaseUrl/api/auth/register" -ExpectedStatus @(200) -Body @{
-        userName = "location_smoke_$suffix"
+        userName = "e2e_locmap_$suffix"
         email = "location_smoke_$suffix@blinkr.local"
         password = "BlinkrSmoke!2026"
     }
@@ -141,6 +141,28 @@ if (-not $expiredPostId) { $expiredPostId = $expiredPost.PostId }
 Start-Sleep -Seconds 6
 $mapAfterExpired = Get-Map -Lat $lat -Lon $lon
 Assert-Truthy ((@($mapAfterExpired.signals) | Where-Object { $_.postId -eq $expiredPostId }).Count -eq 0) "Expired coordinate signal appeared on active map."
+
+Write-Host "[G] Verifying the Yerler layer keeps Places with active signals..."
+# includeCatalogPlaces feeds the Yerler layer. The catalog is capped per viewport, so a Place with a
+# live signal must still be present rather than being pushed out by more recently updated catalog rows.
+$delta = 0.025
+# A cold PlaceService (first query after a restart) may take longer than the map waits (8 s, below the app's 15 s).
+# Then the map must say so (X-Blinkr-Places: unavailable, so the app keeps the places it shows) and a later call has them.
+$catalogUrl = "$GatewayBaseUrl/api/map/bounds?south=$($lat - $delta)&west=$($lon - $delta)&north=$($lat + $delta)&east=$($lon + $delta)&sinceMinutes=180&limit=120&includeCatalogPlaces=true"
+for ($attempt = 1; $attempt -le 4; $attempt++) {
+    $catalogResponse = Invoke-WebRequest -UseBasicParsing -Uri $catalogUrl -TimeoutSec 60
+    $catalogMap = [Text.Encoding]::UTF8.GetString($catalogResponse.RawContentStream.ToArray()) | ConvertFrom-Json
+    $placesMissing = $catalogResponse.Headers['X-Blinkr-Places'] -eq 'unavailable'
+    if (-not $placesMissing) { break }
+    Assert-Truthy (@($catalogMap.places).Count -eq 0) "A map answer flagged places-unavailable still carried places."
+    Write-Host "  places not ready yet (attempt $attempt), the answer says so; retrying"
+    Start-Sleep -Seconds 3
+}
+Assert-Truthy (-not $placesMissing) "PlaceService never answered the map within four tries."
+$catalogPlaces = @($catalogMap.places)
+Assert-Truthy ($catalogPlaces.Count -le 80) "Catalog Place cap exceeded 80 (got $($catalogPlaces.Count))."
+Assert-Truthy ((@($catalogPlaces | ForEach-Object { $_.id } | Sort-Object -Unique)).Count -eq $catalogPlaces.Count) "Yerler layer returned duplicate Places."
+Assert-Truthy ((@($catalogPlaces | Where-Object { $_.id -eq $place.id })).Count -eq 1) "Yerler layer dropped Place $($place.id) which has an active signal ($($catalogPlaces.Count) places returned)."
 
 Write-Host "PASS BLK-LOCATION-01 location/map smoke"
 Write-Host "PlaceId: $($place.id)"

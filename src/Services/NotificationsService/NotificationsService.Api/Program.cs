@@ -7,6 +7,8 @@ builder.Services
     .AddNotificationsControllers()
     .AddNotificationsMediatR()
     .AddNotificationsRepositories()
+    .AddNotificationsSnaps(builder.Configuration, builder.Environment)
+    .AddNotificationsBlockGuard(builder.Configuration)
     .AddNotificationsMessaging(builder.Configuration)
     .AddNotificationsAuthentication(builder.Configuration, builder.Environment.EnvironmentName)
     .AddNotificationsSwagger()
@@ -27,10 +29,14 @@ if (app.Environment.IsDevelopment())
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter(); // after authentication: the chat limit is per signed-in person
 
 app.MapControllers();
+app.MapHub<NotificationsService.Api.Realtime.RealtimeHub>("/hubs/realtime");
 
 app.MapHealthChecks("/health").AllowAnonymous();
+// CLAUDE.md §21 P1: live = the process answers (no dependencies); ready = the dependencies it really uses.
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
 app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
     Predicate = r => r.Tags.Contains("ready")

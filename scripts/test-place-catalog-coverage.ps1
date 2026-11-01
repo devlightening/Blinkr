@@ -18,7 +18,8 @@ $rows = foreach ($region in $regions) {
     $url = "$GatewayBaseUrl/api/places/nearby?$query"
     try {
         $response = Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 20
-        $items = @($response.Content | ConvertFrom-Json)
+        # Windows PowerShell 5.1 emits a JSON array as one object; ForEach-Object unrolls it.
+        $items = @($response.Content | ConvertFrom-Json | ForEach-Object { $_ })
         [pscustomobject]@{
             Region = $region.Name
             Status = [int]$response.StatusCode

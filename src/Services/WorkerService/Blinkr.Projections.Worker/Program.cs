@@ -36,6 +36,7 @@ try
     {
         ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
     });
+    app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 
     Log.Information("🚀 Worker is now running. Press Ctrl+C to shut down.");
     await app.RunAsync();

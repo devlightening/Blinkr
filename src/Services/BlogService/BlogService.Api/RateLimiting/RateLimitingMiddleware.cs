@@ -118,6 +118,10 @@ public sealed class RateLimitingMiddleware : IMiddleware
         {
             ("GET", var p) when p.StartsWith("/api/posts-read/nearby") => "Nearby",
             ("POST", var p) when p.StartsWith("/api/posts/") && p.EndsWith("/location") => "PostLocation",
+            // S3 (V2 closing): writing is limited per person (user + IP), not only reading.
+            ("POST", "/api/posts") => "PostCreate",
+            ("POST", var p) when p.StartsWith("/api/posts/") && (p.EndsWith("/reactions") || p.EndsWith("/likes") || p.EndsWith("/like")) => "Reaction",
+            ("POST", var p) when p.StartsWith("/api/posts/") && p.EndsWith("/comments") => "Comment",
             _ => null
         };
     }
@@ -132,7 +136,9 @@ public sealed class RateLimitingMiddleware : IMiddleware
         var userId = context.User?.FindFirstValue("sub") ?? context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
         
         // Get IP address (ForwardedHeaders middleware handles X-Forwarded-For)
-        var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        // Behind the Gateway the connection is always the Gateway: the client is the first X-Forwarded-For hop.
+        var forwarded = context.Request.Headers["X-Forwarded-For"].ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
+        var ipAddress = !string.IsNullOrEmpty(forwarded) ? forwarded : context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
         // Composite identifier to prevent session sharing abuse
         if (!string.IsNullOrWhiteSpace(userId))

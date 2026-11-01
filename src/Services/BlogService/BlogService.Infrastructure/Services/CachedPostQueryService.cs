@@ -44,6 +44,7 @@ public class CachedPostQueryService : IPostQueryService
         return await GetByIdAsync(postId, cancellationToken);
     }
 
+
     public async Task<PostReadDto?> GetByIdAsync(Guid postId, CancellationToken cancellationToken = default)
     {
         var cacheKey = $"post:detail:{postId}";
@@ -162,10 +163,10 @@ public class CachedPostQueryService : IPostQueryService
         return new PaginatedResult<PostReadDto> { Items = items.Select(MapToReadDto).ToList(), TotalCount = total, Page = page, PageSize = pageSize };
     }
 
-    public async Task<PaginatedResult<PostReadDto>> GetUserPostsAsync(Guid authorId, int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<PaginatedResult<PostReadDto>> GetUserPostsAsync(Guid authorId, int page, int pageSize, CancellationToken cancellationToken = default, bool includeAnonymous = false)
     {
         var collection = _mongoDb.GetCollection<PostDocument>("posts");
-        var filter = Builders<PostDocument>.Filter.Eq(p => p.AuthorId, authorId);
+        var filter = AuthorPostFilters.ForAuthor(authorId, includeAnonymous);
         var total = (int)await collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
         var items = await collection.Find(filter)
             .SortByDescending(p => p.CreatedAtUtc)
@@ -485,13 +486,6 @@ public class CachedPostQueryService : IPostQueryService
         return (int)result.ModifiedCount;
     }
 
-    public async Task<int> SyncPostgresPostsToMongoAsync(CancellationToken cancellationToken = default)
-    {
-        // This would require access to PostgreSQL context, which is not available in this service
-        _logger.LogWarning("SyncPostgresPostsToMongoAsync not implemented in CachedPostQueryService");
-        return 0;
-    }
-
     // Direct query methods (no caching)
     private async Task<PagedResult<PostListDto>> QueryPostsDirectAsync(PostQuery query, CancellationToken cancellationToken)
     {
@@ -506,7 +500,7 @@ public class CachedPostQueryService : IPostQueryService
 
         if (!string.IsNullOrEmpty(query.AuthorId) && Guid.TryParse(query.AuthorId, out var authorId))
         {
-            filter = filterBuilder.And(filter, filterBuilder.Eq(p => p.AuthorId, authorId));
+            filter = filterBuilder.And(filter, AuthorPostFilters.ForAuthor(authorId, query.IncludeAnonymousAuthored));
         }
 
         var total = (int)await collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
@@ -688,6 +682,11 @@ public class CachedPostQueryService : IPostQueryService
             ExpiresAt = doc.ExpiresAt,
             LikeCount = doc.LikeCount,
             CommentCount = doc.CommentCount,
+            // Known limitation: this DTO is cached per-post (not per-viewer, see GetByIdAsync above),
+            // so a real per-user like state cannot be baked in here without leaking between users.
+            // The endpoint the mobile client actually calls for single-post detail (GET /api/posts/{id})
+            // does not go through this cached path - see GetPostByIdQueryHandler instead, which answers
+            // this correctly per request.
             IsLikedByCurrentUser = false,
             Comments = new(),
             Media = doc.Media?.Select(m => new MediaDto
@@ -737,6 +736,7 @@ public class CachedPostQueryService : IPostQueryService
             LikeCount = doc.LikeCount,
             CommentCount = doc.CommentCount,
             MediaUrls = doc.Media?.Select(m => m.Url).ToList() ?? new(),
+            Media = doc.Media?.Select(m => new PostListMediaDto(m.Url, m.ThumbnailUrl, m.Type)).ToList() ?? new(),
             Location = null,
             FreshnessSec = freshnessSec,
             IsLive = expiresAt > DateTime.UtcNow

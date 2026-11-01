@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="AspNetCore.HealthChecks.UI"/>
+    <!-- SECURITY S7: overrides the vulnerable transitive KubernetesClient 15.0.1 -->
+    <PackageReference Include="KubernetesClient"/>
     <PackageReference Include="AspNetCore.HealthChecks.UI.SqlServer.Storage"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore"/>
     <PackageReference Include="Swashbuckle.AspNetCore"/>

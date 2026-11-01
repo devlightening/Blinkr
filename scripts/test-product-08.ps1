@@ -1,3 +1,6 @@
+param([switch]$Cleanup)
+
+# -Cleanup: afterwards remove every test account and what it created (scripts/cleanup-test-data.cjs, plan-devam A1).
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 Push-Location $repo
@@ -6,16 +9,21 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Stack must be healthy before acceptance tests.' }
     & dotnet run --project tests/PlacePosting/PlacePosting.csproj -- --catalog
     if ($LASTEXITCODE -ne 0) { throw 'Policy/catalog tests failed.' }
-    foreach ($script in @('test-place-posting-real-catalog', 'test-nearby-distance-contract', 'test-nearby-place-ux-core', 'test-location-map-core', 'test-place-live-signal', 'test-content-media-smoke', 'test-auth-gateway-smoke')) {
+    & dotnet run --project tests/ContentFilter/ContentFilter.csproj
+    if ($LASTEXITCODE -ne 0) { throw 'Text filter unit tests failed.' }
+    foreach ($script in @('test-place-posting-real-catalog', 'test-nearby-distance-contract', 'test-nearby-place-ux-core', 'test-location-map-core', 'test-place-live-signal', 'test-content-media-smoke', 'test-auth-gateway-smoke', 'test-auth-registration', 'test-avatar', 'test-friends', 'test-safety', 'test-place-batch', 'test-place-search', 'test-chat-smoke', 'test-snap-smoke', 'test-author-posts-privacy', 'test-post-engagement', 'test-sensitive-place', 'test-media-privacy', 'test-follows', 'test-saved-places', 'test-discover', 'test-stories', 'test-chat-plus', 'test-notifications', 'test-log-privacy', 'test-text-filter', 'test-moderation', 'test-authz', 'test-signal-card')) {
         & powershell -ExecutionPolicy Bypass -File "scripts/$script.ps1"
         if ($LASTEXITCODE -ne 0) { throw "$script failed." }
     }
     Push-Location src/Clients/Blinkr.Expo
     try {
-        foreach ($task in @('typecheck', 'test:nearby', 'test:product', 'test:ui')) {
+        foreach ($task in @('typecheck', 'test:theme', 'test:nearby', 'test:product', 'test:ui')) {
             & npm.cmd run $task
             if ($LASTEXITCODE -ne 0) { throw "$task failed." }
         }
     } finally { Pop-Location }
     Write-Host 'PASS automated product acceptance; PHYSICAL_RETEST_REQUIRED'
-} finally { Pop-Location }
+} finally {
+    if ($Cleanup) { & node scripts/cleanup-test-data.cjs }
+    Pop-Location
+}

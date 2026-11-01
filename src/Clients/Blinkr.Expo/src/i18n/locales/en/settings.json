@@ -1,0 +1,146 @@
+{
+  "title": "Settings",
+  "section": {
+    "account": "Account",
+    "security": "Security",
+    "privacy": "Privacy",
+    "about": "About",
+    "developer": "Developer"
+  },
+  "blockedUsers": "Blocked people",
+  "version": "Version",
+  "privacy": {
+    "privateTitle": "Private account",
+    "privateHint": "When on, only people you approve see your signal list and follow lists. Your signals on the map stay public.",
+    "privateFailed": "Couldn't save the setting. Try again.",
+    "exact": "Your exact device location is never shown to others; the map shows the place centre or an approximate area.",
+    "anon": "Only you see the signals you share anonymously.",
+    "snaps": "Snaps disappear after one view; location data in photos is removed.",
+    "friends": "Friendship is only for finding each other and messaging; it never shares location.",
+    "analyticsTitle": "Share usage data",
+    "analyticsHint": "Shares which screens are used, anonymously; location, email and what you write are never sent. Off by default."
+  },
+  "appearance": {
+    "title": "Appearance",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark",
+    "hint": "Applies right away; the app reopens for a second."
+  },
+  "pages": {
+    "data": "Request my data",
+    "delete": "Delete account",
+    "community": "Community guidelines",
+    "terms": "Terms of use",
+    "privacy": "Privacy policy",
+    "sessions": "Sessions",
+    "password": "Change password"
+  },
+  "legal": {
+    "updated": "Last updated: {{date}}"
+  },
+  "deletion": {
+    "title": "Your account will be deleted for good",
+    "points": {
+      "what": "Your account, signals, comments, likes, stories, snaps and uploaded media are deleted.",
+      "grace": "Deletion happens after 30 days. Sign in before then to cancel it.",
+      "chats": "Your chat messages are removed; the other person sees you as \"Deleted user\".",
+      "keep": "Deleted data cannot be restored. You can first get a copy with Request my data."
+    },
+    "continue": "Continue",
+    "passwordHint": "Enter your password to confirm.",
+    "password": "Password",
+    "confirm": "Delete my account",
+    "back": "Back",
+    "failed": "The account couldn't be deleted. Try again."
+  },
+  "data": {
+    "body": "You can ask for a copy of the data about your account. The request is recorded and the copy is sent to your email address. You can ask once every 30 days.",
+    "ask": "Request my data",
+    "received": "Request received ({{date}}).",
+    "next": "The copy will be sent to your email when it is ready. Questions:",
+    "failed": "The request couldn't be sent. Try again.",
+    "clearSearches": "Clear search history",
+    "cleared": "Cleared"
+  },
+  "pending": {
+    "title": "Your account is about to be deleted",
+    "body": "Your account and everything you shared will be deleted for good on {{date}}.",
+    "hint": "If you changed your mind you can cancel; your account stays as it is.",
+    "cancel": "Cancel deletion",
+    "logout": "Sign out",
+    "failed": "Couldn't cancel. Try again."
+  },
+  "blocked": {
+    "loadFailed": "Couldn't load blocked people. Try again.",
+    "unblockFailed": "Couldn't unblock. Try again.",
+    "title": "Blocked people",
+    "emptyHint": "People you block are listed here. A blocked person can't find you or send you requests or messages.",
+    "empty": "You haven't blocked anyone",
+    "unblockA11y": "Unblock {{name}}",
+    "unblock": "Unblock"
+  },
+  "sections": {
+    "account": "Account",
+    "developer": "Developer",
+    "about": "About",
+    "permissions": "Permissions",
+    "data": "Data",
+    "privacySafety": "Privacy and safety"
+  },
+  "account": {
+    "username": "Username",
+    "email": "Email"
+  },
+  "dev": {
+    "preview": "Component preview"
+  },
+  "about": {
+    "version": "Version",
+    "attribution": "Place data © OpenStreetMap contributors (ODbL). The base map belongs to Apple Maps / Google Maps; Blinkr markers are drawn only from Blinkr data."
+  },
+  "language": {
+    "title": "Language",
+    "system": "System"
+  },
+  "sessions": {
+    "count_one": "{{count}} signed-in session",
+    "count_other": "{{count}} signed-in sessions",
+    "hint": "Every device signed in to your account is a session. If one looks unfamiliar, sign out of the other devices and change your password.",
+    "item": "Session {{index}}",
+    "since": "Since {{date}}",
+    "signOutOthers": "Sign out of other devices",
+    "confirm": "Every session except this device will be signed out.",
+    "confirmYes": "Yes, sign them out",
+    "cancel": "Cancel",
+    "revoked_one": "{{count}} session signed out.",
+    "revoked_other": "{{count}} sessions signed out."
+  },
+  "password": {
+    "title": "Change password",
+    "hint": "At least 8 characters. Changing it signs you out on other devices; you stay signed in here.",
+    "current": "Current password",
+    "new": "New password",
+    "again": "New password (again)",
+    "save": "Change password",
+    "tooShort": "The new password needs at least 8 characters.",
+    "tooLong": "The new password can be at most 128 characters.",
+    "mismatch": "The new passwords do not match.",
+    "wrong": "The current password is not right.",
+    "unchanged": "The new password must differ from the old one.",
+    "tooMany": "Too many tries. Try again a little later.",
+    "failed": "The password could not be changed. Try again.",
+    "done": "Your password changed",
+    "doneOthers": "{{count}} sessions on other devices were signed out; you are still signed in here.",
+    "doneAlone": "You are still signed in here."
+  },
+  "permissions": {
+    "location": "Location",
+    "camera": "Camera",
+    "photos": "Photos",
+    "granted": "On",
+    "denied": "Off",
+    "undetermined": "Not asked",
+    "hint": "Location is used only while you share a signal or look at what is nearby; your exact position is never shown to anyone."
+  }
+}

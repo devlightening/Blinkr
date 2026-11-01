@@ -1,0 +1,349 @@
+import * as Location from 'expo-location';
+import { Compass, HelpCircle, MapPin, Radio, WifiOff } from 'lucide-react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ActivityIndicator, AppState, FlatList, Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { getNearbyQuestions, getUnifiedMapBounds } from '../api';
+import { questionText, waitingLabel, type PlaceQuestion } from '../placeQuestions';
+import { ACTIVITY_RADIUS_METERS, boundsAround, buildNearbyActivity, filterActivity, type ActivityFilter, type ActivityItem } from '../nearbyActivity';
+import { formatAge, formatCategory, formatDistance, signalLabels } from '../presentation';
+import { friendlyError, signalValueLabel } from '../productPresentation';
+import { colors, motion, radii, signalColors, spacing, typography } from '../theme';
+import type { BlinkrPlace, CoordinateSignal } from '../types';
+import { AnimatedPressable } from './AnimatedPressable';
+import { SignalSymbol } from './SignalSymbol';
+import { bottomBarClearance } from './ui/BlinkrBottomBar';
+import { BlinkrChip } from './ui/BlinkrChip';
+import { BlinkrEmptyState } from './ui/BlinkrEmptyState';
+import { SkeletonList } from './ui/BlinkrSkeleton';
+import { tx } from '../i18n/tx';
+import { displayLocale } from '../i18n/locale';
+
+type Props = {
+  /** Opens a Place with live state on the map, with its detail sheet. */
+  onOpenPlace: (place: BlinkrPlace) => void;
+  /** Opens a coordinate signal on the map, with its detail sheet. */
+  onOpenSignal: (signal: CoordinateSignal) => void;
+  /** Empty-state call to action; opens the camera/composer. */
+  onCreateSignal?: () => void;
+  /** Shown inside Keşfet as its "Yerler" tab: the screen title comes from Keşfet. */
+  embedded?: boolean;
+};
+
+type Phase = 'checking' | 'needsPermission' | 'blocked' | 'locating' | 'loading' | 'ready' | 'error';
+type Origin = { latitude: number; longitude: number };
+
+const LOCATION_TIMEOUT_MS = 12_000;
+const LAST_KNOWN_MAX_AGE_MS = 2 * 60_000;
+
+const FILTERS: Array<{ id: ActivityFilter; label: string }> = [
+  { id: 'all', label: tx('map:nearby.filterAll', 'Tümü') },
+  { id: 'live', label: tx('common:live', 'Canlı') },
+  { id: 'crowd', label: tx('map:nearby.filterCrowd', 'Doluluk') },
+  { id: 'queue', label: tx('map:nearby.filterQueue', 'Bekleme') },
+  { id: 'other', label: tx('map:nearby.filterOther', 'Diğer') },
+];
+
+const withTimeout = <T,>(promise: Promise<T>, ms: number) => new Promise<T>((resolve, reject) => {
+  const timer = setTimeout(() => reject(new Error('location-timeout')), ms);
+  promise.then((value) => { clearTimeout(timer); resolve(value); }, (error) => { clearTimeout(timer); reject(error); });
+});
+
+const describe = (item: ActivityItem) => {
+  const type = item.signalType ? signalLabels[item.signalType] : tx('map:nearby.observation', 'Gözlem');
+  const value = signalValueLabel(item.signalType, item.signalValue);
+  return value ? `${type} · ${value}` : type;
+};
+
+function ActivityRow({ item, index, onPress }: { item: ActivityItem; index: number; onPress: () => void }) {
+  const tone = (item.signalType && signalColors[item.signalType]) || colors.mint;
+  const category = item.place ? formatCategory(item.place.category) : tx('common:approxArea', 'Yaklaşık alan');
+  const summary = describe(item);
+  return (
+    <Animated.View entering={FadeIn.duration(motion.base)}>
+      <AnimatedPressable
+        accessibilityLabel={tx('map:nearby.rowA11y', '{{title}}, {{summary}}, {{distance}}, {{age}}. Haritada aç', { title: item.title, summary, distance: formatDistance(item.distanceMeters), age: formatAge(item.observedAtUtc) })}
+        accessibilityRole="button"
+        onPress={onPress}
+        pressScale={0.99}
+        style={styles.card}
+      >
+        <View style={styles.symbol}>
+          <SignalSymbol color={tone} size={20} type={item.signalType} />
+        </View>
+        <View style={styles.cardBody}>
+          <Text numberOfLines={1} style={styles.cardTitle}>{item.title}</Text>
+          <Text numberOfLines={1} style={[styles.cardSummary, { color: tone }]}>{summary}</Text>
+          <View style={styles.metaRow}>
+            <Text style={styles.meta}>{category}</Text>
+            <Text style={styles.metaDot}>·</Text>
+            <Text style={styles.meta}>{formatDistance(item.distanceMeters)}</Text>
+            <Text style={styles.metaDot}>·</Text>
+            <Text style={styles.meta}>{formatAge(item.observedAtUtc)}</Text>
+          </View>
+        </View>
+        <View style={styles.cardEnd}>
+          {item.live
+            ? <View style={styles.liveChip}><Radio color={colors.mint} size={13} /><Text style={styles.liveText}>{tx('common:live', 'Canlı')}</Text></View>
+            : null}
+          {item.activeSignalCount > 1 ? <Text style={styles.count}>{item.activeSignalCount} sinyal</Text> : null}
+        </View>
+      </AnimatedPressable>
+    </Animated.View>
+  );
+}
+
+/**
+ * tx('map:nearby.title', 'Yakında'): what is happening within 1.5 km of the device right now, as a ranked list - the list view of the map.
+ * It is a decision aid, not a feed: only fresh, unexpired information, freshest and closest first, capped, no
+ * infinite scroll. Location is only requested when the person asks for it here.
+ */
+export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedded = false }: Props) {
+  const { t } = useTranslation('common');
+  const insets = useSafeAreaInsets();
+  const [phase, setPhase] = useState<Phase>('checking');
+  const [items, setItems] = useState<ActivityItem[]>([]);
+  const [filter, setFilter] = useState<ActivityFilter>('all');
+  const [refreshing, setRefreshing] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
+  // D-039: open questions around me, which I could answer if I am there.
+  const [questions, setQuestions] = useState<PlaceQuestion[]>([]);
+  const controller = useRef<AbortController | null>(null);
+  const generation = useRef(0);
+  const mounted = useRef(true);
+  const hasResult = useRef(false);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; controller.current?.abort(); };
+  }, []);
+
+  const load = useCallback(async (background = false) => {
+    controller.current?.abort();
+    const mine = new AbortController();
+    controller.current = mine;
+    const id = ++generation.current;
+    const current = () => mounted.current && generation.current === id && !mine.signal.aborted;
+    const startedAt = Date.now();
+    try {
+      if (!background && !hasResult.current) setPhase('locating');
+      let origin: Origin | null = null;
+      const known = await Location.getLastKnownPositionAsync({ maxAge: LAST_KNOWN_MAX_AGE_MS, requiredAccuracy: 200 }).catch(() => null);
+      if (known) origin = { latitude: known.coords.latitude, longitude: known.coords.longitude };
+      if (!origin) {
+        const fix = await withTimeout(Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }), LOCATION_TIMEOUT_MS);
+        origin = { latitude: fix.coords.latitude, longitude: fix.coords.longitude };
+      }
+      if (!current()) return;
+      if (!hasResult.current) setPhase('loading');
+
+      // Questions are a bonus: they load alongside and never hold up or fail the list.
+      getNearbyQuestions(origin.latitude, origin.longitude, null, mine.signal)
+        .then((found) => { if (current()) setQuestions(found); })
+        .catch(() => { /* keep the previous questions */ });
+      const response = await getUnifiedMapBounds(boundsAround(origin), mine.signal, false);
+      if (!current()) return;
+      // Places missing (PlaceService down): a list without them would look like "nothing is happening", so keep the
+      // last good list; with none yet, show the signals and say the places are missing.
+      if (response.placesUnavailable && hasResult.current) { setNotice(tx('map:nearby.placesKept', 'Yerler şu an yenilenemedi. Son liste gösteriliyor.')); setPhase('ready'); return; }
+      const next = buildNearbyActivity(response, origin);
+      setItems(next);
+      setUpdatedAt(Date.now());
+      setNotice(response.placesUnavailable ? tx('map:nearby.placesMissing', 'Yerler şu an yüklenemedi; yalnız sinyaller gösteriliyor.') : null);
+      setError(null);
+      hasResult.current = true;
+      setPhase('ready');
+      console.log('[Blinkr Nearby]', { status: 'ready', resultCount: next.length, totalMs: Date.now() - startedAt });
+    } catch (err) {
+      if (!current()) return;
+      const timedOut = err instanceof Error && err.message === 'location-timeout';
+      const message = timedOut ? tx('map:nearby.noFix', 'Konumun şu an alınamadı. Açık bir alana geçip tekrar dene.') : friendlyError(err, tx('map:nearby.loadFailed', 'Yakındakiler yüklenemedi. Tekrar dene.'));
+      console.log('[Blinkr Nearby]', { status: 'failed', reason: timedOut ? 'location-timeout' : 'request', totalMs: Date.now() - startedAt });
+      // Stale-while-revalidate: a failed refresh keeps the last good list and says so.
+      if (hasResult.current) { setNotice(`${message} ${tx('map:nearby.keptList', 'Son liste gösteriliyor.')}`); setPhase('ready'); } else { setError(message); setPhase('error'); }
+    } finally {
+      if (mounted.current && generation.current === id) setRefreshing(false);
+    }
+  }, []);
+
+  const start = useCallback(async (ask: boolean) => {
+    try {
+      const permission = ask ? await Location.requestForegroundPermissionsAsync() : await Location.getForegroundPermissionsAsync();
+      if (!mounted.current) return;
+      if (permission.granted) { void load(); return; }
+      // The system dialog no longer appears once it was refused with "don't ask again": only Ayarlar can help.
+      setPhase(permission.canAskAgain === false ? 'blocked' : 'needsPermission');
+    } catch {
+      if (mounted.current) { setError(tx('map:nearby.permissionCheckFailed', 'Konum izni kontrol edilemedi. Tekrar dene.')); setPhase('error'); }
+    }
+  }, [load]);
+
+  // Look at the permission without asking; the person opts in with the button.
+  useEffect(() => { void start(false); }, [start]);
+
+  // Coming back from Ayarlar/background after granting permission there.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && (phase === 'blocked' || phase === 'needsPermission')) void start(false);
+    });
+    return () => subscription.remove();
+  }, [phase, start]);
+
+  const visible = useMemo(() => filterActivity(items, filter), [items, filter]);
+  const counts = useMemo(() => Object.fromEntries(FILTERS.map(({ id }) => [id, filterActivity(items, id).length])) as Record<ActivityFilter, number>, [items]);
+
+  const header = (
+    <View style={[styles.header, { paddingTop: embedded ? 0 : insets.top + spacing.md }]}>
+      {embedded ? null : <Text accessibilityRole="header" style={styles.title}>{tx('map:nearby.title', 'Yakında')}</Text>}
+      <Text style={styles.subtitle}>
+        {phase === 'ready'
+          ? `${t('nearby.summary', { count: counts.all, live: counts.live, km: (ACTIVITY_RADIUS_METERS / 1000).toLocaleString(displayLocale(), { minimumFractionDigits: 1 }) })}${updatedAt ? tx('map:nearby.updated', ' · {{age}} güncellendi', { age: formatAge(new Date(updatedAt).toISOString()) }) : ''}`
+          : tx('map:nearby.subtitle', 'Çevrendeki taze yer durumları')}
+      </Text>
+    </View>
+  );
+
+  if (phase === 'checking' || phase === 'locating' || phase === 'loading') {
+    return (
+      <View style={styles.screen}>
+        {header}
+        <View style={styles.loadingBlock}>
+          <Text accessibilityLiveRegion="polite" style={styles.status}>{phase === 'locating' ? tx('map:nearby.locating', 'Konumun alınıyor…') : phase === 'loading' ? tx('map:nearby.scanning', 'Çevren taranıyor…') : ''}</Text>
+          <SkeletonList rows={4} variant="card" />
+        </View>
+      </View>
+    );
+  }
+
+  if (phase === 'needsPermission' || phase === 'blocked') {
+    return (
+      <View style={styles.screen}>
+        {header}
+        <View style={styles.centerFill}>
+          <BlinkrEmptyState
+            action={phase === 'blocked'
+              ? { label: tx('common:actions.openSettings', 'Ayarları aç'), onPress: () => { void Linking.openSettings(); } }
+              : { label: tx('map:nearby.useLocation', 'Konumu kullan'), onPress: () => { void start(true); } }}
+            description={phase === 'blocked'
+              ? tx('map:nearby.permissionOff', 'Konum izni kapalı. Ayarlar’dan açarsan çevrendeki taze sinyalleri burada görürsün.')
+              : tx('map:nearby.permissionWhy', 'Konumun yalnızca yakındaki taze sinyalleri bulmak için kullanılır; kesin konumun kimseyle paylaşılmaz.')}
+            icon={<MapPin color={colors.textSecondary} size={34} />}
+            title={tx('map:nearby.permissionTitle', 'Yakındakileri görmek için konum gerekli')}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (phase === 'error') {
+    return (
+      <View style={styles.screen}>
+        {header}
+        <View style={styles.centerFill}>
+          <BlinkrEmptyState
+            action={{ label: tx('common:actions.retry', 'Tekrar dene'), onPress: () => { void start(false); } }}
+            description={error ?? undefined}
+            icon={<WifiOff color={colors.textSecondary} size={32} />}
+            title={tx('map:nearby.openFailed', 'Yakındakiler açılamadı')}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.screen}>
+      {header}
+      {items.length > 0 ? (
+        <ScrollView horizontal contentContainerStyle={styles.filters} showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+          {FILTERS.map(({ id, label }) => (
+            <BlinkrChip accessibilityLabel={tx('map:nearby.filterA11y', '{{label}}, {{count}} sonuç', { label, count: counts[id] })} key={id} label={`${label} ${counts[id]}`} onPress={() => setFilter(id)} selected={filter === id} />
+          ))}
+        </ScrollView>
+      ) : null}
+      {notice ? <Text accessibilityLiveRegion="polite" style={styles.notice}>{notice}</Text> : null}
+      {visible.length === 0 ? (
+        <View style={styles.centerFill}>
+          <BlinkrEmptyState
+            action={items.length === 0 && onCreateSignal ? { label: tx('map:nearby.share', 'Sinyal paylaş'), onPress: onCreateSignal } : undefined}
+            description={items.length === 0
+              ? tx('map:nearby.emptyHint', 'Son 3 saatte 1,5 km içinde paylaşılmış bir sinyal görünmüyor. İlk paylaşan sen olabilirsin.')
+              : tx('map:nearby.filterEmptyHint', 'Bu filtreye uyan taze sinyal yok. Başka bir filtre dene.')}
+            icon={<Compass color={colors.textSecondary} size={34} />}
+            title={items.length === 0 ? tx('map:nearby.empty', 'Çevrende taze sinyal yok') : tx('map:nearby.filterEmpty', 'Bu filtrede sonuç yok')}
+          />
+        </View>
+      ) : (
+        <FlatList
+          contentContainerStyle={[styles.list, { paddingBottom: bottomBarClearance(insets.bottom) + spacing.lg }]}
+          data={visible}
+          keyExtractor={(item) => item.key}
+          ListHeaderComponent={questions.length > 0 ? (
+            <View style={styles.questions}>
+              <Text accessibilityRole="header" style={styles.questionsTitle}>{tx('map:ask.nearbyTitle', 'Yakınında sorulanlar')}</Text>
+              {questions.slice(0, 5).map((q) => (
+                <AnimatedPressable
+                  accessibilityRole="button"
+                  key={q.id}
+                  onPress={() => onOpenPlace({ id: q.placeId, name: q.placeName, category: q.placeCategory ?? null, latitude: q.latitude, longitude: q.longitude })}
+                  pressScale={0.99}
+                  style={styles.questionRow}
+                >
+                  <HelpCircle color={colors.primary} size={18} />
+                  <View style={styles.cardBody}>
+                    <Text numberOfLines={1} style={styles.cardTitle}>{q.placeName}</Text>
+                    <Text numberOfLines={1} style={styles.meta}>{questionText(q.kind)} · {waitingLabel(q.waiting)}</Text>
+                  </View>
+                </AnimatedPressable>
+              ))}
+              <Text style={styles.questionsHint}>{tx('map:ask.nearbyHint', 'Oradaysan yanıtla; yanıtın konumda doğrulanırsa soranlara iletilir.')}</Text>
+            </View>
+          ) : undefined}
+          refreshControl={<RefreshControl onRefresh={() => { setRefreshing(true); void load(true); }} refreshing={refreshing} tintColor={colors.primary} />}
+          renderItem={({ item, index }) => (
+            <ActivityRow
+              index={index}
+              item={item}
+              onPress={() => { if (item.place) onOpenPlace(item.place); else if (item.signal) onOpenSignal(item.signal); }}
+            />
+          )}
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  questions: { backgroundColor: colors.surface, borderRadius: radii.card, gap: spacing.sm, marginBottom: spacing.md, padding: spacing.md },
+  questionsTitle: { ...typography.heading, color: colors.text },
+  questionRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: 48 },
+  questionsHint: { ...typography.micro, color: colors.textSecondary },
+  screen: { backgroundColor: colors.background, flex: 1 },
+  header: { gap: 2, paddingBottom: spacing.md, paddingHorizontal: spacing.lg },
+  title: { ...typography.headline, color: colors.text },
+  subtitle: { ...typography.caption, color: colors.textSecondary },
+  centerFill: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center' },
+  loadingBlock: { gap: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  status: { ...typography.caption, color: colors.textSecondary },
+  filterScroll: { flexGrow: 0 },
+  filters: { gap: spacing.sm, paddingBottom: spacing.md, paddingHorizontal: spacing.lg },
+  notice: { ...typography.caption, color: colors.textSecondary, paddingBottom: spacing.sm, paddingHorizontal: spacing.lg },
+  list: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
+  card: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 68, padding: spacing.md },
+  symbol: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.md, height: 44, justifyContent: 'center', width: 44 },
+  cardBody: { flex: 1, gap: 2 },
+  cardTitle: { ...typography.heading, color: colors.text, fontSize: 16, lineHeight: 21 },
+  cardSummary: { ...typography.bodyStrong, fontSize: 14, lineHeight: 19 },
+  metaRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  meta: { ...typography.caption, color: colors.textSecondary },
+  metaDot: { ...typography.caption, color: colors.textSecondary },
+  cardEnd: { alignItems: 'flex-end', gap: spacing.xs },
+  liveChip: { alignItems: 'center', flexDirection: 'row', gap: 4 },
+  liveText: { ...typography.label, color: colors.primary },
+  count: { ...typography.caption, color: colors.textSecondary },
+});

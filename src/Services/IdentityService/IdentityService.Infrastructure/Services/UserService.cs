@@ -24,31 +24,84 @@ namespace IdentityService.Infrastructure.Services
             _config = config;
         }
 
-        public async Task<AuthResponse?> RegisterAsync(RegisterRequest request)
+        // 3-30 characters: letters (Turkish included), digits, underscore, dot and hyphen.
+        private static readonly System.Text.RegularExpressions.Regex UserNamePattern =
+            new(@"^[\p{L}\p{N}_.\-]{3,30}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        public const int MinPasswordLength = 8;
+        public const int MaxPasswordLength = 128;
+
+        public async Task<RegisterResult> RegisterAsync(RegisterRequest request)
         {
-            if (await _context.Users.AnyAsync(u => u.Email == request.Email))
-                return null;
+            var userName = (request.UserName ?? string.Empty).Trim();
+            var email = (request.Email ?? string.Empty).Trim();
+
+            if (!UserNamePattern.IsMatch(userName))
+                return RegisterResult.Fail("INVALID_USERNAME", "Kullanıcı adı 3-30 karakter olmalı; harf, rakam, _ . ve - kullanılabilir.");
+            if (email.Length > 254 || !System.Net.Mail.MailAddress.TryCreate(email, out var parsed) || parsed.Address != email)
+                return RegisterResult.Fail("INVALID_EMAIL", "Geçerli bir e-posta adresi gir.");
+            if (string.IsNullOrEmpty(request.Password))
+                return RegisterResult.Fail("INVALID_PASSWORD", "Bir şifre gir.");
+            // A minimum length (there was none): 8 characters, and a sane maximum for the hash.
+            if (request.Password.Length < MinPasswordLength)
+                return RegisterResult.Fail("PASSWORD_TOO_SHORT", "Şifre en az 8 karakter olmalı.");
+            if (request.Password.Length > MaxPasswordLength)
+                return RegisterResult.Fail("PASSWORD_TOO_LONG", "Şifre en fazla 128 karakter olabilir.");
+
+            // plan-devam F5: the birth year decides who may join (13+) and who starts protected (under 18). Only the
+            // development smoke-test accounts may leave it out; they count as adults.
+            var thisYear = DateTime.UtcNow.Year;
+            if (request.BirthYear is null && !(string.Equals(_config["Registration:AllowMissingBirthYearForTests"], "true", StringComparison.OrdinalIgnoreCase) && Shared.Moderation.TestAccounts.IsTestName(userName)))
+                return RegisterResult.Fail("BIRTH_YEAR_REQUIRED", "Doğum yılını gir.");
+            if (request.BirthYear is { } year && (year < 1900 || year > thisYear))
+                return RegisterResult.Fail("INVALID_BIRTH_YEAR", "Geçerli bir doğum yılı gir.");
+            if (request.BirthYear is { } born && AgeRules.YoungestAge(born, thisYear) < AgeRules.MinimumAge)
+                return RegisterResult.Fail("AGE_TOO_YOUNG", "Blinkr'ı kullanmak için en az 13 yaşında olmalısın.");
+
+            // Uniqueness ignores case: "Ahmet" and "ahmet" are the same person to everyone who searches for them.
+            var emailKey = email.ToLowerInvariant();
+            var userNameKey = userName.ToLowerInvariant();
+            if (await _context.Users.AnyAsync(u => u.Email.ToLower() == emailKey))
+                return RegisterResult.Fail("EMAIL_TAKEN", "Bu e-posta ile zaten bir hesap var.");
+            if (await _context.Users.AnyAsync(u => u.UserName.ToLower() == userNameKey))
+                return RegisterResult.Fail("USERNAME_TAKEN", "Bu kullanıcı adı alınmış. Başka bir ad dene.");
 
             var user = new User
             {
-                UserName = request.UserName,
-                Email = request.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password)
+                UserName = userName,
+                Email = email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                BirthYear = request.BirthYear,
+                // Under 18: a private account from the start (followers are approved one by one).
+                IsPrivate = request.BirthYear is { } by && AgeRules.IsMinor(by, thisYear),
             };
 
             _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
+            {
+                // Two registrations for the same e-mail raced past the check above; the unique index decided.
+                return RegisterResult.Fail("EMAIL_TAKEN", "Bu e-posta ile zaten bir hesap var.");
+            }
 
-            return await GenerateAuthResponseAsync(user);
+            return RegisterResult.Success(await GenerateAuthResponseAsync(user));
         }
 
         public async Task<AuthResponse?> LoginAsync(LoginRequest request)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.UserName);
-            if (user == null) return null;
+            var emailKey = (request.UserName ?? string.Empty).Trim().ToLowerInvariant();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == emailKey);
+            if (user == null || user.DeletedAtUtc != null) return null;
 
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
                 return null;
+
+            // Moderation (Faz 10 P10.4): a suspended account cannot start a session.
+            if (user.SuspendedUntilUtc is { } until && until > DateTime.UtcNow)
+                throw new AccountSuspendedException(until);
 
             return await GenerateAuthResponseAsync(user);
         }
@@ -95,14 +148,29 @@ namespace IdentityService.Infrastructure.Services
                     return null;
 
                 var user = await _context.Users.FindAsync(userId);
-                if (user == null) return null;
+                if (user == null || user.DeletedAtUtc != null) return null;
+                if (user.SuspendedUntilUtc is { } suspendedUntil && suspendedUntil > DateTime.UtcNow) return null;
 
                 var incomingHash = HashToken(refreshToken);
                 var storedToken = await _context.RefreshTokens
                     .FirstOrDefaultAsync(t => t.UserId == userId && t.TokenHash == incomingHash);
 
-                if (storedToken is null || !storedToken.IsActive)
+                if (storedToken is null)
                     return null;
+                if (!storedToken.IsActive)
+                {
+                    // S6 reuse detection: a token that was already rotated, used again well after its rotation, means
+                    // someone else holds a copy - every session of this person ends. (A retry within a minute is a lost
+                    // response, not an attack: it is only refused.)
+                    if (storedToken.ReplacedByTokenHash is not null && storedToken.RevokedAtUtc is { } rotatedAt && rotatedAt < DateTime.UtcNow - RefreshReuseGrace)
+                    {
+                        var now = DateTime.UtcNow;
+                        var active = await _context.RefreshTokens.Where(t => t.UserId == userId && t.RevokedAtUtc == null).ToListAsync();
+                        foreach (var token in active) token.RevokedAtUtc = now;
+                        await _context.SaveChangesAsync();
+                    }
+                    return null;
+                }
 
                 var response = await GenerateAuthResponseAsync(user, persistRefreshToken: false);
                 var replacementHash = HashToken(response.RefreshToken);
@@ -127,14 +195,29 @@ namespace IdentityService.Infrastructure.Services
         public async Task<UserResponse?> GetUserByIdAsync(Guid userId)
         {
             var user = await _context.Users.FindAsync(userId);
-            if (user == null) return null;
+            if (user == null || user.DeletedAtUtc != null) return null;
 
             return new UserResponse
             {
                 UserId = user.Id,
                 UserName = user.UserName,
-                Email = user.Email
+                Email = user.Email,
+                AvatarKey = user.AvatarKey,
+                Bio = user.Bio,
+                DisplayName = user.DisplayName,
+                PhotoVersion = user.PhotoVersion,
+                DeletionScheduledForUtc = user.DeletionScheduledForUtc,
             };
+        }
+
+        public async Task<bool> SetAvatarAsync(Guid userId, string? avatarKey)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return false;
+
+            user.AvatarKey = string.IsNullOrEmpty(avatarKey) ? null : avatarKey;
+            await _context.SaveChangesAsync();
+            return true;
         }
 
         private async Task<AuthResponse> GenerateAuthResponseAsync(User user, bool persistRefreshToken = true)
@@ -145,6 +228,7 @@ namespace IdentityService.Infrastructure.Services
             var now = DateTime.UtcNow;
             var expiresAt = now.Add(jwt.AccessTokenLifetime);
 
+            var restriction = Shared.Moderation.PostingRestriction.ClaimFor(user.RestrictedUntilUtc, now);
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(new[]
@@ -161,7 +245,7 @@ namespace IdentityService.Infrastructure.Services
                     new Claim("token_use", "access"),
                     new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
                     new Claim(JwtRegisteredClaimNames.Iat, EpochTime.GetIntDate(now).ToString(), ClaimValueTypes.Integer64)
-                }),
+                }.Concat(restriction is null ? Array.Empty<Claim>() : new[] { restriction })),
                 Expires = expiresAt,
                 SigningCredentials = new SigningCredentials(
                     new SymmetricSecurityKey(key),
@@ -214,11 +298,17 @@ namespace IdentityService.Infrastructure.Services
                 Email = user.Email,
                 Token = tokenHandler.WriteToken(token),
                 RefreshToken = refreshTokenValue,
-                ExpiresIn = (int)jwt.AccessTokenLifetime.TotalSeconds
+                ExpiresIn = (int)jwt.AccessTokenLifetime.TotalSeconds,
+                AvatarKey = user.AvatarKey,
+                PhotoVersion = user.PhotoVersion,
+                DeletionScheduledForUtc = user.DeletionScheduledForUtc,
             };
         }
 
-        private static string HashToken(string token)
+        /// <summary>S6: how long after a rotation the old refresh token may come back without counting as theft.</summary>
+        public static readonly TimeSpan RefreshReuseGrace = TimeSpan.FromSeconds(60);
+
+        public static string HashToken(string token)
         {
             var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
             return Convert.ToHexString(bytes);

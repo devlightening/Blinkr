@@ -19,11 +19,21 @@ builder.Services.AddSingleton<IMongoClient>(_ => new MongoClient(mongoConnection
 builder.Services.AddSingleton(sp => sp.GetRequiredService<IMongoClient>().GetDatabase(mongoDatabase));
 builder.Services.AddScoped<IPlaceRepository, PlaceRepository>();
 builder.Services.AddSingleton<ICurrentPlaceStateCalculator, CurrentPlaceStateCalculator>();
+builder.Services.AddSingleton<IOpeningHoursCalculator, OpeningHoursCalculator>();
+builder.Services.AddSingleton<IPlaceRhythmCalculator, PlaceRhythmCalculator>();
+builder.Services.AddSingleton<IPlaceHeatCalculator, PlaceHeatCalculator>();
+builder.Services.AddSingleton<PlaceStateChangeDetector>();
+builder.Services.AddScoped<IPlaceQuestionRepository, PlaceQuestionRepository>();
+builder.Services.AddScoped<PlaceQuestionService>();
+builder.Services.AddSingleton<PlaceAttributeCalculator>();
+builder.Services.AddScoped<IPlaceAttributeRepository, PlaceAttributeRepository>();
+builder.Services.AddScoped<PlaceAttributeService>();
 builder.Services.Configure<PlaceDiscoveryOptions>(builder.Configuration.GetSection("PlaceDiscovery"));
 builder.Services.AddScoped<IPlaceDiscoveryService, PlaceDiscoveryService>();
 builder.Services.AddSingleton<PlaceDiscoveryRefreshQueue>();
 builder.Services.AddSingleton<IPlaceDiscoveryRefreshQueue>(sp => sp.GetRequiredService<PlaceDiscoveryRefreshQueue>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<PlaceDiscoveryRefreshQueue>());
+builder.Services.AddHostedService<PlaceService.Api.Infrastructure.PlaceSearchBackfillService>();
 builder.Services.AddHttpClient<IPlaceDiscoveryProvider, OverpassPlaceDiscoveryProvider>((sp, client) =>
 {
     var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<PlaceDiscoveryOptions>>().Value;
@@ -34,6 +44,9 @@ builder.Services.AddHttpClient<IPlaceDiscoveryProvider, OverpassPlaceDiscoveryPr
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<PostCreatedPlaceSignalConsumer>();
+    x.AddConsumer<PostModerationPlaceSignalConsumer>();
+    x.AddConsumer<PostDeletedPlaceSignalConsumer>();
+    x.AddConsumer<UserDeletedPlaceDataConsumer>();
     x.UsingRabbitMq((context, cfg) =>
     {
         cfg.Host(builder.Configuration["RabbitMq:Host"] ?? "localhost", "/", h =>
@@ -45,6 +58,22 @@ builder.Services.AddMassTransit(x =>
         cfg.ReceiveEndpoint("place-service-post-created", e =>
         {
             e.ConfigureConsumer<PostCreatedPlaceSignalConsumer>(context);
+        });
+
+        cfg.ReceiveEndpoint("place-service-post-moderation", e =>
+        {
+            e.ConfigureConsumer<PostModerationPlaceSignalConsumer>(context);
+        });
+
+        cfg.ReceiveEndpoint("place-service-post-deleted", e =>
+        {
+            e.ConfigureConsumer<PostDeletedPlaceSignalConsumer>(context);
+        });
+
+        // D-040: what PlaceService keeps about a person (attribute votes, question entries) leaves with the account.
+        cfg.ReceiveEndpoint("place-service-user-deleted", e =>
+        {
+            e.ConfigureConsumer<UserDeletedPlaceDataConsumer>(context);
         });
     });
 });
@@ -74,6 +103,12 @@ builder.Services
 
         options.Events = new JwtBearerEvents
         {
+            // A refresh token is not an access token (BLK-TOKENS-01).
+            OnTokenValidated = ctx =>
+            {
+                if (!Shared.Auth.BlinkrJwtOptions.IsAccessToken(ctx.Principal)) ctx.Fail("Refresh tokens cannot be used as access tokens.");
+                return Task.CompletedTask;
+            },
             OnChallenge = context =>
             {
                 context.HandleResponse();
@@ -96,6 +131,8 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     await scope.ServiceProvider.GetRequiredService<IPlaceRepository>().EnsureIndexesAsync(CancellationToken.None);
+    await scope.ServiceProvider.GetRequiredService<IPlaceQuestionRepository>().EnsureIndexesAsync(CancellationToken.None);
+    await scope.ServiceProvider.GetRequiredService<IPlaceAttributeRepository>().EnsureIndexesAsync(CancellationToken.None);
 }
 
 if (app.Environment.IsDevelopment())
@@ -109,5 +146,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health").AllowAnonymous();
-app.MapHealthChecks("/health/ready").AllowAnonymous();
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions { Predicate = r => r.Tags.Contains("ready") }).AllowAnonymous();
+// CLAUDE.md §21 P1: live = the process answers (no dependencies); ready = the dependencies it really uses.
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
 app.Run();

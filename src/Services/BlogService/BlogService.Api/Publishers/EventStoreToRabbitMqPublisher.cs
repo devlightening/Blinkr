@@ -29,6 +29,9 @@ public sealed class EventStoreToRabbitMqPublisher : BackgroundService
             [nameof(PostLikedEvent)] = typeof(PostLikedEvent),
             [nameof(PostUnlikedEvent)] = typeof(PostUnlikedEvent),
             [nameof(PostCommentAddedEvent)] = typeof(PostCommentAddedEvent),
+            [nameof(PostCommentRemovedEvent)] = typeof(PostCommentRemovedEvent),
+            [nameof(PostCommentLikedEvent)] = typeof(PostCommentLikedEvent),
+            [nameof(PostCommentUnlikedEvent)] = typeof(PostCommentUnlikedEvent),
             [nameof(PostLocationAddedEvent)] = typeof(PostLocationAddedEvent),
             [nameof(PostLocationUpdatedEvent)] = typeof(PostLocationUpdatedEvent),
             [nameof(PostLocationRemovedEvent)] = typeof(PostLocationRemovedEvent),
@@ -128,6 +131,9 @@ public sealed class EventStoreToRabbitMqPublisher : BackgroundService
         _log.LogInformation("BLK-INFRA-01 EventStore publisher stopped");
     }
 
+    private static List<MentionedUser>? Mentions(IReadOnlyList<MentionRef>? mentions) =>
+        mentions is { Count: > 0 } ? mentions.Select(m => new MentionedUser { UserId = m.UserId, UserName = m.UserName }).ToList() : null;
+
     private async Task HandleEventAsync(ResolvedEvent resolved, CancellationToken ct)
     {
         if (resolved.OriginalPosition is not Position position)
@@ -173,6 +179,18 @@ public sealed class EventStoreToRabbitMqPublisher : BackgroundService
         await WriteStatusAsync("running", position, null, ct);
     }
 
+    /// <summary>
+    /// Reconciliation (CLAUDE.md §21 P1): publish one stored domain event again under a new message id, with the exact
+    /// mapping the live publisher uses. Consumers are idempotent, so a repeat never double counts. Answers false for an
+    /// event type this publisher does not map.
+    /// </summary>
+    public async Task<bool> RepublishAsync(object domainEvent, CancellationToken ct)
+    {
+        if (!DomainTypesByName.ContainsKey(domainEvent.GetType().Name)) return false;
+        await PublishIntegrationEventAsync(domainEvent, Guid.NewGuid(), ct);
+        return true;
+    }
+
     private async Task PublishIntegrationEventAsync(object domainEvent, Guid eventId, CancellationToken ct)
     {
         switch (domainEvent)
@@ -194,6 +212,7 @@ public sealed class EventStoreToRabbitMqPublisher : BackgroundService
                     e.LocationName,
                     e.PlaceId,
                     e.PublicationTrust,
+                    e.FromGallery,
                     e.SignalType,
                     e.SignalValue,
                     e.AudienceType,
@@ -214,7 +233,8 @@ public sealed class EventStoreToRabbitMqPublisher : BackgroundService
                             DurationSeconds = m.DurationSeconds,
                             ThumbnailUrl = m.ThumbnailUrl
                         })
-                        .ToList()
+                        .ToList(),
+                    Mentions = Mentions(e.Mentions)
                 }, ctx => ctx.MessageId = eventId, ct);
                 _log.LogInformation("Published PostCreatedIntegrationEvent EventId={EventId} PostId={PostId}", eventId, e.PostId);
                 return;
@@ -247,8 +267,12 @@ public sealed class EventStoreToRabbitMqPublisher : BackgroundService
                     Id = eventId,
                     OccurredOn = e.OccurredOn,
                     PostId = e.PostId,
+                    PostOwnerId = e.PostOwnerId ?? Guid.Empty,
                     LikerUserId = e.UserId,
-                    OccurredAtUtc = e.OccurredOn
+                    LikerUserName = e.LikerName ?? string.Empty,
+                    OccurredAtUtc = e.OccurredOn,
+                    Reaction = e.Reaction,
+                    Replaces = e.Replaces
                 }, ctx => ctx.MessageId = eventId, ct);
                 _log.LogInformation("Published PostLikedIntegrationEvent EventId={EventId} PostId={PostId}", eventId, e.PostId);
                 return;
@@ -273,10 +297,44 @@ public sealed class EventStoreToRabbitMqPublisher : BackgroundService
                     PostId = e.PostId,
                     CommentId = e.CommentId,
                     CommentAuthorId = e.AuthorId,
+                    CommentAuthorName = e.AuthorName ?? string.Empty,
+                    PostOwnerId = e.PostOwnerId ?? Guid.Empty,
+                    ParentCommentId = e.ParentCommentId,
                     CommentText = e.CommentText,
-                    OccurredAtUtc = e.OccurredOn
+                    OccurredAtUtc = e.OccurredOn,
+                    Mentions = Mentions(e.Mentions),
+                    AuthorHidden = e.AuthorHidden
                 }, ctx => ctx.MessageId = eventId, ct);
                 _log.LogInformation("Published PostCommentAddedIntegrationEvent EventId={EventId} PostId={PostId}", eventId, e.PostId);
+                return;
+
+            case PostCommentLikedEvent e:
+                await _bus.Publish(new PostCommentLikedIntegrationEvent
+                {
+                    Id = eventId, OccurredOn = e.OccurredOn, PostId = e.PostId, CommentId = e.CommentId, UserId = e.UserId, OccurredAtUtc = e.OccurredOn
+                }, ctx => ctx.MessageId = eventId, ct);
+                _log.LogInformation("Published PostCommentLikedIntegrationEvent EventId={EventId} PostId={PostId}", eventId, e.PostId);
+                return;
+
+            case PostCommentUnlikedEvent e:
+                await _bus.Publish(new PostCommentUnlikedIntegrationEvent
+                {
+                    Id = eventId, OccurredOn = e.OccurredOn, PostId = e.PostId, CommentId = e.CommentId, UserId = e.UserId, OccurredAtUtc = e.OccurredOn
+                }, ctx => ctx.MessageId = eventId, ct);
+                _log.LogInformation("Published PostCommentUnlikedIntegrationEvent EventId={EventId} PostId={PostId}", eventId, e.PostId);
+                return;
+
+            case PostCommentRemovedEvent e:
+                await _bus.Publish(new PostCommentRemovedIntegrationEvent
+                {
+                    Id = eventId,
+                    OccurredOn = e.OccurredOn,
+                    PostId = e.PostId,
+                    CommentId = e.CommentId,
+                    RemovedByUserId = e.RemovedByUserId,
+                    OccurredAtUtc = e.OccurredOn
+                }, ctx => ctx.MessageId = eventId, ct);
+                _log.LogInformation("Published PostCommentRemovedIntegrationEvent EventId={EventId} PostId={PostId}", eventId, e.PostId);
                 return;
 
             case PostLocationAddedEvent e:

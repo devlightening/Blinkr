@@ -4,6 +4,7 @@ using BlogService.Application.DTOs.PostDtos;
 using BlogService.Application.Services.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Shared.Moderation;
 
 namespace BlogService.Api.Controllers;
 
@@ -42,6 +43,7 @@ public sealed class MapController : ControllerBase
         [FromQuery] int sinceMinutes = 180,
         [FromQuery] int limit = 150,
         [FromQuery] bool includeCatalogPlaces = false,
+        [FromServices] BlogService.Api.Services.SocialGraphClient? graphClient = null,
         CancellationToken ct = default)
     {
         var effectiveMinLat = south ?? minLat;
@@ -66,14 +68,32 @@ public sealed class MapController : ControllerBase
             ct);
         var placesTask = GetPlacesAsync(effectiveMinLat.Value, effectiveMinLon.Value, effectiveMaxLat.Value, effectiveMaxLon.Value, Math.Min(limit, 80), includeCatalogPlaces, ct);
 
-        await Task.WhenAll(postsTask, placesTask);
+        // Blocks, both ways, for a signed-in viewer: asked in parallel with the map queries so it adds no wait. The map is
+        // public (signed-out people see it too), so this is courtesy rather than a security boundary: if IdentityService
+        // cannot answer, the map still shows (the core loop never waits on the social graph). Anonymous signals are never
+        // filtered by author - leaving one out would tell who posted it.
+        var graphTask = User.Identity?.IsAuthenticated == true && graphClient is not null
+            ? graphClient.GetAsync(ct)
+            : Task.FromResult<BlogService.Api.Services.SocialGraph?>(null);
 
+        await Task.WhenAll(postsTask, placesTask, graphTask);
+        var hidden = graphTask.Result?.Hidden;
+        // Filtered for one person: never shared by a cache.
+        if (hidden is not null) Response.Headers.CacheControl = "private, no-store";
+
+        // Development only: smoke-test signals stay out of a real person's map (plan-devam Faz A1).
+        var hideTests = TestAccounts.HideFrom(User, _configuration.GetValue<bool>(TestAccounts.HideSetting));
         var signals = postsTask.Result.Items
             .Where(post => post.PlaceId is null && post.Latitude.HasValue && post.Longitude.HasValue && post.IsLive)
+            .Where(post => !hideTests || !TestAccounts.IsTestName(post.AuthorName))
+            .Where(post => hidden is null || post.IdentityDisclosure == "AnonymousMap" || !hidden.Contains(post.AuthorId))
             .Take(limit)
             .Select(ToSignalItem)
             .ToArray();
-        var places = placesTask.Result
+        // PlaceService did not answer: say so, so the app keeps the places it already shows (CLAUDE.md §11:
+        // a failed refresh must not wipe the markers with an empty list).
+        if (placesTask.Result is null) Response.Headers[PlacesStatusHeader] = "unavailable";
+        var places = (placesTask.Result ?? Array.Empty<PlaceMapItem>())
             .Where(p => includeCatalogPlaces || p.ActivityCount > 0)
             .Take(limit)
             .ToArray();
@@ -104,13 +124,36 @@ public sealed class MapController : ControllerBase
         return Ok(await _postQueryService.GetNearbyAsync(query, cancellationToken));
     }
 
-    private async Task<IReadOnlyList<PlaceMapItem>> GetPlacesAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, bool includeCatalogPlaces, CancellationToken ct)
+    public const string PlacesStatusHeader = "X-Blinkr-Places";
+    /// <summary>Named client for PlaceService /bounds: 8 s timeout (warm p95 67 ms, first call after a restart ~5 s), not the 100 s default.</summary>
+    public const string PlaceClientName = "place-map";
+
+    /// <returns>null when PlaceService could not answer.</returns>
+    private async Task<IReadOnlyList<PlaceMapItem>?> GetPlacesAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, bool includeCatalogPlaces, CancellationToken ct)
+    {
+        if (!includeCatalogPlaces)
+            return await FetchPlacesAsync(minLat, minLon, maxLat, maxLon, limit, activeOnly: true, ct);
+
+        // The catalog query is ordered by recency, not by activity, so on its own the viewport cap
+        // can push out a Place that has a live signal. Active Places always come first.
+        var activeTask = FetchPlacesAsync(minLat, minLon, maxLat, maxLon, limit, activeOnly: true, ct);
+        var catalogTask = FetchPlacesAsync(minLat, minLon, maxLat, maxLon, limit, activeOnly: false, ct);
+        await Task.WhenAll(activeTask, catalogTask);
+        if (activeTask.Result is null || catalogTask.Result is null) return null;
+        return activeTask.Result
+            .Concat(catalogTask.Result)
+            .DistinctBy(place => place.Id)
+            .Take(limit)
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyList<PlaceMapItem>?> FetchPlacesAsync(double minLat, double minLon, double maxLat, double maxLon, int limit, bool activeOnly, CancellationToken ct)
     {
         var baseUrl = _configuration["PlaceService:BaseUrl"] ?? "http://localhost:5225";
-        var client = _httpClientFactory.CreateClient();
+        var client = _httpClientFactory.CreateClient(PlaceClientName);
         client.BaseAddress = new Uri(baseUrl);
         var url = string.Create(CultureInfo.InvariantCulture,
-            $"/api/places/bounds?minLat={minLat:R}&minLon={minLon:R}&maxLat={maxLat:R}&maxLon={maxLon:R}&limit={limit}&activeOnly={!includeCatalogPlaces}");
+            $"/api/places/bounds?minLat={minLat:R}&minLon={minLon:R}&maxLat={maxLat:R}&maxLon={maxLon:R}&limit={limit}&activeOnly={activeOnly}");
         try
         {
             var places = await client.GetFromJsonAsync<IReadOnlyList<PlaceMapItem>>(url, ct);
@@ -118,8 +161,8 @@ public sealed class MapController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "PlaceService map composition failed.");
-            return Array.Empty<PlaceMapItem>();
+            _logger.LogWarning("PlaceService map composition failed: {Error}", ex.GetType().Name);
+            return null;
         }
     }
 

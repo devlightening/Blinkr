@@ -1,6 +1,7 @@
 using MediatR;
 using NotificationsService.Application.Commands;
 using NotificationsService.Application.DTOs;
+using NotificationsService.Application.Exceptions;
 using NotificationsService.Application.Mapping;
 using NotificationsService.Application.Queries;
 using NotificationsService.Domain.Entities;
@@ -11,13 +12,17 @@ namespace NotificationsService.Application.Handlers;
 public sealed class StartOrGetConversationHandler : IRequestHandler<StartOrGetConversationCommand, ConversationDto>
 {
     private readonly IConversationRepository _conversations;
-    public StartOrGetConversationHandler(IConversationRepository conversations) => _conversations = conversations;
+    private readonly IBlockGuard _blocks;
+    public StartOrGetConversationHandler(IConversationRepository conversations, IBlockGuard blocks) { _conversations = conversations; _blocks = blocks; }
 
     public async Task<ConversationDto> Handle(StartOrGetConversationCommand req, CancellationToken ct)
     {
+        if (req.TargetUserId == Guid.Empty)
+            throw new ChatValidationException("Konuşma başlatmak için bir kullanıcı seç.");
         if (req.UserId == req.TargetUserId)
-            throw new InvalidOperationException("Kendinle konuşma başlatılamaz.");
+            throw new ChatValidationException("Kendinle konuşma başlatılamaz.");
 
+        await _blocks.EnsureAllowedAsync(req.UserId, req.TargetUserId, ct);
         var conversation = await _conversations.GetOrCreateAsync(req.UserId, req.TargetUserId, ct);
         return conversation.ToDto(req.UserId);
     }
@@ -27,39 +32,80 @@ public sealed class SendMessageHandler : IRequestHandler<SendMessageCommand, Cha
 {
     private readonly IConversationRepository _conversations;
     private readonly IChatMessageRepository _messages;
+    private readonly IBlockGuard _blocks;
 
-    public SendMessageHandler(IConversationRepository conversations, IChatMessageRepository messages)
+    private readonly TypingTracker _typing;
+
+    public SendMessageHandler(IConversationRepository conversations, IChatMessageRepository messages, IBlockGuard blocks, TypingTracker typing)
     {
         _conversations = conversations;
         _messages = messages;
+        _blocks = blocks;
+        _typing = typing;
     }
 
     public async Task<ChatMessageDto> Handle(SendMessageCommand req, CancellationToken ct)
     {
-        var text = req.Text.Trim();
-        if (string.IsNullOrEmpty(text))
-            throw new InvalidOperationException("Mesaj boş olamaz.");
+        var text = req.Text?.Trim() ?? string.Empty;
+        var signal = ChatShareFactory.Signal(req.Signal);
+        var place = ChatShareFactory.Place(req.Place);
+        var meetup = ChatShareFactory.Meetup(req.Meetup, place, DateTime.UtcNow);
+        var kind = ChatShareFactory.KindOf(signal, place, meetup);
+        if (string.IsNullOrEmpty(text) && kind == ChatShareFactory.TextKind)
+            throw new ChatValidationException("Mesaj boş olamaz.");
         if (text.Length > 2000)
             text = text[..2000];
+        var clientId = ChatShareFactory.Clip(req.ClientId, ChatRules.MaxClientIdLength);
 
         var conversation = await _conversations.GetByIdAsync(req.ConversationId, ct)
-            ?? throw new InvalidOperationException("Konuşma bulunamadı.");
+            ?? throw new ChatNotFoundException("Konuşma bulunamadı.");
 
         if (!conversation.ParticipantIds.Contains(req.UserId))
-            throw new UnauthorizedAccessException("Bu konuşmaya erişimin yok.");
+            throw new ChatForbiddenException("Bu konuşmaya erişimin yok.");
+        await _blocks.EnsureAllowedAsync(req.UserId, conversation.ParticipantIds.OtherParticipant(req.UserId), ct);
+
+        // A retried send (same client id) answers with the message that already went out.
+        if (clientId is not null)
+        {
+            var existing = await _messages.FindByClientIdAsync(req.ConversationId, req.UserId, clientId, ct);
+            if (existing is not null) return existing.ToDto(req.UserId);
+        }
+
+        ReplyPayload? reply = null;
+        if (!string.IsNullOrWhiteSpace(req.ReplyToId))
+        {
+            var quoted = await _messages.GetByIdAsync(req.ReplyToId, ct);
+            if (quoted is null || quoted.ConversationId != req.ConversationId) throw new ChatValidationException("Yanıtlanan mesaj bulunamadı.");
+            reply = new ReplyPayload
+            {
+                MessageId = quoted.Id!,
+                SenderId = quoted.SenderId,
+                Kind = quoted.Kind,
+                // A snap never quotes its media; a taken-back message quotes nothing.
+                Text = ChatShareFactory.QuoteText(quoted),
+            };
+        }
+        _typing.Clear(req.ConversationId, req.UserId);
 
         var message = new ChatMessage
         {
             ConversationId = req.ConversationId,
             SenderId = req.UserId,
             Text = text,
+            ReplyTo = reply,
             CreatedAtUtc = DateTime.UtcNow,
             ReadByUserIds = new List<Guid> { req.UserId },
+            Kind = kind,
+            Signal = signal,
+            Place = place,
+            Meetup = meetup,
+            ClientId = clientId,
         };
 
         var inserted = await _messages.InsertAsync(message, ct);
-        var preview = text.Length > 120 ? text[..117] + "..." : text;
-        await _conversations.UpdateLastMessageAsync(req.ConversationId, req.UserId, preview, inserted.CreatedAtUtc, ct);
+        var previewSource = ChatShareFactory.Preview(kind, text);
+        var preview = previewSource.Length > 120 ? previewSource[..117] + "..." : previewSource;
+        await _conversations.UpdateLastMessageAsync(req.ConversationId, req.UserId, preview, inserted.CreatedAtUtc, inserted.Kind, inserted.Id, ct);
 
         return inserted.ToDto(req.UserId);
     }
@@ -79,49 +125,249 @@ public sealed class MarkConversationReadHandler : IRequestHandler<MarkConversati
     public async Task<Unit> Handle(MarkConversationReadCommand req, CancellationToken ct)
     {
         var conversation = await _conversations.GetByIdAsync(req.ConversationId, ct)
-            ?? throw new InvalidOperationException("Konuşma bulunamadı.");
+            ?? throw new ChatNotFoundException("Konuşma bulunamadı.");
 
         if (!conversation.ParticipantIds.Contains(req.UserId))
-            throw new UnauthorizedAccessException("Bu konuşmaya erişimin yok.");
+            throw new ChatForbiddenException("Bu konuşmaya erişimin yok.");
 
         await _messages.MarkReadAsync(req.ConversationId, req.UserId, ct);
         return Unit.Value;
     }
 }
 
+/// <summary>
+/// Doc S3/S5: pin (at most <see cref="ConversationPreference.MaxPinned"/>) and mute, for the caller only. A fourth pin is
+/// refused with 409 PIN_LIMIT rather than silently unpinning another; the client asks which one to unpin.
+/// </summary>
+public sealed class UpdateConversationPreferencesHandler : IRequestHandler<UpdateConversationPreferencesCommand, ConversationPreferencesDto>
+{
+    private readonly IConversationRepository _conversations;
+    private readonly IConversationPreferenceRepository _preferences;
+
+    public UpdateConversationPreferencesHandler(IConversationRepository conversations, IConversationPreferenceRepository preferences)
+    {
+        _conversations = conversations;
+        _preferences = preferences;
+    }
+
+    public async Task<ConversationPreferencesDto> Handle(UpdateConversationPreferencesCommand req, CancellationToken ct)
+    {
+        if (req.Pinned is null && req.Muted is null)
+            throw new ChatValidationException("Değiştirilecek bir ayar yok.");
+
+        var conversation = await _conversations.GetByIdAsync(req.ConversationId, ct)
+            ?? throw new ChatNotFoundException("Konuşma bulunamadı.");
+        if (!conversation.ParticipantIds.Contains(req.UserId))
+            throw new ChatForbiddenException("Bu konuşmaya erişimin yok.");
+
+        var preference = await _preferences.GetAsync(req.UserId, req.ConversationId, ct)
+            ?? ConversationPreference.For(req.UserId, req.ConversationId);
+        var now = DateTime.UtcNow;
+
+        if (req.Pinned == true && !preference.IsPinned
+            && await _preferences.CountPinnedAsync(req.UserId, req.ConversationId, ct) >= ConversationPreference.MaxPinned)
+            throw new ChatLimitException("PIN_LIMIT", $"En fazla {ConversationPreference.MaxPinned} sohbet sabitlenebilir.");
+
+        if (req.Pinned is { } pinned) preference.SetPinned(pinned, now);
+        if (req.Muted is { } muted) preference.SetMuted(muted, now);
+
+        await _preferences.SaveAsync(preference, ct);
+        return preference.ToDto();
+    }
+}
+
 public sealed class ListConversationsHandler : IRequestHandler<ListConversationsQuery, IReadOnlyList<ConversationDto>>
 {
     private readonly IConversationRepository _conversations;
-    public ListConversationsHandler(IConversationRepository conversations) => _conversations = conversations;
+    private readonly IChatMessageRepository _messages;
+    private readonly IConversationPreferenceRepository _preferences;
+
+    public ListConversationsHandler(IConversationRepository conversations, IChatMessageRepository messages, IConversationPreferenceRepository preferences)
+    {
+        _conversations = conversations;
+        _messages = messages;
+        _preferences = preferences;
+    }
 
     public async Task<IReadOnlyList<ConversationDto>> Handle(ListConversationsQuery q, CancellationToken ct)
     {
         var list = await _conversations.ListForUserAsync(q.UserId, ct);
-        return list.Select(c => c.ToDto(q.UserId)).ToList();
+        var ids = list.Select(c => c.Id).OfType<string>().ToList();
+        var unread = await _messages.CountUnreadAsync(ids, q.UserId, ct);
+        var preferences = await _preferences.GetManyAsync(q.UserId, ids, ct);
+
+        // Snap state and a shared Place live on the message. Read every relevant latest message in one query, never
+        // one query per conversation; the Place's current state itself remains owned by PlaceService and the client.
+        var detailIds = list
+            .Where(c => c.LastMessageId is not null && c.LastMessageKind is "snap" or "place" or "meetup")
+            .Select(c => c.LastMessageId!)
+            .Distinct()
+            .ToList();
+        var details = detailIds.Count == 0
+            ? new Dictionary<string, ChatMessage>()
+            : (await _messages.GetManyAsync(detailIds, ct)).Where(m => m.Id is not null).ToDictionary(m => m.Id!);
+        var now = DateTime.UtcNow;
+
+        return list.Select(c =>
+        {
+            var message = c.LastMessageId is not null ? details.GetValueOrDefault(c.LastMessageId) : null;
+            string? state = message?.Snap is not null
+                ? message.Snap.EffectiveState(now)
+                : null;
+            var place = message?.Place is null
+                ? null
+                : new PlaceShareDto(message.Place.PlaceId, message.Place.Name, message.Place.Category);
+            var preference = c.Id is not null ? preferences.GetValueOrDefault(c.Id) : null;
+            return c.ToDto(q.UserId, c.Id is not null ? unread.GetValueOrDefault(c.Id) : 0, state, preference, place);
+        }).ToList();
     }
 }
 
-public sealed class GetMessagesHandler : IRequestHandler<GetMessagesQuery, (IReadOnlyList<ChatMessageDto> Items, string? NextCursor)>
+public sealed class GetMessagesHandler : IRequestHandler<GetMessagesQuery, (IReadOnlyList<ChatMessageDto> Items, string? NextCursor, bool OtherTyping)>
+{
+    private readonly IConversationRepository _conversations;
+    private readonly IChatMessageRepository _messages;
+    private readonly TypingTracker _typing;
+
+    public GetMessagesHandler(IConversationRepository conversations, IChatMessageRepository messages, TypingTracker typing)
+    {
+        _conversations = conversations;
+        _messages = messages;
+        _typing = typing;
+    }
+
+    public async Task<(IReadOnlyList<ChatMessageDto> Items, string? NextCursor, bool OtherTyping)> Handle(GetMessagesQuery q, CancellationToken ct)
+    {
+        var conversation = await _conversations.GetByIdAsync(q.ConversationId, ct)
+            ?? throw new ChatNotFoundException("Konuşma bulunamadı.");
+
+        if (!conversation.ParticipantIds.Contains(q.UserId))
+            throw new ChatForbiddenException("Bu konuşmaya erişimin yok.");
+
+        var limit = q.Limit is < 1 or > 100 ? 30 : q.Limit;
+        var (items, next) = await _messages.ListByConversationAsync(q.ConversationId, limit, q.Before, ct);
+        var typing = _typing.IsTyping(q.ConversationId, conversation.ParticipantIds.OtherParticipant(q.UserId), DateTime.UtcNow);
+        return (items.Select(m => m.ToDto(q.UserId)).ToList(), next, typing);
+    }
+}
+
+public sealed class UnsendMessageHandler : IRequestHandler<UnsendMessageCommand, ChatMessageDto>
 {
     private readonly IConversationRepository _conversations;
     private readonly IChatMessageRepository _messages;
 
-    public GetMessagesHandler(IConversationRepository conversations, IChatMessageRepository messages)
+    public UnsendMessageHandler(IConversationRepository conversations, IChatMessageRepository messages)
     {
         _conversations = conversations;
         _messages = messages;
     }
 
-    public async Task<(IReadOnlyList<ChatMessageDto> Items, string? NextCursor)> Handle(GetMessagesQuery q, CancellationToken ct)
+    public async Task<ChatMessageDto> Handle(UnsendMessageCommand req, CancellationToken ct)
     {
-        var conversation = await _conversations.GetByIdAsync(q.ConversationId, ct)
-            ?? throw new InvalidOperationException("Konuşma bulunamadı.");
+        var conversation = await _conversations.GetByIdAsync(req.ConversationId, ct) ?? throw new ChatNotFoundException("Konuşma bulunamadı.");
+        if (!conversation.ParticipantIds.Contains(req.UserId)) throw new ChatForbiddenException("Bu konuşmaya erişimin yok.");
+        var message = await _messages.GetByIdAsync(req.MessageId, ct);
+        if (message is null || message.ConversationId != req.ConversationId) throw new ChatNotFoundException("Mesaj bulunamadı.");
+        if (message.SenderId != req.UserId) throw new ChatForbiddenException("Yalnız kendi mesajını geri alabilirsin.");
+        if (message.Kind == "snap") throw new ChatValidationException("Snap geri alınamaz.");
+        if (message.Kind == "unsent") return message.ToDto(req.UserId);
 
-        if (!conversation.ParticipantIds.Contains(q.UserId))
-            throw new UnauthorizedAccessException("Bu konuşmaya erişimin yok.");
+        message.Kind = "unsent";
+        message.Text = string.Empty;
+        message.Signal = null;
+        message.Place = null;
+        message.Meetup = null;
+        message.Reactions = new();
+        await _messages.ReplaceAsync(message, ct);
+        await _messages.ClearQuotesAsync(req.ConversationId, message.Id!, ct);
+        if (conversation.LastMessageId == message.Id)
+            await _conversations.UpdateLastMessageAsync(req.ConversationId, req.UserId, "Mesaj geri alındı", conversation.LastMessageAtUtc, "unsent", message.Id, ct);
+        return message.ToDto(req.UserId);
+    }
+}
 
-        var limit = q.Limit is < 1 or > 100 ? 30 : q.Limit;
-        var (items, next) = await _messages.ListByConversationAsync(q.ConversationId, limit, q.Before, ct);
-        return (items.Select(m => m.ToDto(q.UserId)).ToList(), next);
+public sealed class ReactToMessageHandler : IRequestHandler<ReactToMessageCommand, ChatMessageDto>
+{
+    private readonly IConversationRepository _conversations;
+    private readonly IChatMessageRepository _messages;
+    private readonly IBlockGuard _blocks;
+
+    public ReactToMessageHandler(IConversationRepository conversations, IChatMessageRepository messages, IBlockGuard blocks)
+    {
+        _conversations = conversations;
+        _messages = messages;
+        _blocks = blocks;
+    }
+
+    public async Task<ChatMessageDto> Handle(ReactToMessageCommand req, CancellationToken ct)
+    {
+        if (req.Emoji is not null && !ChatRules.Reactions.Contains(req.Emoji)) throw new ChatValidationException("Bu tepki kullanılamaz.");
+        var conversation = await _conversations.GetByIdAsync(req.ConversationId, ct) ?? throw new ChatNotFoundException("Konuşma bulunamadı.");
+        if (!conversation.ParticipantIds.Contains(req.UserId)) throw new ChatForbiddenException("Bu konuşmaya erişimin yok.");
+        await _blocks.EnsureAllowedAsync(req.UserId, conversation.ParticipantIds.OtherParticipant(req.UserId), ct);
+        var message = await _messages.GetByIdAsync(req.MessageId, ct);
+        if (message is null || message.ConversationId != req.ConversationId) throw new ChatNotFoundException("Mesaj bulunamadı.");
+        if (message.Kind == "unsent") throw new ChatValidationException("Geri alınmış mesaja tepki verilemez.");
+
+        message.Reactions = (message.Reactions ?? new()).Where(r => r.UserId != req.UserId).ToList();
+        if (req.Emoji is not null) message.Reactions.Add(new MessageReaction { UserId = req.UserId, Emoji = req.Emoji });
+        await _messages.ReplaceAsync(message, ct);
+        return message.ToDto(req.UserId);
+    }
+}
+
+/// <summary>
+/// Doc B2: the other person answers a meetup proposal. The proposer cannot answer their own; answers close two hours
+/// after the time (410 MEETUP_CLOSED). The same block check as every chat write applies.
+/// </summary>
+public sealed class RespondToMeetupHandler : IRequestHandler<RespondToMeetupCommand, ChatMessageDto>
+{
+    private readonly IConversationRepository _conversations;
+    private readonly IChatMessageRepository _messages;
+    private readonly IBlockGuard _blocks;
+
+    public RespondToMeetupHandler(IConversationRepository conversations, IChatMessageRepository messages, IBlockGuard blocks)
+    {
+        _conversations = conversations;
+        _messages = messages;
+        _blocks = blocks;
+    }
+
+    public async Task<ChatMessageDto> Handle(RespondToMeetupCommand req, CancellationToken ct)
+    {
+        if (req.Answer is not null && !MeetupPayload.IsAnswer(req.Answer)) throw new ChatValidationException("Geçersiz yanıt.");
+        var conversation = await _conversations.GetByIdAsync(req.ConversationId, ct) ?? throw new ChatNotFoundException("Konuşma bulunamadı.");
+        if (!conversation.ParticipantIds.Contains(req.UserId)) throw new ChatForbiddenException("Bu konuşmaya erişimin yok.");
+        await _blocks.EnsureAllowedAsync(req.UserId, conversation.ParticipantIds.OtherParticipant(req.UserId), ct);
+        var message = await _messages.GetByIdAsync(req.MessageId, ct);
+        if (message is null || message.ConversationId != req.ConversationId || message.Kind != ChatShareFactory.MeetupKind || message.Meetup is null)
+            throw new ChatNotFoundException("Buluşma bulunamadı.");
+        if (message.SenderId == req.UserId) throw new ChatForbiddenException("Kendi önerine yanıt veremezsin.");
+
+        var now = DateTime.UtcNow;
+        if (message.Meetup.IsClosed(now)) throw new ChatGoneException("MEETUP_CLOSED", "Bu buluşmanın zamanı geçti.");
+        message.Meetup.Respond(req.UserId, req.Answer, now);
+        await _messages.ReplaceAsync(message, ct);
+        return message.ToDto(req.UserId);
+    }
+}
+
+public sealed class TypingHandler : IRequestHandler<TypingCommand, Unit>
+{
+    private readonly IConversationRepository _conversations;
+    private readonly TypingTracker _typing;
+
+    public TypingHandler(IConversationRepository conversations, TypingTracker typing)
+    {
+        _conversations = conversations;
+        _typing = typing;
+    }
+
+    public async Task<Unit> Handle(TypingCommand req, CancellationToken ct)
+    {
+        var conversation = await _conversations.GetByIdAsync(req.ConversationId, ct) ?? throw new ChatNotFoundException("Konuşma bulunamadı.");
+        if (!conversation.ParticipantIds.Contains(req.UserId)) throw new ChatForbiddenException("Bu konuşmaya erişimin yok.");
+        _typing.Mark(req.ConversationId, req.UserId, DateTime.UtcNow);
+        return Unit.Value;
     }
 }

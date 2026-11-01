@@ -44,7 +44,7 @@ function Wait-ContainerRunning {
 
 function New-TestUserToken {
     $stamp = Get-Date -Format "yyyyMMddHHmmssfff"
-    $userName = "reliable_$stamp"
+    $userName = "e2e_reliable_$stamp"
     $registration = @{
         userName = $userName
         email = "$userName@blinkr.local"

@@ -12,7 +12,7 @@ $ErrorActionPreference = "Stop"
 $url = "$GatewayBaseUrl/api/places/nearby?lat=$Latitude&lon=$Longitude&radiusMeters=$RadiusMeters&limit=20"
 $response = Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 15
 $coverage = $response.Headers["X-Blinkr-Place-Coverage"]
-$items = if ([string]::IsNullOrWhiteSpace($response.Content)) { @() } else { @($response.Content | ConvertFrom-Json) }
+$items = if ([string]::IsNullOrWhiteSpace($response.Content)) { @() } else { @($response.Content | ConvertFrom-Json | ForEach-Object { $_ }) }
 
 Write-Host "Coverage: $coverage"
 Write-Host "Count: $($items.Count)"

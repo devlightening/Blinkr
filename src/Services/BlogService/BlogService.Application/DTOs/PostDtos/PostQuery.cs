@@ -21,6 +21,12 @@ public record PostQuery
     public string? AuthorId { get; init; }
 
     /// <summary>
+    /// Include the author's anonymous posts. Set only when the caller IS that author; otherwise
+    /// anonymous posts are never attributable to an author id.
+    /// </summary>
+    public bool IncludeAnonymousAuthored { get; init; }
+
+    /// <summary>
     /// Search in title and content
     /// </summary>
     public string? Search { get; init; }

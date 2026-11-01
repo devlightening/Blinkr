@@ -1,0 +1,198 @@
+{
+  "tab": {
+    "map": "Harita",
+    "explore": "Keşfet",
+    "chat": "Sohbet",
+    "profile": "Profil"
+  },
+  "action": {
+    "retry": "Tekrar dene",
+    "close": "Kapat",
+    "back": "Geri dön",
+    "save": "Kaydet",
+    "cancel": "Vazgeç",
+    "send": "Gönder"
+  },
+  "empty": {
+    "noResults": "Sonuç bulunamadı"
+  },
+  "notifications": {
+    "title": "Bildirimler",
+    "open": "Bildirimler",
+    "openUnread_one": "Bildirimler, {{count}} okunmamış",
+    "openUnread_other": "Bildirimler, {{count}} okunmamış",
+    "today": "Bugün",
+    "week": "Bu hafta",
+    "earlier": "Daha önce",
+    "emptyTitle": "Henüz bildirim yok",
+    "emptyBody": "Biri sinyalini beğendiğinde, yorum yaptığında ya da seni takip ettiğinde burada görürsün.",
+    "loadFailed": "Bildirimler yüklenemedi.",
+    "retry": "Tekrar dene",
+    "accept": "Onayla",
+    "decline": "Sil",
+    "answered": "Yanıtlandı",
+    "close": "Kapat",
+    "new": "Yeni"
+  },
+  "personalData": {
+    "title": "Kişisel bilgi paylaşmak üzeresin",
+    "masked": "TC kimlik numaraları ve plakalar paylaşımda otomatik gizlenir.",
+    "visible": "Telefon numarası ya da açık adres herkese görünür. Gerekmiyorsa sil."
+  },
+  "report": {
+    "selfHarmHelp": "Birinin hayatı tehlikedeyse hemen acil çağrı numarasını ara: {{number}}. Bu bildirim öncelikli incelenecek.",
+    "failed": "Bildirim gönderilemedi. Tekrar dene.",
+    "doneTitle": "Bildirimin alındı",
+    "doneUser": "Teşekkürler. Bildirimin kaydedildi. İstersen bu kişiyi engelleyerek onunla tüm teması kesebilirsin.",
+    "done": "Teşekkürler. Bildirimin kaydedildi.",
+    "why": "Neden bildiriyorsun?",
+    "noteA11y": "Bildirim notu",
+    "notePlaceholder": "Kısaca anlat",
+    "send": "Bildirimi gönder"
+  },
+  "freshness": {
+    "live": "Canlı",
+    "fresh": "Taze",
+    "recent": "Güncel",
+    "old": "Eski",
+    "expired": "Süresi doldu",
+    "none": "Henüz yok"
+  },
+  "confidence": {
+    "high": "Yüksek güven",
+    "medium": "Orta güven",
+    "low": "Az doğrulama"
+  },
+  "stats": {
+    "signals_one": "{{count}} sinyal",
+    "signals_other": "{{count}} sinyal"
+  },
+  "nearby": {
+    "summary_one": "{{count}} sinyal · {{live}} canlı · {{km}} km içinde",
+    "summary_other": "{{count}} sinyal · {{live}} canlı · {{km}} km içinde"
+  },
+  "media": {
+    "loadFailed": "Görsel yüklenemedi"
+  },
+  "auth": {
+    "birthYear": "Doğum yılı",
+    "birthYearHint": "Yalnızca yaşını doğrulamak için; profilinde görünmez.",
+    "tooYoung": "Blinkr'ı kullanmak için en az 13 yaşında olmalısın.",
+    "invalidYear": "Geçerli bir doğum yılı gir (ör. 2004).",
+    "minorNote": "18 yaşından küçüksen hesabın gizli başlar ve yalnızca arkadaşların sana mesaj atabilir.",
+    "termsBefore": "Kayıt olarak ",
+    "termsLink": "Kullanım şartları",
+    "termsMiddle": "nı ve ",
+    "communityLink": "Topluluk kuralları",
+    "termsAfter": "nı kabul edersin. İstenmeyen içeriğe ve kötüye kullanıma sıfır tolerans uygulanır.",
+    "closeLegal": "Metni kapat",
+    "eyebrow": "Yakınında, şimdi",
+    "title": "Gitmeden önce bil.",
+    "subtitle": "Çevrendeki yerlerin canlı durumunu haritadan keşfet.",
+    "newAccount": "Yeni hesap",
+    "signIn": "Giriş yap",
+    "username": "Kullanıcı adı",
+    "usernamePlaceholder": "ornek_kullanici",
+    "email": "E-posta",
+    "emailPlaceholder": "sen@ornek.com",
+    "password": "Şifre",
+    "passwordPlaceholder": "Şifren",
+    "hidePassword": "Şifreyi gizle",
+    "showPassword": "Şifreyi göster",
+    "join": "Blinkr’a katıl",
+    "openMap": "Haritayı aç",
+    "locationNote": "Konumun yalnızca sen paylaşmayı seçtiğinde kullanılır.",
+    "passwordRule": "En az 8 karakter"
+  },
+  "actions": {
+    "retry": "Tekrar dene",
+    "back": "Geri dön",
+    "searching": "Aranıyor",
+    "openSettings": "Ayarları aç",
+    "share": "Paylaş",
+    "logout": "Oturumu kapat",
+    "cancel": "Vazgeç",
+    "report": "Bildir",
+    "save": "Kaydet",
+    "close": "Kapat",
+    "ok": "Tamam",
+    "backShort": "Geri",
+    "openProfile": "Profili aç",
+    "done": "Tamam"
+  },
+  "people": {
+    "notFound": "Kullanıcı bulunamadı",
+    "notFoundHint": "Yazımı kontrol et ya da başka bir kullanıcı adı dene.",
+    "searchFailed": "Kullanıcılar aranamadı. Tekrar dene.",
+    "searchUsername": "Kullanıcı adı ara",
+    "username": "Kullanıcı adı"
+  },
+  "live": "Canlı",
+  "approxArea": "Yaklaşık alan",
+  "member": "Topluluk üyesi",
+  "months": {
+    "0": "Ocak",
+    "1": "Şubat",
+    "2": "Mart",
+    "3": "Nisan",
+    "4": "Mayıs",
+    "5": "Haziran",
+    "6": "Temmuz",
+    "7": "Ağustos",
+    "8": "Eylül",
+    "9": "Ekim",
+    "10": "Kasım",
+    "11": "Aralık"
+  },
+  "category": {
+    "BAR": "Bar",
+    "BAKERY": "Fırın",
+    "CAFE": "Kafe",
+    "EDUCATION": "Okul",
+    "ENTERTAINMENT": "Eğlence",
+    "FAST_FOOD": "Fast Food",
+    "FUEL": "Akaryakıt",
+    "HEALTH": "Sağlık",
+    "OTHER": "Diğer",
+    "PARK": "Park",
+    "PHARMACY": "Eczane",
+    "PLAYGROUND": "Oyun alanı",
+    "PUBLIC": "Kamusal yer",
+    "PLACE_OF_WORSHIP": "İbadethane",
+    "MOSQUE": "Cami",
+    "RESTAURANT": "Restoran",
+    "SHOP": "Mağaza",
+    "SPORT": "Spor",
+    "SUPERMARKET": "Market",
+    "TOURISM": "Gezilecek yer",
+    "TRANSPORT": "Ulaşım",
+    "place": "Yer"
+  },
+  "age": {
+    "now": "Az önce",
+    "minutes": "{{n}} dk önce",
+    "hours": "{{n}} sa önce",
+    "days": "{{n}} gün önce"
+  },
+  "loading": "Yükleniyor",
+  "onboarding": {
+    "skip": "Tanıtımı atla",
+    "page": "Sayfa {{n}} / {{total}}",
+    "start": "Başla",
+    "next": "İleri",
+    "p1title": "Gitmeden önce bil",
+    "p1body": "Bir yerin şu an kalabalık mı, sıra var mı, açık mı olduğunu haritada canlı gör. Kararını buna göre ver.",
+    "p2title": "Sen de bir sinyal bırak",
+    "p2body": "Bulunduğun yerde birkaç saniyede kısa bir sinyal paylaş. Sinyaller kısa ömürlüdür; eskiyen bilgi haritadan kalkar.",
+    "p3title": "Konumun sende kalır",
+    "p3body": "Kesin konumun kimseye gösterilmez. İstersen sinyalini anonim paylaşırsın; anonim sinyalleri yalnızca sen görürsün.",
+    "skipShort": "Atla"
+  },
+  "tabs": {
+    "profileDot": "{{label}}, bekleyen arkadaş isteği var",
+    "chatDot": "{{label}}, okunmamış mesaj var",
+    "create": "Yeni sinyal paylaş",
+    "createHintQuick": "Hızlı sinyal açılır. Basılı tutarsan kamerayla gönderi."
+  },
+  "anonymous": "Anonim"
+}

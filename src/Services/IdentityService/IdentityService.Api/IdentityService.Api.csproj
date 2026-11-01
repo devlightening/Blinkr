@@ -13,6 +13,8 @@
 		<PackageReference Include="AspNetCore.HealthChecks.UI.Client" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
 		<PackageReference Include="IdentityModel" />
+		<PackageReference Include="MassTransit" />
+		<PackageReference Include="MassTransit.RabbitMQ" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design">
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -26,6 +28,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\..\BuildingBlocks\Shared\Shared.csproj" />
+		<ProjectReference Include="..\..\..\BuildingBlocks\Shared.Events\Shared.Events.csproj" />
 		<ProjectReference Include="..\IdentityService.Application\IdentityService.Application.csproj" />
 		<ProjectReference Include="..\IdentityService.Infrastructure\IdentityService.Infrastructure.csproj" />
 	</ItemGroup>

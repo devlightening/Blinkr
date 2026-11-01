@@ -9,6 +9,15 @@ public class AppDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Friendship> Friendships => Set<Friendship>();
+    public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
+    public DbSet<Report> Reports => Set<Report>();
+    public DbSet<ModerationAction> ModerationActions => Set<ModerationAction>();
+    public DbSet<Follow> Follows => Set<Follow>();
+    public DbSet<SavedPlace> SavedPlaces => Set<SavedPlace>();
+    public DbSet<PlaceCollection> PlaceCollections => Set<PlaceCollection>();
+    public DbSet<PlaceCollectionItem> PlaceCollectionItems => Set<PlaceCollectionItem>();
+    public DbSet<DataRequest> DataRequests => Set<DataRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -24,6 +33,95 @@ public class AppDbContext : DbContext
                 .WithMany(u => u.RefreshTokens)
                 .HasForeignKey(t => t.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<User>().Property(u => u.AvatarKey).HasMaxLength(IdentityService.Domain.AvatarCatalog.MaxKeyLength);
+        modelBuilder.Entity<User>().Property(u => u.Bio).HasMaxLength(FriendshipRules.MaxBioLength);
+        modelBuilder.Entity<User>().Property(u => u.DisplayName).HasMaxLength(ProfilePhotoRules.MaxDisplayNameLength);
+        modelBuilder.Entity<User>().Property(u => u.PhotoVersion).HasMaxLength(32);
+
+        modelBuilder.Entity<UserBlock>(entity =>
+        {
+            entity.HasKey(b => b.Id);
+            entity.HasIndex(b => new { b.BlockerId, b.BlockedId }).IsUnique();
+            entity.HasIndex(b => b.BlockedId);
+            entity.HasOne<User>().WithMany().HasForeignKey(b => b.BlockerId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(b => b.BlockedId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Report>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.TargetId).IsRequired().HasMaxLength(SafetyRules.MaxTargetIdLength);
+            entity.Property(r => r.Note).HasMaxLength(SafetyRules.MaxNoteLength);
+            entity.HasIndex(r => new { r.ReporterId, r.TargetType, r.TargetId }).IsUnique();
+            entity.HasIndex(r => new { r.TargetType, r.TargetId });
+            entity.HasIndex(r => new { r.Status, r.CreatedAtUtc });
+            entity.HasOne<User>().WithMany().HasForeignKey(r => r.ReporterId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ModerationAction>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+            entity.Property(a => a.TargetId).IsRequired().HasMaxLength(SafetyRules.MaxTargetIdLength);
+            entity.Property(a => a.Action).IsRequired().HasMaxLength(32);
+            entity.Property(a => a.Note).HasMaxLength(SafetyRules.MaxModerationNoteLength);
+            entity.HasIndex(a => new { a.TargetType, a.TargetId });
+            entity.HasIndex(a => a.CreatedAtUtc);
+        });
+
+        modelBuilder.Entity<SavedPlace>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.HasIndex(p => new { p.UserId, p.PlaceId }).IsUnique();
+            entity.HasIndex(p => new { p.UserId, p.CreatedAtUtc });
+            entity.Property(p => p.Name).IsRequired().HasMaxLength(SavedPlaceRules.MaxNameLength);
+            entity.Property(p => p.Category).HasMaxLength(SavedPlaceRules.MaxCategoryLength);
+            entity.HasOne<User>().WithMany().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // D-041: place collections, private by default; items cascade with their list, lists with their owner.
+        modelBuilder.Entity<PlaceCollection>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            entity.HasIndex(c => new { c.UserId, c.UpdatedAtUtc });
+            entity.HasIndex(c => c.ShareToken).IsUnique();
+            entity.Property(c => c.Title).IsRequired().HasMaxLength(PlaceCollectionRules.MaxTitleLength);
+            entity.Property(c => c.Description).HasMaxLength(PlaceCollectionRules.MaxDescriptionLength);
+            entity.Property(c => c.Visibility).IsRequired().HasMaxLength(16);
+            entity.Property(c => c.ShareToken).HasMaxLength(PlaceCollectionRules.ShareTokenLength);
+            entity.HasOne<User>().WithMany().HasForeignKey(c => c.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(c => c.Items).WithOne().HasForeignKey(i => i.CollectionId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PlaceCollectionItem>(entity =>
+        {
+            entity.HasKey(i => i.Id);
+            entity.HasIndex(i => new { i.CollectionId, i.PlaceId }).IsUnique();
+            entity.HasIndex(i => new { i.CollectionId, i.Position });
+            entity.Property(i => i.Name).IsRequired().HasMaxLength(SavedPlaceRules.MaxNameLength);
+            entity.Property(i => i.Category).HasMaxLength(SavedPlaceRules.MaxCategoryLength);
+            entity.Property(i => i.Note).HasMaxLength(PlaceCollectionRules.MaxNoteLength);
+        });
+
+        modelBuilder.Entity<Follow>(entity =>
+        {
+            entity.HasKey(f => f.Id);
+            entity.HasIndex(f => new { f.FollowerId, f.FolloweeId }).IsUnique();
+            entity.HasIndex(f => new { f.FolloweeId, f.Status });
+            entity.HasIndex(f => new { f.FollowerId, f.Status });
+            entity.HasOne<User>().WithMany().HasForeignKey(f => f.FollowerId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(f => f.FolloweeId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Friendship>(entity =>
+        {
+            entity.HasKey(f => f.Id);
+            entity.HasIndex(f => new { f.UserAId, f.UserBId }).IsUnique();
+            entity.HasIndex(f => new { f.AddresseeId, f.Status });
+            entity.HasIndex(f => new { f.RequesterId, f.Status });
+            entity.HasOne<User>().WithMany().HasForeignKey(f => f.RequesterId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(f => f.AddresseeId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // Seed users

@@ -20,7 +20,7 @@ public interface IPostQueryService
     /// <summary>
     /// Get paginated posts by a specific author
     /// </summary>
-    Task<PaginatedResult<PostReadDto>> GetUserPostsAsync(Guid authorId, int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<PaginatedResult<PostReadDto>> GetUserPostsAsync(Guid authorId, int page, int pageSize, CancellationToken cancellationToken = default, bool includeAnonymous = false);
 
     /// <summary>
     /// Check if a post exists
@@ -90,9 +90,4 @@ public interface IPostQueryService
     /// DEBUG: Update all posts with default author name
     /// </summary>
     Task<int> UpdateAuthorNamesAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// DEBUG: Sync PostgreSQL posts to MongoDB
-    /// </summary>
-    Task<int> SyncPostgresPostsToMongoAsync(CancellationToken cancellationToken = default);
 }

@@ -20,6 +20,8 @@ namespace BlogService.Application.DTOs.PostDtos
         public double? ObservationLatitude { get; set; }
         public double? ObservationLongitude { get; set; }
         public double? ObservationAccuracyMeters { get; set; }
+        /// <summary>When the attached photo was taken (gallery EXIF). Can only lower trust: see GalleryMediaPolicy.</summary>
+        public DateTime? MediaCapturedAtUtc { get; set; }
         
         [JsonPropertyName("locationName")]
         public string? LocationName { get; set; }

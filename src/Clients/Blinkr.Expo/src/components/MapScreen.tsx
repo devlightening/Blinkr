@@ -1,43 +1,56 @@
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import {
-  Camera,
-  CheckCircle2,
-  Layers3,
-  LogOut,
-  Map as MapIcon,
-  MessageCircle,
-  Navigation2,
-  Plus,
-  RefreshCw,
-  ShieldCheck,
-  UserRound,
-  Wifi,
-  X,
-} from 'lucide-react-native';
+import { CheckCircle2, Plus, Wifi, X } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   AppState,
-  InteractionManager,
   Linking,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import MapView, { Circle, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { createSignal, getNearbyPlaces, getPlace, getUnifiedMapBounds, previewPresence, getSignalContent } from '../api';
-import { friendlyError, isFresh } from '../productPresentation';
+import i18n from 'i18next';
+import { createSignal, getNearbyPlaces, getPlace, getPlaceHeat, getUnifiedMapBounds, previewPresence, getSignalContent, sendReport } from '../api';
+import { isEnabled } from '../flags';
+import { HEAT_MAX_DELTA, areaActivity, heatAlpha, heatRadiusMeters, isHeatView, showsHeatInsteadOfPins, type PlaceHeat } from '../mapHeat';
+import { useShareOutbox, type SharedResult } from '../shareOutbox';
+import { newOutboxId, type OutboxItem } from '../shareQueue';
+import { ShareProgressChip } from './map/ShareProgressChip';
+import { LocationPrimer } from './map/LocationPrimer';
+import { suggestCameraPlace } from '../cameraPlace';
+import { track } from '../analytics';
+import { friendlyError } from '../productPresentation';
+import { BlinkrClusterMarker, BlinkrPlaceMarker, BlinkrSignalMarker } from './BlinkrMapMarker';
+import { bottomBarClearance } from './ui/BlinkrBottomBar';
+import { MapTopChrome } from './map/MapTopChrome';
+import { MapSearchOverlay } from './map/MapSearchOverlay';
+import { UserProfileSheet } from './friends/UserProfileSheet';
+import { selectMapData, filterByNow, type MapLayer } from '../mapSelection';
+import { clusterMapPoints, regionToZoom, zoomToLongitudeDelta, type ClusterBucket, type RenderableMapCluster } from '../mapClusters';
+import { compareByLiveness, liveRenderKey, liveStateFromPlace, liveStateKey, type LiveState, type NowFilter } from '../live/liveState';
+import { pinTagParts } from '../live/liveLabels';
+import { NearbyNowSheet, type NearbyNowItem } from './live/NearbyNowSheet';
+import { QuickSignalSheet, type QuickMedia, type QuickNoPlaceReason, type QuickPresence } from './live/QuickSignalSheet';
+import { buildPostBody, quickStateFor, TILE_AUTO_VALUE, TILE_TYPE, type QuickState } from '../live/quickSignal';
+import { oldestCapture } from '../galleryCapture';
+import { SIGNAL_CATALOG } from '../signalCatalog';
 import { Sheet } from './Sheet';
-import { BlinkrMark } from './BlinkrMark';
-import { BlinkrMapMarker, BlinkrClusterMarker } from './BlinkrMapMarker';
-import { clusterMapPoints, zoomToLongitudeDelta } from '../mapClusters';
+import { BlinkrSheetPanel } from './ui/BlinkrSheetPanel';
+import { signalPinState } from '../live/postState';
+import { signalTagParts } from '../live/liveLabels';
+import { tx } from '../i18n/tx';
+
+const MAX_MAP_PINS = 300;
+const PIN_TAG_ZOOM = 15;
+const NEARBY_NOW_MAX = 12;
+const clusterBucket = (state: LiveState | undefined): ClusterBucket =>
+  state?.source === 'live' && (state.kind === 'calm' || state.kind === 'busy' || state.kind === 'crowded') ? state.kind : 'other';
 import {
   NearbyRequestOwnership,
   type NearbyOrigin,
@@ -45,8 +58,8 @@ import {
   type NearbySource,
   distanceMeters,
 } from '../nearbyRequestOwnership';
-import { colors, radii, shadow, shadowSoft } from '../theme';
-import { mapDarkStyle } from '../mapDarkStyle';
+import { colors, getThemeMode, media, motion, radii, shadow, shadowSoft, spacing, typography, withAlpha } from '../theme';
+import { mapDarkStyle, mapLightStyle } from '../mapDarkStyle';
 import { AnimatedPressable } from './AnimatedPressable';
 import type {
   AuthResponse,
@@ -54,29 +67,43 @@ import type {
   Bounds,
   ComposerArea,
   CoordinateSignal,
-  CreateSignalInput,
   LocationReadiness,
   NearbyStatus,
+  ShareMode,
+  SignalType,
+  UserSummary,
 } from '../types';
 import { ISTANBUL_REGION } from '../types';
 import { PostDetailSheet } from './PostDetailSheet';
-import { SignalComposer } from './SignalComposer';
+import { SignalCardModal } from './signal/SignalCardModal';
+import { fromCoordinateSignal, fromRecentSignal, type CardSignal } from '../signalCard';
+import { SignalCamera } from './camera/SignalCamera';
+import type { CapturedMedia } from './camera/PhotoEditor';
+import { SignalComposer, type ComposerExtras, type ComposerInput } from './SignalComposer';
 
 type Props = {
   auth: AuthResponse;
   onAuthChange: (auth: AuthResponse) => void;
   onLogout: () => void;
-  onOpenChat: () => void;
+  onOpenProfile: () => void;
+  /** Opens Keşfet > Yakınımda: the map's content as a list (plan-devam G6). */
+  onShowList?: () => void;
+  /** Set when (+) was pressed on any tab: `camera` (tap) or `text` (long press); cleared through `onShareHandled`. */
+  shareRequested?: ShareMode | null;
+  onShareHandled?: () => void;
+  /** A saved Place to bring into view and open; cleared through `onFocusHandled`. */
+  focusPlace?: BlinkrPlace | null;
+  onFocusHandled?: () => void;
+  /** A coordinate signal (from the Yakında list) to bring into view and open; cleared through `onFocusSignalHandled`. */
+  focusSignal?: CoordinateSignal | null;
+  onFocusSignalHandled?: () => void;
+  /** Reports whether a sheet or the composer currently owns the screen (the app shell hides its tab bar). */
+  onOverlayOpenChange?: (open: boolean) => void;
+  /** "Kişiler" search result → "Mesaj gönder" (P3.13): the app shell switches to the Sohbet tab. */
+  onMessageUser?: (user: UserSummary) => void;
+  /** V2-4: a #tag tapped on a signal card: the app shell opens its feed in Keşfet. */
+  onOpenHashtag?: (tag: string) => void;
 };
-
-type MapLayer = 'all' | 'live' | 'places' | 'signals';
-
-const mapLayers: Array<{ key: MapLayer; label: string }> = [
-  { key: 'all', label: 'Tümü' },
-  { key: 'live', label: 'Canlı' },
-  { key: 'places', label: 'Yerler' },
-  { key: 'signals', label: 'Sinyaller' },
-];
 
 const getBounds = (region: Region): Bounds => ({
   minLat: region.latitude - region.latitudeDelta / 2,
@@ -92,9 +119,10 @@ const MAX_NEARBY_LOCATION_AGE_MS = 30_000;
 const LOCATION_TIMEOUT_MS = 8_000;
 
 
-export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
+export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowList, shareRequested = null, onShareHandled, focusPlace = null, onFocusHandled, focusSignal = null, onFocusSignalHandled, onOverlayOpenChange, onMessageUser, onOpenHashtag }: Props) {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
+  const [mapReady, setMapReady] = useState(false);
   const activeRequest = useRef<AbortController | null>(null);
   const detailRequest = useRef<AbortController | null>(null);
   const nearbyRequest = useRef<AbortController | null>(null);
@@ -118,36 +146,60 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
   const [selectedPlace, setSelectedPlace] = useState<BlinkrPlace | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<BlinkrPlace | null>(null);
   const [selectedSignal, setSelectedSignal] = useState<CoordinateSignal | null>(null);
+  // plan-devam C2: a pin (or a close-up cluster) opens the centre Sinyal Kartı; the place page is one tap further.
+  const [cardView, setCardView] = useState<{ key: string; place: BlinkrPlace | null; cards: CardSignal[]; loading: boolean } | null>(null);
+  const cardRequest = useRef<AbortController | null>(null);
   const [isComposerOpen, setComposerOpen] = useState(false);
-  const [isProfileOpen, setProfileOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [composerError, setComposerError] = useState<string | null>(null);
   const [locationReadiness, setLocationReadiness] = useState<LocationReadiness>('checking');
   const [canAskLocationAgain, setCanAskLocationAgain] = useState(true);
+  const [primerDismissed, setPrimerDismissed] = useState(false);
   const [mapDirty, setMapDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [composerArea, setComposerArea] = useState<ComposerArea | null>(null);
   const [pendingCapture, setPendingCapture] = useState<ImagePicker.ImagePickerAsset | null>(null);
-  const [composerInitialStep, setComposerInitialStep] = useState(0);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchProfileUser, setSearchProfileUser] = useState<UserSummary | null>(null);
+  const [searchOrigin, setSearchOrigin] = useState({ latitude: 0, longitude: 0 });
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [composerInitialSignal, setComposerInitialSignal] = useState<{ type: SignalType; value: string | null } | null>(null);
   const [mapLayer, setMapLayer] = useState<MapLayer>('all');
+  const [nowFilters, setNowFilters] = useState<ReadonlySet<NowFilter>>(new Set());
+  const toggleNowFilter = useCallback((id: NowFilter) => {
+    setNowFilters((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+  // moveToDeviceLocation must not depend on the layer: the mount effect below depends on it, and a
+  // changing dependency re-ran that effect (permission check + recentre) on every filter change.
+  const mapLayerRef = useRef<MapLayer>('all');
+  mapLayerRef.current = mapLayer;
+  // Freshness falls with time: once a minute the rings are recomputed; only markers whose picture changed redraw.
   const [now, setNow] = useState(Date.now());
-  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(timer); }, []);
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(timer); }, []);
 
-  const visiblePlaces = useMemo(() => {
-    if (mapLayer === 'signals') return [];
-    if (mapLayer === 'live') {
-      return places.filter((place) => (place.currentState?.activeSignalCount ?? 0) > 0 && isFresh(place.currentState?.observedAtUtc, place.currentState?.expiresAtUtc, now));
+  // One ring state per place, reused while nothing it shows has changed, so memoised markers and cards skip re-rendering.
+  const liveCache = useRef(new Map<string, LiveState>());
+  const placeStates = useMemo(() => {
+    const next = new Map<string, LiveState>();
+    for (const place of places) {
+      const state = liveStateFromPlace(place, now);
+      const previous = liveCache.current.get(place.id);
+      next.set(place.id, previous && liveStateKey(previous) === liveStateKey(state) ? previous : state);
     }
-    if (mapLayer === 'places') return places;
-    return places.filter(place => isFresh(place.lastActivityUtc ?? place.currentState?.observedAtUtc, null, now));
-  }, [mapLayer, places, now]);
+    liveCache.current = next;
+    return next;
+  }, [places, now]);
 
-  const visibleSignals = useMemo(
-    () => mapLayer === 'places' ? [] : signals.filter(signal => isFresh(signal.createdAtUtc, signal.expiresAt, now)),
-    [mapLayer, signals, now],
+  const { places: visiblePlaces, signals: visibleSignals } = useMemo(
+    () => filterByNow(selectMapData(mapLayer, places, signals, now), nowFilters, now),
+    [mapLayer, places, signals, now, nowFilters],
   );
 
   const markerLookup = useMemo(() => ({
@@ -155,12 +207,14 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
     signals: new Map(visibleSignals.map((signal) => [`signal:${signal.postId}`, signal])),
   }), [visiblePlaces, visibleSignals]);
 
+  // plan-devam C13: at most 300 points reach the clusterer (the server already caps each layer); the rest never render.
   const mapItems = useMemo(() => clusterMapPoints([
     ...visiblePlaces.map((place) => ({
       id: `place:${place.id}`,
       kind: 'place' as const,
       latitude: place.latitude,
       longitude: place.longitude,
+      bucket: clusterBucket(placeStates.get(place.id)),
     })),
     ...visibleSignals.map((signal) => ({
       id: `signal:${signal.postId}`,
@@ -168,7 +222,25 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
       latitude: signal.latitude,
       longitude: signal.longitude,
     })),
-  ], region), [region, visiblePlaces, visibleSignals]);
+  ].slice(0, MAX_MAP_PINS), region), [region, visiblePlaces, visibleSignals, placeStates]);
+  // Pin tags ("Sakin · 4 dk") show from street level; the selected pin always shows its tag.
+  const showPinTags = regionToZoom(region) >= PIN_TAG_ZOOM;
+
+  // "Yakınında şu an": places in view with live information, fresh first, then nearest to the map centre.
+  const nearbyNow = useMemo<NearbyNowItem[]>(() => visiblePlaces
+    .flatMap((place): NearbyNowItem[] => {
+      const state = placeStates.get(place.id);
+      return state?.source === 'live' ? [{ place, state, distanceMeters: distanceMeters(region, place) }] : [];
+    })
+    .sort(compareByLiveness)
+    .slice(0, NEARBY_NOW_MAX), [visiblePlaces, placeStates, region]);
+  const nearbyAreaName = useMemo(() => {
+    const address = nearbyNow.find((item) => item.place.displayAddress?.trim())?.place.displayAddress;
+    if (!address) return null;
+    const parts = address.split(',').map((part) => part.trim()).filter(Boolean);
+    return parts.slice(Math.max(0, parts.length - 2)).join(', ');
+  }, [nearbyNow]);
+  const [nearbyNowHeight, setNearbyNowHeight] = useState(0);
 
   const visibleItemCount = visiblePlaces.length + visibleSignals.length;
 
@@ -176,16 +248,16 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
     setLocationReadiness('locating');
     const current = await Promise.race([
       Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Güncel konum alınamadı. Lütfen tekrar dene.')), LOCATION_TIMEOUT_MS)),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error(tx('map:errors.noFixPlease', 'Güncel konum alınamadı. Lütfen tekrar dene.'))), LOCATION_TIMEOUT_MS)),
     ]);
     const ageMs = Date.now() - current.timestamp;
     if (ageMs > MAX_NEARBY_LOCATION_AGE_MS || (current.coords.accuracy ?? 9999) > 150) {
       const refreshed = await Promise.race([
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Güncel konum alınamadı. Tekrar dene.')), LOCATION_TIMEOUT_MS)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error(tx('map:errors.noFix', 'Güncel konum alınamadı. Tekrar dene.'))), LOCATION_TIMEOUT_MS)),
       ]);
       if (Date.now() - refreshed.timestamp > MAX_NEARBY_LOCATION_AGE_MS || (refreshed.coords.accuracy ?? 9999) > 150)
-        throw new Error('Konum yeterince net değil. Açık bir alanda tekrar dene.');
+        throw new Error(tx('map:errors.looseFix', 'Konum yeterince net değil. Açık bir alanda tekrar dene.'));
       setLocationReadiness('ready');
       deviceSnapshot.current = { latitude: refreshed.coords.latitude, longitude: refreshed.coords.longitude, timestamp: refreshed.timestamp };
       return refreshed;
@@ -267,7 +339,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
         nearestMeters: null,
         reason: err instanceof Error ? err.message : String(err),
       });
-      setComposerError('Yakındaki yerler şu an yenilenemedi. Tekrar dene.');
+      setComposerError(tx('map:errors.nearbyFailed', 'Yakındaki yerler şu an yenilenemedi. Tekrar dene.'));
       return [];
     } finally {
       if (nearbyLoadingRequest.current === requestId) {
@@ -289,7 +361,9 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
     try {
       const map = await getUnifiedMapBounds(getBounds(targetRegion), controller.signal, includeCatalogPlaces);
       if (activeRequest.current !== controller || mapRequestSeq.current !== requestId) return;
-      setPlaces(map.places);
+      // Places missing (PlaceService down) keep the ones already on the map instead of wiping them (CLAUDE.md §11).
+      if (map.placesUnavailable) setError(tx('map:placesUnavailable', 'Yerler şu an yenilenemedi; son bilinen durum gösteriliyor.'));
+      else setPlaces(map.places);
       setSignals(map.signals);
       setMapDirty(distanceMeters(currentRegion.current, targetRegion) > 40 || Math.abs(currentRegion.current.longitudeDelta - targetRegion.longitudeDelta) > 0.002);
       return map;
@@ -315,6 +389,53 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
     setRegion(nextRegion);
     if (moved && Date.now() > ignoreRegionChangeUntil.current) setMapDirty(true);
   }, []);
+
+  // Auto-load the viewport once it settles (sinyal-mvp-plan 04 §1.2: "Bu alanı tara" is no longer a
+  // required tap). Debounced so a long pan/zoom gesture does not fire a request per intermediate
+  // frame; only a genuinely settled, moved viewport (mapDirty) triggers it, and a request already in
+  // flight is left alone rather than piled on top of.
+  useEffect(() => {
+    if (!mapDirty || isLoading) return undefined;
+    const timer = setTimeout(() => { void loadPlaces(region, true, mapLayer === 'places'); }, 400);
+    return () => clearTimeout(timer);
+  }, [mapDirty, isLoading, region, mapLayer, loadPlaces]);
+
+  // D-045 heat layer: from a district out, where verified things are happening now replaces the pins. The last answer
+  // stays drawn while the next one loads, and an empty or failed answer keeps the usual pins. Closer in the same
+  // aggregate is still read, only to say how lively the area is (`areaActivity`, "Yakınında şu an" panel).
+  const heatAvailable = isEnabled('heatLayer') && mapLayer !== 'places' && Math.max(region.latitudeDelta, region.longitudeDelta) <= HEAT_MAX_DELTA;
+  const heatView = heatAvailable && isHeatView(region);
+  const [heat, setHeat] = useState<PlaceHeat | null>(null);
+  useEffect(() => {
+    if (!heatAvailable) { setHeat(null); return undefined; }
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      getPlaceHeat(getBounds(region), controller.signal)
+        .then((next) => { if (!controller.signal.aborted) setHeat(next); })
+        .catch(() => { if (!controller.signal.aborted) setHeat(null); });
+    }, 400);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [heatAvailable, region]);
+  const heatInsteadOfPins = showsHeatInsteadOfPins(heatView, heat);
+  const areaLevel = heatView ? null : areaActivity(heat);
+
+  const openClusterCards = useCallback((item: RenderableMapCluster) => {
+    const ids = item.memberIds ?? [];
+    const memberPlaces = places.filter((place) => ids.includes(`place:${place.id}`));
+    const memberSignals = signals.filter((signal) => ids.includes(`signal:${signal.postId}`));
+    cardRequest.current?.abort();
+    const controller = new AbortController();
+    cardRequest.current = controller;
+    const key = `cluster:${item.id}`;
+    setCardView({ key, place: null, cards: memberSignals.map(fromCoordinateSignal), loading: memberPlaces.length > 0 });
+    Haptics.selectionAsync();
+    Promise.all(memberPlaces.map((place) => getPlace(place.id, controller.signal).then((detail) => ({ ...place, ...detail })).catch(() => place)))
+      .then((details) => {
+        if (controller.signal.aborted) return;
+        const placeCards = details.flatMap((place) => (place.recentSignals ?? []).map((signal) => fromRecentSignal(signal, place)));
+        setCardView((view) => (view?.key === key ? { ...view, cards: [...placeCards, ...view.cards], loading: false } : view));
+      });
+  }, [places, signals]);
 
   const expandCluster = useCallback((item: { latitude: number; longitude: number; expansionZoom: number }) => {
     const longitudeDelta = zoomToLongitudeDelta(item.expansionZoom);
@@ -355,38 +476,79 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
     }
   }, []);
 
+  /** The Sinyal Kartı for a place: shown at once with the place strip, filled with its recent signals when they arrive. */
+  const openPlaceCard = useCallback((place: BlinkrPlace) => {
+    cardRequest.current?.abort();
+    const controller = new AbortController();
+    cardRequest.current = controller;
+    const key = `place:${place.id}`;
+    setCardView({ key, place, cards: (place.recentSignals ?? []).map((signal) => fromRecentSignal(signal, place)), loading: true });
+    getPlace(place.id, controller.signal)
+      .then((detail) => {
+        if (controller.signal.aborted) return;
+        const full = { ...place, ...detail };
+        setCardView((view) => (view?.key === key ? { key, place: full, cards: (detail.recentSignals ?? []).map((signal) => fromRecentSignal(signal, full)), loading: false } : view));
+      })
+      .catch(() => { if (!controller.signal.aborted) setCardView((view) => (view?.key === key ? { ...view, loading: false } : view)); });
+  }, []);
+
   const openPlaceDetailAfterTouch = useCallback((place: BlinkrPlace) => {
+    track('pin_tapped', { is_place: true, is_cluster: false, signal_type: place.currentState?.signalType ?? undefined });
     const generation = ++overlayGeneration.current;
-    InteractionManager.runAfterInteractions(() => {
+    requestIdleCallback(() => {
       if (overlayGeneration.current !== generation) return;
       setSelectedSignal(null);
-      loadPlaceDetail(place);
-    });
+      openPlaceCard(place);
+    }, { timeout: 300 });
+  }, [openPlaceCard]);
+
+  /** The place page (the former bottom sheet), reached from the card's place row or strip. */
+  const openPlacePage = useCallback((place: BlinkrPlace) => {
+    cardRequest.current?.abort();
+    setCardView(null);
+    setSelectedSignal(null);
+    loadPlaceDetail(place);
   }, [loadPlaceDetail]);
 
   const openSignalDetailAfterTouch = useCallback((signal: CoordinateSignal) => {
+    track('pin_tapped', { is_place: false, is_cluster: false, signal_type: signal.signalType });
     const generation = ++overlayGeneration.current;
     detailRequest.current?.abort();
     detailRequestSeq.current += 1;
-    InteractionManager.runAfterInteractions(() => {
+    requestIdleCallback(() => {
       if (overlayGeneration.current !== generation) return;
-      setIsDetailLoading(false);
-      setSelectedPlace(null);
-      setSelectedDetail(null);
-      setSelectedSignal(signal);
-      const controller = new AbortController();
-      detailRequest.current = controller;
-      setIsDetailLoading(true);
-      getSignalContent(signal.postId, controller.signal).then(content => {
-        if (detailRequest.current === controller && overlayGeneration.current === generation)
-          setSelectedSignal({ ...signal, ...content });
-      }).catch(err => {
-        if (detailRequest.current === controller && !controller.signal.aborted) setError(friendlyError(err));
-      }).finally(() => {
-        if (detailRequest.current === controller) setIsDetailLoading(false);
-      });
-    });
+      cardRequest.current?.abort();
+      setCardView({ key: `signal:${signal.postId}`, place: null, cards: [fromCoordinateSignal(signal)], loading: false });
+    }, { timeout: 300 });
   }, []);
+
+  const confirmFromCard = useCallback(async (card: CardSignal) => {
+    if (!card.placeId || card.latitude === null || card.longitude === null) throw new Error(i18n.t('signal:card.confirmFailed'));
+    track('signal_verified', { verdict: 'same' });
+    const position = await getFreshDeviceLocation();
+    await createSignal(auth, {
+      title: '',
+      content: '',
+      signalType: card.signalType,
+      signalValue: card.signalValue,
+      placeId: card.placeId,
+      latitude: card.latitude,
+      longitude: card.longitude,
+      accuracyMeters: Math.round(position.coords.accuracy ?? 50),
+      observationLatitude: position.coords.latitude,
+      observationLongitude: position.coords.longitude,
+      observationAccuracyMeters: position.coords.accuracy ?? null,
+      locationName: card.placeName ?? '',
+      audienceType: 'Public',
+      identityDisclosure: 'LimitedProfile',
+      locationPrecision: 'PlaceCenter',
+    }, onAuthChange, onLogout);
+    void loadPlaces(currentRegion.current, true, mapLayer === 'places');
+  }, [auth, getFreshDeviceLocation, loadPlaces, mapLayer, onAuthChange, onLogout]);
+
+  const placeForCard = (card: CardSignal): BlinkrPlace | null => (card.placeId && card.latitude !== null && card.longitude !== null
+    ? cardView?.place?.id === card.placeId ? cardView.place : { id: card.placeId, name: card.placeName ?? '', category: card.placeCategory, latitude: card.latitude, longitude: card.longitude }
+    : null);
 
   const closeDetailSheet = useCallback(() => {
     overlayGeneration.current += 1;
@@ -409,7 +571,6 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
     setComposerOpen(false);
     setComposerArea(null);
     setPendingCapture(null);
-    setComposerInitialStep(0);
   }, [isCreating]);
 
   const moveToDeviceLocation = useCallback(async (requestPermission = true) => {
@@ -419,7 +580,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
     setCanAskLocationAgain(permission.canAskAgain);
     if (permission.status !== 'granted') {
       setLocationReadiness('permission-required');
-      throw new Error('Haritada konumunu göstermek için konum izni gerekiyor.');
+      throw new Error(tx('map:errors.permissionForMap', 'Haritada konumunu göstermek için konum izni gerekiyor.'));
     }
 
     const position = await getFreshDeviceLocation();
@@ -434,7 +595,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
     setLocationReadiness('ready');
     ignoreRegionChangeUntil.current = Date.now() + 900;
     mapRef.current?.animateToRegion(target, 450);
-    await loadPlaces(target, false, mapLayer === 'places');
+    await loadPlaces(target, false, mapLayerRef.current === 'places');
     return {
       accuracyMeters: Math.max(1, position.coords.accuracy ?? 25),
       observationAccuracyMeters: Math.max(1, position.coords.accuracy ?? 25),
@@ -442,9 +603,11 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
       observationLongitude: position.coords.longitude,
       region: target,
     };
-  }, [getFreshDeviceLocation, loadPlaces, mapLayer]);
+  }, [getFreshDeviceLocation, loadPlaces]);
 
   useEffect(() => {
+    // A saved Place opened from the profile brings its own viewport; do not recentre on the device.
+    if (focusPlace) return undefined;
     Location.getForegroundPermissionsAsync()
       .then(async (permission) => {
         setCanAskLocationAgain(permission.canAskAgain);
@@ -466,14 +629,27 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
       nearbyOwner.current.reset();
       nearbyLoadingRequest.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadPlaces, moveToDeviceLocation]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') loadPlaces(region, true, mapLayer === 'places');
+      if (state !== 'active') return;
+      // Back from the device settings with location now allowed (LocationPrimer): go to the device right away.
+      if (locationReadiness === 'permission-required') {
+        Location.getForegroundPermissionsAsync()
+          .then(async (permission) => {
+            setCanAskLocationAgain(permission.canAskAgain);
+            if (permission.status === 'granted') await moveToDeviceLocation(false);
+            else await loadPlaces(region, true, mapLayer === 'places');
+          })
+          .catch(() => loadPlaces(region, true, mapLayer === 'places'));
+        return;
+      }
+      loadPlaces(region, true, mapLayer === 'places');
     });
     return () => subscription.remove();
-  }, [loadPlaces, mapLayer, region]);
+  }, [loadPlaces, locationReadiness, mapLayer, moveToDeviceLocation, region]);
 
   useEffect(() => {
     if (mapLayer !== 'places') {
@@ -499,9 +675,9 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
       });
       const primary = address?.district || address?.subregion || address?.city || address?.region;
       const secondary = address?.city && address.city !== primary ? address.city : address?.region;
-      return [primary, secondary].filter(Boolean).join(', ') || 'Yaklaşık alan';
+      return [primary, secondary].filter(Boolean).join(', ') || tx('common:approxArea', 'Yaklaşık alan');
     } catch {
-      return 'Yaklaşık alan';
+      return tx('common:approxArea', 'Yaklaşık alan');
     }
   }, []);
 
@@ -521,7 +697,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
       let effectiveDistance = place.distanceMeters ?? null;
 
       if (permission.status === 'granted') {
-        const position = await getFreshDeviceLocation();
+    const position = await getFreshDeviceLocation();
         observationLatitude = position.coords.latitude;
         observationLongitude = position.coords.longitude;
         observationAccuracyMeters = Math.max(1, position.coords.accuracy ?? 25);
@@ -567,7 +743,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
 
     if (source === 'map') {
       if (region.latitudeDelta > 0.15 || region.longitudeDelta > 0.15) {
-        throw new Error('Alan seçmek için haritayı biraz daha yakınlaştır.');
+        throw new Error(tx('map:errors.zoomIn', 'Alan seçmek için haritayı biraz daha yakınlaştır.'));
       }
       const name = await resolveAreaName(region);
       if (generation !== composerGeneration.current) return;
@@ -589,7 +765,7 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
     setCanAskLocationAgain(permission.canAskAgain);
     if (permission.status !== 'granted') {
       setLocationReadiness('permission-required');
-      throw new Error('Yakındaki yerleri görmek için konum izni gerekiyor.');
+      throw new Error(tx('map:errors.permissionForNearby', 'Yakındaki yerleri görmek için konum izni gerekiyor.'));
     }
     const position = await getFreshDeviceLocation();
     if (generation !== composerGeneration.current) return;
@@ -610,18 +786,25 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
       observationLongitude: position.coords.longitude,
       region: target,
     };
-    setComposerArea({ ...location, name: 'Yaklaşık alan', source });
+    setComposerArea({ ...location, name: tx('common:approxArea', 'Yaklaşık alan'), source });
     void loadNearbyPlaces(location.region, 'DEVICE', reason, { accuracyMeters: position.coords.accuracy, timestamp: position.timestamp });
     const name = await resolveAreaName(location.region);
     if (generation === composerGeneration.current) setComposerArea({ ...location, name, source });
   }, [auth, onAuthChange, onLogout, getFreshDeviceLocation, loadNearbyPlaces, region, resolveAreaName]);
 
-  const openComposer = (place?: BlinkrPlace | null, initialStep = 0) => {
-    const opening = ++composerGeneration.current;
+  const openComposer = (place?: BlinkrPlace | null, initialSignal: { type: SignalType; value: string | null } | null = null, keepArea = false) => {
     closeDetailSheet();
-    setProfileOpen(false);
+    setComposerInitialSignal(initialSignal);
+    setComposerError(null);
+    // After the camera (D3) the device fix and nearby places are already here: keep them instead of asking again.
+    if (keepArea && !place && composerArea) {
+      setComposerOpen(true);
+      if (cameraPlace?.place) selectComposerArea('map', cameraPlace.place, 'COMPOSER_OPEN').catch((err) => setComposerError(friendlyError(err)));
+      return;
+    }
+    const opening = ++composerGeneration.current;
     setComposerArea(null);
-    setComposerInitialStep(initialStep);
+    setComposerInitialSignal(initialSignal);
     nearbyOwner.current.reset();
     setComposerError(null);
     setComposerOpen(true);
@@ -643,72 +826,321 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
       .catch(() => setLocationReadiness('unavailable'));
   };
 
-  const openCameraSignal = async () => {
-    if (isCreating) return;
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (permission.status !== 'granted') {
-      setComposerError('Kamera izni gerekiyor.');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({ allowsEditing: false, mediaTypes: ['images', 'videos'], quality: 0.84, videoMaxDuration: 45 });
-    if (result.canceled || !result.assets[0]) return;
-    setPendingCapture(result.assets[0]);
-    openComposer(selectedPlace, 1);
+  // (+) tap: camera (own UI with lenses and a gallery button); long press: a signal without media. Both end in the same composer.
+  // plan-devam D3: the camera takes the position while it is open (only if location is already allowed - it never
+  // asks here), so the nearest place can be shown on the preview and the composer starts with it.
+  const startCamera = () => {
+    setCameraOpen(true);
+    if (isComposerOpen) return;
+    composerGeneration.current += 1;
+    setComposerArea(null);
+    nearbyOwner.current.reset();
+    Location.getForegroundPermissionsAsync()
+      .then((permission) => (permission.status === 'granted' ? selectComposerArea('device', null, 'COMPOSER_OPEN') : undefined))
+      .catch(() => { /* the composer asks again when it opens */ });
+  };
+  const cameraPlace = useMemo(() => suggestCameraPlace(composerArea, nearbyPlaces), [composerArea, nearbyPlaces]);
+
+  const handleCaptured = (asset: CapturedMedia) => {
+    setCameraOpen(false);
+    setPendingCapture(asset);
+    if (!isComposerOpen) openComposer(selectedPlace, asset.signalHint ?? null, true);
   };
 
-  const submitSignal = async (
-    input: Omit<CreateSignalInput, 'latitude' | 'longitude' | 'accuracyMeters' | 'locationName'>,
-  ) => {
+  const startSignalOnly = () => {
+    openComposer(selectedPlace);
+  };
+
+  // plan-devam D9: once a share is out, show it - fly there and reload until the new pin is in the answer.
+  const revealShared = useCallback(async ({ postId, item }: SharedResult) => {
+    track('signal_created', { signal_type: item.input.signalType, has_media: item.media.length > 0, source: item.input.placeId ? 'place' : 'coordinate', is_anonymous: item.input.identityDisclosure === 'AnonymousMap', to_story: item.story, snap_recipients: item.snapFriendIds.length });
+    setSuccess(i18n.t(item.story ? 'create:outbox.doneStory' : 'create:outbox.done'));
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await wait(1200);
+      const map = await loadPlaces(currentRegion.current, true, mapLayerRef.current === 'places');
+      if (map?.signals.some((s) => s.postId === postId) || (item.input.placeId && map?.places.some((p) => p.id === item.input.placeId))) break;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const outbox = useShareOutbox({
+    auth,
+    refresh: { onAuthRefresh: onAuthChange, onSessionExpired: onLogout },
+    onShared: (result) => { void revealShared(result); },
+    onRefused: () => { void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); },
+  });
+
+  // Gönder: take a fresh fix for a place signal (the server decides trust from where the person really is), hand the
+  // share to the outbox and close at once. Uploading and publishing go on in the background, and wait for a
+  // connection if there is none.
+  const submitSignal = async (input: ComposerInput, extras: ComposerExtras) => {
     if (submissionInFlight.current) return;
     submissionInFlight.current = true;
     setIsCreating(true);
     setComposerError(null);
     try {
-      if (!composerArea) throw new Error('Önce sinyalin ait olduğu yeri veya alanı seç.');
+      if (!composerArea) throw new Error(tx('map:errors.pickPlace', 'Önce sinyalin ait olduğu yeri veya alanı seç.'));
       const position = composerArea.place ? await getFreshDeviceLocation() : null;
-      const postId = await createSignal(auth, {
-        ...input,
-        accuracyMeters: composerArea.accuracyMeters,
-        latitude: composerArea.region.latitude,
-        longitude: composerArea.region.longitude,
-        observationAccuracyMeters: position?.coords.accuracy ?? composerArea.observationAccuracyMeters,
-        observationLatitude: position?.coords.latitude ?? composerArea.observationLatitude,
-        observationLongitude: position?.coords.longitude ?? composerArea.observationLongitude,
-        proximityAllowed: composerArea.proximity?.allowed ?? null,
-        proximityDistanceMeters: composerArea.proximity?.distanceMeters ?? null,
-        locationName: composerArea.name,
-      }, onAuthChange, onLogout);
+      const item: OutboxItem = {
+        id: newOutboxId(),
+        createdAtUtc: new Date().toISOString(),
+        attempts: 0,
+        nextAttemptAt: 0,
+        status: 'pending',
+        story: extras.story,
+        snapFriendIds: extras.snapFriendIds,
+        media: extras.media.map((m) => ({ localUri: m.uri, kind: m.kind, mimeType: m.mimeType, fileName: m.fileName })),
+        input: {
+          ...input,
+          accuracyMeters: composerArea.accuracyMeters,
+          latitude: composerArea.region.latitude,
+          longitude: composerArea.region.longitude,
+          observationAccuracyMeters: position?.coords.accuracy ?? composerArea.observationAccuracyMeters,
+          observationLatitude: position?.coords.latitude ?? composerArea.observationLatitude,
+          observationLongitude: position?.coords.longitude ?? composerArea.observationLongitude,
+          proximityAllowed: composerArea.proximity?.allowed ?? null,
+          proximityDistanceMeters: composerArea.proximity?.distanceMeters ?? null,
+          locationName: composerArea.name,
+        },
+      };
+      await outbox.enqueue(item);
       setComposerOpen(false);
+      setPendingCapture(null);
       composerGeneration.current += 1;
       nearbyRequest.current?.abort();
       nearbyOwner.current.reset();
-      setSuccess('Yayınlandı. Haritaya ekleniyor.');
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       const target = { ...composerArea.region, latitudeDelta: 0.01, longitudeDelta: 0.01 };
       currentRegion.current = target;
       setRegion(target);
       mapRef.current?.animateToRegion(target, 350);
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        await wait(1200);
-        const map = await loadPlaces(currentRegion.current, true, mapLayer === 'places');
-        if (map?.signals.some(s => s.postId === postId) || map?.places.some(p => p.id === composerArea.place?.id)) break;
-      }
     } catch (err) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setComposerError(friendlyError(err, 'Paylaşım tamamlanamadı. Tekrar dene.'));
+      setComposerError(friendlyError(err, tx('map:errors.shareFailed', 'Paylaşım tamamlanamadı. Tekrar dene.')));
     } finally {
       submissionInFlight.current = false;
       setIsCreating(false);
     }
   };
 
+  // v4 step 6: (+) opens the two-tap quick signal. The place comes from the position - the nearest place within 100 m,
+  // the same rule as the camera chip - and, without one, the full composer's place picker takes over.
+  const [quick, setQuick] = useState<{ place: BlinkrPlace | null; initial: QuickState | null; key: number } | null>(null);
+  const [quickError, setQuickError] = useState<string | null>(null);
+  const [quickSending, setQuickSending] = useState(false);
+  const [quickPresence, setQuickPresence] = useState<QuickPresence | null>(null);
+  const presenceSeq = useRef(0);
+  const startQuick = (place: BlinkrPlace | null = null, initial: QuickState | null = null) => {
+    closeDetailSheet();
+    setQuickError(null);
+    setQuickPresence(null);
+    setQuick({ place, initial, key: Date.now() });
+    if (place) return;
+    composerGeneration.current += 1;
+    setComposerArea(null);
+    nearbyOwner.current.reset();
+    // An older list was measured from another fix (or the map centre): never offer a place from it.
+    setNearbyPlaces([]);
+    setNearbyStatus('LOADING');
+    // Asking here is fine: the person just pressed (+) to share where they are.
+    Location.getForegroundPermissionsAsync()
+      .then(async (permission) => {
+        const granted = permission.status === 'granted' ? permission : permission.canAskAgain ? await Location.requestForegroundPermissionsAsync() : permission;
+        setCanAskLocationAgain(granted.canAskAgain);
+        if (granted.status !== 'granted') { setLocationReadiness('permission-required'); return; }
+        await selectComposerArea('device', null, 'COMPOSER_OPEN');
+      })
+      .catch(() => setLocationReadiness('unavailable'));
+  };
+  const closeQuick = () => {
+    if (quickSending) return;
+    presenceSeq.current += 1;
+    setQuickPresence(null);
+    setQuick(null);
+    composerGeneration.current += 1;
+    nearbyRequest.current?.abort();
+    nearbyOwner.current.reset();
+  };
+  // The suggested place only comes from a list that answered for the current fix.
+  const quickPlace = quick ? quick.place ?? (nearbyStatus === 'READY' ? cameraPlace?.place ?? null : null) : null;
+  const quickLocating = Boolean(quick && !quickPlace
+    && locationReadiness !== 'permission-required' && locationReadiness !== 'unavailable'
+    && (!composerArea || nearbyStatus === 'LOADING'));
+  const quickNoPlaceReason: QuickNoPlaceReason = locationReadiness === 'permission-required' ? 'permission'
+    : locationReadiness === 'unavailable' || nearbyStatus === 'FAILED' ? 'unavailable'
+    : nearbyStatus === 'NOT_LOADED' ? 'catalog' : 'none';
+
+  // The server decides whether this person may post here and with what trust (place-presence), before Paylaş.
+  const quickPlaceId = quickPlace?.id ?? null;
+  useEffect(() => {
+    if (!quickPlaceId || !quickPlace) return;
+    const seq = ++presenceSeq.current;
+    const place = quickPlace;
+    setQuickPresence({ status: 'checking' });
+    (async () => {
+      try {
+        const current = await Location.getForegroundPermissionsAsync();
+        const permission = current.status === 'granted' || !current.canAskAgain ? current : await Location.requestForegroundPermissionsAsync();
+        if (permission.status !== 'granted') {
+          if (seq === presenceSeq.current) setQuickPresence({ status: 'error', reason: 'permission' });
+          return;
+        }
+        const position = await getFreshDeviceLocation();
+        const presence = await previewPresence(auth, {
+          placeId: place.id, latitude: position.coords.latitude, longitude: position.coords.longitude,
+          accuracyMeters: Math.max(1, position.coords.accuracy ?? 25),
+        }, onAuthChange, onLogout);
+        if (seq !== presenceSeq.current) return;
+        setQuickPresence({ status: 'ok', allowed: presence.isAllowed, trustLevel: presence.trustLevel, distanceMeters: presence.effectiveDistanceMeters ?? presence.distanceMeters });
+      } catch {
+        if (seq === presenceSeq.current) setQuickPresence({ status: 'error', reason: 'unavailable' });
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quickPlaceId]);
+  // "Değiştir" / "Yer seç": the full composer with its place picker, keeping the chosen type and value.
+  const quickToComposer = (state: QuickState) => {
+    if (quickSending) return;
+    presenceSeq.current += 1;
+    setQuickPresence(null);
+    const given = quick?.place ?? null;
+    setQuick(null);
+    const initial = state.tile ? { type: TILE_TYPE[state.tile], value: state.value ?? TILE_AUTO_VALUE[state.tile] ?? null } : null;
+    openComposer(given, initial, !given);
+  };
+  const submitQuick = async (state: QuickState, media: QuickMedia[]) => {
+    const place = quickPlace;
+    if (!place || submissionInFlight.current || quickPresence?.status !== 'ok' || !quickPresence.allowed) return;
+    submissionInFlight.current = true;
+    setQuickSending(true);
+    setQuickError(null);
+    try {
+      // A fresh fix: the server decides trust from where the person really is; the post itself sits at the place.
+      const position = await getFreshDeviceLocation();
+      const body = buildPostBody(state, { placeId: place.id, name: place.name, latitude: place.latitude, longitude: place.longitude },
+        { latitude: position.coords.latitude, longitude: position.coords.longitude, accuracyMeters: position.coords.accuracy ?? 50 });
+      const item: OutboxItem = {
+        id: newOutboxId(),
+        createdAtUtc: new Date().toISOString(),
+        attempts: 0,
+        nextAttemptAt: 0,
+        status: 'pending',
+        story: false,
+        snapFriendIds: [],
+        media: media.map((m) => ({ localUri: m.uri, kind: m.kind, mimeType: m.mimeType, fileName: m.fileName })),
+        input: {
+          ...body,
+          // The server needs a title or a text: a photo-only signal carries its type name, which lists hide (cardText).
+          title: body.content ? '' : SIGNAL_CATALOG[body.signalType].label,
+          mediaCapturedAtUtc: oldestCapture(media.map((m) => m.capturedAt))?.toISOString() ?? null,
+        },
+      };
+      await outbox.enqueue(item);
+      presenceSeq.current += 1;
+      setQuickPresence(null);
+      setQuick(null);
+      composerGeneration.current += 1;
+      nearbyRequest.current?.abort();
+      nearbyOwner.current.reset();
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const target = { latitude: place.latitude, longitude: place.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 };
+      currentRegion.current = target;
+      setRegion(target);
+      mapRef.current?.animateToRegion(target, 350);
+    } catch (err) {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setQuickError(friendlyError(err, tx('map:errors.shareFailed', 'Paylaşım tamamlanamadı. Tekrar dene.')));
+    } finally {
+      submissionInFlight.current = false;
+      setQuickSending(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!shareRequested) return;
+    const mode = shareRequested;
+    onShareHandled?.();
+    if (isCreating) return;
+    if (mode === 'text') startSignalOnly();
+    else if (mode === 'quick') startQuick(null);
+    else startCamera();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shareRequested]);
+
+  // "Nereye gidiyorsun?" results: fly to the Place and open its detail, or just move the map to an address.
+  const flyToPlace = useCallback((place: BlinkrPlace) => {
+    const target: Region = { latitude: place.latitude, longitude: place.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 };
+    setSearchOpen(false);
+    currentRegion.current = target;
+    setRegion(target);
+    ignoreRegionChangeUntil.current = Date.now() + 1200;
+    setTimeout(() => mapRef.current?.animateToRegion(target, 450), 250);
+    void loadPlaces(target, true, mapLayerRef.current === 'places');
+    openPlaceDetailAfterTouch(place);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openPlaceDetailAfterTouch]);
+
+  const flyToLocation = useCallback((target: { latitude: number; longitude: number }) => {
+    const next: Region = { latitude: target.latitude, longitude: target.longitude, latitudeDelta: 0.03, longitudeDelta: 0.03 };
+    setSearchOpen(false);
+    currentRegion.current = next;
+    setRegion(next);
+    ignoreRegionChangeUntil.current = Date.now() + 1200;
+    setTimeout(() => mapRef.current?.animateToRegion(next, 450), 250);
+    void loadPlaces(next, true, mapLayerRef.current === 'places');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!focusPlace) return undefined;
+    const target: Region = { latitude: focusPlace.latitude, longitude: focusPlace.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 };
+    const place = focusPlace;
+    onFocusHandled?.();
+    currentRegion.current = target;
+    setRegion(target);
+    ignoreRegionChangeUntil.current = Date.now() + 1200;
+    // The native map is not always ready to animate on the very first frame after mount.
+    const timer = setTimeout(() => mapRef.current?.animateToRegion(target, 450), 350);
+    void loadPlaces(target, true, mapLayerRef.current === 'places');
+    openPlaceDetailAfterTouch(place);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusPlace]);
+
+  useEffect(() => {
+    if (!focusSignal) return undefined;
+    const target: Region = { latitude: focusSignal.latitude, longitude: focusSignal.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 };
+    const signal = focusSignal;
+    onFocusSignalHandled?.();
+    currentRegion.current = target;
+    setRegion(target);
+    ignoreRegionChangeUntil.current = Date.now() + 1200;
+    const timer = setTimeout(() => mapRef.current?.animateToRegion(target, 450), 350);
+    void loadPlaces(target, true, mapLayerRef.current === 'places');
+    openSignalDetailAfterTouch(signal);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusSignal]);
+
+  const overlayOpen = isComposerOpen || Boolean(quick) || searchOpen || cameraOpen || Boolean(selectedPlace) || Boolean(selectedSignal) || Boolean(searchProfileUser) || Boolean(cardView);
+  const showLocationPrimer = !overlayOpen && !focusPlace && !primerDismissed && locationReadiness === 'permission-required';
+  const showNearbyNow = !overlayOpen && !showLocationPrimer && nearbyNow.length > 0;
+  const nowOffset = showNearbyNow ? nearbyNowHeight : 0;
+  useEffect(() => { onOverlayOpenChange?.(overlayOpen); }, [overlayOpen, onOverlayOpenChange]);
+
+  const chromeTop = insets.top + 140;
+
   return (
     <View style={styles.screen}>
       <MapView
-        customMapStyle={Platform.OS === 'android' ? mapDarkStyle : undefined}
-        initialRegion={ISTANBUL_REGION}
-        mapPadding={{ top: 158, right: 14, bottom: 126, left: 14 }}
+        customMapStyle={Platform.OS === 'android' ? (getThemeMode() === 'dark' ? mapDarkStyle : mapLightStyle) : undefined}
+        // iOS (Apple Maps) cannot take a custom style; its muted map lets Blinkr's own pins carry the colour.
+        mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+        initialRegion={focusPlace ? { latitude: focusPlace.latitude, longitude: focusPlace.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 } : ISTANBUL_REGION}
+        // Android: setting padding before Google Maps is ready crashes natively ("setMapPadding ... null object
+        // reference" - seen on an emulator whose Maps module loads slowly), so it waits for onMapReady.
+        mapPadding={mapReady ? { top: chromeTop, right: 14, bottom: bottomBarClearance(insets.bottom) + nowOffset, left: 14 } : undefined}
+        onMapReady={() => setMapReady(true)}
         onRegionChangeComplete={handleRegionChangeComplete}
         pitchEnabled={false}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
@@ -716,133 +1148,132 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
         rotateEnabled={false}
         showsCompass={false}
         showsMyLocationButton={false}
-        showsPointsOfInterests
+        // Apple Maps POIs are not Blinkr data and do nothing when tapped (CLAUDE.md §11; Android hides them in its style).
+        showsPointsOfInterests={false}
         showsScale={false}
         showsUserLocation={locationReadiness === 'ready'}
         style={StyleSheet.absoluteFill}
         toolbarEnabled={false}
-        userInterfaceStyle="dark"
+        userInterfaceStyle={getThemeMode()}
       >
-        {mapItems.map(item => item.type === 'cluster'
-          ? <BlinkrClusterMarker key={item.id} latitude={item.latitude} longitude={item.longitude} count={item.pointCount} onPress={() => expandCluster(item)} />
-          : <BlinkrMapMarker key={item.id} place={markerLookup.places.get(item.id)} signal={markerLookup.signals.get(item.id)} now={now}
-              selected={item.id === `place:${selectedPlace?.id}` || item.id === `signal:${selectedSignal?.postId}`} onPlace={openPlaceDetailAfterTouch} onSignal={openSignalDetailAfterTouch} />)}
+        {heatInsteadOfPins && heat ? heat.cells.map((cell) => (
+          <Circle
+            center={{ latitude: cell.latitude, longitude: cell.longitude }}
+            fillColor={withAlpha(colors.primary, heatAlpha(cell.level))}
+            key={`heat:${cell.latitude}:${cell.longitude}:${cell.level}`}
+            radius={heatRadiusMeters(heat.cellDegrees)}
+            strokeColor={withAlpha(colors.primary, 0)}
+            strokeWidth={0}
+          />
+        )) : null}
+        {(heatInsteadOfPins ? [] : mapItems).map((item) => {
+          if (item.type === 'cluster') {
+            const { calm, busy, crowded, other } = item.mix;
+            return <BlinkrClusterMarker count={item.pointCount} key={`${item.id}:${calm}.${busy}.${crowded}.${other}`} latitude={item.latitude} longitude={item.longitude} mix={item.mix}
+              onPress={() => (item.memberIds?.length ? openClusterCards(item) : expandCluster(item))} />;
+          }
+          const selected = item.id === `place:${selectedPlace?.id}` || item.id === `signal:${selectedSignal?.postId}` || item.id === cardView?.key;
+          const place = markerLookup.places.get(item.id);
+          const state = place ? placeStates.get(place.id) : undefined;
+          if (place && state) {
+            const tag = selected || showPinTags;
+            // The key is the picture: ring look, the word and (when the tag is drawn) its age, the selection. A quiet pin
+            // draws no tag, so crossing the tag zoom does not remount it.
+            const parts = pinTagParts(state);
+            const drawn = tag && parts.state.length > 0;
+            const look = `${liveRenderKey(state)}.${parts.state}.${drawn ? parts.age : '-'}.${selected ? 1 : 0}`;
+            return <BlinkrPlaceMarker key={`${item.id}:${look}`} onPlace={openPlaceDetailAfterTouch} place={place} selected={selected} showTag={tag} state={state} />;
+          }
+          const signal = markerLookup.signals.get(item.id);
+          if (!signal) return null;
+          const pinState = signalPinState(signal, now);
+          const words = signalTagParts(pinState);
+          // The key is the picture: ring look, the word and age, the selection.
+          return <BlinkrSignalMarker key={`${item.id}:${liveRenderKey(pinState)}.${words.state}.${words.age}.${selected ? 1 : 0}`} onSignal={openSignalDetailAfterTouch} selected={selected} signal={signal} state={pinState} />;
+        })}
       </MapView>
 
-      {!isLoading && !error && visibleItemCount === 0 && !isComposerOpen && !isProfileOpen && !selectedPlace && !selectedSignal && (
-        <Animated.View entering={FadeInDown.duration(320).springify().damping(15)} style={[styles.emptyMap, { bottom: insets.bottom + 148 }]}>
-          <Text style={styles.emptyMapText}>Bu bölgede henüz taze sinyal yok.</Text>
-          <AnimatedPressable onPress={() => openComposer()} pressScale={0.94} style={styles.emptyMapAction}><Plus color={colors.green} size={18} /><Text style={styles.emptyMapLink}>İlk sinyali bırak</Text></AnimatedPressable>
+      {showLocationPrimer ? (
+        <LocationPrimer
+          bottom={bottomBarClearance(insets.bottom) + 12}
+          canAskAgain={canAskLocationAgain}
+          onAllow={() => moveToDeviceLocation(true).catch((err) => setError(friendlyError(err)))}
+          onDismiss={() => setPrimerDismissed(true)}
+          onOpenSettings={() => Linking.openSettings().catch(() => setError(tx('map:errors.settingsFailed', 'Cihaz ayarları açılamadı.')))}
+        />
+      ) : null}
+
+      {!showLocationPrimer && !isLoading && !error && visibleItemCount === 0 && !isComposerOpen && !selectedPlace && !selectedSignal && (
+        <Animated.View entering={FadeIn.duration(motion.base)} style={[styles.emptyMap, { bottom: bottomBarClearance(insets.bottom) + 12 }]}>
+          {/* plan-devam C11: one calm band instead of a count badge - what is here, and the next step. */}
+          <Text style={styles.emptyMapText}>{i18n.t('map:empty.title')}</Text>
+          <AnimatedPressable accessibilityRole="button" onPress={() => openComposer()} style={styles.emptyMapAction} testID="map-empty-action"><Plus color={colors.mint} size={18} /><Text style={styles.emptyMapLink}>{i18n.t('map:empty.action')}</Text></AnimatedPressable>
         </Animated.View>
       )}
 
-      <SafeAreaView edges={['top']} pointerEvents="box-none" style={styles.topOverlay}>
-        <View style={styles.topBar}>
-          <View style={styles.brandMark}>
-            <BlinkrMark size={30} />
-          </View>
-          <View style={styles.brandCopy}>
-            <Text style={styles.brand}>blinkr</Text>
-            <View style={styles.liveStatus}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveStatusText}>CANLI ÇEVRE</Text>
-              <Text style={styles.visibleCount}>· {visibleItemCount} görünür</Text>
-            </View>
-          </View>
-          <AnimatedPressable accessibilityLabel="Profili aç" onPress={() => setProfileOpen(true)} pressScale={0.9} style={styles.avatar}>
-            <Text style={styles.avatarText}>{auth.userName.slice(0, 1).toUpperCase()}</Text>
-          </AnimatedPressable>
-        </View>
+      <MapTopChrome
+        nowFilters={nowFilters}
+        onToggleNow={(id) => { toggleNowFilter(id); Haptics.selectionAsync(); }}
+        isLoading={isLoading}
+        layer={mapLayer}
+        onLayerChange={(layer) => { setMapLayer(layer); Haptics.selectionAsync(); }}
+        onLocate={() => moveToDeviceLocation(true).catch((err) => setError(friendlyError(err)))}
+        onOpenProfile={onOpenProfile}
+        onShowList={onShowList}
+        onScan={scanVisibleArea}
+        scanAvailable={Boolean(error) && mapDirty}
+        avatarKey={auth.avatarKey}
+        onOpenSearch={() => { setSearchOrigin({ latitude: currentRegion.current.latitude, longitude: currentRegion.current.longitude }); setSearchOpen(true); }}
+        topInset={insets.top}
+        userId={auth.userId}
+        userName={auth.userName}
+      />
 
-        <View style={styles.layerControl}>
-          <Layers3 color={colors.muted} size={15} />
-          {mapLayers.map((layer) => (
-            <AnimatedPressable
-              accessibilityRole="button"
-              key={layer.key}
-              onPress={() => {
-                setMapLayer(layer.key);
-                Haptics.selectionAsync();
-              }}
-              pressScale={0.92}
-              style={[styles.layerOption, mapLayer === layer.key && styles.layerOptionActive]}
-            >
-              <Text style={[styles.layerText, mapLayer === layer.key && styles.layerTextActive]}>{layer.label}</Text>
-            </AnimatedPressable>
-          ))}
-        </View>
-
-        {mapDirty && (
-          <Animated.View entering={FadeInDown.duration(220).springify().damping(16)}>
-            <AnimatedPressable disabled={isLoading} onPress={scanVisibleArea} pressScale={0.94} style={styles.searchAreaButton}>
-              {isLoading ? <ActivityIndicator color={colors.white} size="small" /> : <RefreshCw color={colors.white} size={16} />}
-              <Text style={styles.searchAreaText}>{isLoading ? 'Taranıyor' : 'Bu alanı tara'}</Text>
-            </AnimatedPressable>
-          </Animated.View>
-        )}
-      </SafeAreaView>
-
-      <View pointerEvents="box-none" style={[styles.mapActions, { bottom: insets.bottom + 88 }]}>
-        {!mapDirty && isLoading && (
-          <View style={styles.loadingBadge}>
-            <ActivityIndicator color={colors.green} size="small" />
-            <Text style={styles.loadingText}>Çevre güncelleniyor</Text>
-          </View>
-        )}
-        <AnimatedPressable
-          accessibilityLabel="Konumuma git"
-          onPress={() => moveToDeviceLocation(true).catch((err) => setError(friendlyError(err)))}
-          pressScale={0.88}
-          style={styles.locateButton}
-        >
-          <Navigation2 color={colors.ink} fill={colors.blueSoft} size={21} strokeWidth={2.4} />
-        </AnimatedPressable>
-      </View>
-
+      {showNearbyNow ? <NearbyNowSheet areaLevel={areaLevel} areaName={nearbyAreaName} bottom={bottomBarClearance(insets.bottom)} items={nearbyNow} onHeight={setNearbyNowHeight} onOpen={openPlaceDetailAfterTouch} onShowList={onShowList} /> : null}
+      {!isComposerOpen ? <ShareProgressChip bottom={bottomBarClearance(insets.bottom) + 8 + nowOffset} items={outbox.items} onDiscard={outbox.discard} onRetry={outbox.retry} /> : null}
       {(success || error) && (
-        <Animated.View entering={FadeInDown.duration(260).springify().damping(15)} style={[styles.toast, error ? styles.errorToast : styles.successToast, { top: insets.top + 145 }]}>
-          {error ? <Wifi color={colors.error} size={18} /> : <CheckCircle2 color={colors.greenDark} size={18} />}
+        <Animated.View entering={FadeIn.duration(motion.base)} style={[styles.toast, error ? styles.errorToast : styles.successToast, { bottom: bottomBarClearance(insets.bottom) + 8 + nowOffset + (outbox.items.length > 0 ? 60 : 0) }]}>
+          {error ? <Wifi color={colors.danger} size={18} /> : <CheckCircle2 color={colors.mint} size={18} />}
           <Text style={[styles.toastText, error && styles.errorToastText]} numberOfLines={3}>
             {error || success}
           </Text>
-          <AnimatedPressable accessibilityLabel="Bildirimi kapat" hitSlop={10} onPress={() => { setError(null); setSuccess(null); }} pressScale={0.85}>
-            <X color={error ? colors.error : colors.greenDark} size={18} />
+          <AnimatedPressable accessibilityLabel={tx('map:closeNotice', 'Bildirimi kapat')} accessibilityRole="button" hitSlop={10} onPress={() => { setError(null); setSuccess(null); }} pressScale={0.85}>
+            <X color={error ? colors.danger : colors.mint} size={18} />
           </AnimatedPressable>
         </Animated.View>
       )}
 
-      <View pointerEvents="box-none" style={[styles.bottomNavWrap, { bottom: Math.max(insets.bottom, 8) }]}>
-        <View style={styles.bottomNav}>
-          <AnimatedPressable accessibilityLabel="Sohbet" onPress={onOpenChat} pressScale={0.92} style={styles.navItem}>
-            <MessageCircle color={colors.muted} size={21} strokeWidth={2.3} />
-            <Text style={styles.navLabel}>Sohbet</Text>
-          </AnimatedPressable>
-          <AnimatedPressable accessibilityLabel="Harita" pressScale={0.92} style={styles.navItem}>
-            <View style={styles.navIconActive}><MapIcon color={colors.greenDark} size={20} strokeWidth={2.6} /></View>
-            <Text style={[styles.navLabel, styles.navLabelActive]}>Harita</Text>
-          </AnimatedPressable>
-          <AnimatedPressable
-            accessibilityLabel="Kamerayla sinyal paylaş"
-            disabled={isCreating}
-            onPress={openCameraSignal}
-            pressScale={0.88}
-            style={styles.createButton}
-          >
-            <Camera color={colors.ink} size={24} strokeWidth={2.6} />
-          </AnimatedPressable>
-          <AnimatedPressable accessibilityLabel="Profil" onPress={() => setProfileOpen(true)} pressScale={0.92} style={styles.navItem}>
-            <UserRound color={colors.muted} size={21} strokeWidth={2.3} />
-            <Text style={styles.navLabel}>Profil</Text>
-          </AnimatedPressable>
-        </View>
-      </View>
+      {quick ? (
+        <Sheet onClose={closeQuick}>
+          <BlinkrSheetPanel maxHeightRatio={0.94}>
+            <QuickSignalSheet
+              error={quickError}
+              initial={quick.initial}
+              key={quick.key}
+              locating={quickLocating}
+              noPlaceReason={quickNoPlaceReason}
+              onChangePlace={quickToComposer}
+              onClose={closeQuick}
+              onSubmit={(state, media) => { void submitQuick(state, media); }}
+              place={quickPlace ? {
+                id: quickPlace.id,
+                name: quickPlace.name,
+                category: quickPlace.category,
+                state: liveStateFromPlace(quickPlace, now),
+              } : null}
+              presence={quickPresence}
+              submitting={quickSending}
+            />
+          </BlinkrSheetPanel>
+        </Sheet>
+      ) : null}
 
       {isComposerOpen && <SignalComposer
         area={composerArea}
         auth={auth}
         canAskLocationAgain={canAskLocationAgain}
         error={composerError}
-        initialStep={composerInitialStep}
+        initialSignal={composerInitialSignal}
         isSubmitting={isCreating}
         locationReadiness={locationReadiness}
         nearbyCoverageState={nearbyCoverageState}
@@ -852,124 +1283,87 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenChat }: Props) {
         onClearError={() => setComposerError(null)}
         onClose={closeComposer}
         onOpenSettings={() => {
-          Linking.openSettings().catch(() => setComposerError('Cihaz ayarları açılamadı.'));
+          Linking.openSettings().catch(() => setComposerError(tx('map:errors.settingsFailed', 'Cihaz ayarları açılamadı.')));
         }}
+        onRequestCamera={() => setCameraOpen(true)}
         onSelectArea={selectComposerArea}
         onSessionExpired={onLogout}
         onSubmit={submitSignal}
         pendingCapture={pendingCapture}
         visible={isComposerOpen}
       />}
-      {!isComposerOpen && !isProfileOpen && <PostDetailSheet
+      {searchOpen && (
+        <MapSearchOverlay
+          auth={auth}
+          onClose={() => setSearchOpen(false)}
+          onSelectLocation={flyToLocation}
+          onSelectPerson={(user) => { setSearchOpen(false); setSearchProfileUser(user); }}
+          onSelectPlace={flyToPlace}
+          origin={searchOrigin}
+        />
+      )}
+
+      {searchProfileUser ? (
+        <UserProfileSheet
+          auth={auth}
+          onAuthChange={onAuthChange}
+          onClose={() => setSearchProfileUser(null)}
+          onMessage={(user) => { setSearchProfileUser(null); onMessageUser?.(user); }}
+          onSessionExpired={onLogout}
+          user={searchProfileUser}
+        />
+      ) : null}
+      {cameraOpen && <View style={styles.cameraLayer}><SignalCamera onCapture={handleCaptured} onClose={() => setCameraOpen(false)} place={isComposerOpen ? null : cameraPlace} onTextOnly={() => { setCameraOpen(false); startSignalOnly(); }} /></View>}
+      {cardView && !isComposerOpen ? (
+        <SignalCardModal
+          auth={auth}
+          cards={cardView.cards}
+          deviceOrigin={deviceSnapshot.current && Date.now() - deviceSnapshot.current.timestamp < MAX_NEARBY_LOCATION_AGE_MS ? deviceSnapshot.current : null}
+          key={cardView.key}
+          loading={cardView.loading}
+          onChanged={(card) => { const target = placeForCard(card); setCardView(null); openComposer(target, { type: card.signalType, value: null }); }}
+          onClose={() => { cardRequest.current?.abort(); setCardView(null); }}
+          onConfirm={confirmFromCard}
+          onCreateSignal={cardView.place ? () => { const target = cardView.place; setCardView(null); startQuick(target as BlinkrPlace); } : undefined}
+          onDeleted={() => { void loadPlaces(currentRegion.current, true, mapLayer === 'places'); }}
+          onOpenAuthor={(user) => { setCardView(null); setSearchProfileUser({ id: user.id, userName: user.userName }); }}
+          onOpenHashtag={onOpenHashtag}
+          onOpenPlace={cardView.place ? () => openPlacePage(cardView.place!) : undefined}
+          place={cardView.place}
+          refresh={{ onAuthRefresh: onAuthChange, onSessionExpired: onLogout }}
+        />
+      ) : null}
+      {!isComposerOpen && <PostDetailSheet
         isLoading={isDetailLoading}
         onClose={closeDetailSheet}
-        onCreateSignal={() => openComposer(selectedDetail ?? selectedPlace)}
+        onOpenHashtag={onOpenHashtag}
+        onOpenPerson={(user) => setSearchProfileUser({ id: user.id, userName: user.userName })}
+        onCreateSignal={() => startQuick(selectedDetail ?? selectedPlace)}
+        // Confirming goes straight to the last step with the same value; "changed" asks for the new value.
+        onRecheck={(mode, current) => startQuick(selectedDetail ?? selectedPlace, quickStateFor(current.type, mode === 'confirm' ? current.value : null))}
+        auth={auth}
+        refresh={{ onAuthRefresh: onAuthChange, onSessionExpired: onLogout }}
+        onReportSignal={async (postId, reason, note) => { await sendReport(auth, { targetType: 'signal', targetId: postId, reason, note }, { onAuthRefresh: onAuthChange, onSessionExpired: onLogout }); }}
+        onReportUser={async (userId, reason, note) => { await sendReport(auth, { targetType: 'user', targetId: userId, reason, note }, { onAuthRefresh: onAuthChange, onSessionExpired: onLogout }); }}
         place={selectedDetail ?? selectedPlace}
         signal={selectedSignal}
+        userId={auth.userId}
       />}
 
-      {isProfileOpen && !isComposerOpen && <Sheet onClose={() => setProfileOpen(false)}>
-          <View style={[styles.profilePanel, { paddingBottom: Math.max(insets.bottom, 18) }]}>
-            <View style={styles.profileHandle} />
-            <View style={styles.profileHeader}>
-              <View>
-                <Text style={styles.profileEyebrow}>BLINKR PROFİLİ</Text>
-                <Text style={styles.profileTitle}>Senin çevren</Text>
-              </View>
-              <AnimatedPressable accessibilityLabel="Profili kapat" onPress={() => setProfileOpen(false)} pressScale={0.88} style={styles.profileClose}>
-                <X color={colors.textPrimary} size={20} />
-              </AnimatedPressable>
-            </View>
-
-            <View style={styles.profileIdentity}>
-              <View style={styles.profileAvatar}><Text style={styles.profileAvatarText}>{auth.userName.slice(0, 1).toUpperCase()}</Text></View>
-              <View style={styles.profileIdentityCopy}>
-                <Text numberOfLines={1} style={styles.profileName}>{auth.userName}</Text>
-                <Text numberOfLines={1} style={styles.profileEmail}>{auth.email}</Text>
-              </View>
-              <View style={styles.verifiedPill}><ShieldCheck color={colors.greenDark} size={14} /><Text style={styles.verifiedText}>Aktif</Text></View>
-            </View>
-
-            <View style={styles.profileSection}>
-              <View style={styles.profileRow}>
-                <ShieldCheck color={colors.green} size={22} />
-                <View style={styles.profileIdentityCopy}>
-                  <Text style={styles.profileRowTitle}>Gizlilik</Text>
-                  <Text style={styles.profileRowText}>Kesin cihaz konumun diğer kullanıcılara gösterilmez.</Text>
-                </View>
-              </View>
-            </View>
-
-            <AnimatedPressable onPress={onLogout} pressScale={0.95} style={styles.logoutButton}>
-              <LogOut color={colors.error} size={18} />
-              <Text style={styles.logoutText}>Oturumu kapat</Text>
-            </AnimatedPressable>
-          </View>
-      </Sheet>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  emptyMap: { position: 'absolute', left: 36, right: 36, backgroundColor: colors.surface, borderRadius: radii.control, padding: 16, ...shadowSoft },
-  emptyMapText: { color: colors.textPrimary, fontSize: 14, lineHeight: 21, textAlign: 'center' },
-  emptyMapAction: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  emptyMapLink: { fontSize: 14, color: colors.green, fontWeight: '600' },
   screen: { backgroundColor: colors.mapCanvas, flex: 1 },
-  topOverlay: { left: 0, paddingHorizontal: 12, position: 'absolute', right: 0, top: 0 },
-  topBar: { alignItems: 'center', backgroundColor: 'rgba(15,20,16,0.92)', borderColor: 'rgba(244,247,241,0.08)', borderRadius: radii.control, borderWidth: 1, flexDirection: 'row', marginTop: 7, minHeight: 58, paddingHorizontal: 10, ...shadow },
-  brandMark: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: radii.control, height: 38, justifyContent: 'center', width: 38 },
-  brandCopy: { flex: 1, marginLeft: 10 },
-  brand: { color: colors.textPrimary, fontSize: 19, fontWeight: '600', letterSpacing: 0 },
-  liveStatus: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', marginTop: 2 },
-  liveDot: { backgroundColor: colors.coral, borderRadius: 4, height: 7, marginRight: 5, width: 7 },
-  liveStatusText: { color: colors.greenDark, fontSize: 12, fontWeight: '600' },
-  visibleCount: { color: colors.muted, fontSize: 12, fontWeight: '700', marginLeft: 3 },
-  avatar: { alignItems: 'center', backgroundColor: colors.ink, borderRadius: radii.control, height: 44, justifyContent: 'center', width: 38 },
-  avatarText: { color: colors.white, fontSize: 14, fontWeight: '600' },
-  layerControl: { alignItems: 'center', alignSelf: 'center', backgroundColor: 'rgba(15,20,16,0.92)', borderRadius: radii.control, flexDirection: 'row', gap: 3, marginTop: 7, minHeight: 40, paddingHorizontal: 6, ...shadowSoft },
-  layerOption: { alignItems: 'center', borderRadius: 6, justifyContent: 'center', minHeight: 44, paddingHorizontal: 9 },
-  layerOptionActive: { backgroundColor: colors.lime },
-  layerText: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  layerTextActive: { color: colors.ink },
-  searchAreaButton: { alignItems: 'center', alignSelf: 'center', backgroundColor: colors.ink, borderRadius: radii.control, flexDirection: 'row', gap: 8, marginTop: 8, minHeight: 44, paddingHorizontal: 15, ...shadow },
-  searchAreaText: { color: colors.white, fontSize: 12, fontWeight: '600' },
-  mapActions: { alignItems: 'flex-end', left: 12, position: 'absolute', right: 12 },
-  locateButton: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radii.control, borderWidth: 1, height: 48, justifyContent: 'center', width: 48, ...shadow },
-  controlPressed: { opacity: 0.82, transform: [{ scale: 0.97 }] },
-  loadingBadge: { alignItems: 'center', alignSelf: 'center', backgroundColor: 'rgba(15,20,16,0.92)', borderRadius: radii.control, flexDirection: 'row', gap: 8, marginBottom: -42, minHeight: 38, paddingHorizontal: 12, ...shadowSoft },
-  loadingText: { color: colors.textPrimary, fontSize: 12, fontWeight: '600' },
-  toast: { alignItems: 'center', borderRadius: radii.control, flexDirection: 'row', gap: 9, left: 16, paddingHorizontal: 13, paddingVertical: 11, position: 'absolute', right: 16, ...shadow },
-  successToast: { backgroundColor: colors.greenSoft },
-  errorToast: { backgroundColor: colors.errorSoft },
-  toastText: { color: colors.greenDark, flex: 1, fontSize: 12, fontWeight: '600', lineHeight: 17 },
-  errorToastText: { color: colors.error },
-  bottomNavWrap: { alignItems: 'center', left: 12, position: 'absolute', right: 12 },
-  bottomNav: { alignItems: 'center', backgroundColor: 'rgba(15,20,16,0.94)', borderColor: 'rgba(244,247,241,0.08)', borderRadius: radii.control, borderWidth: 1, flexDirection: 'row', height: 68, justifyContent: 'space-around', maxWidth: 420, paddingHorizontal: 12, width: '100%', ...shadow },
-  navItem: { alignItems: 'center', justifyContent: 'center', minHeight: 52, minWidth: 72 },
-  navIconActive: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: 6, height: 27, justifyContent: 'center', width: 34 },
-  navLabel: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 3 },
-  navLabelActive: { color: colors.greenDark },
-  createButton: { alignItems: 'center', backgroundColor: colors.lime, borderColor: colors.ink, borderRadius: radii.control, borderWidth: 2, height: 52, justifyContent: 'center', width: 58, ...shadowSoft },
-  createButtonPressed: { opacity: 0.86, transform: [{ scale: 0.96 }] },
-  profilePanel: { backgroundColor: colors.surface, borderTopLeftRadius: radii.panel, borderTopRightRadius: radii.panel, maxHeight: '88%', paddingHorizontal: 20, paddingTop: 9, ...shadow },
-  profileHandle: { alignSelf: 'center', backgroundColor: colors.lineStrong, borderRadius: 2, height: 4, marginBottom: 16, width: 38 },
-  profileHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  profileEyebrow: { color: colors.green, fontSize: 12, fontWeight: '600' },
-  profileTitle: { color: colors.textPrimary, fontSize: 23, fontWeight: '600', marginTop: 3 },
-  profileClose: { alignItems: 'center', backgroundColor: colors.surfaceSoft, borderRadius: radii.control, height: 44, justifyContent: 'center', width: 40 },
-  profileIdentity: { alignItems: 'center', flexDirection: 'row', marginTop: 20 },
-  profileIdentityCopy: { flex: 1, marginLeft: 13 },
-  profileAvatar: { alignItems: 'center', backgroundColor: colors.ink, borderRadius: radii.control, height: 56, justifyContent: 'center', width: 56 },
-  profileAvatarText: { color: colors.white, fontSize: 22, fontWeight: '600' },
-  profileName: { color: colors.textPrimary, fontSize: 19, fontWeight: '600' },
-  profileEmail: { color: colors.muted, fontSize: 12, marginTop: 4 },
-  verifiedPill: { alignItems: 'center', backgroundColor: colors.greenSoft, borderRadius: 999, flexDirection: 'row', gap: 5, paddingHorizontal: 9, paddingVertical: 6 },
-  verifiedText: { color: colors.greenDark, fontSize: 12, fontWeight: '600' },
-  profileSection: { borderBottomColor: colors.line, borderBottomWidth: 1, borderTopColor: colors.line, borderTopWidth: 1, marginTop: 20 },
-  profileRow: { alignItems: 'center', flexDirection: 'row', paddingVertical: 13 },
-  profileRowTitle: { color: colors.textPrimary, fontSize: 13, fontWeight: '600' },
-  profileRowText: { color: colors.muted, fontSize: 12, lineHeight: 16, marginTop: 3 },
-  logoutButton: { alignItems: 'center', borderColor: colors.coralLine, borderRadius: radii.control, borderWidth: 1, flexDirection: 'row', gap: 9, marginTop: 18, minHeight: 48, paddingHorizontal: 14 },
-  logoutText: { color: colors.error, fontSize: 14, fontWeight: '600' },
+  cameraLayer: { ...StyleSheet.absoluteFill, backgroundColor: media.black, zIndex: 200 },
+  emptyMap: { alignItems: 'center', backgroundColor: colors.glass, borderColor: colors.border, borderRadius: radii.pill, borderWidth: 1, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'center', left: spacing.lg, paddingHorizontal: spacing.lg, paddingVertical: spacing.xs, position: 'absolute', right: spacing.lg, ...shadowSoft },
+  emptyMapText: { ...typography.callout, color: colors.text },
+  emptyMapAction: { alignItems: 'center', flexDirection: 'row', gap: 4, minHeight: 44 },
+  emptyMapLink: { ...typography.button, color: colors.mint },
+  toast: { alignItems: 'center', borderRadius: radii.control, borderWidth: 1, flexDirection: 'row', gap: 10, left: 16, paddingHorizontal: 14, paddingVertical: 12, position: 'absolute', right: 16, zIndex: 15, ...shadow },
+  successToast: { backgroundColor: colors.glass, borderColor: colors.greenLine },
+  errorToast: { backgroundColor: colors.errorSoft, borderColor: colors.errorLine },
+  toastText: { color: colors.mint, flex: 1, fontSize: 14, fontWeight: '600', lineHeight: 19 },
+  errorToastText: { color: colors.danger },
 });

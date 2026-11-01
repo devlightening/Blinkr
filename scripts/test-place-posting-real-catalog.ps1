@@ -21,7 +21,7 @@ function Json($method, $path, $body = $null) {
 }
 $headers = @{}
 Json GET '/health' | Out-Null
-$name = 'product_' + [guid]::NewGuid().ToString('N').Substring(0,12)
+$name = 'e2e_product_' + [guid]::NewGuid().ToString('N').Substring(0,12)
 $auth = Json POST '/api/auth/register' @{ userName=$name; email="$name@blinkr.local"; password='BlinkrSmoke!2026' }
 $headers = @{ Authorization = "Bearer $($auth.token)" }
 $candidates = Json GET '/api/places/nearby?lat=39.9334&lon=32.8597&radiusMeters=1500&limit=100'

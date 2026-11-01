@@ -18,4 +18,9 @@ public class Conversation
 
     [BsonRepresentation(BsonType.String)]
     public Guid? LastMessageSenderId { get; set; }
+
+    /// <summary>"text" or "snap"; lets the list show "new snap" without loading the message.</summary>
+    public string? LastMessageKind { get; set; }
+
+    public string? LastMessageId { get; set; }
 }

@@ -4,6 +4,7 @@ using MongoDB.Driver.GeoJsonObjectModel;
 
 namespace PlaceService.Api.Domain;
 
+[BsonIgnoreExtraElements]
 public sealed class PlaceDocument
 {
     [BsonId]
@@ -16,6 +17,9 @@ public sealed class PlaceDocument
     public string? GeometryWkt { get; set; }
     public GeoJsonPoint<GeoJson2DGeographicCoordinates> Location { get; set; } = null!;
     public string? DisplayAddress { get; set; }
+    /// <summary>Raw OSM opening_hours value. It is only presented as an estimate when the server can parse it safely.</summary>
+    [BsonIgnoreIfNull]
+    public string? OpeningHours { get; set; }
     public string Source { get; set; } = "Manual";
     [BsonIgnoreIfNull]
     public string? ExternalProvider { get; set; }
@@ -24,4 +28,8 @@ public sealed class PlaceDocument
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAtUtc { get; set; }
     public bool IsActive { get; set; } = true;
+
+    /// <summary>Folded name words for search (see PlaceSearchText). Null until the backfill has seen the document.</summary>
+    [BsonIgnoreIfNull]
+    public List<string>? SearchTokens { get; set; }
 }

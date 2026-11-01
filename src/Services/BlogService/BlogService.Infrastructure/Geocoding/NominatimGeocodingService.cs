@@ -34,7 +34,7 @@ public sealed class NominatimGeocodingService : IGeocodingService
             var lonString = lon.ToString(CultureInfo.InvariantCulture);
             var url = $"reverse?format=jsonv2&lat={latString}&lon={lonString}&accept-language={_options.Culture}";
 
-            _logger.LogDebug("🌍 Nominatim reverse geocoding: lat={Lat}, lon={Lon}", lat, lon);
+            _logger.LogDebug("🌍 Nominatim reverse geocoding");
 
             var response = await _httpClient.GetFromJsonAsync<NominatimReverseResponse>(url, ct);
             
@@ -67,17 +67,17 @@ public sealed class NominatimGeocodingService : IGeocodingService
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogWarning(ex, "🌍 Geocoding HTTP error: lat={Lat}, lon={Lon}", lat, lon);
+            _logger.LogWarning(ex, "🌍 Geocoding HTTP error");
             return null; // Fail-safe: don't break the flow
         }
         catch (TaskCanceledException ex)
         {
-            _logger.LogWarning(ex, "🌍 Geocoding timeout: lat={Lat}, lon={Lon}", lat, lon);
+            _logger.LogWarning(ex, "🌍 Geocoding timeout");
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "🌍 Geocoding unexpected error: lat={Lat}, lon={Lon}", lat, lon);
+            _logger.LogWarning(ex, "🌍 Geocoding unexpected error");
             return null;
         }
     }

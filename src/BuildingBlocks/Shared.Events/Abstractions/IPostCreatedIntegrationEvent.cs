@@ -26,6 +26,8 @@ namespace Shared.Events.Abstractions
         string? LocationName { get; }
         Guid? PlaceId { get; }
         string? PublicationTrust { get; }
+        /// <summary>The photo came from the gallery and is older than two hours (plan-devam D10). False on older messages.</summary>
+        bool FromGallery { get; }
         string? SignalType { get; }
         string? SignalValue { get; }
         string? AudienceType { get; }
@@ -36,6 +38,9 @@ namespace Shared.Events.Abstractions
         
         // Media
         ICollection<PostMediaInfo>? Media { get; }
+
+        /// <summary>V2-4: people @mentioned in the signal, resolved by BlogService; null on older messages.</summary>
+        List<Shared.Events.Events.Blog.MentionedUser>? Mentions { get; }
     }
 
     public class PostMediaInfo

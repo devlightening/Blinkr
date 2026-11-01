@@ -28,7 +28,45 @@ namespace Blinkr.Projections.Worker.Documents
         public DateTime? UpdatedAtUtc { get; set; }
 
         public int LikeCount { get; set; }
+        /// <summary>
+        /// Who has liked this post right now (not who ever has - an unlike removes the id). Lets a
+        /// per-request "did I like this?" check avoid poisoning the shared, user-independent
+        /// PostReadDto cache (kök CLAUDE.md §16: "Cache source of truth olmasin").
+        /// </summary>
+        [BsonRepresentation(BsonType.String)]
+        public List<Guid> LikedByUserIds { get; set; } = new List<Guid>();
+        /// <summary>
+        /// Moderation (Faz 10): null = visible; "hidden" (reports or a moderator; can be restored) or "removed" only
+        /// ever appear in the "posts_moderated" collection, never in "posts" (PostModerationChangedConsumer).
+        /// Not written when null, and mirrored in both BlogService PostDocument copies, whose class maps reject
+        /// unknown elements.
+        /// </summary>
+        [BsonIgnoreIfNull]
+        public string? ModerationState { get; set; }
+        /// <summary>
+        /// The server's publication trust (VERIFIED_LIVE / NEARBY_PLACE_POST / ...), so a feed or card can say "Canlı" or
+        /// "Konumda" only when the server verified it (plan-devam A8/C3). Null on posts projected before it was kept.
+        /// Must match the other two PostDocument copies.
+        /// </summary>
+        [BsonIgnoreIfNull]
+        public string? PublicationTrust { get; set; }
+
+        /// <summary>An old gallery photo (plan-devam D10) - the card says "Galeriden". Must match the other two PostDocument copies.</summary>
+        [BsonIgnoreIfDefault]
+        public bool FromGallery { get; set; }
         public List<Comment> Comments { get; set; } = new List<Comment>();
+        /// <summary>V2-4 (D-027): one reaction per person, with when it was set (a late message never overwrites a newer
+        /// one). Likes projected before reactions existed are in LikedByUserIds only and read as the heart. Must match the other
+        /// two PostDocument copies (their class maps reject unknown elements).</summary>
+        [BsonIgnoreIfNull]
+        public List<ReactionEntry>? Reactions { get; set; }
+        /// <summary>V2-4: folded #hashtags of the title and text (Shared.Events.Text.TextTags). Must match the other two copies.</summary>
+        [BsonIgnoreIfNull]
+        public List<string>? Hashtags { get; set; }
+        /// <summary>V2-4: people @mentioned in the signal, as resolved by BlogService. Must match the other two copies.</summary>
+        [BsonIgnoreIfNull]
+        public List<MentionEntry>? Mentions { get; set; }
+
         
         /// <summary>
         /// Computed property for comment count
@@ -53,5 +91,22 @@ namespace Blinkr.Projections.Worker.Documents
         public string SourceType { get; set; } = "Community";
         [BsonIgnoreIfNull]
         public DateTime? ExpiresAt { get; set; }
+    }
+
+    /// <summary>V2-4: a person's reaction on a post.</summary>
+    public class ReactionEntry
+    {
+        [BsonRepresentation(BsonType.String)]
+        public Guid UserId { get; set; }
+        public string Reaction { get; set; } = string.Empty;
+        public DateTime AtUtc { get; set; }
+    }
+
+    /// <summary>V2-4: a person @mentioned, with their name at write time.</summary>
+    public class MentionEntry
+    {
+        [BsonRepresentation(BsonType.String)]
+        public Guid UserId { get; set; }
+        public string UserName { get; set; } = string.Empty;
     }
 }

@@ -21,6 +21,7 @@ namespace BlogService.Domain.Entities
         public string? LocationName { get; private set; }
         public Guid? PlaceId { get; private set; }
         public string? PublicationTrust { get; private set; }
+        public bool FromGallery { get; private set; }
         public string SignalType { get; private set; } = "GeneralObservation";
         public string? SignalValue { get; private set; }
         public string AudienceType { get; private set; } = "Public";
@@ -34,6 +35,10 @@ namespace BlogService.Domain.Entities
         public ICollection<PostLike> Likes { get; private set; } = new List<PostLike>();
 
         public PostAggregate() { }
+
+        /// <summary>The plain like (Shared.Events.Text.ReactionCatalog.Heart); a like with no emoji is this one.</summary>
+        public const string HeartReaction = "❤️";
+        private static string ReactionOrHeart(string? reaction) => string.IsNullOrEmpty(reaction) ? HeartReaction : reaction;
 
         // --- İŞ METOTLARI (BUSINESS METHODS) ---
 
@@ -57,7 +62,9 @@ namespace BlogService.Domain.Entities
             string sourceType = "Community",
             DateTime? expiresAt = null,
             ICollection<PostMediaInfo>? media = null,
-            string? publicationTrust = null)
+            string? publicationTrust = null,
+            bool fromGallery = false,
+            IReadOnlyList<MentionRef>? mentions = null)
         {
             var post = new PostAggregate();
             post.ApplyNewEvent(new PostCreatedEvent(
@@ -81,7 +88,9 @@ namespace BlogService.Domain.Entities
                 sourceType,
                 expiresAt,
                 media,
-                publicationTrust));
+                publicationTrust,
+                fromGallery,
+                mentions is { Count: > 0 } ? mentions : null));
             return post;
         }
 
@@ -110,21 +119,78 @@ namespace BlogService.Domain.Entities
             ApplyNewEvent(new PostMediaAddedEvent(this.Id, mediaId, url, mediaType, DateTime.UtcNow));
         }
 
-        public void AddComment(Guid authorId, string commentText)
+        public Guid AddComment(Guid authorId, string commentText, Guid? parentCommentId = null, string? authorName = null, IReadOnlyList<MentionRef>? mentions = null)
         {
             if (IsDeleted) throw new InvalidOperationException("Silinmiş bir posta yorum yapılamaz.");
             if (string.IsNullOrWhiteSpace(commentText)) throw new ArgumentException("Yorum boş olamaz.");
 
+            // Replies are one level deep: replying to a reply attaches to that reply's top-level parent.
+            Guid? parentId = null;
+            if (parentCommentId.HasValue)
+            {
+                var parent = Comments.FirstOrDefault(c => c.Id == parentCommentId.Value)
+                    ?? throw new KeyNotFoundException("Yanıtlanan yorum bulunamadı.");
+                parentId = parent.ParentCommentId ?? parent.Id;
+            }
+
             var commentId = Guid.NewGuid();
-            ApplyNewEvent(new PostCommentAddedEvent(this.Id, commentId, authorId, commentText, DateTime.UtcNow));
+            ApplyNewEvent(new PostCommentAddedEvent(
+                this.Id, commentId, authorId, commentText, DateTime.UtcNow, parentId, authorName, AuthorId,
+                mentions is { Count: > 0 } ? mentions : null,
+                AuthorHidden: IdentityDisclosure == "AnonymousMap" && authorId == AuthorId));
+            return commentId;
         }
 
-        public void AddLike(Guid userId)
+        /// <summary>The comment's author or the post's author may remove a comment.</summary>
+        public void RemoveComment(Guid commentId, Guid requesterId)
+        {
+            var comment = Comments.FirstOrDefault(c => c.Id == commentId)
+                ?? throw new KeyNotFoundException("Yorum bulunamadı.");
+            if (comment.AuthorId != requesterId && AuthorId != requesterId)
+            {
+                throw new UnauthorizedAccessException("Bu yorumu yalnız yazarı veya gönderinin sahibi silebilir.");
+            }
+            ApplyNewEvent(new PostCommentRemovedEvent(Id, commentId, requesterId, DateTime.UtcNow));
+        }
+
+        public void AddLike(Guid userId, string? likerName = null)
         {
             if (IsDeleted) return; // Silinmiş posta işlem yapma
             if (Likes.Any(like => like.UserId == userId)) return;
 
-            ApplyNewEvent(new PostLikedEvent(this.Id, userId, DateTime.UtcNow));
+            ApplyNewEvent(new PostLikedEvent(this.Id, userId, DateTime.UtcNow, AuthorId, likerName));
+        }
+
+        /// <summary>
+        /// V2-4 (D-027): one reaction per person. Null or the same emoji again takes it back; a different emoji replaces it
+        /// in one event. Returns the person's reaction afterwards (null = none).
+        /// </summary>
+        public string? SetReaction(Guid userId, string? reaction, string? likerName = null)
+        {
+            if (IsDeleted) throw new InvalidOperationException("Silinmiş bir posta tepki verilemez.");
+            var existing = Likes.FirstOrDefault(like => like.UserId == userId);
+            var current = existing is null ? null : ReactionOrHeart(existing.Reaction);
+            if (reaction is null || reaction == current)
+            {
+                if (existing is not null) ApplyNewEvent(new PostUnlikedEvent(Id, userId, DateTime.UtcNow));
+                return null;
+            }
+            ApplyNewEvent(new PostLikedEvent(Id, userId, DateTime.UtcNow, AuthorId, likerName, reaction == HeartReaction ? null : reaction, Replaces: existing is not null));
+            return reaction;
+        }
+
+        /// <summary>Reaction counts from the authoritative likes (older likes without an emoji count as the heart).</summary>
+        public IReadOnlyDictionary<string, int> ReactionCounts() =>
+            Likes.GroupBy(like => ReactionOrHeart(like.Reaction)).ToDictionary(g => g.Key, g => g.Count());
+
+        /// <summary>V2-4 (D-027): toggle a comment like. Returns whether it is liked afterwards and its like count.</summary>
+        public (bool Liked, int LikeCount) ToggleCommentLike(Guid commentId, Guid userId)
+        {
+            if (IsDeleted) throw new InvalidOperationException("Silinmiş bir postta yorum beğenilemez.");
+            var comment = Comments.FirstOrDefault(c => c.Id == commentId) ?? throw new KeyNotFoundException("Yorum bulunamadı.");
+            if (comment.LikerIds.Contains(userId)) ApplyNewEvent(new PostCommentUnlikedEvent(Id, commentId, userId, DateTime.UtcNow));
+            else ApplyNewEvent(new PostCommentLikedEvent(Id, commentId, userId, DateTime.UtcNow));
+            return (comment.LikerIds.Contains(userId), comment.LikerIds.Count);
         }
 
         public void UnlikePost(Guid userId)
@@ -168,6 +234,7 @@ namespace BlogService.Domain.Entities
             LocationName = e.LocationName;
             PlaceId = e.PlaceId;
             PublicationTrust = e.PublicationTrust;
+            FromGallery = e.FromGallery;
             SignalType = e.SignalType;
             SignalValue = e.SignalValue;
             AudienceType = e.AudienceType;
@@ -216,13 +283,33 @@ namespace BlogService.Domain.Entities
 
         private void Apply(PostCommentAddedEvent e)
         {
-            Comments.Add(new PostComment { Id = e.CommentId, PostId = e.PostId, AuthorId = e.AuthorId, CommentText = e.CommentText });
+            Comments.Add(new PostComment
+            {
+                Id = e.CommentId,
+                PostId = e.PostId,
+                AuthorId = e.AuthorId,
+                CommentText = e.CommentText,
+                ParentCommentId = e.ParentCommentId,
+                CreatedAtUtc = e.OccurredOn
+            });
+        }
+
+        private void Apply(PostCommentRemovedEvent e)
+        {
+            var removed = Comments.Where(c => c.Id == e.CommentId || c.ParentCommentId == e.CommentId).ToList();
+            foreach (var c in removed) Comments.Remove(c);
         }
 
         private void Apply(PostLikedEvent e)
         {
-            Likes.Add(new PostLike { PostId = e.PostId, UserId = e.UserId });
+            var existing = Likes.FirstOrDefault(like => like.UserId == e.UserId);
+            if (existing is not null) { existing.Reaction = e.Reaction; return; } // a changed reaction
+            Likes.Add(new PostLike { PostId = e.PostId, UserId = e.UserId, Reaction = e.Reaction });
         }
+
+        private void Apply(PostCommentLikedEvent e) => Comments.FirstOrDefault(c => c.Id == e.CommentId)?.LikerIds.Add(e.UserId);
+
+        private void Apply(PostCommentUnlikedEvent e) => Comments.FirstOrDefault(c => c.Id == e.CommentId)?.LikerIds.Remove(e.UserId);
 
         private void Apply(PostUnlikedEvent e)
         {

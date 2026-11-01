@@ -7,6 +7,12 @@ export type AuthResponse = {
   token: string;
   refreshToken?: string;
   expiresIn?: number;
+  /** Chosen avatar (see avatars.ts); null/absent = the default for this user id. */
+  avatarKey?: string | null;
+  /** D-032: optional profile photo; changes with every new photo. Null = the drawn avatar. */
+  photoVersion?: string | null;
+  /** Set while the account waits to be deleted (plan-devam F3): the app shows "Silmeyi geri al" instead of the map. */
+  deletionScheduledForUtc?: string | null;
 };
 
 export type Bounds = {
@@ -42,6 +48,16 @@ export type CurrentPlaceState = {
   activeSignalCount?: number;
 };
 
+/** Server-evaluated catalogue hours. `isOpenNow: null` means the raw OSM rule was too complex to trust. */
+export type PlaceOpeningHours = {
+  raw: string;
+  isOpenNow?: boolean | null;
+  nextOpenAtUtc?: string | null;
+  nextCloseAtUtc?: string | null;
+  timeZoneId: string;
+  nextOpenLocalTime?: string | null;
+};
+
 export type RecentSignal = {
   publicationTrust?: string | null;
   authorName?: string | null;
@@ -68,6 +84,7 @@ export type BlinkrPlace = {
   distanceMeters?: number;
   source?: string | null;
   currentState?: CurrentPlaceState | null;
+  openingHours?: PlaceOpeningHours | null;
   recentSignals?: RecentSignal[];
 };
 
@@ -86,6 +103,24 @@ export type CoordinateSignal = {
   locationName?: string | null;
   mediaThumbnailUrl?: string | null;
   authorPreview?: string | null;
+};
+
+/** One of the signed-in user's own posts, as returned by GET /api/posts-read/author/{id}. */
+export type AuthoredPost = {
+  id: string;
+  title: string;
+  content: string;
+  createdAtUtc: string;
+  expiresAt?: string | null;
+  signalType: SignalType;
+  signalValue?: string | null;
+  locationName?: string | null;
+  /** Only the author ever receives their own AnonymousMap posts. */
+  identityDisclosure: 'LimitedProfile' | 'AnonymousMap' | string;
+  mediaUrls: string[];
+  /** V2-6: the same media with type and thumbnail (older servers: missing). */
+  media?: Array<{ url: string; thumbnailUrl?: string | null; type: string }>;
+  placeId?: string | null;
 };
 
 export type UnifiedMapResponse = {
@@ -135,7 +170,11 @@ export type CreateSignalInput = {
   audienceType: AudienceType;
   identityDisclosure: IdentityDisclosure;
   locationPrecision: LocationPrecision;
-  expiresAt: string;
+  // Optional: omit to let the server apply its own per-signal-type default TTL
+  // (trust and freshness policy are server-owned, kök CLAUDE.md §2.1).
+  expiresAt?: string;
+  /** Oldest attached photo's capture time (gallery EXIF). The server only uses it to lower trust (P5.11). */
+  mediaCapturedAtUtc?: string | null;
   media?: Array<{
     mediaId: string;
     mediaType: MediaKind;
@@ -190,10 +229,60 @@ export type LocationReadiness =
 export type UploadState = 'idle' | 'preparing' | 'uploading' | 'ready' | 'failed';
 export type NearbyStatus = 'LOADING' | 'READY' | 'EMPTY' | 'NOT_LOADED' | 'FAILED';
 
+/** How one person relates to another, from the viewer's side ("incoming" = they asked me, "outgoing" = I asked them). */
+export type Relation = 'none' | 'self' | 'friends' | 'incoming' | 'outgoing' | 'blocked';
+
 export type UserSummary = {
   id: string;
   userName: string;
+  avatarKey?: string | null;
+  displayName?: string | null;
+  photoVersion?: string | null;
+  /** Present on search results; absent on older servers (= none). */
+  relation?: Relation;
 };
+
+/** What anyone may see of a person: no e-mail, no friend list. */
+export type PublicProfile = {
+  id: string;
+  userName: string;
+  avatarKey?: string | null;
+  displayName?: string | null;
+  photoVersion?: string | null;
+  bio?: string | null;
+  joinedAtUtc: string;
+  relation: Relation;
+  /** Faz 6 follows (D-009). Counts are public; the friend list never is. */
+  followerCount?: number;
+  followingCount?: number;
+  follow?: 'none' | 'requested' | 'following' | 'self';
+  followsYou?: boolean;
+  isPrivate?: boolean;
+  /** False for a private account the viewer does not follow: show the lock, not the signals. */
+  canSeeContent?: boolean;
+};
+
+/** My own profile numbers (from /api/users/me). */
+export type MyProfile = {
+  bio?: string | null;
+  displayName?: string | null;
+  photoVersion?: string | null;
+  friendCount: number;
+  incomingRequestCount: number;
+  followerCount?: number;
+  followingCount?: number;
+  followRequestCount?: number;
+  isPrivate?: boolean;
+};
+
+export type FollowUser = { id: string; userName: string; avatarKey?: string | null; follow: 'none' | 'requested' | 'following' | 'self'; followsYou: boolean };
+export type FollowPage = { items: FollowUser[]; page: number; pageSize: number; totalCount: number; hasMore: boolean };
+export type FollowRequestItem = { id: string; userName: string; avatarKey?: string | null; createdAtUtc: string };
+
+export type BlockedUser = { id: string; userName: string; avatarKey?: string | null; blockedAtUtc: string };
+export type Friend = { id: string; userName: string; avatarKey?: string | null; sinceUtc: string };
+export type FriendRequest = { id: string; userName: string; avatarKey?: string | null; createdAtUtc: string };
+export type FriendRequests = { incoming: FriendRequest[]; outgoing: FriendRequest[] };
 
 export type Conversation = {
   id: string;
@@ -201,6 +290,51 @@ export type Conversation = {
   lastMessageAtUtc: string;
   lastMessagePreview?: string | null;
   lastMessageSenderId?: string | null;
+  /** Messages from the other person that this user has not read yet (server-computed). */
+  unreadCount?: number;
+  /** "snap" when the latest message is a view-once photo/video; absent on older servers (= text). */
+  lastMessageKind?: 'text' | 'snap' | 'signal' | 'place' | 'meetup' | 'unsent';
+  /** For a snap: waiting ("sent"), "opened" or "expired". */
+  lastMessageState?: SnapState | null;
+  /** Id of the latest message; lets the list open a waiting snap without loading the conversation. */
+  lastMessageId?: string | null;
+  /** Doc S3: pinned by me (at most three); only I see it. Absent on older servers (= not pinned). */
+  isPinned?: boolean;
+  pinnedAtUtc?: string | null;
+  /** Doc S5: muted by me: no unread dot on the tab bar, and (once push exists) no push for it. */
+  isMuted?: boolean;
+  /** Present when the latest item is a Place or meetup card; current state is resolved in one Place batch. */
+  lastMessagePlace?: PlaceShare | null;
+};
+
+/** Doc B1: a catalog place shared in chat. No coordinates and nothing about where the sender is. */
+export type PlaceShare = { placeId: string; name: string; category?: string | null };
+
+export type MeetupAnswer = 'going' | 'declined';
+/** Doc B2: a place and a time, never anyone's position. `closed` = two hours past the time. */
+export type Meetup = { atUtc: string; responses: Array<{ userId: string; answer: MeetupAnswer; atUtc: string }>; closed: boolean };
+
+export type ConversationPreferences = {conversationId: string; isPinned: boolean; pinnedAtUtc?: string | null; isMuted: boolean };
+
+export type SnapState = 'sent' | 'opened' | 'expired';
+
+/** What the client may know about a snap; the media itself is only fetched by the recipient, once. */
+export type SnapInfo = {
+  mediaType: 'Image' | 'Video';
+  /** Seconds the recipient may look (1-10); 0 = until they close it. */
+  durationSeconds: number;
+  caption?: string | null;
+  state: SnapState;
+  expiresAtUtc: string;
+  openedAtUtc?: string | null;
+};
+
+export type SnapOpenResult = {
+  contentUrl: string;
+  mediaType: 'Image' | 'Video';
+  durationSeconds: number;
+  caption?: string | null;
+  viewUntilUtc: string;
 };
 
 export type ChatMessage = {
@@ -210,6 +344,21 @@ export type ChatMessage = {
   text: string;
   createdAtUtc: string;
   isRead: boolean;
+  kind?: 'text' | 'snap' | 'signal' | 'place' | 'meetup' | 'unsent';
+  /** Doc B2: "Buluşalım" - a time to meet at `place`, with the answers. */
+  meetup?: Meetup | null;
+  snap?: SnapInfo | null;
+  /** Faz 8: a shared signal (link + snapshot, never its author). */
+  signal?: import('./chatExtras').SignalShare | null;
+  /** Doc B1: a shared place (id + the sender's name snapshot); its live state is read from the place service. */
+  place?: PlaceShare | null;
+  reactions?: import('./chatExtras').ChatReaction[] | null;
+  clientId?: string | null;
+  /** plan-devam E7: the message this one answers (a short quote; blank once that message is taken back). */
+  replyTo?: { messageId: string; senderId: string; text: string; kind: string } | null;
+  /** Only on my own messages: the other person has read it (E4). */
+  seen?: boolean;
+  seenAtUtc?: string | null;
 };
 
 export const ISTANBUL_REGION: Region = {
@@ -218,3 +367,6 @@ export const ISTANBUL_REGION: Region = {
   latitudeDelta: 0.08,
   longitudeDelta: 0.08,
 };
+
+/** (+) tap = quick signal (v4); long press = camera-first post; `text` = the full composer without media. */
+export type ShareMode = 'quick' | 'camera' | 'text';

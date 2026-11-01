@@ -31,7 +31,44 @@ public class PostDocument
     public DateTime? UpdatedAtUtc { get; set; }
 
     public int LikeCount { get; set; }
+    /// <summary>
+    /// Who has liked this post right now (an unlike removes the id). Must match
+    /// `Blinkr.Projections.Worker.Documents.PostDocument.LikedByUserIds` and
+    /// `BlogService.Infrastructure.ReadModels.PostDocument.LikedByUserIds`.
+    /// </summary>
+    [BsonRepresentation(BsonType.String)]
+    public List<Guid> LikedByUserIds { get; set; } = new();
+    /// <summary>
+    /// Moderation (Faz 10): always null in "posts" - hidden/removed signals are moved to "posts_moderated" by the
+    /// projection worker. Declared so documents written with the field still deserialize. Must match
+    /// `Blinkr.Projections.Worker.Documents.PostDocument.ModerationState`.
+    /// </summary>
+    [BsonIgnoreIfNull]
+    public string? ModerationState { get; set; }
+    /// <summary>
+    /// The server's publication trust (VERIFIED_LIVE / NEARBY_PLACE_POST / ...), so a feed or card can say "Canlı" or
+    /// "Konumda" only when the server verified it (plan-devam A8/C3). Null on posts projected before it was kept.
+    /// Must match the other two PostDocument copies.
+    /// </summary>
+    [BsonIgnoreIfNull]
+    public string? PublicationTrust { get; set; }
+
+    /// <summary>An old gallery photo (plan-devam D10) - the card says "Galeriden". Must match the other two PostDocument copies.</summary>
+    [BsonIgnoreIfDefault]
+    public bool FromGallery { get; set; }
     public List<PostCommentReadModel> Comments { get; set; } = new();
+    /// <summary>V2-4 (D-027): one reaction per person, with when it was set (a late message never overwrites a newer
+    /// one). Likes projected before reactions existed are in LikedByUserIds only and read as the heart. Must match the other
+    /// two PostDocument copies (their class maps reject unknown elements).</summary>
+    [BsonIgnoreIfNull]
+    public List<PostReactionReadModel>? Reactions { get; set; }
+    /// <summary>V2-4: folded #hashtags of the title and text (Shared.Events.Text.TextTags). Must match the other two copies.</summary>
+    [BsonIgnoreIfNull]
+    public List<string>? Hashtags { get; set; }
+    /// <summary>V2-4: people @mentioned in the signal, as resolved by BlogService. Must match the other two copies.</summary>
+    [BsonIgnoreIfNull]
+    public List<MentionReadModel>? Mentions { get; set; }
+
 
     [BsonIgnore]
     public int CommentCount => Comments?.Count ?? 0;
@@ -59,8 +96,19 @@ public class PostCommentReadModel
     [BsonRepresentation(BsonType.String)]
     public Guid Id { get; set; }
     public Guid AuthorId { get; set; }
+    [BsonIgnoreIfNull]
+    public string? AuthorName { get; set; }
+    [BsonIgnoreIfNull]
+    public Guid? ParentCommentId { get; set; }
     public string Text { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
+    /// <summary>V2-4 (D-027): who liked this comment. Must match the other two comment copies.</summary>
+    [BsonIgnoreIfNull]
+    [BsonRepresentation(BsonType.String)]
+    public List<Guid>? LikedBy { get; set; }
+    /// <summary>V2-4: people @mentioned in the comment. Must match the other two comment copies.</summary>
+    [BsonIgnoreIfNull]
+    public List<MentionReadModel>? Mentions { get; set; }
 }
 
 public class PostMediaReadModel
@@ -75,4 +123,21 @@ public class PostMediaReadModel
     public int? Height { get; set; }
     public double? DurationSeconds { get; set; }
     public string? ThumbnailUrl { get; set; }
+}
+
+/// <summary>V2-4: a person's reaction on a post.</summary>
+public class PostReactionReadModel
+{
+    [BsonRepresentation(BsonType.String)]
+    public Guid UserId { get; set; }
+    public string Reaction { get; set; } = string.Empty;
+    public DateTime AtUtc { get; set; }
+}
+
+/// <summary>V2-4: a person @mentioned, with their name at write time.</summary>
+public class MentionReadModel
+{
+    [BsonRepresentation(BsonType.String)]
+    public Guid UserId { get; set; }
+    public string UserName { get; set; } = string.Empty;
 }

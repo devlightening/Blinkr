@@ -1,3 +1,4 @@
+using BlogService.Api.Extensions;
 using BlogService.Application.DTOs.PostDtos;
 
 using BlogService.Application.Services.Queries;
@@ -88,7 +89,10 @@ public class PostsQueryController : ControllerBase
     {
         _logger.LogInformation("Getting posts for author: {AuthorId}. Page: {Page}, PageSize: {PageSize}", 
             authorId, page, pageSize);
-        var result = await _queryService.GetUserPostsAsync(authorId, page, pageSize, cancellationToken);
+        // Only the author sees their own anonymous posts; the response is then private.
+        var includeAnonymous = User.GetUserId() == authorId;
+        if (includeAnonymous) Response.Headers.CacheControl = "private, no-store";
+        var result = await _queryService.GetUserPostsAsync(authorId, page, pageSize, cancellationToken, includeAnonymous);
         return Ok(result);
     }
 

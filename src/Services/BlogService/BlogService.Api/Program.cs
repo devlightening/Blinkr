@@ -104,12 +104,13 @@ app.UseResponseCaching();
 
 app.UseMiddleware<DeviceHeadersMiddleware>();
 
-app.UseMiddleware<RateLimitingMiddleware>();
-app.UseRateLimiter();
-
 app.UseCors(corsPolicyName);
 
 app.UseAuthentication();
+// After authentication: the limits are per person (user + IP). Before, the user was never known here, so everyone
+// behind the Gateway shared one IP bucket (S3, V2 closing).
+app.UseMiddleware<RateLimitingMiddleware>();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();
@@ -130,6 +131,9 @@ app.MapHealthChecks("/health/readiness", new HealthCheckOptions
     Predicate = r => r.Tags.Contains("ready"),
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 }).AllowAnonymous();
+// The same names every service answers (CLAUDE.md §21 P1).
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = r => r.Tags.Contains("ready"), ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse }).AllowAnonymous();
 
 // Prometheus metrics
 app.MapPrometheusScrapingEndpoint("/metrics");

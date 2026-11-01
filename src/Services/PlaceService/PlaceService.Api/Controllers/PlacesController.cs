@@ -14,6 +14,7 @@ public sealed class PlacesController : ControllerBase
 {
     private readonly IPlaceRepository _repository;
     private readonly ICurrentPlaceStateCalculator _stateCalculator;
+    private readonly IOpeningHoursCalculator _openingHoursCalculator;
     private readonly IPlaceDiscoveryService _discoveryService;
     private readonly IPlaceDiscoveryRefreshQueue _refreshQueue;
     private readonly ILogger<PlacesController> _logger;
@@ -22,6 +23,7 @@ public sealed class PlacesController : ControllerBase
     public PlacesController(
         IPlaceRepository repository,
         ICurrentPlaceStateCalculator stateCalculator,
+        IOpeningHoursCalculator openingHoursCalculator,
         IPlaceDiscoveryService discoveryService,
         IPlaceDiscoveryRefreshQueue refreshQueue,
         IOptions<PlaceDiscoveryOptions> discoveryOptions,
@@ -29,10 +31,30 @@ public sealed class PlacesController : ControllerBase
     {
         _repository = repository;
         _stateCalculator = stateCalculator;
+        _openingHoursCalculator = openingHoursCalculator;
         _discoveryService = discoveryService;
         _refreshQueue = refreshQueue;
         _discoveryOptions = discoveryOptions.Value;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// GET /api/places/batch?ids=a,b,c - up to 20 places by id with their current state. The app uses it to show how the
+    /// places a person saved are doing right now. Unknown or inactive ids are simply left out, order is not promised.
+    /// </summary>
+    [HttpGet("batch")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Batch([FromQuery] string? ids, CancellationToken ct)
+    {
+        const int MaxIds = 20;
+        var wanted = (ids ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(raw => Guid.TryParse(raw, out var id) ? id : Guid.Empty)
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .Take(MaxIds)
+            .ToList();
+        if (wanted.Count == 0) return Ok(Array.Empty<object>());
+        return Ok(await ToSummariesAsync(await _repository.GetManyAsync(wanted, ct), ct));
     }
 
     [HttpGet("{id:guid}")]
@@ -44,6 +66,45 @@ public sealed class PlacesController : ControllerBase
 
         var signals = await _repository.GetSignalsAsync(id, 20, ct);
         return Ok(ToDetail(place, signals));
+    }
+
+    /// <summary>
+    /// GET /api/places/{id}/rhythm - "Yerin Ritmi" (D-037): how busy the place usually is by weekday and hour, from
+    /// verified Crowd/Queue signals of the last eight weeks. Aggregates only: an hour appears when at least three
+    /// different people reported in it, and nothing about who reported leaves the service. The same for everyone, so
+    /// it may be cached briefly.
+    /// </summary>
+    [HttpGet("{id:guid}/rhythm")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Rhythm(Guid id, [FromServices] IPlaceRhythmCalculator rhythm, CancellationToken ct)
+    {
+        if (await _repository.GetAsync(id, ct) is null) return NotFound();
+        var now = DateTime.UtcNow;
+        var signals = await _repository.GetRhythmSignalsAsync(id, now - PlaceRhythmCalculator.Window, ct);
+        Response.Headers.CacheControl = "public, max-age=600";
+        return Ok(rhythm.Calculate(signals, now));
+    }
+
+    /// <summary>
+    /// GET /api/places/heat?minLat=&amp;minLon=&amp;maxLat=&amp;maxLon= - the heat layer (D-045): where verified things are
+    /// happening right now inside the bounds, as grid cells with a coarse level. A cell needs three different people;
+    /// nothing about places or people leaves the service. The same for everyone, so it may be cached briefly.
+    /// </summary>
+    [HttpGet("heat")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Heat([FromQuery] double minLat, [FromQuery] double minLon, [FromQuery] double maxLat, [FromQuery] double maxLon,
+        [FromServices] IPlaceHeatCalculator heat, CancellationToken ct)
+    {
+        if (minLat > maxLat || minLon > maxLon) return BadRequest("Invalid bounds.");
+        var validation = ValidateGeo(minLat, minLon) ?? ValidateGeo(maxLat, maxLon);
+        if (validation is not null) return BadRequest(validation);
+        // A country-sized view would mean one huge cell per region; the app asks for heat only up to city scale.
+        if (maxLat - minLat > 3 || maxLon - minLon > 3) return BadRequest("Bounds too large for the heat layer.");
+
+        var bounds = new HeatBounds(minLat, minLon, maxLat, maxLon);
+        var sources = await _repository.GetHeatSourcesAsync(bounds, DateTime.UtcNow - PlaceHeatCalculator.Window, ct);
+        Response.Headers.CacheControl = "public, max-age=60";
+        return Ok(heat.Calculate(sources, bounds));
     }
 
     [HttpGet("{id:guid}/signals")]
@@ -107,21 +168,62 @@ public sealed class PlacesController : ControllerBase
 
     [HttpGet("search")]
     [AllowAnonymous]
+    /// <summary>
+    /// Text or category search around an origin. The composer keeps the 1.5 km default (publishing needs a nearby
+    /// Place); the map's "where to?" search passes a wider <paramref name="radiusMeters"/> (up to 30 km) so someone
+    /// can look at a neighbourhood they are about to go to.
+    /// </summary>
     public async Task<IActionResult> Search([FromQuery] string q, [FromQuery] double lat,
-        [FromQuery] double lon, CancellationToken ct)
+        [FromQuery] double lon, [FromQuery] int radiusMeters = DefaultSearchRadiusMeters, [FromQuery] bool expand = false, CancellationToken ct = default)
     {
         if (ValidateGeo(lat, lon) is not null || !double.IsFinite(lat) || !double.IsFinite(lon))
             return BadRequest("Invalid origin.");
         if (string.IsNullOrWhiteSpace(q) || q.Length > 80) return BadRequest("Query must contain 1-80 characters.");
-        var category = q.Trim().ToLowerInvariant() switch
+        radiusMeters = Math.Clamp(radiusMeters, 200, MaxSearchRadiusMeters);
+        var limit = radiusMeters > DefaultSearchRadiusMeters * 2 ? 100 : 50;
+        var places = (await _repository.SearchAsync(CategoryShortcut(q), lat, lon, radiusMeters, limit, ct)).ToList();
+
+        // The map's "where to?" search (expand=true) never dead-ends: when the neighbourhood has few matches it also
+        // looks at the whole catalogue by name, and when there is nothing at all it rescues small typos.
+        if (expand)
         {
-            "cami" => "MOSQUE", "park" => "PARK", "eczane" => "PHARMACY",
-            "kafe" => "CAFE", "restoran" => "RESTAURANT", "market" => "SUPERMARKET",
-            "okul" => "EDUCATION", _ => q
-        };
-        var places = await _repository.SearchAsync(category, lat, lon, 1500, 50, ct);
+            var tokens = PlaceSearchText.QueryTokens(q);
+            if (places.Count < 10 && tokens.Any(t => t.Length >= 3))
+            {
+                var known = places.Select(p => p.Id).ToHashSet();
+                places.AddRange((await _repository.SearchByTokensAsync(tokens, 60, ct)).Where(p => known.Add(p.Id)));
+            }
+
+            var longest = tokens.OrderByDescending(t => t.Length).FirstOrDefault();
+            if (places.Count == 0 && longest is { Length: >= 4 })
+                places.AddRange(await _repository.SearchNearPrefixAsync(longest[..2], lat, lon, radiusMeters, 200, ct));
+        }
+
         return Ok(await ToNearbySummariesAsync(places, lat, lon, ct));
     }
+
+    private const int DefaultSearchRadiusMeters = 1500;
+    private const int MaxSearchRadiusMeters = 30_000;
+
+    /// <summary>Everyday Turkish words for a kind of place map to the normalised category codes (CLAUDE.md 9.4).</summary>
+    private static string CategoryShortcut(string q) => q.Trim().ToLowerInvariant() switch
+    {
+        "cami" or "mescit" => "MOSQUE",
+        "park" => "PARK",
+        "eczane" => "PHARMACY",
+        "kafe" or "kahve" => "CAFE",
+        "restoran" or "lokanta" => "RESTAURANT",
+        "market" or "bakkal" => "SUPERMARKET",
+        "okul" => "EDUCATION",
+        "hastane" or "klinik" or "saglik" or "sağlık" => "HEALTH",
+        "benzin" or "akaryakit" or "akaryakıt" => "FUEL",
+        "firin" or "fırın" => "BAKERY",
+        "muze" or "müze" => "TOURISM",
+        "spor" => "SPORT",
+        "bar" => "BAR",
+        "durak" => "TRANSPORT",
+        _ => q
+    };
 
     [HttpGet("bounds")]
     [AllowAnonymous]
@@ -228,20 +330,23 @@ public sealed class PlacesController : ControllerBase
             .Select(p => new NearbyPlaceDto(p.Id, p.Name, p.Category, p.Latitude, p.Longitude, p.DisplayAddress,
                 DistanceMeters(lat, lon, p.Latitude, p.Longitude), p.CurrentState,
                 byId[p.Id].ExternalProvider,
-                byId[p.Id].ExternalId))
+                byId[p.Id].ExternalId,
+                p.OpeningHours))
             .OrderBy(p => p.DistanceMeters)
             .ToArray();
     }
 
     private PlaceDetailDto ToDetail(PlaceDocument place, IReadOnlyList<PlaceSignalDocument> signals) =>
         new(place.Id, place.Name, place.Category, place.Latitude, place.Longitude, place.DisplayAddress, place.Source,
-            _stateCalculator.Calculate(signals, DateTime.UtcNow), signals.Take(20).Select(ToRecentSignal).ToArray(), place.GeometryWkt);
+            _stateCalculator.Calculate(signals, DateTime.UtcNow), signals.Take(20).Select(ToRecentSignal).ToArray(), place.GeometryWkt,
+            _openingHoursCalculator.Calculate(place.OpeningHours, DateTime.UtcNow));
 
     private PlaceSummaryDto ToSummary(PlaceDocument place, IReadOnlyList<PlaceSignalDocument> signals) =>
         new(place.Id, place.Name, place.Category, place.Latitude, place.Longitude, place.DisplayAddress,
             _stateCalculator.Calculate(signals, DateTime.UtcNow),
             signals.Count(s => s.CreatedAtUtc > DateTime.UtcNow.AddHours(-3)),
-            signals.Count > 0 ? signals.Max(s => s.CreatedAtUtc) : null);
+            signals.Count > 0 ? signals.Max(s => s.CreatedAtUtc) : null,
+            _openingHoursCalculator.Calculate(place.OpeningHours, DateTime.UtcNow));
 
     private static RecentSignalDto ToRecentSignal(PlaceSignalDocument signal) =>
         new(signal.PostId, signal.Title, signal.Text, signal.SignalType, signal.SignalValue, signal.CreatedAtUtc,

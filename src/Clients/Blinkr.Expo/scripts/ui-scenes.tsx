@@ -1,0 +1,607 @@
+import './ui-theme-boot';
+import { useEffect, useState } from 'react';
+import { Coffee, Layers3, MessageCircle, Radio, Users } from 'lucide-react-native';
+import { ScrollView, Text, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import { BlinkrBottomBar, type BlinkrTab, bottomBarClearance } from '../src/components/ui/BlinkrBottomBar';
+import { BlinkrButton } from '../src/components/ui/BlinkrButton';
+import { BlinkrCard } from '../src/components/ui/BlinkrCard';
+import { BlinkrChip } from '../src/components/ui/BlinkrChip';
+import { BlinkrEmptyState } from '../src/components/ui/BlinkrEmptyState';
+import { BlinkrHeader, HeaderAvatar } from '../src/components/ui/BlinkrHeader';
+import { BlinkrSignalCard } from '../src/components/ui/BlinkrSignalCard';
+import { FreshnessRing } from '../src/components/ui/BlinkrFreshnessRing';
+import { LevelMeter } from '../src/components/ui/BlinkrLevelMeter';
+import { Toast } from '../src/components/ui/BlinkrToast';
+import { TypeBadge } from '../src/components/ui/BlinkrTypeBadge';
+import { BlinkrText } from '../src/components/ui/BlinkrText';
+import { BlinkrErrorState } from '../src/components/ui/BlinkrErrorState';
+import { IconButton } from '../src/components/ui/BlinkrIconButton';
+import { SegmentedControl } from '../src/components/ui/BlinkrSegmentedControl';
+import { X } from 'lucide-react-native';
+import { PostDetailSheet } from '../src/components/PostDetailSheet';
+import { ProfileScreen } from '../src/components/ProfileScreen';
+import { FriendsScreen } from '../src/components/friends/FriendsScreen';
+import { OnboardingScreen } from '../src/components/OnboardingScreen';
+import { SettingsScreen } from '../src/components/SettingsScreen';
+import { SignalCardModal } from '../src/components/signal/SignalCardModal';
+import { fromRecentSignal } from '../src/signalCard';
+import { CARD_LANDSCAPE, CARD_PORTRAIT } from './ui-fixtures';
+import { ThemeProvider } from '../src/components/ThemeProvider';
+import { LiveRing } from '../src/components/live/LiveRing';
+import { StatusPill } from '../src/components/live/StatusPill';
+import { stateLabel } from '../src/live/liveLabels';
+import type { LiveKind, LiveState } from '../src/live/liveState';
+import { sendReport } from '../src/api';
+import { UserProfileSheet } from '../src/components/friends/UserProfileSheet';
+import { ChatListScreen } from '../src/components/chat/ChatListScreen';
+import { Avatar } from '../src/components/Avatar';
+import { avatarKeyOf } from '../src/avatars';
+import { NearbyScreen } from '../src/components/NearbyScreen';
+import { MapSearchOverlay } from '../src/components/map/MapSearchOverlay';
+import { SignalCamera } from '../src/components/camera/SignalCamera';
+import { ConversationScreen } from '../src/components/chat/ConversationScreen';
+import { UserSearchSheet } from '../src/components/chat/UserSearchSheet';
+import { BlinkrSheetPanel } from '../src/components/ui/BlinkrSheetPanel';
+import { conversations, nearby, area as composerArea } from './ui-fixtures';
+import { SignalComposer } from '../src/components/SignalComposer';
+import { PendingDeletionScreen } from '../src/components/account/PendingDeletionScreen';
+import { AuthScreen } from '../src/components/AuthScreen';
+import { SignalPin } from '../src/components/live/SignalPin';
+import { signalPinState } from '../src/live/postState';
+import { ClusterRing } from '../src/components/live/ClusterRing';
+import { LivePin } from '../src/components/live/LivePin';
+import { NearbyNowSheet } from '../src/components/live/NearbyNowSheet';
+import { QuickSignalSheet } from '../src/components/live/QuickSignalSheet';
+import { quickStateFor } from '../src/live/quickSignal';
+import { liveStateFromCurrent, type NowFilter } from '../src/live/liveState';
+import { MapTopChrome } from '../src/components/map/MapTopChrome';
+import { LocationPrimer } from '../src/components/map/LocationPrimer';
+import { SkeletonList } from '../src/components/ui/BlinkrSkeleton';
+import { DiscoverScreen } from '../src/components/feed/DiscoverScreen';
+import type { MapLayer } from '../src/mapSelection';
+import { colors, getThemeMode, signalColors, typography } from '../src/theme';
+import type { AuthResponse, BlinkrPlace, SignalType } from '../src/types';
+
+/** Browser-only scenes for visual review against the design package. Never shipped in the app bundle. */
+function Kit() {
+  const [tab, setTab] = useState<BlinkrTab>('map');
+  const [layer, setLayer] = useState('all');
+  const [taps, setTaps] = useState(0);
+  const [toast, setToast] = useState<string | null>(null);
+  const [segment, setSegment] = useState('nearby');
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <ScrollView contentContainerStyle={{ gap: 16, padding: 16, paddingBottom: 140 }}>
+        <BlinkrHeader
+          right={<HeaderAvatar userId="scene" userName="alper" />}
+          subtitle={<Text style={{ ...typography.caption, color: colors.mint }}>Canlı çevre · 4 görünür</Text>}
+        />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {[
+            ['all', 'Tümü', (c: string) => <Layers3 color={c} size={18} />],
+            ['live', 'Canlı', (c: string) => <Radio color={c} size={18} />],
+            ['places', 'Yerler', (c: string) => <Coffee color={c} size={18} />],
+            ['signals', 'Sinyaller', (c: string) => <MessageCircle color={c} size={18} />],
+          ].map(([key, label, icon]) => (
+            <BlinkrChip icon={icon as (c: string) => React.ReactNode} key={key as string} label={label as string} onPress={() => setLayer(key as string)} selected={layer === key} />
+          ))}
+        </View>
+        <BlinkrButton icon={<Users color={colors.ink} size={22} />} label="Sinyal bırak" onPress={() => setTaps(taps + 1)} size="lg" subtitle="Burada neler oluyor?" />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <BlinkrButton label="İkincil" onPress={() => {}} style={{ flex: 1 }} variant="secondary" />
+          <BlinkrButton label="Ghost" onPress={() => {}} style={{ flex: 1 }} variant="ghost" />
+          <BlinkrButton label="Sil" onPress={() => {}} style={{ flex: 1 }} variant="danger" />
+        </View>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <BlinkrButton label="Yükleniyor" loading onPress={() => {}} style={{ flex: 1 }} />
+          <BlinkrButton disabled label="Kapalı" onPress={() => {}} style={{ flex: 1 }} />
+        </View>
+        <Text accessibilityLabel="Tap count" style={{ color: colors.textSecondary }}>{taps}</Text>
+        <BlinkrCard variant="elevated"><Text style={{ ...typography.body, color: colors.text }}>Yükseltilmiş kart</Text></BlinkrCard>
+        <BlinkrSignalCard
+          ageLabel="2 dk önce"
+          authorLabel="deniz"
+          signalType="Crowd"
+          text="Hafta sonu gibi, yer bulmak zor."
+          title="Çok kalabalık"
+          tone={signalColors.Crowd}
+          trustLabel="Konum doğrulandı"
+          typeLabel="Doluluk"
+        />
+        <BlinkrEmptyState
+          action={{ label: 'Yeni mesaj', onPress: () => {} }}
+          description="Bir kullanıcı bul ve konuşmaya başla."
+          icon={<MessageCircle color={colors.textSecondary} size={34} />}
+          title="Henüz mesajın yok"
+        />
+        {/* P1.5 (sinyal-mvp-plan Faz 1): the imza öğesi FreshnessRing, plus TypeBadge/LevelMeter/Toast. */}
+        <View accessibilityLabel="freshness-ring-row" style={{ flexDirection: 'row', gap: 16 }}>
+          <FreshnessRing color={signalColors.Crowd} live progress={0.85} size={56}><Avatar seed="ring-live" size={44} /></FreshnessRing>
+          <FreshnessRing color={signalColors.Queue} progress={0.4} size={56}><Avatar seed="ring-mid" size={44} /></FreshnessRing>
+          <FreshnessRing color={colors.textSecondary} progress={0.05} size={56}><Avatar seed="ring-low" size={44} /></FreshnessRing>
+        </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <TypeBadge signalType="Queue" tone={signalColors.Queue} typeLabel="Bekleme" valueLabel="5-15 dk" />
+          <TypeBadge signalType="TemporaryStatus" tone={signalColors.TemporaryStatus} typeLabel="Geçici durum" valueLabel="Kapalı" />
+        </View>
+        <LevelMeter accessibilityLabel="Doluluk seviyesi: kalabalık" level={2} />
+        {/* plan-devam B4: Outfit display steps with Turkish diacritics (the preview serves the real font files). */}
+        <BlinkrText variant="display">Şişli'de İğneada Çığlığı</BlinkrText>
+        <BlinkrText variant="title1">Öğrenci Şöförü Çok Üşüyor</BlinkrText>
+        <BlinkrText color={colors.textSecondary} variant="title2">Ğüzel Çorlu Işığı</BlinkrText>
+        <BlinkrButton label="Toast göster" onPress={() => setToast('Paylaşıldı')} variant="secondary" />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <IconButton accessibilityLabel="Kapat" icon={<X color={colors.text} size={20} />} onPress={() => {}} variant="glass" />
+          <IconButton accessibilityLabel="Ayarlar" icon={<Users color={colors.text} size={20} />} onPress={() => {}} variant="surface" />
+        </View>
+        <SegmentedControl
+          accessibilityLabel="Görünüm"
+          onChange={setSegment}
+          options={[{ value: 'nearby', label: 'Yakınımda' }, { value: 'following', label: 'Takip' }]}
+          value={segment}
+        />
+        <BlinkrErrorState description="Sinyaller yüklenemedi. Bağlantını kontrol edip tekrar dene." onRetry={() => {}} />
+      </ScrollView>
+      <Toast message={toast} onHide={() => setToast(null)} tone="success" />
+      <BlinkrBottomBar active={tab} chatUnread me={{ userId: 'u-me', avatarKey: '253' }} onShare={(mode) => setTaps(taps + (mode === 'camera' ? 100 : 10))} onTab={setTab} />
+    </View>
+  );
+}
+
+// Test-only artwork: flat SVG tiles standing in for uploaded photos so the rail layout can be reviewed.
+const tile = (hue: number) => `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="hsl(${hue},35%,28%)"/><circle cx="300" cy="90" r="60" fill="hsl(${hue},45%,42%)"/></svg>`)}`;
+const mediaOf = (hue: number, id: string) => ({ mediaId: id, mediaType: 'Image', url: tile(hue), thumbnailUrl: tile(hue) });
+const iso = (minutesAgo: number) => new Date(Date.now() - minutesAgo * 60_000).toISOString();
+const detailPlace: BlinkrPlace = {
+  id: 'scene-place', name: 'Örnek Lokanta', category: 'RESTAURANT', latitude: 37.07, longitude: 36.25, distanceMeters: 120,
+  currentState: { signalType: 'Crowd', signalValue: 'Busy', freshness: 'FRESH', confidence: 'MEDIUM', activeSignalCount: 2, observedAtUtc: iso(2) },
+  recentSignals: [
+    { postId: 's1', title: 'Çok kalabalık', text: 'Hafta sonu gibi, yer bulmak zor.', signalType: 'Crowd', createdAtUtc: iso(2), publicationTrust: 'VERIFIED_LIVE', authorName: 'deniz', media: [mediaOf(150, 'm1'), mediaOf(30, 'm2'), mediaOf(260, 'm3'), mediaOf(200, 'm4'), mediaOf(340, 'm5')] },
+    { postId: 's2', title: 'Müzik var', text: 'Atmosfer şahane.', signalType: 'Event', createdAtUtc: iso(8), publicationTrust: 'NEARBY_PLACE_POST', authorName: null },
+  ],
+};
+// Sinyal Kartı (plan-devam Faz C): a place with three signals. ?far = the viewer is 2 km away (verify disabled).
+function CardScene() {
+  const far = typeof location !== 'undefined' && location.search.includes('far');
+  const [closed, setClosed] = useState(false);
+  const cardPlace = { id: 'bim', name: 'BİM Merkez', category: 'SUPERMARKET', latitude: 37.0746, longitude: 36.2464 };
+  const recent = [
+    { postId: 'card-1', signalType: 'Queue' as const, signalValue: 'Over15', authorName: 'zeynep', publicationTrust: 'VERIFIED_LIVE', createdAtUtc: new Date(Date.now() - 4 * 60_000).toISOString(), expiresAtUtc: new Date(Date.now() + 88 * 60_000).toISOString(), media: [{ url: CARD_LANDSCAPE, mediaType: 'Image', width: 1600, height: 900 }] },
+    { postId: 'card-2', signalType: 'Crowd' as const, signalValue: 'Busy', authorName: 'ece', createdAtUtc: new Date(Date.now() - 20 * 60_000).toISOString(), expiresAtUtc: new Date(Date.now() + 40 * 60_000).toISOString(), media: [{ url: CARD_PORTRAIT, mediaType: 'Image', width: 1080, height: 1350 }] },
+    { postId: 'card-3', signalType: 'TemporaryStatus' as const, signalValue: 'Closed', authorName: null, text: 'Bugün erken kapattılar.', createdAtUtc: new Date(Date.now() - 30 * 60_000).toISOString(), expiresAtUtc: new Date(Date.now() + 30 * 60_000).toISOString(), media: [] },
+  ];
+  const one = typeof location !== 'undefined' && location.search.includes('one');
+  const cards = recent.slice(0, one ? 1 : recent.length).map((signal) => fromRecentSignal(signal, cardPlace));
+  return (
+    <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
+      {closed ? <Text>kapandı</Text> : (
+        <SignalCardModal
+          auth={qaAuth}
+          cards={cards}
+          deviceOrigin={far ? { latitude: 37.0926, longitude: 36.2464 } : { latitude: 37.0748, longitude: 36.2465 }}
+          onChanged={() => setClosed(true)}
+          onClose={() => setClosed(true)}
+          onConfirm={async () => {}}
+          onDeleted={() => {}}
+          onOpenAuthor={() => {}}
+          onOpenPlace={() => {}}
+          place={cardPlace}
+          refresh={{}}
+        />
+      )}
+    </View>
+  );
+}
+
+function Detail() {
+  const [answer, setAnswer] = useState('');
+  const stale = typeof location !== 'undefined' && location.search.includes('stale');
+  // ?calm = a relaxed place with three reporters; ?none = no live info; ?auth = signed in (action row with Haber ver / Yere sor).
+  const search = typeof location !== 'undefined' ? location.search : '';
+  const calm: BlinkrPlace = { ...detailPlace, category: 'CAFE', name: 'Soulmate Kafe', currentState: { signalType: 'Crowd', signalValue: 'Calm', freshness: 'FRESH', confidence: 'HIGH', activeSignalCount: 3, observedAtUtc: iso(4) } };
+  const base: BlinkrPlace = search.includes('calm') ? calm : search.includes('none') ? { ...detailPlace, currentState: undefined } : detailPlace;
+  const place: BlinkrPlace = stale ? { ...base, currentState: { ...base.currentState, freshness: 'STALE' } } : base;
+  return (
+    <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
+      <PostDetailSheet auth={search.includes('auth') ? qaAuth : null} isLoading={false} onClose={() => {}} onCreateSignal={() => {}} onRecheck={(mode, signal) => setAnswer(`${mode}:${signal.type}:${signal.value}`)} place={place} userId="scene" />
+      <Text accessibilityLabel="answer" style={{ height: 0, opacity: 0, position: 'absolute' }}>{answer}</Text>
+    </View>
+  );
+}
+
+// --- Map chrome + markers over a flat stand-in for the base map (react-native-maps has no web build) ---
+const at = (place: Partial<BlinkrPlace> & { category: string }, left: number, top: number, extra: { selected?: boolean; type?: SignalType; value?: string; age?: number; tag?: boolean } = {}) => {
+  const state = liveStateFromCurrent(extra.type ? { activeSignalCount: 2, signalType: extra.type, signalValue: extra.value ?? 'Calm', freshness: 'FRESH', observedAtUtc: iso(extra.age ?? 4) } : null, Date.now());
+  return (
+    <View key={`${place.category}-${left}-${top}`} style={{ left, position: 'absolute', top }}>
+      <LivePin category={place.category} selected={Boolean(extra.selected)} showTag={extra.tag ?? true} state={state} />
+    </View>
+  );
+};
+const bubble = (type: SignalType, left: number, top: number, ageMinutes: number, selected = false, value: string | null = null) => (
+  <View key={`sig-${type}-${left}-${top}`} style={{ left, position: 'absolute', top }}>
+    <SignalPin
+      selected={selected}
+      state={signalPinState({ signalType: type, signalValue: value, createdAtUtc: iso(ageMinutes), expiresAt: new Date(Date.now() + (180 - ageMinutes) * 60_000).toISOString() }, Date.now())}
+      type={type}
+    />
+  </View>
+);
+const nowItems = [
+  { id: 'n1', name: 'Soulmate Kafe', category: 'CAFE', type: 'Crowd', value: 'Calm', age: 4, d: 120 },
+  { id: 'n2', name: 'Osmaniye Stadyumu', category: 'SPORT', type: 'Event', value: 'Started', age: 12, d: 640 },
+  { id: 'n3', name: 'Merkez Eczanesi', category: 'PHARMACY', type: 'Queue', value: 'Over15', age: 25, d: 300 },
+].map((p) => ({ place: { id: p.id, name: p.name, category: p.category, latitude: 0, longitude: 0 }, distanceMeters: p.d,
+  state: liveStateFromCurrent({ signalType: p.type, signalValue: p.value, freshness: 'FRESH', observedAtUtc: iso(p.age), activeSignalCount: 3 }, Date.now()) }));
+function MapChrome() {
+  // `area`: the panel title says how lively the area in view is (plan Faz 2.3).
+  const area = new URLSearchParams(globalThis.location?.search ?? '').has('area');
+  const [layer, setLayer] = useState<MapLayer>('all');
+  const [nowFilters, setNowFilters] = useState<Set<NowFilter>>(new Set(['open']));
+  const [tab, setTab] = useState<BlinkrTab>('map');
+  // A stand-in for the base map in the active theme (the real app styles Google/Apple maps the same way, mapDarkStyle.ts).
+  const dark = getThemeMode() === 'dark';
+  const land = dark ? '#16191D' : '#F6F4EE'; const road = dark ? '#272C32' : '#FFFFFF'; const water = dark ? '#0F1418' : '#D3E6EF';
+  return (
+    <View style={{ backgroundColor: land, flex: 1, overflow: 'hidden' }}>
+      <View style={{ backgroundColor: road, height: 26, left: -40, position: 'absolute', right: -40, top: 330, transform: [{ rotate: '-18deg' }] }} />
+      <View style={{ backgroundColor: road, bottom: -40, left: 190, position: 'absolute', top: -40, transform: [{ rotate: '14deg' }], width: 22 }} />
+      <View style={{ backgroundColor: water, bottom: 120, height: 110, left: -20, position: 'absolute', right: -20, transform: [{ rotate: '-6deg' }] }} />
+      <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} pointerEvents="none">
+        {[
+          <View key="c11" style={{ left: 30, position: 'absolute', top: 240 }}><ClusterRing count={11} mix={{ calm: 6, busy: 3, crowded: 2, other: 0 }} size={58} /></View>,
+          <View key="c3" style={{ left: 170, position: 'absolute', top: 200 }}><ClusterRing count={3} mix={{ calm: 2, busy: 1, crowded: 0, other: 0 }} /></View>,
+          <View key="c120" style={{ left: 300, position: 'absolute', top: 600 }}><ClusterRing count={120} mix={{ calm: 30, busy: 20, crowded: 10, other: 60 }} size={58} /></View>,
+          at({ category: 'CAFE' }, 120, 300, { type: 'Crowd', value: 'Calm', age: 4, selected: true }),
+          at({ category: 'PHARMACY' }, 230, 220, { type: 'TemporaryStatus', value: 'Open', age: 9 }),
+          at({ category: 'SHOP' }, 40, 380, { type: 'Crowd', value: 'Busy', age: 12 }),
+          at({ category: 'RESTAURANT' }, 200, 420, { type: 'Crowd', value: 'Moderate', age: 22 }),
+          at({ category: 'SPORT' }, 260, 320, { type: 'Event', value: 'Started', age: 30 }),
+          at({ category: 'SUPERMARKET' }, 70, 500, { type: 'Queue', value: 'None', age: 140 }),
+          at({ category: 'SHOP' }, 300, 500, { tag: false }),
+          bubble('GeneralObservation', 290, 400, 6),
+          bubble('Offer', 280, 470, 80, false, 'Available'),
+          bubble('Event', 170, 520, 120, false, 'Started'),
+          bubble('Crowd', 20, 600, 9, false, 'Busy'),
+          bubble('TemporaryStatus', 130, 640, 30, false, 'Closed'),
+        ]}
+      </View>
+      <MapTopChrome
+        nowFilters={nowFilters}
+        onToggleNow={(id) => setNowFilters((current) => {
+          const next = new Set(current);
+          if (next.has(id)) next.delete(id); else next.add(id);
+          return next;
+        })}
+        isLoading={false}
+        layer={layer}
+        onLayerChange={setLayer}
+        onLocate={() => {}}
+        topInset={47}
+        onOpenProfile={() => {}}
+        onScan={() => {}}
+        scanAvailable
+        onOpenSearch={() => {}}
+        userId="scene"
+        userName="alper"
+      />
+      <NearbyNowSheet areaLevel={area ? 2 : null} areaName={area ? 'Fatih, Osmaniye' : null} bottom={bottomBarClearance(0)} items={nowItems} onOpen={() => {}} onShowList={() => {}} />
+      <BlinkrBottomBar active={tab} chatUnread me={{ userId: 'u-me', avatarKey: '253' }} onShare={() => {}} onTab={setTab} />
+    </View>
+  );
+}
+
+// --- Profile with a few places saved on this (test) device ---
+function Profile() {
+  const saved = [
+    { id: 'p1', name: 'Örnek Lokanta', category: 'RESTAURANT', latitude: 37.07, longitude: 36.25 },
+    { id: 'p2', name: 'Kent Müzesi', category: 'TOURISM', latitude: 37.08, longitude: 36.26 },
+    { id: 'p3', name: 'Kahve Durağı', category: 'CAFE', latitude: 37.06, longitude: 36.24 },
+  ];
+  useState(() => {
+    saved.forEach((place) => localStorage.setItem(`blinkr.saved.scene.${place.id}`, JSON.stringify(place)));
+    localStorage.setItem('blinkr.saved.scene.index', saved.map((place) => place.id).join(','));
+  });
+  const [tab, setTab] = useState<BlinkrTab>('profile');
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [auth, setAuth] = useState<AuthResponse>({ userId: 'scene', userName: 'alper', email: 'alper@example.test', token: 't' });
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <ProfileScreen auth={auth} onAuthChange={(next) => setAuth(next)} onCreateSignal={() => {}} onLogout={() => {}} onOpenPlace={() => {}} onOverlayOpenChange={setSheetOpen} />
+      <Text accessibilityLabel="avatar-key" style={{ height: 0, opacity: 0, position: 'absolute' }}>{auth.avatarKey ?? 'default'}</Text>
+      <BlinkrBottomBar active={tab} hidden={sheetOpen} onShare={() => {}} onTab={setTab} />
+    </View>
+  );
+}
+
+// --- Chat ---
+const qaAuth = { userId: 'qa', userName: 'alper', email: 'qa@example.test', token: 't' };
+function Chat() {
+  const [tab, setTab] = useState<BlinkrTab>('chat');
+  const [covered, setCovered] = useState(false);
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <ChatListScreen auth={qaAuth} onAuthChange={() => {}} onConversationOpenChange={setCovered} onSessionExpired={() => {}} snapRequested={typeof location !== 'undefined' && location.search.includes('compose')} />
+      <BlinkrBottomBar active={tab} chatUnread hidden={covered} onShare={() => {}} onTab={setTab} />
+    </View>
+  );
+}
+function CameraScene() {
+  const [result, setResult] = useState('');
+  const [closed, setClosed] = useState(false);
+  return (
+    <View style={{ backgroundColor: '#000', flex: 1 }}>
+      {/* ?place = at BİM, ?school = at a school (D11), ?loose = a 250 m fix (D3). */}
+      {!closed && <SignalCamera place={location.search.includes('loose') ? { place: null, label: 'Etimesgut civarı', uncertain: true, sensitivity: null } : location.search.includes('school') ? { place: { id: 'school', name: 'Atatürk İlkokulu' }, label: 'Atatürk İlkokulu', uncertain: false, sensitivity: 'education' } : location.search.includes('place') ? { place: { id: 'bim', name: 'BİM' }, label: 'BİM', uncertain: false, sensitivity: null } : null} onCapture={(asset) => setResult(`${asset.type}:${asset.mimeType}:${asset.uri.endsWith('#rendered') ? 'rendered' : 'original'}${asset.signalHint ? `:${asset.signalHint.type}` : ''}`)} onClose={() => setClosed(true)} onTextOnly={() => setResult('text')} />}
+      <Text accessibilityLabel="captured" style={{ height: 0, opacity: 0, position: 'absolute' }}>{result}{closed ? 'closed' : ''}</Text>
+    </View>
+  );
+}
+function AvatarGallery() {
+  const keys = Array.from({ length: 48 }, (_, i) => avatarKeyOf({ color: i % 8, face: Math.floor(i / 8) % 6, accessory: (i * 5 + Math.floor(i / 8)) % 6 }));
+  const accessories = [0, 1, 2, 3, 4, 5].map((accessory) => avatarKeyOf({ color: accessory + 1, face: accessory % 6, accessory }));
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1, gap: 20, padding: 16 }}>
+      <View style={{ alignItems: 'center', flexDirection: 'row', gap: 12 }}>{accessories.map((key) => <Avatar avatarKey={key} key={key} ringColor={colors.primary} seed="gallery" size={52} />)}</View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>{keys.map((key, i) => <Avatar avatarKey={key} key={`${key}-${i}`} seed="gallery" size={40} />)}</View>
+      <View style={{ alignItems: 'center', flexDirection: 'row', gap: 12 }}>{['a', 'b', 'c', 'd', 'e', 'f'].map((seed) => <Avatar key={seed} seed={seed} size={40} />)}</View>
+    </View>
+  );
+}
+function MapSearch() {
+  const [chosen, setChosen] = useState('');
+  return (
+    <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
+      <MapSearchOverlay auth={qaAuth} onClose={() => setChosen('closed')} onSelectLocation={(target) => setChosen(`location:${target.label}`)} onSelectPerson={(user) => setChosen(`person:${user.userName}`)} onSelectPlace={(place) => setChosen(`place:${place.id}`)} origin={{ latitude: 37.0742, longitude: 36.2478 }} />
+      <Text accessibilityLabel="chosen" style={{ height: 0, opacity: 0, position: 'absolute' }}>{chosen}</Text>
+    </View>
+  );
+}
+// Canlı Halka step 3: the search results typed as "kafe" (calm, busy, crowded, no info, closed) and the legend.
+function LiveSearch() {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const input = document.querySelector('input');
+      if (!input) return;
+      const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      set?.call(input, 'kafe');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, []);
+  return <MapSearch />;
+}
+function Nearby() {
+  const [tab, setTab] = useState<BlinkrTab>('nearby');
+  const [opened, setOpened] = useState('');
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <NearbyScreen onCreateSignal={() => setOpened('camera')} onOpenPlace={(place) => setOpened(`place:${place.id}`)} onOpenSignal={(signal) => setOpened(`signal:${signal.postId}`)} />
+      <Text accessibilityLabel="opened" style={{ height: 0, opacity: 0, position: 'absolute' }}>{opened}</Text>
+      <BlinkrBottomBar active={tab} chatUnread onShare={() => {}} onTab={setTab} />
+    </View>
+  );
+}
+function Discover() {
+  const [opened, setOpened] = useState('');
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <DiscoverScreen auth={qaAuth} onAuthChange={() => {}} onCreateSignal={() => setOpened('camera')} onLogout={() => {}} onOpenPlace={(place) => setOpened(`place:${place.id}`)} onOpenSignal={(signal) => setOpened(`signal:${signal.postId}`)} />
+      <Text accessibilityLabel="opened" style={{ height: 0, opacity: 0, position: 'absolute' }}>{opened}</Text>
+    </View>
+  );
+}
+function Conversation() {
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <ConversationScreen auth={qaAuth} conversation={conversations[0]} onAuthChange={() => {}} onBack={() => {}} onSessionExpired={() => {}} otherUserName="zeynep" />
+    </View>
+  );
+}
+function UserSearch() {
+  return (
+    <View style={{ backgroundColor: colors.mapCanvas, flex: 1, justifyContent: 'flex-end' }}>
+      <BlinkrSheetPanel maxHeightRatio={0.88}>
+        <UserSearchSheet auth={qaAuth} onBack={() => {}} onSelect={() => {}} />
+      </BlinkrSheetPanel>
+    </View>
+  );
+}
+
+// --- Composer over a captured photo (the design's camera-first look) ---
+function ComposerWithMedia() {
+  // ?oldphoto = a gallery photo taken five hours ago (P5.11).
+  const capture = { uri: tile(20), type: 'image', fileName: 'kare.jpg', width: 400, height: 300, ...(location.search.includes('oldphoto') ? { capturedAtUtc: new Date(Date.now() - 5 * 3_600_000).toISOString() } : {}) } as never;
+  const [snapTo, setSnapTo] = useState('');
+  return (
+    <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
+      <Text accessibilityLabel="snap-to" style={{ height: 0, opacity: 0, position: 'absolute' }}>{snapTo}</Text>
+      <SignalComposer
+        // ?school / ?clinic swap the place category (sensitive-place rules); ?loose makes the fix 250 m.
+        area={{ ...composerArea, ...(location.search.includes('loose') ? { observationAccuracyMeters: 250, source: 'device' as const } : {}), place: { ...nearby[1], ...(location.search.includes('school') ? { category: 'EDUCATION' } : location.search.includes('clinic') ? { category: 'HEALTH' } : {}) }, source: location.search.includes('loose') ? 'device' : 'place', proximity: { allowed: true, trustLevel: 'VERIFIED_LIVE', thresholdMeters: 200 } }}
+        auth={qaAuth}
+        canAskLocationAgain
+        error={null}
+        isSubmitting={false}
+        locationReadiness="ready"
+        nearbyPlaces={nearby}
+        nearbyStatus="READY"
+        onAuthChange={() => {}}
+        onClearError={() => {}}
+        onClose={() => {}}
+        onOpenSettings={() => {}}
+        onSelectArea={async () => {}}
+        onSessionExpired={() => {}}
+        onSubmit={async (_input, extras) => { setSnapTo(`sent:${(extras?.snapFriendIds ?? []).join(',')}:${extras?.media.some((m) => m.kind === 'image') ? 'photo' : 'none'}${extras?.story ? ':story' : ''}`); }}
+        pendingCapture={capture}
+        visible
+      />
+    </View>
+  );
+}
+
+function Auth() { return <AuthScreen onAuthenticated={() => {}} />; }
+
+// plan-devam F3: signing in while the account waits to be deleted.
+function PendingDeletion() {
+  const [chosen, setChosen] = useState('none');
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <PendingDeletionScreen auth={{ ...qaAuth, deletionScheduledForUtc: '2026-10-24T10:00:00Z' }} onCancelled={(next) => setChosen(`cancelled:${next.deletionScheduledForUtc ?? 'none'}`)} onLogout={() => setChosen('logout')} refresh={{}} />
+      <Text accessibilityLabel="chosen" style={{ height: 0, opacity: 0, position: 'absolute' }}>{chosen}</Text>
+    </View>
+  );
+}
+
+// --- Friends: the full screen, and one person's profile sheet ---
+function Friends() {
+  const [chosen, setChosen] = useState('none');
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <FriendsScreen auth={qaAuth} onAuthChange={() => {}} onBack={() => setChosen('back')} onMessage={(user) => setChosen(`message:${user.userName}`)} onSessionExpired={() => {}} />
+      <Text accessibilityLabel="chosen" style={{ height: 0, opacity: 0, position: 'absolute' }}>{chosen}</Text>
+    </View>
+  );
+}
+function PersonProfile() {
+  const id = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('who') ?? 'u-zeynep' : 'u-zeynep';
+  const [chosen, setChosen] = useState('none');
+  const user = { id, userName: id.replace('u-', ''), relation: 'none' as const };
+  return (
+    <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
+      <UserProfileSheet auth={qaAuth} onAuthChange={() => {}} onClose={() => setChosen('closed')} onMessage={(target) => setChosen(`message:${target.userName}`)} onSessionExpired={() => {}} user={user} />
+      <Text accessibilityLabel="chosen" style={{ height: 0, opacity: 0, position: 'absolute' }}>{chosen}</Text>
+    </View>
+  );
+}
+
+function Onboarding() {
+  const [chosen, setChosen] = useState('none');
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <OnboardingScreen onDone={() => setChosen('done')} />
+      <Text accessibilityLabel="chosen" style={{ height: 0, opacity: 0, position: 'absolute' }}>{chosen}</Text>
+    </View>
+  );
+}
+function Settings() {
+  const [chosen, setChosen] = useState('none');
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <ThemeProvider><SettingsScreen auth={qaAuth} onAuthChange={() => {}} onBack={() => setChosen('back')} onLogout={() => setChosen('logout')} onSessionExpired={() => {}} /></ThemeProvider>
+      <Text accessibilityLabel="chosen" style={{ height: 0, opacity: 0, position: 'absolute' }}>{chosen}</Text>
+    </View>
+  );
+}
+// A place with two signals, reportable (?reportfail makes the server refuse).
+function ReportableDetail() {
+  const place = {
+    id: 'rp', name: 'Kent Meydanı', category: location.search.includes('clinic') ? 'HEALTH' : 'PUBLIC', latitude: 37.07, longitude: 36.25, distanceMeters: 120,
+    currentState: { signalType: 'Crowd', signalValue: 'Busy', freshness: 'FRESH', activeSignalCount: 2, observedAtUtc: new Date().toISOString(), confidence: 'MEDIUM' },
+    recentSignals: [
+      { postId: 'post-a', title: 'Çok kalabalık', text: 'Kuyruk uzun', signalType: 'Crowd', createdAtUtc: new Date().toISOString(), authorName: 'deniz', publicationTrust: 'VERIFIED_LIVE' },
+      { postId: 'post-b', title: 'Sakinleşti', text: 'Yer var', signalType: 'Crowd', createdAtUtc: new Date().toISOString(), authorName: 'ece', publicationTrust: 'VERIFIED_LIVE' },
+    ],
+  } as never;
+  return (
+    <View style={{ backgroundColor: colors.mapCanvas, flex: 1 }}>
+      <PostDetailSheet
+        isLoading={false}
+        onClose={() => {}}
+        onCreateSignal={() => {}}
+        auth={qaAuth}
+        onReportSignal={async (postId, reason, note) => { await sendReport(qaAuth, { targetType: 'signal', targetId: postId, reason, note }); }}
+        onReportUser={async (userId, reason, note) => { await sendReport(qaAuth, { targetType: 'user', targetId: userId, reason, note }); }}
+        onOpenHashtag={(tag) => { (window as unknown as { __openedTag?: string }).__openedTag = tag; }}
+        onOpenPerson={(user) => { (window as unknown as { __openedPerson?: string }).__openedPerson = user.id; }}
+        place={place}
+        userId="qa"
+      />
+    </View>
+  );
+}
+
+const liveCell = (kind: LiveKind, freshness: number, source: LiveState['source'], signalType: string | null = null): LiveState => ({
+  kind, level: null, freshness, ageMinutes: freshness > 0 ? 4 : null, confirmations: 2, isStale: freshness === 0, source, signalType, signalValue: null,
+});
+function LiveRings() {
+  const rows: Array<[string, LiveKind, LiveState['source'], string | null]> = [
+    ['calm', 'calm', 'live', null], ['busy', 'busy', 'live', null], ['crowded', 'crowded', 'live', null], ['closed', 'closed', 'live', null],
+    ['event', 'event', 'live', null], ['deal', 'deal', 'live', 'NewOpening'], ['info', 'info', 'live', null], ['info (hours)', 'info', 'hours', null],
+    ['closed (hours)', 'closed', 'hours', null], ['queue calm', 'calm', 'live', 'Queue'], ['unknown (notice)', 'unknown', 'live', 'TemporaryStatus'],
+  ];
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <ScrollView contentContainerStyle={{ gap: 12, padding: 16, paddingBottom: 60 }}>
+        {rows.map(([name, kind, source, signalType]) => {
+          const estimated = source === 'hours';
+          const cells: Array<[string, number]> = estimated ? [['', 0]] : [['fresh', 1], ['old', 0.3], ['empty', 0]];
+          return (
+            <View key={name} style={{ gap: 6 }}>
+              <View style={{ alignItems: 'center', flexDirection: 'row', gap: 12 }}>
+                {cells.map(([cell, freshness]) => (
+                  <LiveRing key={cell || 'est'} estimated={estimated} freshness={freshness} kind={kind} size={46} pulse={cell === 'fresh' && kind === 'calm'}>
+                    <Coffee color={colors.textSecondary} size={18} />
+                  </LiveRing>
+                ))}
+                <StatusPill estimated={estimated} kind={kind} label={stateLabel(liveCell(kind, 1, source, signalType))} />
+              </View>
+              <Text style={{ ...typography.micro, color: colors.textSecondary }}>{name}</Text>
+            </View>
+          );
+        })}
+        <View style={{ alignItems: 'center', flexDirection: 'row', gap: 12 }}>
+          <LiveRing freshness={0.8} kind="busy" size={84}><Coffee color={colors.text} size={30} /></LiveRing>
+          <View style={{ flex: 1 }}><StatusPill kind="crowded" label="Çok uzun bir durum yazısı yazı boyutu büyüyünce iki satıra geçer" size="lg" /></View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+function QuickScene() {
+  const params = new URLSearchParams(globalThis.location?.search ?? '');
+  const state = liveStateFromCurrent({ signalType: 'Crowd', signalValue: 'Calm', freshness: 'FRESH', observedAtUtc: iso(6), activeSignalCount: 2 }, Date.now());
+  const initial = params.has('picked') ? quickStateFor('Crowd', 'Calm') : null;
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1, justifyContent: 'flex-end' }}>
+      <BlinkrSheetPanel maxHeightRatio={0.94}>
+        <QuickSignalSheet initial={initial} locating={false} onChangePlace={() => {}} onClose={() => {}} onSubmit={() => {}} submitting={false}
+          noPlaceReason={params.has('denied') ? 'permission' : 'none'} place={params.has('noplace') ? null : { id: 'soulmate', name: 'Soulmate Kafe', category: 'CAFE', state }}
+          presence={params.has('far') ? { status: 'ok', allowed: false, trustLevel: 'OUT_OF_RANGE', distanceMeters: 2400 } : { status: 'ok', allowed: true, trustLevel: 'VERIFIED_LIVE', distanceMeters: 12 }} />
+      </BlinkrSheetPanel>
+    </View>
+  );
+}
+function SkeletonScene() {
+  const variant = (new URLSearchParams(globalThis.location?.search ?? '').get('variant') ?? 'signal') as 'person' | 'card' | 'bubble' | 'signal';
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1, padding: 16, paddingTop: 60 }}>
+      <SkeletonList rows={variant === 'signal' ? 1 : 8} variant={variant} />
+    </View>
+  );
+}
+function PrimerScene() {
+  const denied = new URLSearchParams(globalThis.location?.search ?? '').has('denied');
+  const [chosen, setChosen] = useState('none');
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1 }}>
+      <Text accessibilityLabel="chosen">{chosen}</Text>
+      {chosen === 'later' ? null : (
+        <LocationPrimer bottom={96} canAskAgain={!denied} onAllow={() => setChosen('allow')} onDismiss={() => setChosen('later')} onOpenSettings={() => setChosen('settings')} />
+      )}
+    </View>
+  );
+}
+const scenes: Record<string, () => React.JSX.Element> = { skeleton: SkeletonScene, primer: PrimerScene, quick: QuickScene, liveRings: LiveRings, liveSearch: LiveSearch, pendingDeletion: PendingDeletion, onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, card: CardScene, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, discover: Discover, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
+
+export function SceneHost({ name }: { name: string }) {
+  const Scene = scenes[name];
+  return (
+    <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: innerWidth, height: innerHeight }, insets: { top: 44, bottom: 24, left: 0, right: 0 } }}>
+      {Scene ? <Scene /> : <Text style={{ color: 'red' }}>Unknown scene {name}</Text>}
+    </SafeAreaProvider>
+  );
+}

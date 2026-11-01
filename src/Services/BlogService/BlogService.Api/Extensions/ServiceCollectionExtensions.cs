@@ -88,6 +88,13 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddBlogRateLimiting(this IServiceCollection services, IConfiguration config)
     {
+        // Production default stays 100 requests/minute per device or IP. It can be raised through
+        // configuration (RateLimiting:GlobalPermitLimit) for controlled runs such as load or seed tests;
+        // callers must not be able to raise it themselves.
+        // Per person since D-030 (it was per Gateway IP). Map panning plus polling can pass 100 a minute in normal use, so
+        // the default is 300 per person per minute; abuse is still cut off.
+        var globalPermitLimit = Math.Max(1, config.GetValue<int?>("RateLimiting:GlobalPermitLimit") ?? 300);
+
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -95,16 +102,13 @@ public static class ServiceCollectionExtensions
             // Global rate limiter
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
             {
-                var deviceId = httpContext.Request.Headers["X-Device-Id"].ToString();
-                var key = string.IsNullOrWhiteSpace(deviceId)
-                    ? httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon"
-                    : $"dev:{deviceId}";
+                var key = RateLimitKey(httpContext);
 
                 return RateLimitPartition.GetFixedWindowLimiter(
                     partitionKey: key,
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
-                        PermitLimit = 100, // 100 req / window
+                        PermitLimit = globalPermitLimit, // 300 req / window per person unless configured
                         Window = TimeSpan.FromMinutes(1),
                         QueueLimit = 0,
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst
@@ -114,10 +118,7 @@ public static class ServiceCollectionExtensions
             // Feed-specific rate limiter (more restrictive)
             options.AddPolicy("feed", httpContext =>
             {
-                var deviceId = httpContext.Request.Headers["X-Device-Id"].ToString();
-                var key = string.IsNullOrWhiteSpace(deviceId)
-                    ? httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon"
-                    : $"dev:{deviceId}";
+                var key = RateLimitKey(httpContext);
 
                 return RateLimitPartition.GetFixedWindowLimiter(
                     partitionKey: key,
@@ -305,12 +306,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPostReadRepository, PostReadRepository>();
 
         // Query services (SOLID: each service handles one concern)
-        services.AddScoped<PostFeedQueryService>();
         services.AddScoped<PostSearchQueryService>();
         services.AddScoped<PostNearbyQueryService>();
 
         // Register CachedPostQueryService as IPostQueryService
         services.AddScoped<IPostQueryService, CachedPostQueryService>();
+        services.AddScoped<IAuthorTrustQuery, BlogService.Infrastructure.Services.MongoAuthorTrustQuery>();
 
         // Maintenance service for read model sync
         services.AddScoped<IPostMaintenanceService, PostMaintenanceService>();
@@ -361,11 +362,34 @@ public static class ServiceCollectionExtensions
                 cache, constrained, cachingLogger, TimeSpan.FromHours(ttlHours));
         });
 
+        services.AddHttpContextAccessor();
+        services.AddHttpClient<BlogService.Api.Services.SocialGraphClient>(client =>
+        {
+            client.BaseAddress = new Uri((config["Services:IdentityBaseUrl"] ?? "http://localhost:5188").TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromSeconds(3);
+        });
+        services.AddScoped<BlogService.Api.Services.InteractionGuard>();
+        services.AddHttpClient<BlogService.Api.Services.MentionResolver>(client =>
+        {
+            client.BaseAddress = new Uri((config["Services:IdentityBaseUrl"] ?? "http://localhost:5188").TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromSeconds(3);
+        });
+        services.AddHttpClient<BlogService.Api.Services.ProfileVisibilityGuard>(client =>
+        {
+            client.BaseAddress = new Uri((config["Services:IdentityBaseUrl"] ?? "http://localhost:5188").TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromSeconds(3);
+        });
+
         services.AddHttpClient<IPlaceLookupService, BlogService.Api.Services.HttpPlaceLookupService>(client =>
         {
             client.BaseAddress = new Uri(config["PlaceService:BaseUrl"] ?? "http://localhost:5225");
             client.Timeout = TimeSpan.FromSeconds(3);
         });
+
+        // Map composition (MapController): PlaceService /bounds p95 is ~67 ms warm, but the first call after a restart
+        // measured ~5 s (JIT, Mongo connection), so 8 s - still far below the 100 s default that let a hung PlaceService
+        // hold the map.
+        services.AddHttpClient(BlogService.Api.Controllers.MapController.PlaceClientName, client => client.Timeout = TimeSpan.FromSeconds(8));
 
         services.Configure<BlogService.Api.Services.MediaOptions>(
             config.GetSection("Media"));
@@ -384,7 +408,9 @@ public static class ServiceCollectionExtensions
         var enableSubscription = config.GetValue("EventStore:EnableSubscription", true);
         if (enableSubscription)
         {
-            services.AddHostedService<BlogService.Api.EventStoreToRabbitMqPublisher>();
+            // One instance: the hosted publisher, and the same mapping for reconciliation (ReconcileController).
+            services.AddSingleton<BlogService.Api.EventStoreToRabbitMqPublisher>();
+            services.AddHostedService(sp => sp.GetRequiredService<BlogService.Api.EventStoreToRabbitMqPublisher>());
             Serilog.Log.Information("🔔 EventStore subscription ENABLED");
         }
         else
@@ -395,6 +421,8 @@ public static class ServiceCollectionExtensions
         // MassTransit
         services.AddMassTransit(busConfig =>
         {
+            // plan-devam F3: a deleted account's signals, comments, likes, views and media are erased here.
+            busConfig.AddConsumer<BlogService.Api.Consumers.UserDeletedConsumer>();
             busConfig.UsingRabbitMq((context, cfg) =>
             {
                 var rabbitMqConfig = config.GetSection("RabbitMq");
@@ -402,6 +430,11 @@ public static class ServiceCollectionExtensions
                 {
                     h.Username("user");
                     h.Password("password");
+                });
+                cfg.ReceiveEndpoint("blog-service-user-deleted", e =>
+                {
+                    e.UseMessageRetry(r => r.Intervals(TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30)));
+                    e.ConfigureConsumer<BlogService.Api.Consumers.UserDeletedConsumer>(context);
                 });
             });
         });
@@ -454,6 +487,12 @@ public static class ServiceCollectionExtensions
 
                 o.Events = new JwtBearerEvents
                 {
+                    // A refresh token is not an access token (BLK-TOKENS-01).
+                    OnTokenValidated = ctx =>
+                    {
+                        if (!Shared.Auth.BlinkrJwtOptions.IsAccessToken(ctx.Principal)) ctx.Fail("Refresh tokens cannot be used as access tokens.");
+                        return Task.CompletedTask;
+                    },
                     OnAuthenticationFailed = ctx =>
                     {
                         Serilog.Log.Warning("JWT authentication failed: {ExceptionType}", ctx.Exception.GetType().Name);
@@ -480,6 +519,13 @@ public static class ServiceCollectionExtensions
             options.AddPolicy("AdminOnly", policy =>
                 policy.RequireAuthenticatedUser()
                       .RequireRole("Admin"));
+
+            // Read-model maintenance (AdminReadModelsController, ReconcileController). It was referenced but never
+            // defined, so those endpoints failed with 500. The role claim may arrive as "role" or ClaimTypes.Role.
+            options.AddPolicy("api.admin", policy => policy
+                .RequireAuthenticatedUser()
+                .RequireAssertion(ctx => ctx.User.Claims.Any(c =>
+                    (c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role) && c.Value == "Admin")));
 
             options.DefaultPolicy = new AuthorizationPolicyBuilder()
                 .RequireAuthenticatedUser()
@@ -556,5 +602,20 @@ public static class ServiceCollectionExtensions
                 .AddPrometheusExporter());
 
         return services;
+    }
+
+    /// <summary>
+    /// Who a limit counts against (SECURITY S3, V2 closing): the signed-in person, else the device header, else the client IP
+    /// from the Gateway's X-Forwarded-For. It used to be the connection IP, and behind the Gateway every user has the same
+    /// one - so all users together shared one bucket of 100 requests a minute.
+    /// </summary>
+    private static string RateLimitKey(HttpContext httpContext)
+    {
+        var userId = httpContext.User?.FindFirst("sub")?.Value ?? httpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!string.IsNullOrWhiteSpace(userId)) return $"u:{userId}";
+        var deviceId = httpContext.Request.Headers["X-Device-Id"].ToString();
+        if (!string.IsNullOrWhiteSpace(deviceId)) return $"dev:{deviceId}";
+        var forwarded = httpContext.Request.Headers["X-Forwarded-For"].ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
+        return !string.IsNullOrEmpty(forwarded) ? $"ip:{forwarded}" : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon"}";
     }
 }
