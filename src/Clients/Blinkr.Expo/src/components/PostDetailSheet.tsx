@@ -1,5 +1,5 @@
 import { ArrowLeft, Bell, BellRing, Bookmark, Check, Compass, Flag, HelpCircle, Image as ImageIcon, Layers, MessageCircle, Plus, RefreshCw, Share2, ShieldCheck, X } from 'lucide-react-native';
-import { ActivityIndicator, Alert, Image, Linking, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, Platform, ScrollView, Share, StyleSheet, Text, View, type ScrollViewInstance } from 'react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { toAbsoluteUrl } from '../api';
@@ -180,7 +180,7 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
   const [collecting, setCollecting] = useState(false);
   // The "Haber ver" tile opens the watch card under the action row; "Yere sor" scrolls to the questions card.
   const [watchOpen, setWatchOpen] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const questionsY = useRef(0);
 
   // A different place or signal closes any half-filled report and any open thread.

@@ -1,7 +1,7 @@
 import { ChevronLeft, CornerDownRight, Heart, MessageCircle, MoreHorizontal, Send, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, ScrollView, type ScrollViewInstance, StyleSheet, Text, TextInput, View, type TextInputInstance } from 'react-native';
 
 import { ApiCodeError, addPostComment, deletePostComment, getPostComments, getPostEngagement, setPostReaction, togglePostCommentLike } from '../../api';
 import { chooseReaction, reactionStateOf, tapHeart, toggleCommentLike, totalReactions, type ReactionState } from '../../reactions';
@@ -108,9 +108,9 @@ export function SignalThreadPanel({ contextLine, onCountChange, auth, postId, he
   const likeOverrides = useRef(new Map<string, { likedByMe: boolean; likeCount: number; at: number }>());
   const [, setOverrideTick] = useState(0);
   const likeBusy = useRef(false);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   // Twitter-like writing: focusing the box slides the post up so the comments are in view; a line keeps its context.
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const headerHeight = useRef(0);
   const [writing, setWriting] = useState(false);
   const showComments = () => { if (header && headerHeight.current > 0) scrollRef.current?.scrollTo({ y: Math.max(0, headerHeight.current - spacing.sm), animated: true }); };

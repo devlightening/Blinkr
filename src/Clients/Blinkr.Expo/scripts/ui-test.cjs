@@ -860,7 +860,9 @@ async function main() {
     await expect(page.getByTestId('feed-card-f-1')).toBeVisible();
     // Stories: the tray (unseen ring first), watching moves through the segments and marks them seen, a reply goes
     // as a DM, and my own story shows viewers and can be deleted.
+    // v4: the full tray lives on the Takip tab; the default Yakın tab only shows my own story inside the Şimdi strip.
     await page.goto(url + '?scene=discover');
+    await page.getByRole('tab', { name: 'Takip' }).click();
     await expect(page.getByTestId('story-tray')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Hikaye ekle' })).toBeVisible();
     await page.getByRole('button', { name: 'zeynep, yeni hikaye' }).click();
@@ -903,6 +905,7 @@ async function main() {
     await expect(page.getByRole('button', { name: 'Hikaye ekle' })).toBeVisible();
     // V2-3: swipe left turns to the next person (the release is not also a tap), swipe down closes.
     await page.goto(url + '?scene=discover');
+    await page.getByRole('tab', { name: 'Takip' }).click();
     await page.getByRole('button', { name: /^zeynep, / }).click();
     await expect(page.getByTestId('story-viewer')).toBeVisible();
     await page.mouse.move(300, 400); await page.mouse.down();

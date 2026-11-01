@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, BackHandler, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, AppState, BackHandler, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View, type TextInputInstance } from 'react-native';
 import { ArrowLeft, Camera, Copy, CornerUpLeft, Flag, MapPin, MessageCircle, Send, Undo2, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -93,7 +93,7 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
   const lastTypingPing = useRef(0);
   // The client id of a send that failed: retrying the same text reuses it, so the server never stores it twice.
   const pendingClientId = useRef<string | null>(null);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const refresh = useMemo(() => ({ onAuthRefresh: onAuthChange, onSessionExpired }), [onAuthChange, onSessionExpired]);
   const language = i18n.language === 'en' ? 'en' : 'tr';
 
@@ -405,7 +405,7 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
           <View style={[styles.row, styles.rowTheirs, styles.rowGroupTop]}>
             <View accessibilityLabel={t('thread.typing')} style={[styles.bubble, styles.theirBubble, styles.typingBubble]}><Text style={styles.typingDots}>• • •</Text></View>
           </View>
-        ) : null}
+        ) : undefined}
         renderItem={({ item: row }) => (row.type === 'day'
           ? <View style={styles.dayRow}><Text accessibilityRole="header" style={styles.dayText} testID="chat-day">{row.label}</Text></View>
           : renderMessage(row.message, row.mine, row.groupTop, row.groupBottom))}

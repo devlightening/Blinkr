@@ -71,7 +71,7 @@ export function HashtagSearch({ auth, refresh, onOpen, bottomPadding }: Props) {
       <FlatList
         ListEmptyComponent={folded.length === 0 ? (
           <BlinkrEmptyState description={t('hashtags.hintBody')} icon={<Hash color={colors.textSecondary} size={32} />} style={styles.empty} title={t('hashtags.hintTitle')} />
-        ) : null}
+        ) : undefined}
         contentContainerStyle={{ paddingBottom: bottomPadding }}
         data={data}
         keyExtractor={(row) => row.tag}

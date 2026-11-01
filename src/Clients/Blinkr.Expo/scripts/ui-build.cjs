@@ -17,6 +17,8 @@ async function buildPreview(out) {
       try { await fs.access(web); return { path: web }; } catch { return undefined; }
     });
     build.onResolve({ filter: /^(expo-video|expo-constants|expo-haptics|expo-image-picker|expo-image-manipulator|expo-secure-store|expo-location|expo-camera|react-native-view-shot|expo-screen-capture|expo-localization|expo-clipboard|expo-font|@expo-google-fonts\/bricolage-grotesque)$/ }, () => ({ path: path.resolve('scripts/ui-native-stub.tsx') }));
+    build.onResolve({ filter: /^@react-native\/assets-registry\/registry$/ }, () => ({ path: path.resolve('scripts/ui-assets-registry-stub.js') }));
+    build.onResolve({ filter: /(\/ts-declarations\/global|NativeSvgSoundModule)(\.js)?$/ }, () => ({ path: path.resolve('scripts/ui-empty-stub.js') }));
     build.onResolve({ filter: /\/api$/ }, () => ({ path: path.resolve('scripts/ui-api-stub.ts') }));
   } }] });
 }

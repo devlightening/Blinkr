@@ -349,7 +349,7 @@ export function DiscoverScreen({ auth, onAuthChange, onLogout, onOpenPlace, onOp
         }
         ListFooterComponent={
           feed.loading ? <ActivityIndicator color={colors.primary} style={styles.footer} />
-            : feed.items.length > 0 && !canLoadMore(feed.page) ? <Text style={styles.end}>{t('discover.end')}</Text> : null
+            : feed.items.length > 0 && !canLoadMore(feed.page) ? <Text style={styles.end}>{t('discover.end')}</Text> : undefined
         }
         ListHeaderComponent={<View>{feedTop(which)}{feed.notice ? <Text accessibilityLiveRegion="polite" style={styles.notice}>{feed.notice}</Text> : null}</View>}
         contentContainerStyle={[styles.list, { paddingBottom: bottomBarClearance(insets.bottom) + spacing.lg }]}

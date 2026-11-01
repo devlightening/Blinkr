@@ -1,6 +1,6 @@
 import { Check, ChevronLeft, Trash2, Type } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions, type ViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { captureRef } from 'react-native-view-shot';
@@ -48,7 +48,7 @@ const TOOLS_HEIGHT = 250;
 export function PhotoEditor({ photo, lensId, onLensChange, onRetake, onDone, submitLabel = tx('create:editor.use', 'Kullan') }: Props) {
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const shot = useRef<View>(null);
+  const shot = useRef<ViewInstance>(null);
   const [stickers, setStickers] = useState<PlacedSticker[]>([]);
   const [rendering, setRendering] = useState(false);
   const [dragging, setDragging] = useState(false);

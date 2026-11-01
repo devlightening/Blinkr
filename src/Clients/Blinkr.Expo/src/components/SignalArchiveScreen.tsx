@@ -1,6 +1,6 @@
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, BackHandler, ScrollView, StyleSheet, Text, View, useWindowDimensions, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getMyPosts } from '../api';
@@ -41,7 +41,7 @@ export function SignalArchiveScreen({ auth, onAuthChange, onLogout, onBack, onOp
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const request = useRef<AbortController | null>(null);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
 
   const pushPage = useRef<PushScreenHandle>(null);
   // Back slides the page out like a swipe does, so the screen underneath is where the person left it.

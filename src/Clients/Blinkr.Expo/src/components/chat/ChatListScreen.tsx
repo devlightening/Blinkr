@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, BackHandler, FlatList, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, AppState, BackHandler, FlatList, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, type TextInputInstance } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ban, Bell, BellOff, Camera, CheckCheck, Flag, MessageCircle, Pin, PinOff, Search, SquarePen, UserPlus, UserRound, WifiOff, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -131,7 +131,7 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
   const pollInFlight = useRef(false);
   const blocksReadAt = useRef(0);
   const hasSettled = useRef(false);
-  const searchInput = useRef<TextInput>(null);
+  const searchInput = useRef<TextInputInstance>(null);
   // Ids already looked up by this screen instance. A failed lookup (e.g. a deleted user) is not
   // retried on every poll; it is tried again the next time the screen is opened.
   const requestedNames = useRef(new Set<string>());
@@ -531,7 +531,7 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
         </>
       ) : !shown.length ? <Text style={styles.noResults}>{tx('chat:list.keepTyping', 'Kişi aramak için biraz daha yaz')}</Text> : null}
     </View>
-  ) : null;
+  ) : undefined;
 
   const emptyFriends = friends && friends.length > 0 ? (
     <View style={styles.emptyFriends}>
@@ -657,7 +657,7 @@ export function ChatListScreen({ visible = true, auth, onAuthChange, onSessionEx
             style={styles.emptyTab}
             title={tx('chat:list.emptySnap', 'Henüz Snap yok')}
           />
-        ) : null}
+        ) : undefined}
         ListFooterComponent={searchFooter}
         contentContainerStyle={[styles.list, { paddingBottom: bottomBarClearance(insets.bottom) + spacing.lg }]}
         data={shown}

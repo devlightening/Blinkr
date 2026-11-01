@@ -303,7 +303,7 @@ export function NearbyScreen({ onOpenPlace, onOpenSignal, onCreateSignal, embedd
               ))}
               <Text style={styles.questionsHint}>{tx('map:ask.nearbyHint', 'Oradaysan yanıtla; yanıtın konumda doğrulanırsa soranlara iletilir.')}</Text>
             </View>
-          ) : null}
+          ) : undefined}
           refreshControl={<RefreshControl onRefresh={() => { setRefreshing(true); void load(true); }} refreshing={refreshing} tintColor={colors.primary} />}
           renderItem={({ item, index }) => (
             <ActivityRow

@@ -5,7 +5,6 @@ import { CheckCircle2, Plus, Wifi, X } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AppState,
-  InteractionManager,
   Linking,
   Platform,
   StyleSheet,
@@ -473,11 +472,11 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
   const openPlaceDetailAfterTouch = useCallback((place: BlinkrPlace) => {
     track('pin_tapped', { is_place: true, is_cluster: false, signal_type: place.currentState?.signalType ?? undefined });
     const generation = ++overlayGeneration.current;
-    InteractionManager.runAfterInteractions(() => {
+    requestIdleCallback(() => {
       if (overlayGeneration.current !== generation) return;
       setSelectedSignal(null);
       openPlaceCard(place);
-    });
+    }, { timeout: 300 });
   }, [openPlaceCard]);
 
   /** The place page (the former bottom sheet), reached from the card's place row or strip. */
@@ -493,11 +492,11 @@ export function MapScreen({ auth, onAuthChange, onLogout, onOpenProfile, onShowL
     const generation = ++overlayGeneration.current;
     detailRequest.current?.abort();
     detailRequestSeq.current += 1;
-    InteractionManager.runAfterInteractions(() => {
+    requestIdleCallback(() => {
       if (overlayGeneration.current !== generation) return;
       cardRequest.current?.abort();
       setCardView({ key: `signal:${signal.postId}`, place: null, cards: [fromCoordinateSignal(signal)], loading: false });
-    });
+    }, { timeout: 300 });
   }, []);
 
   const confirmFromCard = useCallback(async (card: CardSignal) => {
