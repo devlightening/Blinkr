@@ -3,7 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Activity, Info } from 'lucide-react-native';
 
 import { getPlaceRhythm } from '../../api';
-import { WEEK_ORDER, dayOf, hourLabel, levelLabel, rhythmA11y, rhythmSummary, weekdayShort, type PlaceRhythm } from '../../placeRhythm';
+import { WEEK_ORDER, compareWithUsual, dayOf, hourLabel, levelLabel, rhythmA11y, rhythmSummary, usualComparisonText, weekdayShort, type PlaceRhythm } from '../../placeRhythm';
+import type { CurrentPlaceState } from '../../types';
 import { colors, radii, spacing, typography } from '../../theme';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { tx } from '../../i18n/tx';
@@ -18,8 +19,10 @@ const TICKS = [6, 9, 12, 15, 18, 21];
  * observations; hours with too few different people stay empty (dashed stub), never shown as quiet. One series, so one
  * hue: the bar height is the busyness, the current hour is the solid one. Tapping a bar names its hour and level.
  * Hidden on failure; says plainly when the place has no rhythm yet.
+ * With a verified live state (`current`), today's chart also says how now compares with usual (plan Faz 2.2): one
+ * sentence on top, and the live level outlined over the current hour's bar.
  */
-export function PlaceRhythmCard({ placeId }: { placeId: string }) {
+export function PlaceRhythmCard({ placeId, current }: { placeId: string; current?: CurrentPlaceState | null }) {
   const [rhythm, setRhythm] = useState<PlaceRhythm | null>(null);
   const [failed, setFailed] = useState(false);
   const [weekday, setWeekday] = useState<number | null>(null);
@@ -56,6 +59,7 @@ export function PlaceRhythmCard({ placeId }: { placeId: string }) {
 
   const isToday = weekday === rhythm.today;
   const summary = rhythmSummary(rhythm, weekday);
+  const comparison = isToday ? compareWithUsual(rhythm, current) : null;
   const pickedHour = picked !== null ? day?.hours.find((h) => h.hour === picked) : undefined;
 
   return (
@@ -79,6 +83,12 @@ export function PlaceRhythmCard({ placeId }: { placeId: string }) {
         })}
       </View>
 
+      {comparison ? (
+        <View style={[styles.compare, comparison.direction === 'busier' && styles.compareBusier]} testID="place-rhythm-compare">
+          <Text style={styles.compareText}>{usualComparisonText(comparison)}</Text>
+        </View>
+      ) : null}
+
       <Text accessibilityLiveRegion="polite" style={styles.summary}>
         {pickedHour
           ? (pickedHour.level === null
@@ -97,6 +107,9 @@ export function PlaceRhythmCard({ placeId }: { placeId: string }) {
               {known
                 ? <View style={[styles.bar, { height }, now ? styles.barNow : styles.barUsual, picked === h.hour && styles.barPicked]} />
                 : <View style={styles.stub} />}
+              {now && comparison
+                ? <View pointerEvents="none" style={[styles.liveBar, { height: Math.max(MIN_BAR, Math.round(comparison.now * CHART_HEIGHT)) }]} testID="place-rhythm-live" />
+                : null}
             </AnimatedPressable>
           );
         })}
@@ -132,6 +145,11 @@ const styles = StyleSheet.create({
   barNow: { backgroundColor: colors.primary },
   barPicked: { borderColor: colors.primary, borderWidth: 1 },
   stub: { borderColor: colors.border, borderStyle: 'dashed', borderTopWidth: 1, width: '100%' },
+  // The live level drawn as an outline over the usual bar, so both read at once.
+  liveBar: { borderColor: colors.text, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderWidth: 2, bottom: 0, position: 'absolute', width: '100%' },
+  compare: { alignSelf: 'flex-start', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, paddingHorizontal: spacing.sm, paddingVertical: 4 },
+  compareBusier: { backgroundColor: colors.primaryTint },
+  compareText: { ...typography.label, color: colors.text },
   axis: { flexDirection: 'row', justifyContent: 'space-between', paddingRight: '8%' },
   tick: { ...typography.micro, color: colors.textSecondary, fontVariant: ['tabular-nums'] },
   note: { alignItems: 'flex-start', flexDirection: 'row', gap: 4 },

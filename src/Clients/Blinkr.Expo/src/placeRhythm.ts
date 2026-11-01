@@ -1,4 +1,5 @@
 import { tx } from './i18n/tx';
+import { levelFromSignal } from './live/liveState';
 
 /** GET /api/places/{id}/rhythm (D-037). Levels are 0 (sakin) .. 1 (kalabalık); null = too few different people. */
 export type PlaceRhythm = {
@@ -47,6 +48,32 @@ export const rhythmSummary = (rhythm: PlaceRhythm, weekday: number): string | nu
   if (quiet && (!now || now.level === null || quiet.level < now.level)) parts.push(tx('map:rhythm.quietest', 'En sakin: {{hour}}', { hour: hourLabel(quiet.hour) }));
   return parts.length ? parts.join(' · ') : null;
 };
+
+export type UsualComparison = { usual: number; now: number; direction: 'busier' | 'quieter' | 'usual' };
+
+/**
+ * "Normalde vs şu an" (plan Faz 2.2, after Google's live bar over popular times): the verified live state against what
+ * this hour is usually like. Only when both are real: today's current hour has a rhythm level, and the server's state
+ * is a Crowd/Queue level that is still FRESH or RECENT (it already holds only verified signals). The live level uses the
+ * rhythm's own scale (0 / 0.5 / 1), and a difference smaller than one step is "as usual".
+ */
+export const compareWithUsual = (
+  rhythm: PlaceRhythm | null,
+  current: { signalType?: string | null; signalValue?: string | null; freshness?: string | null } | null | undefined,
+): UsualComparison | null => {
+  if (!rhythm?.enough || !current || (current.freshness !== 'FRESH' && current.freshness !== 'RECENT')) return null;
+  const level = levelFromSignal({ type: current.signalType ?? '', value: current.signalValue ?? '' });
+  const usual = dayOf(rhythm, rhythm.today)?.hours.find((h) => h.hour === rhythm.currentHour)?.level;
+  if (level === null || usual === null || usual === undefined) return null;
+  const now = level / 2;
+  const direction = now - usual >= 0.34 ? 'busier' : usual - now >= 0.34 ? 'quieter' : 'usual';
+  return { usual, now, direction };
+};
+
+export const usualComparisonText = (comparison: UsualComparison) =>
+  comparison.direction === 'busier' ? tx('map:rhythm.busierThanUsual', 'Şu an normalden kalabalık')
+    : comparison.direction === 'quieter' ? tx('map:rhythm.quieterThanUsual', 'Şu an normalden sakin')
+      : tx('map:rhythm.asUsual', 'Şu an her zamanki gibi');
 
 /** Screen readers get the chart as text: every shown hour with its word. */
 export const rhythmA11y = (rhythm: PlaceRhythm, weekday: number) => {

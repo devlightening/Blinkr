@@ -408,7 +408,7 @@ export function PostDetailSheet({ auth = null, refresh, onReportUser, isLoading,
             ) : null}
 
             {/* D-037: how busy it usually is, from verified signals only. */}
-            <PlaceRhythmCard placeId={place.id} />
+            <PlaceRhythmCard current={place.currentState} placeId={place.id} />
             {/* D-039: ask how it is right now; answer with a normal signal (counts only when verified on site). */}
             <View onLayout={(e) => { questionsY.current = e.nativeEvent.layout.y; }}>
               <PlaceQuestionsCard auth={auth} onAnswer={onRecheck ? (type) => onRecheck('changed', { type, value: '' }) : undefined} place={place} refresh={refresh} />

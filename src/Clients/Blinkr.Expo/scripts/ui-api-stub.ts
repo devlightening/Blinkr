@@ -474,7 +474,10 @@ export const setMyProfile = async (_auth: unknown, profile: { bio: string | null
 };
 
 // Later features (rhythm, attributes, questions, watches, collections, meetups, trust): empty answers so the preview bundle links.
-export const getPlaceRhythm = async () => ({ enough: false, observations: 0, today: 0, currentHour: 0, days: [] });
+// `rhythm`: Monday 12:00 is usually calm (0.2), so a Busy place reads "Şu an normalden kalabalık" (plan Faz 2.2).
+export const getPlaceRhythm = async () => (flag('rhythm')
+  ? { enough: true, observations: 64, today: 1, currentHour: 12, days: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({ weekday, hours: Array.from({ length: 18 }, (_, i) => ({ hour: i + 6, level: i + 6 === 12 ? 0.2 : i % 5 === 4 ? null : ((i * 7) % 10) / 10 })) })) }
+  : { enough: false, observations: 0, today: 0, currentHour: 0, days: [] });
 export const getPlaceAttributes = async () => ({ attributes: [], canVote: false, catalog: [] });
 export const votePlaceAttribute = async () => undefined;
 export const getPlaceQuestions = async () => [];

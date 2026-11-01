@@ -134,7 +134,10 @@
     "hourNoData": "{{hour}} · not enough data",
     "hourLevel": "{{hour}} · usually {{level}}",
     "dayNoSummary": "Little data for this day",
-    "basis": "Based on {{count}} verified observations from the last 8 weeks; only hours with at least 3 people are shown."
+    "basis": "Based on {{count}} verified observations from the last 8 weeks; only hours with at least 3 people are shown.",
+    "busierThanUsual": "Busier than usual right now",
+    "quieterThanUsual": "Quieter than usual right now",
+    "asUsual": "As usual right now"
   },
   "watch": {
     "calm": "When it gets quiet",

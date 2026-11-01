@@ -134,7 +134,10 @@
     "hourNoData": "{{hour}} · yeterli veri yok",
     "hourLevel": "{{hour}} · genelde {{level}}",
     "dayNoSummary": "Bu gün için az veri var",
-    "basis": "Son 8 haftadaki {{count}} doğrulanmış gözleme dayanır; en az 3 kişinin olduğu saatler gösterilir."
+    "basis": "Son 8 haftadaki {{count}} doğrulanmış gözleme dayanır; en az 3 kişinin olduğu saatler gösterilir.",
+    "busierThanUsual": "Şu an normalden kalabalık",
+    "quieterThanUsual": "Şu an normalden sakin",
+    "asUsual": "Şu an her zamanki gibi"
   },
   "watch": {
     "calm": "Sakinleşince",

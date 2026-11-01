@@ -1312,6 +1312,15 @@ async function main() {
     await expect(page.getByLabel('answer')).toHaveText('confirm:Crowd:Busy');
     await page.getByRole('button', { name: 'Değişti' }).click();
     await expect(page.getByLabel('answer')).toHaveText('changed:Crowd:Busy');
+    // "Normalde vs şu an" (plan Faz 2.2): a Busy place at a usually calm hour; the live level is outlined on today's bar.
+    await page.goto(url + '?scene=detail&rhythm');
+    await expect(page.getByTestId('place-rhythm-compare')).toHaveText('Şu an normalden kalabalık');
+    await expect(page.getByTestId('place-rhythm-live')).toHaveCount(1);
+    await page.getByTestId('place-rhythm').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(250); await page.getByTestId('place-rhythm').screenshot({ path: path.join(out, 'rhythm-compare.png') });
+    await page.goto(url + '?scene=detail&rhythm&stale');
+    await expect(page.getByTestId('place-rhythm')).toBeVisible();
+    await expect(page.getByTestId('place-rhythm-compare')).toHaveCount(0);
     await page.goto(url + '?scene=detail&stale');
     await expect(page.getByText('Örnek Lokanta')).toBeVisible();
     await expect(page.getByText('Hâlâ böyle mi?')).toHaveCount(0);
