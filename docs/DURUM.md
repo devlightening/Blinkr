@@ -28,7 +28,7 @@ Rakip mekanizmaları uyarlanır, kopyalanmaz: Waze (teyit, gizli itibar), Google
 | Faz | İçerik | Durum |
 |---|---|---|
 | 0 Zemin | SDK 58 ✅ · app config tek kaynak + splash ✅ · tazelik tek kaynak (D-042) ✅ · backend ölü kod/TODO temizliği ✅ · feature flag (ilk bayraklı özellikle gelecek) · `eas.json` + dev build ⏸ ve Sentry ⏸ (D-044: ücretli hesap yok, Expo Go ile devam) | Hesap dışı bitti |
-| 1 Gerçek uygulama hissi | konum izni öncesi değer kartı (`map/LocationPrimer`) ✅ · Keşfet sekmesi yorumu ✅ · iskelet/boş/hata tutarlılığı · açılış süresi · push bildirimi ⏸ (D-044) | Devam |
+| 1 Gerçek uygulama hissi | konum izni öncesi değer kartı (`map/LocationPrimer`) ✅ telefonda doğrulandı · Keşfet sekmesi yorumu ✅ · iskelet şekilleri (`bubble`, `signal`; sohbet, Sinyal Kartı, arşiv, koleksiyon, kişi profili) ✅ · açılış süresi ⏸ (Expo Go kendi yükünü ekler; dev build ile ölçülür) · push bildirimi ⏸ (D-044) | Hesap dışı bitti |
 | 2 Harita | ısı katmanı (k-anonim), "normalde vs şu an", semt yoğunluğu, katman seçici, pin okunurluğu, asla boş harita | — |
 | 3 Sinyal | yakın yer istemi (uygulama açıkken, yer başına günde 1), "Hâlâ böyle mi?" öne çıkar, ≤ 2 dokunuş hızlı sinyal, "sinyalin N kişiye yardım etti" | — |
 | 4 Güven | gizli itibar puanı, Yerel rehber rozeti, özel müdavim rozeti, sahte konum önlemleri | — |
