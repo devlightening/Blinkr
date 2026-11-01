@@ -32,6 +32,7 @@ import { SignalCardModal } from '../signal/SignalCardModal';
 import { SnapStatusIcon, statusColor } from '../snap/SnapStatusIcon';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
 import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
+import { SkeletonList } from '../ui/BlinkrSkeleton';
 import { tx } from '../../i18n/tx';
 import { displayLocale } from '../../i18n/locale';
 import { isFor, pollIntervalMs } from '../../realtimePolicy';
@@ -387,7 +388,7 @@ export function ConversationScreen({ auth, conversation, otherUserName, otherAva
     </View>
 
     {isLoading ? (
-      <View style={styles.centerFill}><ActivityIndicator accessibilityLabel={tx('chat:thread.loading', 'Mesajlar yükleniyor')} color={colors.primary} /></View>
+      <View style={styles.skeleton}><SkeletonList accessibilityLabel={tx('chat:thread.loading', 'Mesajlar yükleniyor')} rows={8} variant="bubble" /></View>
     ) : !messages.length ? (
       <View style={styles.centerFill}>
         <BlinkrEmptyState description={tx('chat:thread.emptyHint', '{{name}} ile ilk mesajı sen yaz.', { name: otherUserName })} icon={<MessageCircle color={colors.textSecondary} size={26} />} title={tx('chat:thread.empty', 'Henüz mesaj yok')} />
@@ -532,6 +533,7 @@ const styles = StyleSheet.create({
   typing: { ...typography.caption, color: colors.primary },
   headerCamera: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 38, justifyContent: 'center', width: 38 },
   centerFill: { flex: 1, justifyContent: 'center' },
+  skeleton: { flex: 1, justifyContent: 'flex-end', padding: spacing.lg },
   listContent: { paddingHorizontal: spacing.md, paddingVertical: spacing.md },
   row: { marginTop: 2, maxWidth: '82%' },
   rowMine: { alignItems: 'flex-end', alignSelf: 'flex-end' },

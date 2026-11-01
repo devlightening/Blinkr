@@ -6,8 +6,11 @@ import { colors, radii, spacing } from '../../theme';
 import { tx } from '../../i18n/tx';
 
 type Props = {
-  /** `person`: avatar + two lines (chat, friends). `card`: icon tile + three lines (nearby, places). */
-  variant?: 'person' | 'card';
+  /**
+   * `person`: avatar + two lines (chat, friends). `card`: icon tile + three lines (nearby, places).
+   * `bubble`: message bubbles on both sides (a conversation). `signal`: author row, media and caption (a Sinyal Kartı).
+   */
+  variant?: 'person' | 'card' | 'bubble' | 'signal';
   rows?: number;
   /** Read out by screen readers while content loads. */
   accessibilityLabel?: string;
@@ -31,7 +34,22 @@ export function SkeletonList({ variant = 'person', rows = 5, accessibilityLabel 
   return (
     <Animated.View accessibilityLabel={accessibilityLabel} accessibilityRole="progressbar" style={[styles.list, animated, style]}>
       {Array.from({ length: rows }, (_, index) => (
-        variant === 'person' ? (
+        variant === 'bubble' ? (
+          <View key={index} style={[styles.bubble, index % 3 === 1 ? styles.bubbleMine : undefined, { width: `${42 + ((index * 23) % 34)}%` }]} />
+        ) : variant === 'signal' ? (
+          <View key={index} style={styles.signal}>
+            <View style={styles.person}>
+              <View style={styles.avatarSmall} />
+              <View style={styles.lines}>
+                <View style={[styles.line, { width: '42%' }]} />
+                <View style={[styles.lineSmall, { width: '28%' }]} />
+              </View>
+            </View>
+            <View style={styles.media} />
+            <View style={[styles.line, { width: '80%' }]} />
+            <View style={[styles.lineSmall, { width: '55%' }]} />
+          </View>
+        ) : variant === 'person' ? (
           <View key={index} style={styles.person}>
             <View style={styles.avatar} />
             <View style={styles.lines}>
@@ -63,4 +81,9 @@ const styles = StyleSheet.create({
   lines: { flex: 1, gap: spacing.sm },
   line: { backgroundColor: colors.surfaceElevated, borderRadius: 6, height: 12 },
   lineSmall: { backgroundColor: colors.surfaceElevated, borderRadius: 6, height: 10, opacity: 0.8 },
+  bubble: { alignSelf: 'flex-start', backgroundColor: colors.surfaceElevated, borderRadius: radii.lg, height: 40 },
+  bubbleMine: { alignSelf: 'flex-end' },
+  signal: { gap: spacing.sm },
+  avatarSmall: { backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 36, width: 36 },
+  media: { aspectRatio: 4 / 5, backgroundColor: colors.surfaceElevated, borderRadius: radii.card, width: '100%' },
 });

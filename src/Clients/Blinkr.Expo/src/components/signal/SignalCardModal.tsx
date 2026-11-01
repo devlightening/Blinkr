@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { ChevronLeft, ChevronRight, Flag, MapPin, Maximize2, Trash2, UserX, X } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, BackHandler, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { BackHandler, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, FadeIn, FadeOut, interpolate, ReduceMotion, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +26,7 @@ import { ShareToChatSheet } from '../chat/ShareToChatSheet';
 import { signalTarget } from '../../shareTarget';
 import { BlinkrButton } from '../ui/BlinkrButton';
 import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
+import { SkeletonList } from '../ui/BlinkrSkeleton';
 import { MediaViewer } from './MediaViewer';
 import { SignalCard, type TopComment } from './SignalCard';
 import { SignalThreadPanel } from './SignalThreadPanel';
@@ -417,7 +418,7 @@ export function SignalCardModal({ auth, refresh, cards: initialCards, initialInd
         </GestureDetector>
 
         {cards.length === 0 && loading ? (
-          <View style={styles.empty} testID="card-loading"><ActivityIndicator color={colors.primary} /></View>
+          <View style={styles.skeleton} testID="card-loading"><SkeletonList rows={1} variant="signal" /></View>
         ) : cards.length === 0 ? (
           <View style={styles.empty} testID="card-empty">
             <Text style={styles.emptyTitle}>{t('signal:card.noSignals')}</Text>
@@ -515,6 +516,7 @@ const styles = StyleSheet.create({
   stripMeta: { ...typography.caption, color: colors.textSecondary },
   close: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, height: 34, justifyContent: 'center', width: 34 },
   empty: { alignItems: 'center', gap: spacing.sm, padding: spacing.xl },
+  skeleton: { padding: spacing.lg },
   emptyTitle: { ...typography.title, color: colors.text, textAlign: 'center' },
   emptyBody: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
   pager: { alignItems: 'center', backgroundColor: colors.surfaceElevated, borderRadius: radii.pill, flexDirection: 'row', height: 34, paddingHorizontal: 2 },

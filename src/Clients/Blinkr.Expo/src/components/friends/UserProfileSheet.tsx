@@ -1,7 +1,7 @@
 import { Ban, ChevronLeft, Flag, Lock, MessageCircle, MoreHorizontal, Radio, UserCheck, UserMinus } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, BackHandler, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { BackHandler, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getPublicProfile, getUserPosts, sendReport } from '../../api';
@@ -25,6 +25,7 @@ import { SignalTile } from '../live/SignalTile';
 import { BlinkrButton } from '../ui/BlinkrButton';
 import { bottomBarClearance } from '../ui/BlinkrBottomBar';
 import { BlinkrSheetPanel } from '../ui/BlinkrSheetPanel';
+import { SkeletonList } from '../ui/BlinkrSkeleton';
 import { PushScreen, type PushScreenHandle } from '../ui/PushScreen';
 import { FollowButton } from './FollowButton';
 import { FollowListPanel, type FollowListTab } from './FollowListSheet';
@@ -214,7 +215,7 @@ export function UserProfileSheet({ auth, user, onAuthChange, onSessionExpired, o
           </View>
         </View>
 
-        {loading && !profile ? <ActivityIndicator accessibilityLabel={tx('profile:person.loading', 'Profil yükleniyor')} color={colors.primary} style={styles.loading} /> : null}
+        {loading && !profile ? <SkeletonList accessibilityLabel={tx('profile:person.loading', 'Profil yükleniyor')} rows={3} style={styles.loading} variant="card" /> : null}
         {error ? (
           <View style={styles.block}>
             <Text accessibilityRole="alert" style={styles.error}>{error}</Text>

@@ -1,6 +1,6 @@
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, ScrollView, StyleSheet, Text, View, useWindowDimensions, type ScrollViewInstance } from 'react-native';
+import { BackHandler, ScrollView, StyleSheet, Text, View, useWindowDimensions, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getMyPosts } from '../api';
@@ -15,6 +15,7 @@ import { PostRow } from './PostRow';
 import { SignalTile } from './live/SignalTile';
 import { BlinkrButton } from './ui/BlinkrButton';
 import { SegmentedControl } from './ui/BlinkrSegmentedControl';
+import { SkeletonList } from './ui/BlinkrSkeleton';
 import { PushScreen, type PushScreenHandle } from './ui/PushScreen';
 
 type Props = {
@@ -113,7 +114,7 @@ export function SignalArchiveScreen({ auth, onAuthChange, onLogout, onBack, onOp
           </View>
         ) : null}
         {items === null ? (
-          <ActivityIndicator accessibilityLabel={tx('profile:me.postsLoading', 'Sinyallerin yükleniyor')} color={colors.primary} style={styles.loading} />
+          <SkeletonList accessibilityLabel={tx('profile:me.postsLoading', 'Sinyallerin yükleniyor')} rows={4} style={styles.loading} variant="card" />
         ) : items.length === 0 ? (
           <Text style={styles.empty}>{tx('profile:me.postsEmpty', 'Henüz sinyal paylaşmadın')}</Text>
         ) : (

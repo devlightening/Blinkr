@@ -615,6 +615,12 @@ async function main() {
     await page.goto(url + '?scene=onboarding');
     await page.getByRole('button', { name: 'Tanıtımı atla' }).click();
     await expect(page.getByLabel('chosen')).toHaveText('done');
+    // Loading shapes (plan Faz 1.3): a conversation and a Sinyal Kartı load as the shape of what is coming, not a spinner.
+    for (const variant of ['bubble', 'signal']) {
+      await page.goto(url + `?scene=skeleton&variant=${variant}`);
+      await expect(page.getByRole('progressbar')).toBeVisible();
+      await page.waitForTimeout(250); await page.screenshot({ path: path.join(out, `skeleton-${variant}.png`) });
+    }
     // Location primer (plan Faz 1.2): says what the permission is for before the system prompt; settings when the
     // system will not ask again; "Şimdi değil" hides it.
     await page.goto(url + '?scene=primer');

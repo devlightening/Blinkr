@@ -58,6 +58,7 @@ import { quickStateFor } from '../src/live/quickSignal';
 import { liveStateFromCurrent, type NowFilter } from '../src/live/liveState';
 import { MapTopChrome } from '../src/components/map/MapTopChrome';
 import { LocationPrimer } from '../src/components/map/LocationPrimer';
+import { SkeletonList } from '../src/components/ui/BlinkrSkeleton';
 import { DiscoverScreen } from '../src/components/feed/DiscoverScreen';
 import type { MapLayer } from '../src/mapSelection';
 import { colors, getThemeMode, signalColors, typography } from '../src/theme';
@@ -572,6 +573,14 @@ function QuickScene() {
     </View>
   );
 }
+function SkeletonScene() {
+  const variant = (new URLSearchParams(globalThis.location?.search ?? '').get('variant') ?? 'signal') as 'person' | 'card' | 'bubble' | 'signal';
+  return (
+    <View style={{ backgroundColor: colors.background, flex: 1, padding: 16, paddingTop: 60 }}>
+      <SkeletonList rows={variant === 'signal' ? 1 : 8} variant={variant} />
+    </View>
+  );
+}
 function PrimerScene() {
   const denied = new URLSearchParams(globalThis.location?.search ?? '').has('denied');
   const [chosen, setChosen] = useState('none');
@@ -584,7 +593,7 @@ function PrimerScene() {
     </View>
   );
 }
-const scenes: Record<string, () => React.JSX.Element> = { primer: PrimerScene, quick: QuickScene, liveRings: LiveRings, liveSearch: LiveSearch, pendingDeletion: PendingDeletion, onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, card: CardScene, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, discover: Discover, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
+const scenes: Record<string, () => React.JSX.Element> = { skeleton: SkeletonScene, primer: PrimerScene, quick: QuickScene, liveRings: LiveRings, liveSearch: LiveSearch, pendingDeletion: PendingDeletion, onboarding: Onboarding, settings: Settings, reportableDetail: ReportableDetail, friends: Friends, personProfile: PersonProfile, auth: Auth, composerMedia: ComposerWithMedia, kit: Kit, card: CardScene, detail: Detail, map: MapChrome, profile: Profile, chat: Chat, nearby: Nearby, discover: Discover, mapSearch: MapSearch, avatars: AvatarGallery, camera: CameraScene, conversation: Conversation, search: UserSearch };
 
 export function SceneHost({ name }: { name: string }) {
   const Scene = scenes[name];

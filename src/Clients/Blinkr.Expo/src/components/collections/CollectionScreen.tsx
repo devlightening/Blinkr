@@ -1,6 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Link2, Lock, RefreshCw, Share2, Trash2, X } from 'lucide-react-native';
 
@@ -17,6 +17,7 @@ import { Avatar } from '../Avatar';
 import { PlaceSymbol } from '../PlaceSymbol';
 import { LiveStateLine } from '../live/LiveStateLine';
 import { BlinkrEmptyState } from '../ui/BlinkrEmptyState';
+import { SkeletonList } from '../ui/BlinkrSkeleton';
 import { PushScreen, type PushScreenHandle } from '../ui/PushScreen';
 import { tx } from '../../i18n/tx';
 
@@ -120,7 +121,7 @@ export function CollectionScreen({ auth, target, refresh = {}, onBack, onOpenPla
           />
         </View>
       ) : !data ? (
-        <ActivityIndicator color={colors.primary} style={styles.loading} />
+        <SkeletonList rows={4} style={styles.loading} variant="card" />
       ) : (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}>
           {data.owner && !data.isMine ? (
@@ -234,7 +235,7 @@ const styles = StyleSheet.create({
   barTitle: { ...typography.heading, color: colors.text, flex: 1, textAlign: 'center' },
   iconButton: { alignItems: 'center', height: sizes.touch, justifyContent: 'center', width: sizes.touch },
   center: { flex: 1, justifyContent: 'center' },
-  loading: { marginTop: spacing.xl },
+  loading: { marginTop: spacing.xl, paddingHorizontal: spacing.lg },
   content: { gap: spacing.md, paddingHorizontal: spacing.lg },
   owner: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   ownerText: { ...typography.callout, color: colors.textSecondary },
